@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>文章系统桌面端低保真线框</title>
+    <link rel="stylesheet" href="./wireframes.css" />
+  </head>
+  <body>
+    <h1 class="board-title">文章系统 · 桌面端低保真线框</h1>
+    <p class="board-note">1440px 设计基准；先确认层级、位置和状态，不讨论最终颜色与装饰。</p>
+
+    <main class="board desktop">
+      <section>
+        <h2 class="sheet-label">01 / 文章索引</h2>
+        <div class="frame">
+          <header class="site-head">
+            <div class="logo">SHAWN</div>
+            <nav class="nav">
+              <span>项目</span><span class="active">文章</span><span>关于</span>
+            </nav>
+            <span>搜索 · 主题</span>
+          </header>
+          <div class="page">
+            <div class="index-head">
+              <div class="page-tools"><span>2 篇</span><span>标签</span></div>
+            </div>
+            <article class="article-row">
+              <div class="date">2026年7月31日</div>
+              <div>
+                <h2 class="article-name">功能示例：普通单版本文章</h2>
+                <p class="article-desc">普通 Markdown 文件对应一个干净的文章页面。</p>
+              </div>
+              <div class="chips">
+                <span class="chip">#普通文章</span><span class="chip">#Markdown</span>
+              </div>
+              <span>↗</span>
+            </article>
+            <article class="article-row">
+              <div class="date">2024年6月18日<small>更新于 2026年7月31日</small></div>
+              <div>
+                <h2 class="article-name">功能示例：多版本文章</h2>
+                <p class="article-desc">同一篇文章保留完整旧版本，同时默认展示当前内容。</p>
+              </div>
+              <div class="chips">
+                <span class="chip">v3 / 3 个版本</span><span class="chip">#内容修订</span>
+              </div>
+              <span>↗</span>
+            </article>
+          </div>
+          <span class="annotation top-right">列表直接进入工具与内容</span>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="sheet-label">02 / 当前多版本文章</h2>
+        <div class="frame">
+          <header class="site-head">
+            <div class="logo">SHAWN</div>
+            <nav class="nav">
+              <span>项目</span><span class="active">文章</span><span>关于</span>
+            </nav>
+            <span>搜索 · 主题</span>
+          </header>
+          <div class="page">
+            <nav class="breadcrumb"><span>文章</span><span>/</span><b>功能示例：多版本文章</b></nav>
+            <div class="article-shell">
+              <main>
+                <h1 class="article-heading">功能示例：多版本文章</h1>
+                <p class="summary">
+                  用于展示同一篇文章如何保留完整旧版本，同时默认提供整理后的最新内容。
+                </p>
+                <div class="meta">
+                  <span>首次发布 2024年6月18日</span><span>更新 2026年7月31日</span
+                  ><span>约 8 分钟</span>
+                </div>
+                <div class="chips" style="margin-top: 14px">
+                  <span class="chip">#多版本文章</span><span class="chip">#内容修订</span>
+                </div>
+                <div class="version-tools"><strong>v3 / 当前⌄</strong><span>比较版本</span></div>
+                <div class="body-copy">
+                  <h2>背景</h2>
+                  <p>这篇文章说明一个需要长期维护的主题。</p>
+                  <h2>当前方案</h2>
+                  <p>正文、图片、引用、列表和代码在这里连续排版。</p>
+                  <div class="line"></div>
+                  <div class="line short"></div>
+                </div>
+              </main>
+              <aside class="toc">
+                <b>本文目录</b><span>背景</span><br /><span>适用范围</span><br /><span
+                  >当前方案</span
+                ><br /><span>结尾</span>
+              </aside>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="sheet-label">03 / 历史固定版本</h2>
+        <div class="frame">
+          <header class="site-head">
+            <div class="logo">SHAWN</div>
+            <nav class="nav">
+              <span>项目</span><span class="active">文章</span><span>关于</span>
+            </nav>
+            <span>搜索 · 主题</span>
+          </header>
+          <div class="page">
+            <nav class="breadcrumb">
+              <span>文章</span><span>/</span><span>功能示例：多版本文章</span><span>/</span
+              ><b>v1</b>
+            </nav>
+            <div class="article-shell">
+              <main>
+                <h1 class="article-heading">功能示例：多版本文章</h1>
+                <p class="summary">这是文章在 2024 年首次发布时的完整内容。</p>
+                <div class="meta">
+                  <span>当前查看 v1</span><span>发布 2024年6月18日</span><span>约 5 分钟</span>
+                </div>
+                <div class="version-tools"><strong>v1⌄</strong><span>比较版本</span></div>
+                <aside class="notice">
+                  <b>历史版本 v1</b>
+                  <p>这是发布时的不可变快照；当前最新版为 v3。　阅读当前版本　·　比较 v1 与 v3</p>
+                </aside>
+                <div class="body-copy">
+                  <h2>背景</h2>
+                  <p>旧版本正文从这里开始，内容本身不被覆盖。</p>
+                  <h2>当时的方案</h2>
+                  <div class="line"></div>
+                  <div class="line"></div>
+                  <div class="line short"></div>
+                </div>
+              </main>
+              <aside class="toc">
+                <b>本文目录</b><span>背景</span><br /><span>当时的方案</span>
+              </aside>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="sheet-label">04 / 版本比较</h2>
+        <div class="frame">
+          <header class="site-head">
+            <div class="logo">SHAWN</div>
+            <nav class="nav">
+              <span>项目</span><span class="active">文章</span><span>关于</span>
+            </nav>
+            <span>搜索 · 主题</span>
+          </header>
+          <div class="page">
+            <nav class="breadcrumb">
+              <span>文章</span><span>/</span><span>功能示例：多版本文章</span><span>/</span
+              ><b>比较 v1 与 v3</b>
+            </nav>
+            <div class="kicker">VERSION DIFF</div>
+            <h1 class="page-title">比较 v1 与 v3</h1>
+            <p class="page-copy">
+              功能示例：多版本文章 · 展示两个完整 Markdown 版本之间的实际差异。
+            </p>
+            <div class="diff-head">
+              <div class="endpoint"><b>版本 A　v1⌄</b><small>自由选择公开版本</small></div>
+              <div class="endpoint"><b>版本 B　v3⌄</b><small>必须与版本 A 不同</small></div>
+            </div>
+            <div class="diff">
+              <div>　# 当前方案</div>
+              <div class="remove">− 旧方案只包含两个步骤。</div>
+              <div class="add">+ 当前方案包含三个步骤，并增加了验证。</div>
+              <div>　正文中未修改的上下文。</div>
+              <div class="add">+ 新增适用范围说明。</div>
+            </div>
+            <div class="version-tools"><span>阅读 v1</span><span>阅读 v3</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="sheet-label">05 / 标签索引</h2>
+        <div class="frame">
+          <header class="site-head">
+            <div class="logo">SHAWN</div>
+            <nav class="nav">
+              <span>项目</span><span class="active">文章</span><span>关于</span>
+            </nav>
+            <span>搜索 · 主题</span>
+          </header>
+          <div class="page">
+            <nav class="breadcrumb"><span>文章</span><span>/</span><b>标签</b></nav>
+            <div class="kicker">TOPICS</div>
+            <h1 class="page-title">主题索引</h1>
+            <p class="page-copy">这里用于按主题浏览公开文章；标签数量和文章数量由内容自动生成。</p>
+            <div class="tag-grid">
+              <div class="tag-card"><b>#内容修订</b><small>1 篇文章</small></div>
+              <div class="tag-card"><b>#Markdown</b><small>1 篇文章</small></div>
+              <div class="tag-card"><b>#多版本文章</b><small>1 篇文章</small></div>
+              <div class="tag-card"><b>#普通文章</b><small>1 篇文章</small></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

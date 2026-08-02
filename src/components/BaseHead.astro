@@ -1,0 +1,126 @@
+---
+import { SEO } from 'astro-seo';
+import { Schema } from 'astro-seo-schema';
+import { ClientRouter } from 'astro:transitions';
+import type { Person, WithContext } from 'schema-dts';
+import { SITE } from '../config';
+import {
+  BASE_LOCALE,
+  LOCALES,
+  replacePathLocale,
+  toLanguageTag,
+  type Locale,
+} from '../i18n/config';
+import * as m from '../paraglide/messages.js';
+
+type Props = {
+  title?: string;
+  description?: string;
+  canonical?: string;
+  image?: string;
+  type?: 'website' | 'article';
+  noIndex?: boolean;
+  locale?: Locale;
+  alternateLocales?: Locale[];
+};
+
+const {
+  locale = BASE_LOCALE,
+  title = m.site_title({}, { locale }),
+  description = m.site_description({}, { locale }),
+  canonical,
+  image,
+  type = 'website',
+  noIndex = false,
+  alternateLocales = [...LOCALES],
+} = Astro.props;
+const siteTitle = m.site_title({}, { locale });
+const pageTitle = title === siteTitle ? title : `${title} — ${SITE.name}`;
+const canonicalUrl = canonical ?? new URL(Astro.url.pathname, Astro.site ?? SITE.url).toString();
+const socialImage = image ? new URL(image, Astro.site ?? SITE.url).toString() : undefined;
+const languageAlternates: Array<{ hrefLang: string; href: string }> = alternateLocales.map(
+  (alternateLocale) => ({
+    hrefLang: toLanguageTag(alternateLocale),
+    href: new URL(
+      replacePathLocale(Astro.url.pathname, alternateLocale),
+      Astro.site ?? SITE.url,
+    ).toString(),
+  }),
+);
+const xDefaultLocale = alternateLocales.includes(BASE_LOCALE)
+  ? BASE_LOCALE
+  : (alternateLocales[0] ?? BASE_LOCALE);
+languageAlternates.push({
+  hrefLang: 'x-default',
+  href: new URL(
+    replacePathLocale(Astro.url.pathname, xDefaultLocale),
+    Astro.site ?? SITE.url,
+  ).toString(),
+});
+const person: WithContext<Person> = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: SITE.author,
+  url: SITE.url,
+  sameAs: [SITE.github],
+};
+const openGraph = socialImage
+  ? {
+      basic: { title: pageTitle, type, image: socialImage, url: canonicalUrl },
+      optional: {
+        description,
+        locale: locale === 'zh' ? 'zh_CN' : 'en_US',
+        localeAlternate: [locale === 'zh' ? 'en_US' : 'zh_CN'],
+        siteName: SITE.name,
+      },
+    }
+  : undefined;
+---
+
+<SEO
+  charset="UTF-8"
+  title={pageTitle}
+  {description}
+  canonical={canonicalUrl}
+  noindex={noIndex}
+  {languageAlternates}
+  {openGraph}
+  twitter={{
+    card: socialImage ? 'summary_large_image' : 'summary',
+    title: pageTitle,
+    description,
+    image: socialImage,
+  }}
+  extend={{
+    meta: socialImage
+      ? []
+      : [
+          { property: 'og:type', content: type },
+          { property: 'og:site_name', content: SITE.name },
+          { property: 'og:title', content: pageTitle },
+          { property: 'og:description', content: description },
+          { property: 'og:url', content: canonicalUrl },
+        ],
+  }}
+/>
+<meta name="viewport" content="width=device-width" />
+<meta name="generator" content={Astro.generator} />
+<ClientRouter />
+<meta name="theme-color" content="#f7f8fb" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="manifest" href={`/site.${locale}.webmanifest`} />
+<Schema item={person} />
+
+<script is:inline data-astro-rerun>
+  (() => {
+    const stored = localStorage.getItem('theme');
+    const dark =
+      stored === 'dark' ||
+      (stored !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.classList.toggle('dark', dark);
+    document.documentElement.dataset.theme = dark ? 'github-dark' : 'github-light';
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', dark ? '#070a12' : '#f7f8fb');
+  })();
+</script>

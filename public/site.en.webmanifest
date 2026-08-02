@@ -1,0 +1,19 @@
+{
+  "name": "Shawn — Personal site",
+  "short_name": "Shawn",
+  "description": "Shawn's personal site for projects, writing, and an introduction.",
+  "lang": "en",
+  "start_url": "/en/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fb",
+  "theme_color": "#090d18",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

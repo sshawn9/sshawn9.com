@@ -1,0 +1,293 @@
+---
+import {
+  ArrowRight,
+  Braces,
+  Compass,
+  ExternalLink,
+  Layers,
+  Sparkles,
+  Terminal,
+} from '@lucide/astro';
+import { SITE } from '../config';
+import { getProjects } from '../data/projects';
+import { localePath, type Locale } from '../i18n/config';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getPublishedArticles } from '../lib/articles';
+import * as m from '../paraglide/messages.js';
+import PostCard from './PostCard.astro';
+import ProjectCard from './ProjectCard.astro';
+import SectionHeading from './SectionHeading.astro';
+
+type Props = { locale: Locale };
+const { locale } = Astro.props;
+const projects = getProjects(locale);
+const latestArticles = (await getPublishedArticles(locale)).slice(0, 3);
+const projectsHref = localePath(locale, '/projects/');
+const blogHref = localePath(locale, '/blog/');
+const aboutHref = localePath(locale, '/about/');
+---
+
+<BaseLayout {locale}>
+  <section
+    class="content-shell grid min-h-[calc(100vh-5rem)] items-center gap-14 py-16 lg:grid-cols-[1.08fr_0.92fr] lg:py-24"
+  >
+    <div>
+      <div
+        class="inline-flex items-center gap-2 rounded-full border border-slate-900/10 bg-white/50 px-3 py-1.5 font-mono text-[0.65rem] font-bold tracking-[0.12em] text-slate-600 backdrop-blur dark:border-white/10 dark:bg-white/5 dark:text-slate-300"
+        data-reveal
+      >
+        <span class="relative flex size-2">
+          <span
+            class="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60"
+          ></span>
+          <span class="relative inline-flex size-2 rounded-full bg-emerald-500"></span>
+        </span>
+        {m.home_hero_badge({}, { locale })}
+      </div>
+      <h1
+        class="mt-8 max-w-3xl text-[clamp(2.9rem,7vw,5.75rem)] leading-[0.98] font-extrabold tracking-[-0.065em] text-balance"
+        data-reveal
+      >
+        {m.home_hero_title_before({}, { locale })}<span class="gradient-text"
+          >{m.home_hero_title_accent({}, { locale })}</span
+        >{m.home_hero_title_after({}, { locale })}
+      </h1>
+      <p
+        class="mt-7 max-w-2xl text-lg leading-8 text-slate-600 sm:text-xl dark:text-slate-400"
+        data-reveal
+      >
+        {m.home_hero_description({}, { locale })}
+      </p>
+      <div class="mt-9 flex flex-wrap gap-3" data-reveal>
+        <a class="button-primary" href={projectsHref}
+          >{m.home_view_projects({}, { locale })}
+          <ArrowRight class="size-4" aria-hidden="true" /></a
+        >
+        <a class="button-secondary" href={blogHref}>{m.home_read_blog({}, { locale })}</a>
+        <a class="button-secondary" href={SITE.github} target="_blank" rel="noreferrer"
+          >GitHub <ExternalLink class="size-4" aria-hidden="true" /></a
+        >
+      </div>
+      <div
+        class="mt-10 flex flex-wrap gap-x-8 gap-y-3 border-t border-slate-900/8 pt-5 text-xs text-slate-500 dark:border-white/8 dark:text-slate-400"
+        data-reveal
+      >
+        <span
+          ><strong class="text-slate-900 dark:text-white"
+            >{m.home_identity_label({}, { locale })}</strong
+          > / {m.home_identity_value({}, { locale })}</span
+        >
+        <span
+          ><strong class="text-slate-900 dark:text-white"
+            >{m.home_focus_label({}, { locale })}</strong
+          > / {m.home_focus_value({}, { locale })}</span
+        >
+        <span
+          ><strong class="text-slate-900 dark:text-white"
+            >{m.home_content_label({}, { locale })}</strong
+          > / {m.home_content_value({}, { locale })}</span
+        >
+      </div>
+    </div>
+
+    <div class="relative mx-auto w-full max-w-xl" data-reveal>
+      <div
+        class="absolute inset-0 -z-10 bg-[radial-gradient(circle,rgba(34,211,238,0.16),transparent_62%)] blur-2xl"
+      >
+      </div>
+      <div class="surface spotlight-card overflow-hidden rounded-[2rem] p-3">
+        <div class="flex items-center justify-between px-4 py-3">
+          <div class="flex items-center gap-2" aria-hidden="true">
+            <span class="size-2 rounded-full bg-rose-400"></span>
+            <span class="size-2 rounded-full bg-amber-400"></span>
+            <span class="size-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <span class="font-mono text-[0.6rem] font-bold tracking-[0.14em] text-slate-500"
+            >{m.home_visual_window_label({}, { locale })}</span
+          >
+        </div>
+        <div
+          class="signal-grid relative min-h-[25rem] overflow-hidden rounded-[1.4rem] border border-slate-900/8 bg-slate-50/75 dark:border-white/8 dark:bg-[#090e1a]/85"
+        >
+          <svg
+            class="absolute inset-0 h-full w-full"
+            viewBox="0 0 560 400"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              class="signal-path"
+              d="M72 84C150 84 151 185 239 185C327 185 322 92 414 92C477 92 475 159 515 159"
+              stroke="url(#signal-a)"
+              stroke-width="1.5"></path>
+            <path
+              class="signal-path"
+              d="M49 303C130 303 154 241 225 241C300 241 321 326 411 326C464 326 482 280 526 280"
+              stroke="url(#signal-b)"
+              stroke-width="1.5"></path>
+            <path
+              d="M280 38V362"
+              stroke="currentColor"
+              class="text-slate-400/10"
+              stroke-dasharray="2 12"></path>
+            <defs>
+              <linearGradient
+                id="signal-a"
+                x1="72"
+                y1="84"
+                x2="515"
+                y2="159"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop stop-color="#22D3EE"></stop><stop offset="0.5" stop-color="#6366F1"
+                ></stop><stop offset="1" stop-color="#A855F7"></stop>
+              </linearGradient>
+              <linearGradient
+                id="signal-b"
+                x1="49"
+                y1="303"
+                x2="526"
+                y2="280"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop stop-color="#F59E0B"></stop><stop offset="0.5" stop-color="#22D3EE"
+                ></stop><stop offset="1" stop-color="#6366F1"></stop>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div
+            class="absolute top-12 left-7 rounded-2xl border border-cyan-500/20 bg-white/75 p-4 shadow-lg backdrop-blur dark:bg-slate-950/70"
+          >
+            <Compass class="size-5 text-cyan-500" aria-hidden="true" />
+            <p class="mt-4 font-mono text-[0.58rem] tracking-[0.14em] text-slate-500">
+              {m.home_visual_profile({}, { locale })}
+            </p>
+            <p class="mt-1 text-sm font-extrabold">
+              {m.home_visual_profile_value({}, { locale })}
+            </p>
+          </div>
+          <div
+            class="absolute top-[42%] right-7 rounded-2xl border border-violet-500/20 bg-white/75 p-4 shadow-lg backdrop-blur dark:bg-slate-950/70"
+          >
+            <Braces class="size-5 text-violet-500" aria-hidden="true" />
+            <p class="mt-4 font-mono text-[0.58rem] tracking-[0.14em] text-slate-500">
+              {m.home_visual_projects({}, { locale })}
+            </p>
+            <p class="mt-1 text-sm font-extrabold">
+              {m.home_visual_projects_value({}, { locale })}
+            </p>
+          </div>
+          <div
+            class="absolute bottom-8 left-12 rounded-2xl border border-amber-500/20 bg-white/75 p-4 shadow-lg backdrop-blur dark:bg-slate-950/70"
+          >
+            <Sparkles class="size-5 text-amber-500" aria-hidden="true" />
+            <p class="mt-4 font-mono text-[0.58rem] tracking-[0.14em] text-slate-500">
+              {m.home_visual_blog({}, { locale })}
+            </p>
+            <p class="mt-1 text-sm font-extrabold">
+              {m.home_visual_blog_value({}, { locale })}
+            </p>
+          </div>
+          <span
+            class="signal-pulse absolute top-[42%] left-[46%] size-3 rounded-full border-2 border-cyan-300 bg-cyan-400 shadow-[0_0_28px_8px_rgba(34,211,238,0.38)]"
+          ></span>
+        </div>
+        <div
+          class="flex items-center gap-2 px-4 py-3 font-mono text-[0.62rem] text-slate-500 dark:text-slate-400"
+        >
+          <Terminal class="size-3.5" aria-hidden="true" />
+          <span class="text-emerald-600 dark:text-emerald-400"
+            >{m.home_visual_prompt({}, { locale })}:</span
+          >
+          {m.home_visual_caption({}, { locale })}
+          <span class="ml-auto animate-pulse">_</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="content-shell py-20 sm:py-28">
+    <div class="flex flex-col justify-between gap-8 md:flex-row md:items-end">
+      <SectionHeading
+        eyebrow={m.home_featured_projects_eyebrow({}, { locale })}
+        title={m.home_featured_projects_title({}, { locale })}
+        description={m.home_featured_projects_description({}, { locale })}
+      />
+      <a
+        href={projectsHref}
+        class="inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-cyan-700 dark:text-slate-300 dark:hover:text-cyan-300"
+        data-reveal
+      >
+        {m.home_view_all({}, { locale })}
+        <ArrowRight class="size-4" aria-hidden="true" />
+      </a>
+    </div>
+    <div class="mt-10 grid gap-5 lg:grid-cols-3">
+      {projects.map((project) => <ProjectCard {project} {locale} />)}
+    </div>
+  </section>
+
+  <section
+    class="border-y border-slate-900/8 bg-slate-900/[0.025] py-20 sm:py-28 dark:border-white/8 dark:bg-white/[0.018]"
+  >
+    <div class="content-shell">
+      <SectionHeading
+        eyebrow={m.home_latest_posts_eyebrow({}, { locale })}
+        title={m.home_latest_posts_title({}, { locale })}
+        description={m.home_latest_posts_description({}, { locale })}
+      />
+      <div class="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
+        <div class="grid gap-5">
+          {latestArticles.map((article) => <PostCard {article} />)}
+        </div>
+        <aside class="surface spotlight-card rounded-3xl p-7 sm:p-8" data-reveal>
+          <Layers class="size-6 text-violet-500" aria-hidden="true" />
+          <p
+            class="mt-7 font-mono text-[0.65rem] font-bold tracking-[0.15em] text-violet-600 dark:text-violet-300"
+          >
+            {m.home_blog_features_eyebrow({}, { locale })}
+          </p>
+          <h3 class="mt-3 text-2xl font-extrabold tracking-tight">
+            {m.home_blog_features_title({}, { locale })}
+          </h3>
+          <p class="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-400">
+            {m.home_blog_features_description({}, { locale })}
+          </p>
+          <a
+            href={blogHref}
+            class="mt-7 inline-flex items-center gap-2 text-sm font-bold text-violet-700 dark:text-violet-300"
+          >
+            {m.home_enter_blog({}, { locale })}
+            <ArrowRight class="size-4" aria-hidden="true" />
+          </a>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section class="content-shell py-20 sm:py-28">
+    <div
+      class="surface relative overflow-hidden rounded-[2rem] px-6 py-12 sm:px-12 sm:py-16"
+      data-reveal
+    >
+      <div class="absolute -top-28 -right-20 size-80 rounded-full bg-cyan-400/12 blur-3xl"></div>
+      <div class="absolute -bottom-36 left-1/3 size-80 rounded-full bg-violet-500/12 blur-3xl">
+      </div>
+      <div class="relative grid gap-10 lg:grid-cols-[1fr_auto] lg:items-end">
+        <div class="max-w-3xl">
+          <p class="eyebrow">{m.home_optional_eyebrow({}, { locale })}</p>
+          <h2 class="mt-5 text-3xl font-extrabold tracking-[-0.04em] text-balance sm:text-5xl">
+            {m.home_optional_title({}, { locale })}
+          </h2>
+          <p class="mt-5 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-400">
+            {m.home_optional_description({}, { locale })}
+          </p>
+        </div>
+        <a class="button-primary" href={aboutHref}
+          >{m.home_view_about({}, { locale })}
+          <ArrowRight class="size-4" aria-hidden="true" /></a
+        >
+      </div>
+    </div>
+  </section>
+</BaseLayout>

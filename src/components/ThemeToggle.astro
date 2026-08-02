@@ -1,0 +1,79 @@
+---
+import { Moon, Sun } from '@lucide/astro';
+import type { Locale } from '../i18n/config';
+import * as m from '../paraglide/messages.js';
+
+type Props = { locale: Locale };
+const { locale } = Astro.props;
+---
+
+<button
+  type="button"
+  class="relative inline-flex size-10 items-center justify-center rounded-full border border-slate-900/10 bg-white/60 text-slate-700 transition hover:border-cyan-400/50 hover:text-cyan-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:text-cyan-300"
+  aria-label={m.theme_toggle({}, { locale })}
+  title={m.theme_toggle({}, { locale })}
+  data-theme-toggle
+  data-label-light={m.theme_to_light({}, { locale })}
+  data-label-dark={m.theme_to_dark({}, { locale })}
+>
+  <Sun class="size-[1.05rem] dark:hidden" aria-hidden="true" />
+  <Moon class="hidden size-[1.05rem] dark:block" aria-hidden="true" />
+</button>
+
+<script>
+  import type { TransitionBeforeSwapEvent } from 'astro:transitions/client';
+
+  const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+  function isDarkTheme() {
+    const stored = localStorage.getItem('theme');
+    return stored === 'dark' || (stored !== 'light' && media.matches);
+  }
+
+  function setDocumentTheme(target: Document, dark: boolean) {
+    target.documentElement.classList.toggle('dark', dark);
+    target.documentElement.dataset.theme = dark ? 'github-dark' : 'github-light';
+    target
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', dark ? '#070a12' : '#f7f8fb');
+  }
+
+  function syncThemeControls(dark: boolean) {
+    document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]').forEach((button) => {
+      const label = dark ? button.dataset.labelLight : button.dataset.labelDark;
+      if (label) {
+        button.ariaLabel = label;
+        button.title = label;
+      }
+    });
+  }
+
+  function applyTheme(dark: boolean, persist = true) {
+    setDocumentTheme(document, dark);
+    syncThemeControls(dark);
+    if (persist) localStorage.setItem('theme', dark ? 'dark' : 'light');
+  }
+
+  document.addEventListener('click', (event) => {
+    const target = event.target;
+    const button = target instanceof Element ? target.closest('[data-theme-toggle]') : null;
+    if (!button) return;
+
+    applyTheme(!document.documentElement.classList.contains('dark'));
+  });
+
+  document.addEventListener('astro:before-swap', (event) => {
+    const { newDocument } = event as TransitionBeforeSwapEvent;
+    setDocumentTheme(newDocument, isDarkTheme());
+  });
+
+  document.addEventListener('astro:page-load', () => {
+    applyTheme(isDarkTheme(), false);
+  });
+
+  media.addEventListener('change', ({ matches }) => {
+    if (!localStorage.getItem('theme')) applyTheme(matches, false);
+  });
+
+  applyTheme(isDarkTheme(), false);
+</script>

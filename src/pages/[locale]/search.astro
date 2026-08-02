@@ -1,0 +1,54 @@
+---
+import SearchClient from '../../components/SearchClient.astro';
+import { getLocaleStaticPaths, type Locale } from '../../i18n/config';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import * as m from '../../paraglide/messages.js';
+
+type Props = { locale: Locale };
+export const getStaticPaths = getLocaleStaticPaths;
+const { locale } = Astro.props;
+const isProduction = import.meta.env.PROD;
+---
+
+<BaseLayout
+  title={m.search_page_title({}, { locale })}
+  description={m.search_page_description({}, { locale })}
+  noIndex
+  searchable={false}
+  {locale}
+>
+  {isProduction && <link slot="head" rel="stylesheet" href="/pagefind/pagefind-component-ui.css" />}
+  <section class="content-shell pt-16 sm:pt-24">
+    <div class="max-w-3xl" data-reveal>
+      <p class="eyebrow">{m.search_eyebrow({}, { locale })}</p>
+      <h1 class="mt-5 text-5xl font-extrabold tracking-[-0.055em] sm:text-7xl">
+        {m.search_heading({}, { locale })}
+      </h1>
+      <p class="mt-6 text-lg leading-8 text-slate-600 dark:text-slate-400">
+        {m.search_intro({}, { locale })}
+      </p>
+    </div>
+    <div class="mt-12" data-reveal>
+      {
+        isProduction ? (
+          <SearchClient {locale} />
+        ) : (
+          <div class="surface rounded-3xl p-7 sm:p-10">
+            <p class="font-bold">{m.search_dev_title({}, { locale })}</p>
+            <p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">
+              {m.search_dev_description_before({}, { locale })}
+              <code class="rounded bg-slate-900/5 px-1.5 py-1 font-mono text-xs dark:bg-white/8">
+                npm run build
+              </code>
+              {m.search_dev_description_middle({}, { locale })}
+              <code class="rounded bg-slate-900/5 px-1.5 py-1 font-mono text-xs dark:bg-white/8">
+                npm run preview
+              </code>
+              {m.search_dev_description_after({}, { locale })}
+            </p>
+          </div>
+        )
+      }
+    </div>
+  </section>
+</BaseLayout>

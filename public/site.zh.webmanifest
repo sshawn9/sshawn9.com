@@ -1,0 +1,19 @@
+{
+  "name": "Shawn — 个人主页",
+  "short_name": "Shawn",
+  "description": "Shawn 的个人主页，用于展示个人介绍、项目与文章。",
+  "lang": "zh-CN",
+  "start_url": "/zh/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fb",
+  "theme_color": "#090d18",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

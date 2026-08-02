@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="sshawn9.com 文章系统高保真设计原型" />
+    <title>文章系统设计原型</title>
+    <script>
+      if (new URLSearchParams(location.search).has('export')) {
+        document.documentElement.classList.add('is-export');
+      }
+    </script>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <nav class="prototype-toolbar" aria-label="原型页面">
+      <strong>ARTICLE SYSTEM / DESIGN REVIEW</strong>
+      <a href="#articles" data-screen-link>文章索引</a>
+      <a href="#tags" data-screen-link>标签索引</a>
+      <a href="#tag" data-screen-link>标签文章</a>
+      <a href="#single" data-screen-link>普通文章</a>
+      <a href="#current" data-screen-link>当前版本</a>
+      <a href="#old" data-screen-link>历史版本</a>
+      <a href="#compare" data-screen-link>版本比较</a>
+      <span class="toolbar-spacer"></span>
+      <button type="button" data-theme-toggle>深 / 浅</button>
+    </nav>
+
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="#articles">
+          <span class="brand-mark"><span>S</span></span>
+          <span>SHAWN</span>
+        </a>
+        <nav class="site-nav" aria-label="全局导航">
+          <a href="#articles">项目</a>
+          <a href="#articles" aria-current="page">文章</a>
+          <a href="#articles">关于</a>
+        </nav>
+        <div class="site-actions">
+          <a class="icon-button" href="#articles" aria-label="搜索">⌕</a>
+          <button class="icon-button" type="button" data-theme-toggle aria-label="切换主题">
+            ◐
+          </button>
+          <a class="icon-button" href="#articles" aria-label="GitHub">&lt;/&gt;</a>
+        </div>
+        <span class="mobile-menu" aria-label="菜单">☰</span>
+      </div>
+    </header>
+
+    <section class="prototype-screen is-active" data-screen="articles">
+      <main class="content-shell page-section">
+        <header class="index-header index-header--compact">
+          <nav class="index-tools" aria-label="文章工具">
+            <span>2 篇</span>
+            <a href="#tags">标签</a>
+          </nav>
+        </header>
+
+        <ol class="article-list">
+          <li class="article-list-item">
+            <time class="published">2026年7月31日</time>
+            <div>
+              <h2><a href="#single">功能示例：普通单版本文章</a></h2>
+              <p>普通 Markdown 文件对应一个干净的文章页面，不出现任何版本控件。</p>
+            </div>
+            <div class="tag-row">
+              <a class="tag" href="#tag">#普通文章</a>
+              <a class="tag" href="#tag">#Markdown</a>
+            </div>
+            <a class="row-arrow" href="#single" aria-label="阅读普通单版本文章">↗</a>
+          </li>
+          <li class="article-list-item">
+            <time class="published">
+              2024年6月18日
+              <span class="updated">更新于 2026年7月31日</span>
+            </time>
+            <div>
+              <h2><a href="#current">功能示例：多版本文章</a></h2>
+              <p>同一篇文章保留完整旧版本，同时默认展示整理后的当前内容。</p>
+            </div>
+            <div class="tag-row">
+              <span class="tag version">v3 / 3 个版本</span>
+              <a class="tag" href="#tag">#多版本文章</a>
+              <a class="tag" href="#tag">#内容修订</a>
+            </div>
+            <a class="row-arrow" href="#current" aria-label="阅读多版本文章">↗</a>
+          </li>
+        </ol>
+      </main>
+      <footer class="site-footer">
+        <div class="content-shell site-footer__inner">
+          <strong>SHAWN.</strong><span>GitHub ↗</span>
+        </div>
+      </footer>
+    </section>
+
+    <section class="prototype-screen" data-screen="tags" hidden>
+      <main class="content-shell page-section">
+        <nav class="breadcrumb" aria-label="面包屑">
+          <ol>
+            <li><a href="#articles">文章</a></li>
+            <li>/</li>
+            <li aria-current="page">标签</li>
+          </ol>
+        </nav>
+        <header class="utility-header">
+          <div>
+            <p class="eyebrow">TOPICS</p>
+            <h1 class="utility-title">主题索引</h1>
+            <p class="utility-context">这里用于按主题浏览文章；标签及数量由内容自动生成。</p>
+          </div>
+          <a class="version-action" href="#articles">查看全部文章</a>
+        </header>
+        <div class="tag-index">
+          <a class="tag-card" href="#tag"
+            ><span class="tag-card__mark">#</span>
+            <h2>#内容修订</h2>
+            <p>1 篇公开文章</p></a
+          >
+          <a class="tag-card" href="#tag"
+            ><span class="tag-card__mark">#</span>
+            <h2>#Markdown</h2>
+            <p>1 篇公开文章</p></a
+          >
+          <a class="tag-card" href="#tag"
+            ><span class="tag-card__mark">#</span>
+            <h2>#多版本文章</h2>
+            <p>1 篇公开文章</p></a
+          >
+          <a class="tag-card" href="#tag"
+            ><span class="tag-card__mark">#</span>
+            <h2>#普通文章</h2>
+            <p>1 篇公开文章</p></a
+          >
+        </div>
+      </main>
+    </section>
+
+    <section class="prototype-screen" data-screen="tag" hidden>
+      <main class="content-shell page-section">
+        <nav class="breadcrumb" aria-label="面包屑">
+          <ol>
+            <li><a href="#articles">文章</a></li>
+            <li>/</li>
+            <li><a href="#tags">标签</a></li>
+            <li>/</li>
+            <li aria-current="page">#内容修订</li>
+          </ol>
+        </nav>
+        <header class="index-header" style="margin-top: 30px">
+          <div>
+            <p class="eyebrow">TOPIC</p>
+            <h1 class="display-title">#内容修订</h1>
+            <p class="page-description">这里用于浏览使用“内容修订”标签的全部公开文章。</p>
+          </div>
+          <nav class="index-tools"><span>1 篇</span><a href="#tags">全部标签</a></nav>
+        </header>
+        <ol class="article-list">
+          <li class="article-list-item">
+            <time class="published"
+              >2024年6月18日<span class="updated">更新于 2026年7月31日</span></time
+            >
+            <div>
+              <h2><a href="#current">功能示例：多版本文章</a></h2>
+              <p>同一篇文章保留完整旧版本，同时默认展示当前内容。</p>
+            </div>
+            <div class="tag-row">
+              <span class="tag version">v3 / 3 个版本</span><span class="tag">#内容修订</span>
+            </div>
+            <a class="row-arrow" href="#current">↗</a>
+          </li>
+        </ol>
+      </main>
+    </section>
+
+    <section class="prototype-screen" data-screen="single" hidden>
+      <main class="content-shell page-section">
+        <nav class="breadcrumb" aria-label="面包屑">
+          <ol>
+            <li><a href="#articles">文章</a></li>
+            <li>/</li>
+            <li aria-current="page">功能示例：普通单版本文章</li>
+          </ol>
+        </nav>
+        <div class="article-grid">
+          <article class="article-main">
+            <header>
+              <h1 class="article-title">功能示例：普通单版本文章</h1>
+              <p class="article-summary">
+                用于展示最常见的博客形式：一个 Markdown 文件，对应一个干净的文章页面。
+              </p>
+              <div class="article-meta">
+                <span>发布于 2026年7月31日</span><span>约 5 分钟阅读</span>
+              </div>
+              <nav class="tag-row article-tags" aria-label="标签">
+                <a class="tag" href="#tag">#普通文章</a><a class="tag" href="#tag">#Markdown</a>
+              </nav>
+              <details class="mobile-toc"><summary>本文目录</summary></details>
+            </header>
+            <div class="article-prose">
+              <blockquote>
+                这是一篇普通单版本文章。它没有版本目录，也不会显示任何版本切换控件。
+              </blockquote>
+              <h2>正文区域</h2>
+              <p>这里用于放置文章的主要内容。正文支持链接、图片、引用、列表和代码块。</p>
+              <h2>代码示例</h2>
+              <p>代码与正文共享相同的排版起点，不额外改变页面布局。</p>
+              <div class="code-block">
+                <div class="code-head">example.ts</div>
+                <pre>const article = "普通 Markdown 文章";</pre>
+              </div>
+              <h2>页面结束</h2>
+              <p>文章在这里自然结束；不再出现相邻文章、项目推荐或额外 CTA。</p>
+            </div>
+            <div class="article-end"><a href="#single">回到顶部 ↑</a></div>
+          </article>
+          <aside class="toc" aria-label="本文目录">
+            <p class="toc-title">ON THIS PAGE</p>
+            <a class="active" href="#single">正文区域</a><a href="#single">代码示例</a
+            ><a href="#single">页面结束</a>
+          </aside>
+        </div>
+      </main>
+    </section>
+
+    <section class="prototype-screen" data-screen="current" hidden>
+      <main class="content-shell page-section">
+        <nav class="breadcrumb" aria-label="面包屑">
+          <ol>
+            <li><a href="#articles">文章</a></li>
+            <li>/</li>
+            <li aria-current="page">功能示例：多版本文章</li>
+          </ol>
+        </nav>
+        <div class="article-grid">
+          <article class="article-main">
+            <header>
+              <h1 class="article-title">功能示例：多版本文章</h1>
+              <p class="article-summary">
+                用于展示同一篇文章如何保留完整旧版本，同时默认提供整理后的最新内容。
+              </p>
+              <div class="article-meta">
+                <span>首次发布于 2024年6月18日</span><span>更新于 2026年7月31日</span
+                ><span>约 8 分钟阅读</span>
+              </div>
+              <nav class="tag-row article-tags">
+                <a class="tag" href="#tag">#多版本文章</a><a class="tag" href="#tag">#内容修订</a>
+              </nav>
+              <nav class="version-toolbar" aria-label="文章版本">
+                <details class="version-selector">
+                  <summary>v3 / 当前　⌄</summary>
+                  <div class="version-menu">
+                    <a class="current" href="#current"><span>v3 / 当前</span><span>2026</span></a
+                    ><a href="#old"><span>v2</span><span>2025</span></a
+                    ><a href="#old"><span>v1</span><span>2024</span></a>
+                  </div>
+                </details>
+                <a class="version-action" href="#compare">比较版本</a>
+              </nav>
+              <details class="mobile-toc"><summary>本文目录</summary></details>
+            </header>
+            <div class="article-prose">
+              <blockquote>这是当前最新版的完整正文。旧版本仍然可以独立阅读和引用。</blockquote>
+              <h2>背景</h2>
+              <p>
+                这篇示例文章用于说明一个需要长期维护的主题。重要变化通过完整新版本发布，而不是覆盖旧内容。
+              </p>
+              <h2>适用范围</h2>
+              <p>这种方式适合会持续补充和修正的长寿命文章；一次性随笔通常不需要版本目录。</p>
+              <h2>当前方案</h2>
+              <p>当前内容由三个步骤组成：保留原始快照、发布完整新版本、提供历史与 Diff。</p>
+              <h2>结尾</h2>
+              <p>正文在这里结束，版本能力仍然只存在于文章头部的版本工具。</p>
+            </div>
+            <div class="article-end"><a href="#current">回到顶部 ↑</a></div>
+          </article>
+          <aside class="toc" aria-label="本文目录">
+            <p class="toc-title">ON THIS PAGE</p>
+            <a class="active" href="#current">背景</a><a href="#current">适用范围</a
+            ><a href="#current">当前方案</a><a href="#current">结尾</a>
+          </aside>
+        </div>
+      </main>
+    </section>
+
+    <section class="prototype-screen" data-screen="old" hidden>
+      <main class="content-shell page-section">
+        <nav class="breadcrumb" aria-label="面包屑">
+          <ol>
+            <li><a href="#articles">文章</a></li>
+            <li>/</li>
+            <li><a href="#current">功能示例：多版本文章</a></li>
+            <li>/</li>
+            <li aria-current="page">v1</li>
+          </ol>
+        </nav>
+        <div class="article-grid">
+          <article class="article-main">
+            <header>
+              <h1 class="article-title">功能示例：多版本文章</h1>
+              <p class="article-summary">这是文章在 2024 年首次发布时的完整内容。</p>
+              <div class="article-meta">
+                <span>当前查看 v1</span><span>发布于 2024年6月18日</span><span>约 5 分钟阅读</span>
+              </div>
+              <nav class="tag-row article-tags">
+                <a class="tag" href="#tag">#多版本文章</a><a class="tag" href="#tag">#内容修订</a>
+              </nav>
+              <nav class="version-toolbar" aria-label="文章版本">
+                <details class="version-selector">
+                  <summary>v1　⌄</summary>
+                  <div class="version-menu">
+                    <a href="#current"><span>v3 / 当前</span><span>2026</span></a
+                    ><a href="#old"><span>v2</span><span>2025</span></a
+                    ><a class="current" href="#old"><span>v1</span><span>2024</span></a>
+                  </div>
+                </details>
+                <a class="version-action" href="#compare">比较版本</a>
+              </nav>
+              <aside class="historical-notice">
+                <span class="historical-notice__label">HISTORICAL VERSION / v1</span>
+                <h2>你正在阅读历史版本</h2>
+                <p>这是 2024 年发布时的不可变快照；当前最新版为 v3。</p>
+                <div class="notice-actions">
+                  <a href="#current">阅读当前版本</a><a href="#compare">比较 v1 与 v3</a>
+                </div>
+              </aside>
+              <details class="mobile-toc"><summary>本文目录</summary></details>
+            </header>
+            <div class="article-prose">
+              <blockquote>这是最初版本的完整正文，它不会因后续修订而改变。</blockquote>
+              <h2>背景</h2>
+              <p>这里保留文章首次发布时的说明。</p>
+              <h2>当时的方案</h2>
+              <p>这段内容代表当时的完整观点和上下文。</p>
+            </div>
+            <div class="article-end"><a href="#old">回到顶部 ↑</a></div>
+          </article>
+          <aside class="toc">
+            <p class="toc-title">ON THIS PAGE</p>
+            <a class="active" href="#old">背景</a><a href="#old">当时的方案</a>
+          </aside>
+        </div>
+      </main>
+    </section>
+
+    <section class="prototype-screen" data-screen="compare" hidden>
+      <main class="content-shell page-section">
+        <nav class="breadcrumb" aria-label="面包屑">
+          <ol>
+            <li><a href="#articles">文章</a></li>
+            <li>/</li>
+            <li><a href="#current">功能示例：多版本文章</a></li>
+            <li>/</li>
+            <li aria-current="page" data-compare-crumb>比较 v1 与 v3</li>
+          </ol>
+        </nav>
+        <header class="utility-header">
+          <div>
+            <p class="eyebrow">VERSION DIFF</p>
+            <h1 class="utility-title" data-compare-title>比较 v1 与 v3</h1>
+            <p class="utility-context">功能示例：多版本文章 / 真实 Markdown 正文差异</p>
+          </div>
+        </header>
+        <form class="compare-form" data-prototype-compare>
+          <label>
+            <span>版本 A</span>
+            <select name="from">
+              <option value="1" selected>v1</option>
+              <option value="2">v2</option>
+              <option value="3">v3（当前）</option>
+            </select>
+          </label>
+          <label>
+            <span>版本 B</span>
+            <select name="to">
+              <option value="1">v1</option>
+              <option value="2">v2</option>
+              <option value="3" selected>v3（当前）</option>
+            </select>
+          </label>
+          <button type="submit">比较</button>
+          <p data-compare-error hidden>请选择两个不同版本。</p>
+        </form>
+        <div class="diff-endpoints">
+          <a class="diff-endpoint" href="#old"
+            ><small>版本 A</small><strong data-compare-from>v1</strong><span>阅读这个版本</span></a
+          ><a class="diff-endpoint" href="#current"
+            ><small>版本 B</small><strong data-compare-to>v3 / 当前</strong
+            ><span>阅读这个版本</span></a
+          >
+        </div>
+        <div class="diff-legend">
+          <span class="legend remove">− 删除</span><span class="legend add">+ 新增</span>
+        </div>
+        <div class="diff-view" aria-label="版本差异">
+          <div class="diff-line"><span>18</span><span>18</span><span>## 当前方案</span></div>
+          <div class="diff-line removed">
+            <span>19</span><span></span><span>− 当前方案包含两个步骤。</span>
+          </div>
+          <div class="diff-line added">
+            <span></span><span>19</span><span>+ 当前方案包含三个步骤，并增加了验证环节。</span>
+          </div>
+          <div class="diff-line"><span>20</span><span>20</span><span></span></div>
+          <div class="diff-line">
+            <span>21</span><span>21</span><span>正文中没有修改的上下文。</span>
+          </div>
+          <div class="diff-line added">
+            <span></span><span>22</span><span>+ 新增适用范围和迁移说明。</span>
+          </div>
+        </div>
+        <nav class="version-toolbar" aria-label="Diff 操作">
+          <a class="version-action" href="#old">阅读 v1</a
+          ><a class="version-action" href="#current">阅读 v3</a>
+        </nav>
+      </main>
+    </section>
+
+    <script src="./prototype.js"></script>
+  </body>
+</html>

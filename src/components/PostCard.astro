@@ -1,0 +1,51 @@
+---
+import { ArrowUpRight } from '@lucide/astro';
+import { formatDate } from '../lib/date';
+import { toLanguageTag } from '../i18n/config';
+import { getArticleHref } from '../lib/article-routes';
+import { getTagName, getVersionDate, type Article } from '../lib/articles';
+import * as m from '../paraglide/messages.js';
+
+type Props = { article: Article };
+const { article } = Astro.props;
+const post = article.current.entry;
+const locale = article.locale;
+const versionDate = formatDate(getVersionDate(article.current), locale);
+---
+
+<article
+  lang={toLanguageTag(article.current.contentLocale)}
+  class="surface spotlight-card card-lift group relative flex h-full flex-col rounded-3xl p-6 sm:p-7"
+  data-reveal
+>
+  <div class="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+    <time datetime={getVersionDate(article.current).toISOString()}>
+      {
+        article.isVersioned
+          ? m.blog_revised({ date: versionDate }, { locale })
+          : m.blog_published({ date: versionDate }, { locale })
+      }
+    </time>
+    <ArrowUpRight
+      class="ml-auto size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+      aria-hidden="true"
+    />
+  </div>
+  <h3 class="mt-5 text-xl font-extrabold tracking-tight sm:text-2xl">
+    <a href={getArticleHref(article)} class="after:absolute after:inset-0">{post.data.title}</a>
+  </h3>
+  <p class="mt-3 flex-1 text-sm leading-6 text-slate-600 dark:text-slate-400">
+    {post.data.description}
+  </p>
+  <ul class="mt-6 flex flex-wrap gap-2" aria-label={m.article_tags({}, { locale })}>
+    {
+      post.data.tags.map((tag) => (
+        <li class="relative z-10">
+          <span class="block rounded-full bg-cyan-500/8 px-2.5 py-1 font-mono text-[0.62rem] text-cyan-700 dark:text-cyan-300">
+            #{getTagName(tag)}
+          </span>
+        </li>
+      ))
+    }
+  </ul>
+</article>

@@ -1,0 +1,171 @@
+---
+import Breadcrumbs from '../../../../../components/Breadcrumbs.astro';
+import VersionCompareControls from '../../../../../components/VersionCompareControls.astro';
+import VersionDiff from '../../../../../components/VersionDiff.astro';
+import { LOCALES, localePath, type Locale } from '../../../../../i18n/config';
+import BaseLayout from '../../../../../layouts/BaseLayout.astro';
+import { formatDate } from '../../../../../lib/date';
+import { getArticleHref, getArticleVersionHref } from '../../../../../lib/article-routes';
+import {
+  getPublishedArticles,
+  getVersionDate,
+  type Article,
+  type ArticleVersion,
+} from '../../../../../lib/articles';
+import * as m from '../../../../../paraglide/messages.js';
+
+type Props = {
+  locale: Locale;
+  article: Article;
+  from: ArticleVersion;
+  to: ArticleVersion;
+};
+
+export async function getStaticPaths() {
+  const localizedArticles = await Promise.all(
+    LOCALES.map(async (locale) => ({ locale, articles: await getPublishedArticles(locale) })),
+  );
+
+  return localizedArticles.flatMap(({ locale, articles }) =>
+    articles.flatMap((article) =>
+      article.isVersioned
+        ? article.versions.flatMap((from, index) =>
+            article.versions.slice(index + 1).map((to) => ({
+              params: { locale, id: article.id, versions: `${from.number}...${to.number}` },
+              props: { locale, article, from, to },
+            })),
+          )
+        : [],
+    ),
+  );
+}
+
+const { locale, article, from, to } = Astro.props;
+const post = article.current.entry;
+const fromHref =
+  from.number === article.current.number
+    ? getArticleHref(article)
+    : getArticleVersionHref(article, from);
+const toHref =
+  to.number === article.current.number
+    ? getArticleHref(article)
+    : getArticleVersionHref(article, to);
+---
+
+<BaseLayout
+  title={m.version_compare_title(
+    { title: post.data.title, from: from.number, to: to.number },
+    { locale },
+  )}
+  description={m.version_compare_description(
+    { title: post.data.title, from: from.number, to: to.number },
+    { locale },
+  )}
+  noIndex
+  searchable={false}
+  {locale}
+>
+  <section class="content-shell py-12 sm:py-16">
+    <div class="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[minmax(0,1fr)_13rem] lg:items-start">
+      <main class="min-w-0">
+        <Breadcrumbs
+          items={[
+            { label: m.nav_blog({}, { locale }), href: localePath(locale, '/blog/') },
+            { label: post.data.title, href: getArticleHref(article) },
+            {
+              label: m.version_compare_breadcrumb({ from: from.number, to: to.number }, { locale }),
+            },
+          ]}
+          {locale}
+        />
+
+        <header class="mt-8">
+          <p
+            class="font-mono text-[0.68rem] font-bold tracking-[0.14em] text-cyan-700 dark:text-cyan-300"
+          >
+            {m.version_compare_eyebrow({}, { locale })}
+          </p>
+          <h1 class="mt-4 text-4xl font-extrabold tracking-[-0.045em] text-balance sm:text-5xl">
+            {post.data.title}
+          </h1>
+
+          <div
+            class="mt-7 flex flex-wrap items-stretch gap-x-4 gap-y-3 border-y border-slate-900/10 py-4 dark:border-white/10"
+            aria-label={m.version_compare_breadcrumb(
+              { from: from.number, to: to.number },
+              { locale },
+            )}
+          >
+            <a
+              class="group min-w-36 flex-1 text-sm transition-colors hover:text-cyan-700 dark:hover:text-cyan-300"
+              href={fromHref}
+            >
+              <span class="font-extrabold">v{from.number}</span>
+              <time
+                class="mt-1 block font-mono text-[0.65rem] text-slate-500 group-hover:text-current dark:text-slate-400"
+                datetime={getVersionDate(from).toISOString()}
+              >
+                {formatDate(getVersionDate(from), locale)}
+              </time>
+            </a>
+            <span class="self-center text-slate-400" aria-hidden="true">→</span>
+            <a
+              class="group min-w-36 flex-1 text-right text-sm transition-colors hover:text-cyan-700 dark:hover:text-cyan-300"
+              href={toHref}
+            >
+              <span class="font-extrabold">v{to.number}</span>
+              <time
+                class="mt-1 block font-mono text-[0.65rem] text-slate-500 group-hover:text-current dark:text-slate-400"
+                datetime={getVersionDate(to).toISOString()}
+              >
+                {formatDate(getVersionDate(to), locale)}
+              </time>
+            </a>
+          </div>
+        </header>
+
+        <div
+          class="mt-7 rounded-2xl border border-slate-900/10 bg-slate-900/[0.025] p-4 lg:hidden dark:border-white/10 dark:bg-white/[0.025]"
+          data-pagefind-ignore
+        >
+          <VersionCompareControls {article} {from} {to} variant="mobile" />
+        </div>
+
+        <div
+          class="mt-8 flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400"
+        >
+          <span class="inline-flex items-center gap-1.5">
+            <span class="font-mono font-bold text-rose-700 dark:text-rose-300" aria-hidden="true"
+              >−</span
+            >
+            {m.diff_removed({}, { locale })}
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span
+              class="font-mono font-bold text-emerald-700 dark:text-emerald-300"
+              aria-hidden="true">+</span
+            >
+            {m.diff_added({}, { locale })}
+          </span>
+        </div>
+
+        <div class="mt-4">
+          <VersionDiff {from} {to} {locale} />
+        </div>
+      </main>
+
+      <aside
+        class="hidden min-w-0 self-stretch lg:block"
+        aria-label={m.version_compare_settings({}, { locale })}
+        data-pagefind-ignore
+      >
+        <div
+          class="article-sidebar-scroll sticky top-[8.75rem] max-h-[calc(100dvh-9.75rem)] overflow-y-auto overscroll-contain pr-2 pb-2"
+          data-article-sidebar-scroll
+        >
+          <VersionCompareControls {article} {from} {to} variant="desktop" />
+        </div>
+      </aside>
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,73 @@
+---
+import { createTwoFilesPatch } from 'diff';
+import { html } from 'diff2html';
+import 'diff2html/bundles/css/diff2html.min.css';
+import type { Locale } from '../i18n/config';
+import type { ArticleVersion } from '../lib/articles';
+import * as m from '../paraglide/messages.js';
+
+type Props = {
+  from: ArticleVersion;
+  to: ArticleVersion;
+  locale: Locale;
+};
+
+const { from, to, locale } = Astro.props;
+const oldBody = from.entry.body ?? '';
+const newBody = to.entry.body ?? '';
+const hasChanges = oldBody !== newBody;
+const patch = hasChanges
+  ? createTwoFilesPatch(
+      `v${from.number}.md`,
+      `v${to.number}.md`,
+      oldBody,
+      newBody,
+      undefined,
+      undefined,
+      { context: 3 },
+    )
+  : '';
+const renderDiff = (outputFormat: 'line-by-line' | 'side-by-side') =>
+  html(patch, {
+    drawFileList: false,
+    outputFormat,
+    matching: 'words',
+    diffStyle: 'word',
+    renderNothingWhenEmpty: true,
+  });
+const unified = hasChanges ? renderDiff('line-by-line') : '';
+const split = hasChanges ? renderDiff('side-by-side') : '';
+---
+
+<div class="version-diff">
+  <input
+    class="sr-only"
+    type="radio"
+    name="diff-display-mode"
+    id="diff-mode-unified"
+    value="unified"
+    checked
+  />
+  <input class="sr-only" type="radio" name="diff-display-mode" id="diff-mode-split" value="split" />
+
+  {
+    hasChanges ? (
+      <>
+        <div
+          class="version-diff-panel overflow-x-auto"
+          data-diff-panel="unified"
+          set:html={unified}
+        />
+        <div
+          class="version-diff-panel hidden overflow-x-auto"
+          data-diff-panel="split"
+          set:html={split}
+        />
+      </>
+    ) : (
+      <p class="rounded-2xl border border-slate-900/10 p-6 text-sm text-slate-600 dark:border-white/10 dark:text-slate-400">
+        {m.diff_no_changes({}, { locale })}
+      </p>
+    )
+  }
+</div>

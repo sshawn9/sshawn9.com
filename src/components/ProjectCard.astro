@@ -1,0 +1,67 @@
+---
+import { ArrowUpRight } from '@lucide/astro';
+import type { Project } from '../data/projects';
+import type { Locale } from '../i18n/config';
+import * as m from '../paraglide/messages.js';
+
+type Props = { project: Project; locale: Locale; detailed?: boolean };
+const { project, locale, detailed = false } = Astro.props;
+const accentClasses = {
+  cyan: 'from-cyan-400/25 via-cyan-400/5 text-cyan-700 dark:text-cyan-300',
+  violet: 'from-violet-400/25 via-violet-400/5 text-violet-700 dark:text-violet-300',
+  amber: 'from-amber-400/25 via-amber-400/5 text-amber-700 dark:text-amber-300',
+};
+---
+
+<article
+  id={detailed ? project.id : undefined}
+  class="surface spotlight-card card-lift group flex h-full flex-col rounded-3xl p-6 sm:p-7"
+  data-reveal
+>
+  <div
+    class:list={[
+      '-mx-2 -mt-2 mb-8 h-28 rounded-2xl bg-gradient-to-br to-transparent p-4',
+      accentClasses[project.accent],
+    ]}
+  >
+    <div class="flex h-full items-start justify-between">
+      <span class="font-mono text-[0.62rem] font-bold tracking-[0.15em]">{project.eyebrow}</span>
+      <span
+        class="grid size-9 place-items-center rounded-full border border-current/15 bg-white/35 dark:bg-black/10"
+      >
+        <ArrowUpRight
+          class="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+          aria-hidden="true"
+        />
+      </span>
+    </div>
+  </div>
+  <div
+    class="flex items-center gap-2 text-[0.68rem] font-bold tracking-[0.12em] text-slate-500 uppercase dark:text-slate-400"
+  >
+    <span class="size-1.5 rounded-full bg-emerald-500"></span>
+    {project.status}
+  </div>
+  <h3 class="mt-3 text-xl font-extrabold tracking-tight sm:text-2xl">
+    <a
+      href={project.href}
+      target={project.external ? '_blank' : undefined}
+      rel={project.external ? 'noreferrer' : undefined}
+      class="after:absolute after:inset-0"
+    >
+      {project.title}
+    </a>
+  </h3>
+  <p class="mt-3 flex-1 text-sm leading-6 text-slate-600 dark:text-slate-400">
+    {project.description}
+  </p>
+  <ul class="mt-6 flex flex-wrap gap-2" aria-label={m.project_technologies({}, { locale })}>
+    {
+      project.tags.map((tag) => (
+        <li class="rounded-full border border-slate-900/8 bg-slate-900/[0.025] px-2.5 py-1 font-mono text-[0.62rem] text-slate-500 dark:border-white/8 dark:bg-white/[0.025] dark:text-slate-400">
+          {tag}
+        </li>
+      ))
+    }
+  </ul>
+</article>

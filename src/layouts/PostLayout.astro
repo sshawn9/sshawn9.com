@@ -1,0 +1,342 @@
+---
+import type { MarkdownHeading } from 'astro';
+import { ArrowUp, ChevronDown } from '@lucide/astro';
+import { Schema } from 'astro-seo-schema';
+import type { BlogPosting, WithContext } from 'schema-dts';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import VersionSwitcher from '../components/VersionSwitcher.astro';
+import { SITE } from '../config';
+import { localePath, toLanguageTag } from '../i18n/config';
+import { formatDate } from '../lib/date';
+import { getArticleHref, getArticleVersionHref } from '../lib/article-routes';
+import { getTagName, getVersionDate, type Article, type ArticleVersion } from '../lib/articles';
+import BaseLayout from './BaseLayout.astro';
+import * as m from '../paraglide/messages.js';
+
+type Props = {
+  article: Article;
+  version: ArticleVersion;
+  headings: MarkdownHeading[];
+  currentRoute?: boolean;
+};
+
+const { article, version, headings, currentRoute = false } = Astro.props;
+const post = version.entry;
+const locale = article.locale;
+const contentLanguageTag = toLanguageTag(version.contentLocale);
+const canonicalPath = currentRoute
+  ? getArticleHref(article, version.contentLocale)
+  : getArticleVersionHref(article, version, version.contentLocale);
+const canonical = post.data.canonical ?? new URL(canonicalPath, Astro.site ?? SITE.url).toString();
+const articleSchema: WithContext<BlogPosting> = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: post.data.title,
+  description: post.data.description,
+  datePublished: article.versions[0].entry.data.publishedAt.toISOString(),
+  dateModified: getVersionDate(version).toISOString(),
+  inLanguage: contentLanguageTag,
+  mainEntityOfPage: canonical,
+  author: { '@type': 'Person', name: SITE.author, url: SITE.url },
+};
+const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+const pageTitle = currentRoute
+  ? post.data.title
+  : m.article_version_title({ title: post.data.title, version: version.number }, { locale });
+const breadcrumbs = currentRoute
+  ? [
+      { label: m.nav_blog({}, { locale }), href: localePath(locale, '/blog/') },
+      { label: post.data.title },
+    ]
+  : [
+      { label: m.nav_blog({}, { locale }), href: localePath(locale, '/blog/') },
+      { label: post.data.title, href: getArticleHref(article) },
+      { label: `v${version.number}` },
+    ];
+const fallbackLanguage =
+  version.contentLocale === 'zh'
+    ? m.article_fallback_language_zh({}, { locale })
+    : m.article_fallback_language_en({}, { locale });
+const requestedLanguage =
+  locale === 'zh'
+    ? m.article_fallback_language_zh({}, { locale })
+    : m.article_fallback_language_en({}, { locale });
+const firstPublished = article.versions[0].entry.data.publishedAt;
+---
+
+<BaseLayout
+  title={pageTitle}
+  description={post.data.description}
+  canonical={canonical}
+  type="article"
+  {locale}
+  noIndex={!currentRoute || !version.hasRequestedLocale}
+  searchable={currentRoute}
+  alternateLocales={version.availableLocales}
+>
+  <Schema slot="head" item={articleSchema} />
+
+  <article class="content-shell pt-12 sm:pt-16" lang={contentLanguageTag}>
+    <div class="mx-auto grid max-w-6xl gap-x-12 lg:grid-cols-[minmax(0,1fr)_13rem] lg:items-start">
+      <div class="min-w-0" data-article-main>
+        <header data-reveal>
+          <Breadcrumbs items={breadcrumbs} {locale} />
+
+          <h1
+            class="mt-8 text-4xl font-extrabold tracking-[-0.045em] text-balance sm:text-5xl"
+            data-pagefind-meta="title"
+          >
+            {post.data.title}
+          </h1>
+          <p
+            class="mt-5 max-w-4xl text-lg leading-8 text-slate-600 sm:text-xl dark:text-slate-400"
+            data-pagefind-meta="description"
+          >
+            {post.data.description}
+          </p>
+
+          <div class="sr-only" aria-hidden="true">
+            <time data-pagefind-meta="published" datetime={firstPublished.toISOString()}>
+              {formatDate(firstPublished, locale)}
+            </time>
+            {post.data.tags.map((tag) => <span data-pagefind-filter="tag">{getTagName(tag)}</span>)}
+          </div>
+
+          {
+            post.data.tags.length > 0 && (
+              <div
+                class="mt-5 flex flex-wrap items-center gap-2"
+                aria-label={m.article_tags({}, { locale })}
+              >
+                {post.data.tags.map((tag) => (
+                  <span class="rounded-full bg-cyan-500/8 px-3 py-1 font-mono text-[0.68rem] text-cyan-700 dark:text-cyan-300">
+                    #{getTagName(tag)}
+                  </span>
+                ))}
+              </div>
+            )
+          }
+
+          {
+            !version.hasRequestedLocale && (
+              <p
+                class="mt-5 text-xs leading-5 text-slate-500 dark:text-slate-400"
+                data-pagefind-ignore
+              >
+                {m.article_fallback_notice(
+                  { language: fallbackLanguage, requestedLanguage },
+                  { locale },
+                )}
+              </p>
+            )
+          }
+
+          <dl
+            class="mt-7 grid grid-cols-2 gap-4 border-y border-slate-900/8 py-4 text-xs lg:hidden dark:border-white/8"
+            data-pagefind-ignore
+          >
+            <div>
+              <dt class="text-slate-500 dark:text-slate-400">
+                {m.article_first_published({}, { locale })}
+              </dt>
+              <dd class="mt-1 font-medium">
+                <time datetime={firstPublished.toISOString()}
+                  >{formatDate(firstPublished, locale)}</time
+                >
+              </dd>
+            </div>
+            {
+              version.entry.data.revisedAt && (
+                <div>
+                  <dt class="text-slate-500 dark:text-slate-400">
+                    {m.article_this_version({}, { locale })}
+                  </dt>
+                  <dd class="mt-1 font-medium">
+                    <time datetime={version.entry.data.revisedAt.toISOString()}>
+                      {formatDate(version.entry.data.revisedAt, locale)}
+                    </time>
+                  </dd>
+                </div>
+              )
+            }
+          </dl>
+
+          {
+            toc.length > 0 && (
+              <div class="mt-7 lg:hidden" data-pagefind-ignore>
+                <button
+                  type="button"
+                  popovertarget="article-toc-mobile"
+                  class="group flex w-full items-center justify-between gap-4 rounded-2xl border border-slate-900/10 bg-slate-900/[0.025] p-4 text-sm font-bold dark:border-white/10 dark:bg-white/[0.025]"
+                >
+                  {m.article_toc({}, { locale })}
+                  <ChevronDown
+                    class="size-4 transition-transform group-aria-expanded:rotate-180"
+                    aria-hidden="true"
+                  />
+                </button>
+                <div
+                  id="article-toc-mobile"
+                  popover
+                  class="modal-popover surface-strong fixed top-1/2 left-1/2 m-0 max-h-[min(70dvh,32rem)] w-[min(28rem,calc(100%_-_2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl p-5 shadow-2xl"
+                >
+                  <h2 class="text-sm font-extrabold">{m.article_toc({}, { locale })}</h2>
+                  <nav class="mt-4 border-l border-slate-900/10 dark:border-white/10">
+                    {toc.map((heading) => (
+                      <a
+                        href={`#${heading.slug}`}
+                        class:list={[
+                          'block border-l border-transparent py-1.5 text-xs leading-5 text-slate-500 transition hover:border-cyan-400 hover:text-cyan-700 dark:text-slate-400 dark:hover:text-cyan-300',
+                          heading.depth === 3 ? 'pl-6' : 'pl-4 font-semibold',
+                        ]}
+                      >
+                        {heading.text}
+                      </a>
+                    ))}
+                  </nav>
+                </div>
+              </div>
+            )
+          }
+
+          {
+            article.isVersioned && (
+              <div class="mt-7 rounded-2xl border border-slate-900/10 bg-slate-900/[0.025] p-4 lg:hidden dark:border-white/10 dark:bg-white/[0.025]">
+                <VersionSwitcher {article} selected={version} variant="mobile" />
+              </div>
+            )
+          }
+        </header>
+
+        <div
+          class="article-prose js-toc-content prose prose-lg mt-10 max-w-none prose-headings:tracking-tight prose-headings:text-balance prose-blockquote:not-italic"
+        >
+          <slot />
+        </div>
+
+        <footer
+          class="mt-16 flex justify-end border-t border-slate-900/10 pt-6 dark:border-white/10"
+          data-pagefind-ignore
+          data-article-footer
+        >
+          <a
+            href="#main-content"
+            class="inline-flex items-center gap-2 text-slate-600 transition-colors hover:text-cyan-700 dark:text-slate-300 dark:hover:text-cyan-300"
+          >
+            {m.article_back_to_top({}, { locale })}
+            <ArrowUp class="size-4" aria-hidden="true" />
+          </a>
+        </footer>
+      </div>
+
+      <aside
+        class="hidden min-w-0 self-stretch lg:block"
+        aria-label={m.article_supporting_information({}, { locale })}
+        data-pagefind-ignore
+        data-article-sidebar-column
+      >
+        <div
+          class="article-sidebar-scroll sticky top-[8.75rem] max-h-[calc(100dvh-9.75rem)] overflow-y-auto overscroll-contain pr-2 pb-2"
+          data-article-sidebar-scroll
+        >
+          <section aria-labelledby="article-info-heading">
+            <h2
+              id="article-info-heading"
+              class="font-mono text-[0.65rem] font-bold tracking-[0.16em] text-slate-500 dark:text-slate-400"
+            >
+              {m.article_information({}, { locale })}
+            </h2>
+            <dl class="mt-4 border-l border-slate-900/10 dark:border-white/10">
+              <div
+                class="-ml-px flex items-baseline gap-3 border-l border-transparent py-1.5 pl-4 text-xs leading-5"
+              >
+                <dt class="text-slate-500 dark:text-slate-400">
+                  {m.article_first_published({}, { locale })}
+                </dt>
+                <dd class="ml-auto font-mono text-[0.62rem] text-slate-400 dark:text-slate-500">
+                  <time datetime={firstPublished.toISOString()}
+                    >{formatDate(firstPublished, locale)}</time
+                  >
+                </dd>
+              </div>
+              {
+                version.entry.data.revisedAt && (
+                  <div class="-ml-px flex items-baseline gap-3 border-l border-transparent py-1.5 pl-4 text-xs leading-5">
+                    <dt class="text-slate-500 dark:text-slate-400">
+                      {m.article_this_version({}, { locale })}
+                    </dt>
+                    <dd class="ml-auto font-mono text-[0.62rem] text-slate-400 dark:text-slate-500">
+                      <time datetime={version.entry.data.revisedAt.toISOString()}>
+                        {formatDate(version.entry.data.revisedAt, locale)}
+                      </time>
+                    </dd>
+                  </div>
+                )
+              }
+            </dl>
+          </section>
+
+          {
+            toc.length > 0 && (
+              <section
+                class="mt-7 border-t border-slate-900/10 pt-6 dark:border-white/10"
+                aria-labelledby="article-toc-heading"
+              >
+                <h2
+                  id="article-toc-heading"
+                  class="font-mono text-[0.65rem] font-bold tracking-[0.16em] text-slate-500 dark:text-slate-400"
+                >
+                  {m.article_toc({}, { locale })}
+                </h2>
+                <nav class="js-toc mt-4" aria-label={m.article_toc({}, { locale })} />
+              </section>
+            )
+          }
+
+          {
+            article.isVersioned && (
+              <div class="mt-7 border-t border-slate-900/10 pt-6 dark:border-white/10">
+                <VersionSwitcher {article} selected={version} variant="desktop" />
+              </div>
+            )
+          }
+        </div>
+      </aside>
+    </div>
+  </article>
+
+  <script>
+    import tocbot from 'tocbot';
+
+    function destroyToc() {
+      tocbot.destroy();
+    }
+
+    function setupToc() {
+      destroyToc();
+
+      const tocElement = document.querySelector<HTMLElement>('.js-toc');
+      const contentElement = document.querySelector<HTMLElement>('.js-toc-content');
+      const mobileToc = document.querySelector<HTMLElement>('#article-toc-mobile');
+      mobileToc?.querySelectorAll('a').forEach((link) => {
+        link.addEventListener('click', () => mobileToc.hidePopover());
+      });
+
+      if (tocElement && contentElement) {
+        tocbot.init({
+          tocElement,
+          contentElement,
+          headingSelector: 'h2, h3',
+          orderedList: false,
+          collapseDepth: 6,
+          scrollSmooth: false,
+          headingsOffset: 112,
+          enableUrlHashUpdateOnScroll: false,
+        });
+      }
+    }
+
+    document.addEventListener('astro:before-swap', destroyToc);
+    document.addEventListener('astro:page-load', setupToc);
+  </script>
+</BaseLayout>

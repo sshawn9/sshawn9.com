@@ -1,0 +1,47 @@
+---
+import { Languages } from '@lucide/astro';
+import { otherLocale, replacePathLocale, type Locale } from '../i18n/config';
+import * as m from '../paraglide/messages.js';
+
+type Props = { locale: Locale };
+const { locale } = Astro.props;
+const targetLocale = otherLocale(locale);
+const targetLanguage =
+  targetLocale === 'zh' ? m.language_chinese({}, { locale }) : m.language_english({}, { locale });
+const label = m.language_switch_to({ language: targetLanguage }, { locale });
+const href = `${replacePathLocale(Astro.url.pathname, targetLocale)}${Astro.url.search}`;
+---
+
+<a
+  href={href}
+  data-locale-switch={targetLocale}
+  class="inline-flex size-10 items-center justify-center rounded-full border border-slate-900/10 bg-white/60 text-slate-700 transition hover:border-cyan-400/50 hover:text-cyan-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:text-cyan-300"
+  aria-label={label}
+  title={label}
+>
+  <Languages class="size-[1.05rem]" aria-hidden="true" />
+</a>
+
+<script>
+  import { setLocale } from '../paraglide/runtime.js';
+
+  document.addEventListener(
+    'click',
+    (event) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+        return;
+      }
+
+      const target = event.target;
+      const link =
+        target instanceof Element
+          ? target.closest<HTMLAnchorElement>('[data-locale-switch]')
+          : null;
+      const locale = link?.dataset.localeSwitch;
+      if (locale !== 'en' && locale !== 'zh') return;
+
+      setLocale(locale, { reload: false });
+    },
+    { capture: true },
+  );
+</script>

@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>文章系统 / 设计评审入口</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, 'Noto Sans SC', 'PingFang SC', system-ui, sans-serif;
+        background: #080b13;
+        color: #edf2f9;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 10% 0, rgb(34 211 238 / 0.09), transparent 26rem),
+          radial-gradient(circle at 90% 4%, rgb(139 92 246 / 0.12), transparent 28rem), #080b13;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .shell {
+        width: min(calc(100% - 40px), 1240px);
+        margin: 0 auto;
+      }
+
+      header {
+        padding: 80px 0 48px;
+      }
+
+      .eyebrow {
+        margin: 0 0 16px;
+        color: #67e8f9;
+        font:
+          800 12px/1.2 ui-monospace,
+          monospace;
+        letter-spacing: 0.16em;
+      }
+
+      h1 {
+        max-width: 820px;
+        margin: 0;
+        font-size: clamp(42px, 7vw, 78px);
+        letter-spacing: -0.06em;
+        line-height: 0.98;
+      }
+
+      .lead {
+        max-width: 720px;
+        margin: 24px 0 0;
+        color: #a9b4c6;
+        font-size: 17px;
+        line-height: 1.8;
+      }
+
+      .status {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 28px;
+      }
+
+      .status span {
+        border: 1px solid rgb(103 232 249 / 0.22);
+        border-radius: 999px;
+        padding: 8px 12px;
+        background: rgb(34 211 238 / 0.06);
+        color: #b7f5fb;
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      section {
+        padding: 44px 0;
+        border-top: 1px solid rgb(148 163 184 / 0.16);
+      }
+
+      .section-head {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 24px;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: -0.035em;
+      }
+
+      .section-head p {
+        max-width: 620px;
+        margin: 0;
+        color: #94a3b8;
+        line-height: 1.7;
+      }
+
+      .links,
+      .gallery {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .link-card {
+        min-height: 124px;
+        border: 1px solid rgb(148 163 184 / 0.18);
+        border-radius: 18px;
+        padding: 22px;
+        background: rgb(15 22 37 / 0.72);
+      }
+
+      .link-card:hover {
+        border-color: rgb(103 232 249 / 0.55);
+      }
+
+      .link-card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 17px;
+      }
+
+      .link-card span {
+        color: #94a3b8;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      figure {
+        overflow: hidden;
+        border: 1px solid rgb(148 163 184 / 0.18);
+        border-radius: 18px;
+        margin: 0;
+        background: #0b101c;
+      }
+
+      figure a {
+        display: block;
+      }
+
+      figure img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 16 / 10;
+        object-fit: cover;
+        object-position: top;
+      }
+
+      figcaption {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 16px;
+        color: #a9b4c6;
+        font-size: 13px;
+      }
+
+      footer {
+        padding: 40px 0 80px;
+        color: #758197;
+        font-size: 13px;
+      }
+
+      @media (max-width: 720px) {
+        header {
+          padding-top: 48px;
+        }
+
+        .section-head {
+          display: block;
+        }
+
+        .section-head p {
+          margin-top: 10px;
+        }
+
+        .links,
+        .gallery {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="shell">
+      <p class="eyebrow">SSHawn9.com / DESIGN REVIEW / 2026-07-31</p>
+      <h1>文章系统设计交付</h1>
+      <p class="lead">
+        这是进入生产实现前的独立设计评审包。它覆盖文章索引、标签、普通文章和多版本文章的完整页面体系，
+        并将结构、导航、状态、响应式和视觉方向分开验证。
+      </p>
+      <div class="status">
+        <span>已同步生产实现</span><span>桌面 + 移动</span><span>7 个高保真页面</span
+        ><span>5 × 2 个低保真画板</span>
+      </div>
+    </header>
+
+    <main>
+      <section>
+        <div class="shell">
+          <div class="section-head">
+            <h2>第一步 / 确认结构</h2>
+            <p>先审页面身份、父子关系与版本语义，再看颜色和动效；避免用视觉修补结构问题。</p>
+          </div>
+          <div class="links">
+            <a class="link-card" href="./diagrams/information-architecture.svg">
+              <strong>信息架构图 ↗</strong>
+              <span>全局“文章”入口、列表、标签、当前文章和三类版本子页面。</span>
+            </a>
+            <a class="link-card" href="./diagrams/version-navigation-flow.svg">
+              <strong>版本阅读流 ↗</strong>
+              <span>当前版本、历史快照和自由双版本 Diff 之间的导航关系。</span>
+            </a>
+            <a class="link-card" href="./02-information-architecture.md">
+              <strong>信息架构与用户流 ↗</strong>
+              <span>路由、排序、分页、标签和文章索引入口的语义定义。</span>
+            </a>
+            <a class="link-card" href="./03-navigation-and-version-model.md">
+              <strong>导航与版本模型 ↗</strong>
+              <span>统一面包屑、固定版本 URL 和被删除的错误返回逻辑。</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="shell">
+          <div class="section-head">
+            <h2>第二步 / 检查线框</h2>
+            <p>低保真只确认层级、位置、状态和内容顺序，不用装饰掩盖布局问题。</p>
+          </div>
+          <div class="gallery">
+            <figure>
+              <a href="./wireframes/desktop.html"
+                ><img src="./exports/wireframes-desktop.png" alt="桌面端低保真线框总览"
+              /></a>
+              <figcaption><strong>桌面端线框</strong><span>1440 基准</span></figcaption>
+            </figure>
+            <figure>
+              <a href="./wireframes/mobile.html"
+                ><img src="./exports/wireframes-mobile.png" alt="移动端低保真线框总览"
+              /></a>
+              <figcaption><strong>移动端线框</strong><span>390 × 844 基准</span></figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="shell">
+          <div class="section-head">
+            <h2>第三步 / 操作原型</h2>
+            <p>交互原型包含七种真实页面状态。顶部评审工具条可以切换页面和深浅主题。</p>
+          </div>
+          <div class="links">
+            <a class="link-card" href="./prototype/index.html#articles">
+              <strong>打开高保真交互原型 ↗</strong>
+              <span>从文章索引开始，完整走普通文章和多版本文章两条路径。</span>
+            </a>
+            <a class="link-card" href="./08-review-decisions.md">
+              <strong>打开评审决策单 ↗</strong>
+              <span>记录需要确认、已经排除和实现前门禁，防止评审结果丢失。</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="shell">
+          <div class="section-head">
+            <h2>第四步 / 静态抽查</h2>
+            <p>以下导出图用于快速审查；完整桌面与移动截图位于 exports 目录。</p>
+          </div>
+          <div class="gallery">
+            <figure>
+              <a href="./exports/prototype-articles-desktop.png"
+                ><img src="./exports/prototype-articles-desktop.png" alt="文章索引桌面高保真设计"
+              /></a>
+              <figcaption><strong>文章索引</strong><span>桌面</span></figcaption>
+            </figure>
+            <figure>
+              <a href="./exports/prototype-current-desktop.png"
+                ><img src="./exports/prototype-current-desktop.png" alt="当前版本桌面高保真设计"
+              /></a>
+              <figcaption><strong>当前版本</strong><span>桌面</span></figcaption>
+            </figure>
+            <figure>
+              <a href="./exports/prototype-old-mobile.png"
+                ><img src="./exports/prototype-old-mobile.png" alt="历史版本移动高保真设计"
+              /></a>
+              <figcaption><strong>历史版本</strong><span>移动</span></figcaption>
+            </figure>
+            <figure>
+              <a href="./exports/prototype-compare-desktop.png"
+                ><img src="./exports/prototype-compare-desktop.png" alt="版本比较桌面高保真设计"
+              /></a>
+              <figcaption><strong>版本比较</strong><span>桌面</span></figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="shell">Design review artifact / 设计材料已经同步至 Astro 生产实现。</footer>
+  </body>
+</html>

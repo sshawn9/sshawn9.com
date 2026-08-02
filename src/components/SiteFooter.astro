@@ -1,0 +1,20 @@
+---
+import { localePath, type Locale } from '../i18n/config';
+import * as m from '../paraglide/messages.js';
+
+type Props = { locale: Locale };
+const { locale } = Astro.props;
+---
+
+<footer
+  class="relative z-10 mt-auto border-t border-slate-900/8 dark:border-white/8"
+  data-pagefind-ignore
+>
+  <div class="content-shell py-8">
+    <a
+      href={localePath(locale)}
+      class="text-sm font-extrabold tracking-tight"
+      aria-label={`${m.home({}, { locale })} · Shawn`}>SHAWN</a
+    >
+  </div>
+</footer>

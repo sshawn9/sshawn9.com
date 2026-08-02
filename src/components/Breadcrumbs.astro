@@ -1,0 +1,49 @@
+---
+import type { Locale } from '../i18n/config';
+import * as m from '../paraglide/messages.js';
+
+type BreadcrumbItem = {
+  label: string;
+  href?: string;
+};
+
+type Props = {
+  items: BreadcrumbItem[];
+  locale: Locale;
+};
+
+const { items, locale } = Astro.props;
+---
+
+<nav aria-label={m.breadcrumbs({}, { locale })} data-pagefind-ignore>
+  <ol
+    class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-slate-500 dark:text-slate-400"
+  >
+    {
+      items.map((item, index) => {
+        const current = index === items.length - 1;
+
+        return (
+          <li class="contents">
+            {index > 0 && <span aria-hidden="true">/</span>}
+            {item.href && !current ? (
+              <a
+                href={item.href}
+                class="transition-colors hover:text-cyan-700 dark:hover:text-cyan-300"
+              >
+                {item.label}
+              </a>
+            ) : (
+              <span
+                aria-current={current ? 'page' : undefined}
+                class={current ? 'text-slate-900 dark:text-white' : undefined}
+              >
+                {item.label}
+              </span>
+            )}
+          </li>
+        );
+      })
+    }
+  </ol>
+</nav>
