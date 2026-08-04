@@ -26,17 +26,35 @@ export function getArticleVersionHref(
 
 export function getArticleCompareHref(
   article: Article | string,
-  from: ArticleVersion | number,
-  to: ArticleVersion | number,
+  base: ArticleVersion | number,
+  comparison: ArticleVersion | number,
   locale?: Locale,
 ): string {
-  const fromNumber = typeof from === 'number' ? from : from.number;
-  const toNumber = typeof to === 'number' ? to : to.number;
-  if (fromNumber === toNumber) throw new Error('An article version cannot be compared to itself.');
+  const baseNumber = typeof base === 'number' ? base : base.number;
+  const comparisonNumber = typeof comparison === 'number' ? comparison : comparison.number;
+  if (baseNumber === comparisonNumber) {
+    throw new Error('An article version cannot be compared to itself.');
+  }
 
-  const [older, newer] = [fromNumber, toNumber].sort((left, right) => left - right);
+  const path = getRelativeLocaleUrl(
+    routeLocale(article, locale),
+    `blog/${articleId(article)}/compare/`,
+  );
+  const parameters = new URLSearchParams({
+    base: String(baseNumber),
+    compare: String(comparisonNumber),
+  });
+  return `${path}?${parameters}`;
+}
+
+export function getArticleVersionSourceHref(
+  article: Article | string,
+  version: ArticleVersion | number,
+  locale?: Locale,
+): string {
+  const number = typeof version === 'number' ? version : version.number;
   return getRelativeLocaleUrl(
     routeLocale(article, locale),
-    `blog/${articleId(article)}/compare/${older}...${newer}/`,
-  );
+    `blog/${articleId(article)}/compare/data/${number}.json`,
+  ).replace(/\/$/, '');
 }

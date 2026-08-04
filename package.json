@@ -2,43 +2,52 @@
   "name": "sshawn9.com",
   "type": "module",
   "version": "0.0.1",
+  "packageManager": "npm@11.16.0",
   "engines": {
     "node": ">=22.12.0"
   },
   "scripts": {
     "dev": "astro dev",
     "check": "astro check",
-    "build": "astro build && pagefind --site dist && pagefind --site dist --output-path dist/pagefind-articles --glob \"**/blog/*/index.html\"",
+    "build": "astro build && pagefind --site dist",
     "preview": "astro preview",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "astro": "astro"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.3",
+    "@astrojs/solid-js": "^7.0.1",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/manrope": "^5.2.8",
     "@inlang/paraglide-js": "^2.23.0",
+    "@kobalte/core": "^0.13.12",
     "@lucide/astro": "^1.24.0",
-    "astro": "^7.0.9",
+    "astro": "^7.1.6",
     "astro-expressive-code": "^0.44.0",
     "astro-seo": "^1.1.0",
     "astro-seo-schema": "^7.0.0",
     "diff": "^8.0.4",
     "diff2html": "^3.4.56",
+    "lucide-solid": "^1.28.0",
     "motion": "^12.42.2",
     "schema-dts": "^1.1.5",
     "sharp": "^0.35.3",
+    "solid-js": "^1.9.14",
     "tocbot": "^4.36.8"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.3.2",
     "pagefind": "^1.5.2",
     "prettier": "^3.9.5",
     "prettier-plugin-astro": "^0.14.1",
     "tailwindcss": "^4.3.2",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
   }
 }

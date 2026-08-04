@@ -6,13 +6,13 @@ Shawn's personal site for projects, a blog, and a personal introduction. The cur
 
 - Astro 7 for static generation and official client-side view transitions
 - Tailwind CSS 4 for the design system and responsive UI
-- Astro Content Collections for typed Markdown articles
+- Astro Content Collections for typed articles and projects
 - Paraglide JS for type-safe English and Chinese interface messages
 - Expressive Code for code blocks
-- Pagefind Component UI for build-time multilingual search and tag filtering
-- Astro's built-in `paginate()` for the no-JavaScript article-list fallback
+- Pagefind Component UI for build-time multilingual full-site search
+- a small SolidJS island with Kobalte primitives for article filtering and pagination
 - Tocbot for the active article table of contents
-- Diff2Html and jsdiff for build-time comparisons between complete article versions
+- Diff2Html and jsdiff for on-demand comparisons between complete article versions
 - `astro-seo`, `astro-seo-schema`, and the official Astro sitemap integration for metadata
 - the browser Popover API for menus and disclosure panels
 - Motion for progressive, reduced-motion-aware animation
@@ -20,7 +20,7 @@ Shawn's personal site for projects, a blog, and a personal introduction. The cur
 ## Development
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -34,12 +34,14 @@ Full local verification:
 
 ```bash
 npm run check
+npm test
 npm run format:check
 npm run build
+npm run test:e2e
 npm run preview
 ```
 
-`npm run build` generates the static site, the full-site Pagefind index, and an article-only Pagefind index for the blog tag browser. Pagefind creates the English and Chinese language shards inside both indexes.
+Node 24 is the repository's tested development runtime; `.nvmrc` records that recommendation. `npm run build` generates the static site and its multilingual full-site Pagefind index. Browser tests use port 4322 so they never interfere with the normal development server on 4321.
 
 ## Internationalization
 
@@ -62,6 +64,7 @@ A single-version article omits a version directory:
 
 ```text
 src/content/blog/my-article/
+├── meta.yaml         # shared dates, tags, and publication state
 ├── index.md          # base English form
 ├── index.en.md       # optional explicit English form
 ├── index.zh.md       # optional Chinese form
@@ -73,14 +76,34 @@ Once an article has a substantial revision, every immutable version becomes a co
 ```text
 src/content/blog/my-article/
 ├── v1/
+│   ├── meta.yaml
 │   ├── index.md
 │   ├── index.zh.md
 │   └── images/
 └── v2/
+    ├── meta.yaml
     ├── index.md
     ├── index.zh.md
     └── images/
 ```
+
+Astro loads every `meta.yaml` through a dedicated Content Collection. Its ID is derived from the directory path, so the adjacent Markdown files do not repeat that relationship:
+
+```yaml
+# meta.yaml
+publishedAt: 2026-07-31
+tags:
+  - Astro
+  - Content revision
+```
+
+```yaml
+# index.zh.md frontmatter
+title: 文章标题
+description: 本地化摘要
+```
+
+For a versioned article, the metadata ID is the version path, such as `my-article/v2`. Dates, tags, and draft state therefore have one source of truth per complete version; titles, descriptions, revision summaries, and bodies remain localized.
 
 `index.md` is the base English alias. If both `index.md` and `index.en.md` exist, the explicit English file wins. The code deliberately does not impose a complex prohibition system around partial translations.
 
@@ -94,30 +117,37 @@ Article discovery and language resolution are separate operations:
 
 Missing Chinese content therefore never removes an article from `/zh/blog/`, and a missing translation never causes the resolver to fall back to an older version.
 
-For translated tags, use a stable ID and a localized label so filters survive a language switch:
+Tags are content-independent canonical strings and are never translated. They live only in the version's shared `meta.yaml`. The blog taxonomy reads only the latest version of each conceptual article; older versions never contribute tags or counts:
 
 ```yaml
-# index.md
+# meta.yaml
 tags:
-  - { id: content-revision, label: 'Content revision' }
+  - Astro
+  - Content revision
 ```
-
-```yaml
-# index.zh.md
-tags:
-  - { id: content-revision, label: '内容修订' }
-```
-
-Plain string tags remain supported for simple or single-language articles.
 
 ## Creating a revision
 
-There is deliberately no repository-mutation script. When the first substantial revision is needed, preserve the original article as the complete `v1/` snapshot and create `v2/` as a complete new snapshot. Later revisions add `v3/`, `v4/`, and so on. Copy any version-specific assets into that version directory and leave every published older directory unchanged.
+There is deliberately no repository-mutation script. When the first substantial revision is needed, preserve the original article and its metadata as the complete `v1/` snapshot and create `v2/` as a complete new snapshot. Later revisions add `v3/`, `v4/`, and so on. Copy any version-specific assets into that version directory and leave every published older directory unchanged.
 
-The small adapter in `src/lib/articles.ts` is the only code that understands this convention. Routes and components consume its normalized `Article` and `ArticleVersion` values rather than parsing paths themselves.
+The path parser in `src/lib/article-convention.ts` and the small adapter in `src/lib/articles.ts` are the only code that understand this convention. Routes and components consume normalized `Article` and `ArticleVersion` values rather than parsing paths themselves.
+
+Version comparison has one canonical page per article. It downloads only the two selected immutable Markdown snapshots when a visitor opens that page.
+
+## Page and project content
+
+Localized page and interface copy lives in `messages/<locale>.json`. Localized projects live in `src/content/projects/<project>/index.<locale>.md`; their cards use typed frontmatter, while future detail content and assets remain colocated with the project. `src/lib/projects.ts` applies the same requested-language-then-fallback rule as articles.
+
+`featured-project` is the complete authoring example: its frontmatter supplies the project card and its Markdown body demonstrates the future detail-page sections. The other demo entries stay intentionally minimal so the project listing can show several card variants without pretending to be real work.
+
+Paraglide owns page-level and interface copy. Long-form articles and project records remain in content collections.
+
+## Quality checks
+
+Vitest covers the article path, version, locale fallback, and tag-count conventions. Playwright covers behavior that static checks cannot prove: locale preference, ClientRouter language and theme transitions, fixed tag facets, and on-demand version comparison. The GitHub Actions quality workflow runs formatting, types, unit tests, a production build, and those browser checks.
 
 ## Current boundaries
 
 - The old `sshawn9.github.io` articles are not migrated yet.
-- Deployment automation and hosting configuration are intentionally deferred.
+- Deployment automation and hosting configuration are intentionally deferred; the existing workflow checks quality only.
 - Forms, comments, authentication, and other dynamic features should be added only when a real requirement appears.

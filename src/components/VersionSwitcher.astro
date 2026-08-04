@@ -23,10 +23,7 @@ const comparisonId = `article-version-comparison-${variant}`;
 ---
 
 <section aria-labelledby={headingId} data-pagefind-ignore>
-  <h2
-    id={headingId}
-    class="font-mono text-[0.65rem] font-bold tracking-[0.16em] text-slate-500 dark:text-slate-400"
-  >
+  <h2 id={headingId} class="sidebar-heading">
     {m.version_heading({}, { locale })}
   </h2>
 
@@ -84,7 +81,7 @@ const comparisonId = `article-version-comparison-${variant}`;
     <button
       type="button"
       popovertarget={comparisonId}
-      class="group flex w-full items-center font-mono text-[0.65rem] font-bold tracking-[0.16em] text-slate-500 transition-colors hover:text-cyan-700 dark:text-slate-400 dark:hover:text-cyan-300"
+      class="sidebar-heading group flex w-full items-center transition-colors hover:text-cyan-700 dark:hover:text-cyan-300"
     >
       {m.version_compare_heading({}, { locale })}
       <ChevronDown
@@ -121,6 +118,7 @@ const comparisonId = `article-version-comparison-${variant}`;
                   </span>
                 ) : (
                   <a
+                    data-version-compare-link
                     class="-ml-px flex items-center gap-3 border-l border-transparent py-2 pl-4 text-xs leading-5 font-semibold text-slate-500 transition-colors hover:border-cyan-400 hover:text-cyan-700 dark:text-slate-400 dark:hover:text-cyan-300"
                     href={getArticleCompareHref(article, selected, version)}
                   >

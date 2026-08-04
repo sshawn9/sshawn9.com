@@ -1,23 +1,7 @@
 ---
 title: 'Feature demo: a versioned article'
 description: 'How one article keeps complete older editions while presenting a coherent latest edition by default.'
-publishedAt: 2024-06-18
-revisedAt: 2026-07-31
 revisionSummary: 'Simplified version navigation and comparison for readers.'
-tags:
-  - { id: feature-demo, label: 'Feature demo' }
-  - { id: blog, label: 'Blog' }
-  - { id: astro, label: 'Astro' }
-  - { id: markdown, label: 'Markdown' }
-  - { id: content-management, label: 'Content management' }
-  - { id: article-versions, label: 'Article versions' }
-  - { id: long-term-maintenance, label: 'Long-term maintenance' }
-  - { id: versioned-article, label: 'Versioned article' }
-  - { id: content-revision, label: 'Content revision' }
-  - { id: diff, label: 'Diff' }
-  - { id: knowledge-management, label: 'Knowledge management' }
-  - { id: information-architecture, label: 'Information architecture' }
-featured: true
 ---
 
 > This is the latest complete edition. Older editions remain available to read independently.

@@ -1,0 +1,99 @@
+---
+import Breadcrumbs from '../../../../../components/Breadcrumbs.astro';
+import VersionComparison, {
+  type ComparisonLabels,
+  type ComparisonVersion,
+} from '../../../../../components/VersionComparison';
+import { LOCALES, localePath, type Locale } from '../../../../../i18n/config';
+import BaseLayout from '../../../../../layouts/BaseLayout.astro';
+import {
+  getArticleHref,
+  getArticleVersionHref,
+  getArticleVersionSourceHref,
+} from '../../../../../lib/article-routes';
+import { getPublishedArticles, getVersionDate, type Article } from '../../../../../lib/articles';
+import { formatDate } from '../../../../../lib/date';
+import * as m from '../../../../../paraglide/messages.js';
+
+type Props = { locale: Locale; article: Article };
+
+export async function getStaticPaths() {
+  const localizedArticles = await Promise.all(
+    LOCALES.map(async (locale) => ({ locale, articles: await getPublishedArticles(locale) })),
+  );
+
+  return localizedArticles.flatMap(({ locale, articles }) =>
+    articles
+      .filter((article) => article.isVersioned)
+      .map((article) => ({
+        params: { locale, id: article.id },
+        props: { locale, article },
+      })),
+  );
+}
+
+const { locale, article } = Astro.props;
+const post = article.current.entry;
+const versionMarker = '__VERSION__';
+const [baseBefore = '', baseAfter = ''] = m
+  .version_base_label({ version: versionMarker }, { locale })
+  .split(versionMarker);
+const versions: ComparisonVersion[] = article.versions.toReversed().map((version) => ({
+  number: version.number,
+  dateTime: getVersionDate(version).toISOString(),
+  dateLabel: formatDate(getVersionDate(version), locale),
+  href:
+    version.number === article.current.number
+      ? getArticleHref(article)
+      : getArticleVersionHref(article, version),
+  sourceHref: getArticleVersionSourceHref(article, version),
+}));
+const labels: ComparisonLabels = {
+  eyebrow: m.version_compare_eyebrow({}, { locale }),
+  displayMode: m.version_display_mode({}, { locale }),
+  unified: m.version_unified({}, { locale }),
+  split: m.version_split({}, { locale }),
+  compareHeading: m.version_compare_heading({}, { locale }),
+  chooseOther: m.version_choose_other({}, { locale }),
+  baseBefore,
+  baseAfter,
+  removed: m.diff_removed({}, { locale }),
+  added: m.diff_added({}, { locale }),
+  noChanges: m.diff_no_changes({}, { locale }),
+  loading: m.diff_loading({}, { locale }),
+  error: m.diff_error({}, { locale }),
+};
+---
+
+<BaseLayout
+  title={m.version_compare_page_title({ title: post.data.title }, { locale })}
+  description={m.version_compare_page_description({ title: post.data.title }, { locale })}
+  noIndex
+  searchable={false}
+  {locale}
+>
+  <section class="content-shell py-12 sm:py-16">
+    <div class="mx-auto max-w-6xl">
+      <Breadcrumbs
+        items={[
+          { label: m.nav_blog({}, { locale }), href: localePath(locale, '/blog/') },
+          { label: post.data.title, href: getArticleHref(article) },
+          { label: m.version_compare_heading({}, { locale }) },
+        ]}
+        {locale}
+      />
+      <div class="mt-8">
+        <VersionComparison
+          client:only="solid-js"
+          articleTitle={post.data.title}
+          {versions}
+          {labels}
+        >
+          <p slot="fallback" class="py-8 text-sm text-slate-500 dark:text-slate-400">
+            {m.diff_loading({}, { locale })}
+          </p>
+        </VersionComparison>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

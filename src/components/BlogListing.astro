@@ -1,88 +1,52 @@
 ---
-import type { Page } from 'astro';
 import type { Locale } from '../i18n/config';
-import type { Article } from '../lib/articles';
+import { toLanguageTag } from '../i18n/config';
+import { getArticleHref } from '../lib/article-routes';
+import { getArticleTags, type Article } from '../lib/articles';
+import { formatDate } from '../lib/date';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import * as m from '../paraglide/messages.js';
-import Pagination from './Pagination.astro';
-import PostListItem from './PostListItem.astro';
+import BlogBrowser, { type BlogListArticle, type BlogTag } from './BlogBrowser';
 
 type Props = {
+  articles: Article[];
   description: string;
-  page: Page<Article>;
   pageTitle: string;
   locale: Locale;
 };
 
-const { description, page, pageTitle, locale } = Astro.props;
-const usePagefind = import.meta.env.PROD && page.currentPage === 1;
-const pagefindInstance = `articles-${locale}`;
-const resultTemplate = `
-  <li class="article-search-result">
-    <article>
-      <p class="article-search-result-date">{{ meta.published }}</p>
-      <h2><a href="{{ meta.url | default(url) | safeUrl }}">{{ meta.title }}</a></h2>
-      <p>{{ meta.description }}</p>
-    </article>
-  </li>`;
+const { articles, description, pageTitle, locale } = Astro.props;
+const tagCounts = new Map<string, number>();
+
+const listArticles: BlogListArticle[] = articles.map((article) => {
+  const latest = article.current.entry;
+  const tags = getArticleTags(article);
+  const publishedAt = article.versions[0].entry.data.publishedAt;
+  const revisedAt = latest.data.revisedAt;
+
+  tags.forEach((tag) => tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1));
+
+  return {
+    id: article.id,
+    href: getArticleHref(article),
+    contentLanguage: toLanguageTag(article.current.contentLocale),
+    title: latest.data.title,
+    description: latest.data.description,
+    publishedDateTime: publishedAt.toISOString(),
+    publishedLabel: formatDate(publishedAt, locale),
+    revisedDateTime: revisedAt?.toISOString(),
+    revisedLabel: revisedAt ? formatDate(revisedAt, locale) : undefined,
+    tags,
+  };
+});
+
+const tagCollator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+const tags: BlogTag[] = [...tagCounts]
+  .map(([name, count]) => ({ name, count }))
+  .sort((left, right) => right.count - left.count || tagCollator.compare(left.name, right.name));
 ---
 
 <BaseLayout title={pageTitle} description={description} searchable={false} {locale}>
-  {usePagefind && <link slot="head" rel="stylesheet" href="/pagefind/pagefind-component-ui.css" />}
-
   <section class="content-shell py-12 sm:py-16">
-    {
-      usePagefind && (
-        <div class="pagefind-browser" aria-label={m.article_tags({}, { locale })}>
-          <pagefind-config
-            instance={pagefindInstance}
-            bundle-path="/pagefind-articles/"
-            lang={locale === 'zh' ? 'zh-cn' : 'en'}
-            excerpt-length="32"
-            faceted
-            preload
-          />
-          <div class="grid gap-8 lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start">
-            <aside class="lg:sticky lg:top-28">
-              <pagefind-filter-pane
-                instance={pagefindInstance}
-                open="tag"
-                sort="count-desc"
-                auto-open-threshold="20"
-              />
-            </aside>
-            <div class="min-w-0">
-              <pagefind-summary instance={pagefindInstance} />
-              <pagefind-results instance={pagefindInstance} hide-sub-results>
-                <script is:inline type="text/pagefind-template" set:html={resultTemplate} />
-              </pagefind-results>
-            </div>
-          </div>
-          <script is:inline src="/pagefind/pagefind-component-ui.js" type="module" />
-        </div>
-      )
-    }
-
-    <div class="pagefind-browser-fallback">
-      <p class="text-right font-mono text-xs text-slate-500 dark:text-slate-400">
-        {m.blog_article_count({ count: page.total }, { locale })}
-      </p>
-      {
-        page.data.length > 0 ? (
-          <ol class="mt-2">
-            {page.data.map((article) => (
-              <li data-reveal>
-                <PostListItem {article} />
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p class="py-16 text-sm text-slate-500 dark:text-slate-400">
-            {m.blog_empty({}, { locale })}
-          </p>
-        )
-      }
-      <Pagination {page} {locale} />
-    </div>
+    <BlogBrowser client:load articles={listArticles} {tags} {locale} />
   </section>
 </BaseLayout>

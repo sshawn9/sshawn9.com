@@ -9,10 +9,10 @@ import {
   Terminal,
 } from '@lucide/astro';
 import { SITE } from '../config';
-import { getProjects } from '../data/projects';
 import { localePath, type Locale } from '../i18n/config';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getPublishedArticles } from '../lib/articles';
+import { getProjects } from '../lib/projects';
 import * as m from '../paraglide/messages.js';
 import PostCard from './PostCard.astro';
 import ProjectCard from './ProjectCard.astro';
@@ -20,7 +20,7 @@ import SectionHeading from './SectionHeading.astro';
 
 type Props = { locale: Locale };
 const { locale } = Astro.props;
-const projects = getProjects(locale);
+const projects = await getProjects(locale);
 const latestArticles = (await getPublishedArticles(locale)).slice(0, 3);
 const projectsHref = localePath(locale, '/projects/');
 const blogHref = localePath(locale, '/blog/');
@@ -72,21 +72,21 @@ const aboutHref = localePath(locale, '/about/');
         class="mt-10 flex flex-wrap gap-x-8 gap-y-3 border-t border-slate-900/8 pt-5 text-xs text-slate-500 dark:border-white/8 dark:text-slate-400"
         data-reveal
       >
-        <span
-          ><strong class="text-slate-900 dark:text-white"
+        <span>
+          <strong class="text-slate-900 dark:text-white"
             >{m.home_identity_label({}, { locale })}</strong
-          > / {m.home_identity_value({}, { locale })}</span
-        >
-        <span
-          ><strong class="text-slate-900 dark:text-white"
+          > / {m.home_identity_value({}, { locale })}
+        </span>
+        <span>
+          <strong class="text-slate-900 dark:text-white"
             >{m.home_focus_label({}, { locale })}</strong
-          > / {m.home_focus_value({}, { locale })}</span
-        >
-        <span
-          ><strong class="text-slate-900 dark:text-white"
+          > / {m.home_focus_value({}, { locale })}
+        </span>
+        <span>
+          <strong class="text-slate-900 dark:text-white"
             >{m.home_content_label({}, { locale })}</strong
-          > / {m.home_content_value({}, { locale })}</span
-        >
+          > / {m.home_content_value({}, { locale })}
+        </span>
       </div>
     </div>
 

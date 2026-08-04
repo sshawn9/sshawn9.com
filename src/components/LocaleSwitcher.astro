@@ -15,7 +15,7 @@ const href = `${replacePathLocale(Astro.url.pathname, targetLocale)}${Astro.url.
 <a
   href={href}
   data-locale-switch={targetLocale}
-  class="inline-flex size-10 items-center justify-center rounded-full border border-slate-900/10 bg-white/60 text-slate-700 transition hover:border-cyan-400/50 hover:text-cyan-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:text-cyan-300"
+  class="icon-control"
   aria-label={label}
   title={label}
 >
@@ -23,7 +23,7 @@ const href = `${replacePathLocale(Astro.url.pathname, targetLocale)}${Astro.url.
 </a>
 
 <script>
-  import { setLocale } from '../paraglide/runtime.js';
+  import { localStorageKey } from '../paraglide/runtime.js';
 
   document.addEventListener(
     'click',
@@ -38,9 +38,12 @@ const href = `${replacePathLocale(Astro.url.pathname, targetLocale)}${Astro.url.
           ? target.closest<HTMLAnchorElement>('[data-locale-switch]')
           : null;
       const locale = link?.dataset.localeSwitch;
-      if (locale !== 'en' && locale !== 'zh') return;
+      if (!link || (locale !== 'en' && locale !== 'zh')) return;
 
-      setLocale(locale, { reload: false });
+      // The localized link remains owned by Astro's ClientRouter. Persisting the
+      // preference here only affects future visits to the unprefixed entry page.
+      localStorage.setItem(localStorageKey, locale);
+      link.href = `${link.pathname}${window.location.search}${window.location.hash}`;
     },
     { capture: true },
   );

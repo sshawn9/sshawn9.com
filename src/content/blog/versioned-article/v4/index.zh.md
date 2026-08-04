@@ -1,23 +1,7 @@
 ---
 title: '功能示例：多版本文章'
 description: '用于展示同一篇文章如何保留完整旧版本，同时默认提供结构完整的最新内容。'
-publishedAt: 2024-06-18
-revisedAt: 2026-07-31
 revisionSummary: '简化读者端版本操作，支持任意两个版本之间的正文比较。'
-tags:
-  - { id: feature-demo, label: '功能示例' }
-  - { id: blog, label: '博客' }
-  - { id: astro, label: 'Astro' }
-  - { id: markdown, label: 'Markdown' }
-  - { id: content-management, label: '内容管理' }
-  - { id: article-versions, label: '文章版本' }
-  - { id: long-term-maintenance, label: '长期维护' }
-  - { id: versioned-article, label: '多版本文章' }
-  - { id: content-revision, label: '内容修订' }
-  - { id: diff, label: '差异比较' }
-  - { id: knowledge-management, label: '知识管理' }
-  - { id: information-architecture, label: '信息架构' }
-featured: true
 ---
 
 > 这是当前最新的完整正文。旧版本仍然可以独立阅读。

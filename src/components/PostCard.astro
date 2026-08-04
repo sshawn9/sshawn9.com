@@ -3,7 +3,7 @@ import { ArrowUpRight } from '@lucide/astro';
 import { formatDate } from '../lib/date';
 import { toLanguageTag } from '../i18n/config';
 import { getArticleHref } from '../lib/article-routes';
-import { getTagName, getVersionDate, type Article } from '../lib/articles';
+import { getArticleTags, getVersionDate, type Article } from '../lib/articles';
 import * as m from '../paraglide/messages.js';
 
 type Props = { article: Article };
@@ -11,6 +11,7 @@ const { article } = Astro.props;
 const post = article.current.entry;
 const locale = article.locale;
 const versionDate = formatDate(getVersionDate(article.current), locale);
+const articleTags = getArticleTags(article);
 ---
 
 <article
@@ -39,10 +40,10 @@ const versionDate = formatDate(getVersionDate(article.current), locale);
   </p>
   <ul class="mt-6 flex flex-wrap gap-2" aria-label={m.article_tags({}, { locale })}>
     {
-      post.data.tags.map((tag) => (
+      articleTags.map((tag) => (
         <li class="relative z-10">
           <span class="block rounded-full bg-cyan-500/8 px-2.5 py-1 font-mono text-[0.62rem] text-cyan-700 dark:text-cyan-300">
-            #{getTagName(tag)}
+            #{tag}
           </span>
         </li>
       ))

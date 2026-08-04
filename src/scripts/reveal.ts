@@ -1,4 +1,5 @@
-import { animate, inView } from 'motion';
+import { animate } from 'motion/mini';
+import { inView } from 'motion';
 
 let stopObservers: Array<() => void> = [];
 

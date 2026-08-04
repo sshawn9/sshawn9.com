@@ -109,6 +109,26 @@
     backdrop-filter: blur(24px);
   }
 
+  .icon-control {
+    @apply inline-flex size-10 items-center justify-center rounded-full border border-slate-900/10 bg-white/60 text-slate-700 transition;
+  }
+
+  .icon-control:hover {
+    @apply border-cyan-400/50 text-cyan-700;
+  }
+
+  .dark .icon-control {
+    @apply border-white/10 bg-white/5 text-slate-300;
+  }
+
+  .dark .icon-control:hover {
+    @apply text-cyan-300;
+  }
+
+  .sidebar-heading {
+    @apply font-mono text-[0.65rem] font-bold tracking-[0.16em] text-slate-500 dark:text-slate-400;
+  }
+
   .eyebrow {
     display: inline-flex;
     align-items: center;
@@ -356,23 +376,6 @@
   min-width: 46rem;
 }
 
-#diff-mode-split:checked ~ [data-diff-panel='unified'],
-#diff-mode-unified:checked ~ [data-diff-panel='split'] {
-  display: none;
-}
-
-#diff-mode-split:checked ~ [data-diff-panel='split'],
-#diff-mode-unified:checked ~ [data-diff-panel='unified'] {
-  display: block;
-}
-
-body:has(#diff-mode-unified:checked) [data-diff-mode-label='unified'],
-body:has(#diff-mode-split:checked) [data-diff-mode-label='split'] {
-  background: var(--surface-strong);
-  color: var(--ink);
-  box-shadow: 0 1px 3px rgb(15 23 42 / 0.12);
-}
-
 .dark .version-diff-panel .d2h-wrapper {
   --d2h-bg-color: var(--d2h-dark-bg-color);
   --d2h-border-color: var(--d2h-dark-border-color);
@@ -401,35 +404,6 @@ body:has(#diff-mode-split:checked) [data-diff-mode-label='split'] {
   color: var(--d2h-dark-color);
 }
 
-.article-search-result {
-  border-bottom: 1px solid var(--line);
-  padding-block: 1.5rem;
-}
-
-.article-search-result-date {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: var(--muted);
-}
-
-.article-search-result h2 {
-  margin-top: 0.5rem;
-  font-size: 1.25rem;
-  font-weight: 800;
-  letter-spacing: -0.025em;
-}
-
-.article-search-result h2 a:hover {
-  color: #0e7490;
-}
-
-.article-search-result article > p:last-child {
-  margin-top: 0.5rem;
-  color: var(--muted);
-  font-size: 0.875rem;
-  line-height: 1.5rem;
-}
-
 .pagefind-search {
   --pf-text: var(--ink);
   --pf-text-secondary: var(--muted);
@@ -449,18 +423,6 @@ body:has(#diff-mode-split:checked) [data-diff-mode-label='split'] {
   --pf-result-excerpt-font-size: 0.85rem;
   --pf-results-gap: 0.75rem;
   --pf-border-radius: 0.9rem;
-}
-
-.pagefind-browser {
-  display: none;
-}
-
-.pagefind-browser:has(pagefind-results:defined) {
-  display: block;
-}
-
-.pagefind-browser:has(pagefind-results:defined) + .pagefind-browser-fallback {
-  display: none;
 }
 
 .dark .pagefind-search {

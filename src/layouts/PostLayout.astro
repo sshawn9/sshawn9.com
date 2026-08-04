@@ -9,7 +9,7 @@ import { SITE } from '../config';
 import { localePath, toLanguageTag } from '../i18n/config';
 import { formatDate } from '../lib/date';
 import { getArticleHref, getArticleVersionHref } from '../lib/article-routes';
-import { getTagName, getVersionDate, type Article, type ArticleVersion } from '../lib/articles';
+import { getArticleTags, getVersionDate, type Article, type ArticleVersion } from '../lib/articles';
 import BaseLayout from './BaseLayout.astro';
 import * as m from '../paraglide/messages.js';
 
@@ -62,6 +62,7 @@ const requestedLanguage =
     ? m.article_fallback_language_zh({}, { locale })
     : m.article_fallback_language_en({}, { locale });
 const firstPublished = article.versions[0].entry.data.publishedAt;
+const articleTags = getArticleTags(article);
 ---
 
 <BaseLayout
@@ -95,22 +96,25 @@ const firstPublished = article.versions[0].entry.data.publishedAt;
             {post.data.description}
           </p>
 
-          <div class="sr-only" aria-hidden="true">
-            <time data-pagefind-meta="published" datetime={firstPublished.toISOString()}>
+          <div class="sr-only" aria-hidden="true" data-pagefind-ignore>
+            <time
+              data-pagefind-meta="published"
+              data-pagefind-sort="published[datetime]"
+              datetime={firstPublished.toISOString()}
+            >
               {formatDate(firstPublished, locale)}
             </time>
-            {post.data.tags.map((tag) => <span data-pagefind-filter="tag">{getTagName(tag)}</span>)}
           </div>
 
           {
-            post.data.tags.length > 0 && (
+            articleTags.length > 0 && (
               <div
                 class="mt-5 flex flex-wrap items-center gap-2"
                 aria-label={m.article_tags({}, { locale })}
               >
-                {post.data.tags.map((tag) => (
+                {articleTags.map((tag) => (
                   <span class="rounded-full bg-cyan-500/8 px-3 py-1 font-mono text-[0.68rem] text-cyan-700 dark:text-cyan-300">
-                    #{getTagName(tag)}
+                    #{tag}
                   </span>
                 ))}
               </div>
@@ -240,10 +244,7 @@ const firstPublished = article.versions[0].entry.data.publishedAt;
           data-article-sidebar-scroll
         >
           <section aria-labelledby="article-info-heading">
-            <h2
-              id="article-info-heading"
-              class="font-mono text-[0.65rem] font-bold tracking-[0.16em] text-slate-500 dark:text-slate-400"
-            >
+            <h2 id="article-info-heading" class="sidebar-heading">
               {m.article_information({}, { locale })}
             </h2>
             <dl class="mt-4 border-l border-slate-900/10 dark:border-white/10">
@@ -282,10 +283,7 @@ const firstPublished = article.versions[0].entry.data.publishedAt;
                 class="mt-7 border-t border-slate-900/10 pt-6 dark:border-white/10"
                 aria-labelledby="article-toc-heading"
               >
-                <h2
-                  id="article-toc-heading"
-                  class="font-mono text-[0.65rem] font-bold tracking-[0.16em] text-slate-500 dark:text-slate-400"
-                >
+                <h2 id="article-toc-heading" class="sidebar-heading">
                   {m.article_toc({}, { locale })}
                 </h2>
                 <nav class="js-toc mt-4" aria-label={m.article_toc({}, { locale })} />

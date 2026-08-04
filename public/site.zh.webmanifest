@@ -1,7 +1,7 @@
 {
-  "name": "Shawn — 个人主页",
+  "name": "Shawn",
   "short_name": "Shawn",
-  "description": "Shawn 的个人主页，用于展示个人介绍、项目与文章。",
+  "description": "Shawn 的个人主页",
   "lang": "zh-CN",
   "start_url": "/zh/",
   "scope": "/",

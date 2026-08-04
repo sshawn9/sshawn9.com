@@ -1,8 +1,12 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
 import { BASE_LOCALE, otherLocale, type Locale } from '../i18n/config';
+import { parseArticleEntryId } from './article-convention';
 
-export type BlogEntry = CollectionEntry<'blog'>;
-export type ArticleContentTag = BlogEntry['data']['tags'][number];
+type BlogContentEntry = CollectionEntry<'blog'>;
+type ArticleMetadataEntry = CollectionEntry<'articleMetadata'>;
+export type BlogEntry = Omit<BlogContentEntry, 'data'> & {
+  data: BlogContentEntry['data'] & ArticleMetadataEntry['data'];
+};
 
 export type ArticleVersion = {
   entry: BlogEntry;
@@ -20,47 +24,11 @@ export type Article = {
   isVersioned: boolean;
 };
 
-type ParsedEntryId = {
-  articleId: string;
-  version: number;
-  contentLocale: Locale;
-  explicitLocale: boolean;
-};
-
 type SourceCandidate = {
   entry: BlogEntry;
   contentLocale: Locale;
   explicitLocale: boolean;
 };
-
-const VERSION_DIRECTORY = /^v([1-9]\d*)$/;
-const LOCALIZED_INDEX_ID = /^index\.?(en|zh)$/;
-
-function parseEntryId(id: string): ParsedEntryId {
-  const segments = id.split('/');
-  const explicitFileMatch = segments.at(-1)?.match(LOCALIZED_INDEX_ID);
-  const indexFileMatch = segments.at(-1) === 'index';
-
-  if (explicitFileMatch || indexFileMatch) segments.pop();
-  if (segments.length !== 1 && segments.length !== 2) {
-    throw new Error(
-      `Invalid article path “${id}”. Use article/index[.locale].md or article/vN/index[.locale].md.`,
-    );
-  }
-
-  const articleId = segments[0];
-  const versionMatch = segments[1]?.match(VERSION_DIRECTORY);
-  if (!articleId || (segments.length === 2 && !versionMatch)) {
-    throw new Error(`Invalid article path “${id}”. Version directories must be named v1, v2, …`);
-  }
-
-  return {
-    articleId,
-    version: versionMatch ? Number(versionMatch[1]) : 1,
-    contentLocale: explicitFileMatch?.[1] === 'zh' ? 'zh' : BASE_LOCALE,
-    explicitLocale: Boolean(explicitFileMatch?.[1]),
-  };
-}
 
 function selectSource(candidates: SourceCandidate[], locale: Locale): SourceCandidate | undefined {
   const forLocale = (candidateLocale: Locale) =>
@@ -71,12 +39,31 @@ function selectSource(candidates: SourceCandidate[], locale: Locale): SourceCand
   return forLocale(locale) ?? forLocale(otherLocale(locale));
 }
 
-export async function getPublishedArticles(locale: Locale = BASE_LOCALE): Promise<Article[]> {
-  const entries = await getCollection('blog', ({ data }) => !data.draft);
+function mergeArticleMetadata(
+  entries: BlogContentEntry[],
+  metadataEntries: ArticleMetadataEntry[],
+): BlogEntry[] {
+  const metadataById = new Map(metadataEntries.map((entry) => [entry.id, entry]));
+
+  return entries.map((entry) => {
+    const { versionId } = parseArticleEntryId(entry.id);
+    const metadata = metadataById.get(versionId);
+    if (!metadata) {
+      throw new Error(`No article metadata found for “${versionId}”.`);
+    }
+
+    return {
+      ...entry,
+      data: { ...entry.data, ...metadata.data },
+    };
+  });
+}
+
+export function resolveArticles(entries: BlogEntry[], locale: Locale = BASE_LOCALE): Article[] {
   const sources = new Map<string, Map<number, SourceCandidate[]>>();
 
   for (const entry of entries) {
-    const parsed = parseEntryId(entry.id);
+    const parsed = parseArticleEntryId(entry.id);
     const versions = sources.get(parsed.articleId) ?? new Map<number, SourceCandidate[]>();
     const candidates = versions.get(parsed.version) ?? [];
     candidates.push({
@@ -119,6 +106,17 @@ export async function getPublishedArticles(locale: Locale = BASE_LOCALE): Promis
     });
 }
 
+export async function getPublishedArticles(locale: Locale = BASE_LOCALE): Promise<Article[]> {
+  const [contentEntries, metadataEntries] = await Promise.all([
+    getCollection('blog'),
+    getCollection('articleMetadata'),
+  ]);
+  const entries = mergeArticleMetadata(contentEntries, metadataEntries).filter(
+    ({ data }) => !data.draft,
+  );
+  return resolveArticles(entries, locale);
+}
+
 export function getVersionByNumber(
   article: Article,
   versionNumber: number,
@@ -130,6 +128,6 @@ export function getVersionDate(version: ArticleVersion): Date {
   return version.entry.data.revisedAt ?? version.entry.data.publishedAt;
 }
 
-export function getTagName(tag: ArticleContentTag): string {
-  return typeof tag === 'string' ? tag : tag.label;
+export function getArticleTags(article: Article): string[] {
+  return [...new Set(article.current.entry.data.tags)];
 }

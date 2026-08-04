@@ -1,13 +1,7 @@
 ---
 title: '功能示例：多版本文章'
 description: '用于展示同一篇文章如何保留完整旧版本，同时默认提供结构完整的最新内容。'
-publishedAt: 2024-06-18
-revisedAt: 2026-07-20
 revisionSummary: '说明完整版本的保存与比较方式。'
-tags:
-  - { id: versioned-article, label: '多版本文章' }
-  - { id: content-revision, label: '内容修订' }
-featured: true
 ---
 
 > 这是第三次发布的完整正文。旧版本仍然可以独立阅读。

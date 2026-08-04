@@ -1,7 +1,7 @@
 {
-  "name": "Shawn — Personal site",
+  "name": "Shawn",
   "short_name": "Shawn",
-  "description": "Shawn's personal site for projects, writing, and an introduction.",
+  "description": "Shawn's personal site",
   "lang": "en",
   "start_url": "/en/",
   "scope": "/",

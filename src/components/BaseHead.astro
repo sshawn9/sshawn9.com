@@ -64,13 +64,17 @@ const person: WithContext<Person> = {
   url: SITE.url,
   sameAs: [SITE.github],
 };
+const openGraphLocale = (targetLocale: Locale) => (targetLocale === 'zh' ? 'zh_CN' : 'en_US');
+const openGraphLocaleAlternates = alternateLocales
+  .filter((alternateLocale) => alternateLocale !== locale)
+  .map(openGraphLocale);
 const openGraph = socialImage
   ? {
       basic: { title: pageTitle, type, image: socialImage, url: canonicalUrl },
       optional: {
         description,
-        locale: locale === 'zh' ? 'zh_CN' : 'en_US',
-        localeAlternate: [locale === 'zh' ? 'en_US' : 'zh_CN'],
+        locale: openGraphLocale(locale),
+        localeAlternate: openGraphLocaleAlternates,
         siteName: SITE.name,
       },
     }
@@ -100,6 +104,11 @@ const openGraph = socialImage
           { property: 'og:title', content: pageTitle },
           { property: 'og:description', content: description },
           { property: 'og:url', content: canonicalUrl },
+          { property: 'og:locale', content: openGraphLocale(locale) },
+          ...openGraphLocaleAlternates.map((alternateLocale) => ({
+            property: 'og:locale:alternate',
+            content: alternateLocale,
+          })),
         ],
   }}
 />

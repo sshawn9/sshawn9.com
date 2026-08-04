@@ -1,13 +1,7 @@
 ---
 title: '功能示例：多版本文章'
 description: '用于展示同一篇文章如何保留完整旧版本，同时默认提供结构完整的最新内容。'
-publishedAt: 2024-06-18
-revisedAt: 2025-02-14
 revisionSummary: '补充适用范围，并增加第二个操作步骤。'
-tags:
-  - { id: versioned-article, label: '多版本文章' }
-  - { id: content-revision, label: '内容修订' }
-featured: true
 ---
 
 > 这是第二次发布的完整正文。新增信息已经放进最适合阅读的位置。
