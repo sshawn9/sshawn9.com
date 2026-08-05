@@ -50,6 +50,7 @@ test('tag filtering keeps the complete facet list and fixed global counts', asyn
   const initialFilters = await filters.evaluateAll((elements) =>
     elements.map((element) => ({
       name: element.getAttribute('data-tag-filter'),
+      slug: element.getAttribute('data-tag-slug'),
       count: Number(element.getAttribute('data-tag-count')),
     })),
   );
@@ -72,6 +73,7 @@ test('tag filtering keeps the complete facet list and fixed global counts', asyn
       filters.evaluateAll((elements) =>
         elements.map((element) => ({
           name: element.getAttribute('data-tag-filter'),
+          slug: element.getAttribute('data-tag-slug'),
           count: Number(element.getAttribute('data-tag-count')),
         })),
       ),
@@ -83,7 +85,7 @@ test('tag filtering keeps the complete facet list and fixed global counts', asyn
       elements.map((element) => JSON.parse(element.getAttribute('data-article-tags') ?? '[]')),
     );
   expect(visibleArticleTags.every((tags: string[]) => tags.includes(candidate.name!))).toBe(true);
-  expect(new URL(page.url()).searchParams.getAll('tag')).toContain(candidate.name);
+  expect(new URL(page.url()).searchParams.getAll('tag')).toContain(candidate.slug);
 });
 
 test('version comparison loads on demand and supports both layouts', async ({ page }) => {

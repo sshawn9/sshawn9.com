@@ -163,6 +163,8 @@
 
   "blog_page_title": "博客",
   "blog_page_description": "Shawn 发布的文章与长期维护的技术笔记。",
+  "tag_page_title": "标签“{tag}”下的文章",
+  "tag_page_description": "共 {count} 篇带有“{tag}”标签的公开文章。",
   "blog_article_count": "共 {count} 篇",
   "blog_page_count": "共 {count} 篇 · 第 {current}/{total} 页",
   "blog_empty": "没有符合当前视图的公开文章。",

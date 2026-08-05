@@ -163,6 +163,8 @@
 
   "blog_page_title": "Blog",
   "blog_page_description": "Articles and long-lived technical notes by Shawn.",
+  "tag_page_title": "Articles tagged “{tag}”",
+  "tag_page_description": "{count} public articles tagged “{tag}”.",
   "blog_article_count": "Articles: {count}",
   "blog_page_count": "Articles: {count} · Page {current} of {total}",
   "blog_empty": "No public articles match the current view.",

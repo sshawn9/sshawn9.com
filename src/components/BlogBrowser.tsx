@@ -16,10 +16,12 @@ export type BlogListArticle = {
   revisedDateTime?: string;
   revisedLabel?: string;
   tags: string[];
+  tagHrefs: Record<string, string>;
 };
 
 export type BlogTag = {
   name: string;
+  slug: string;
   count: number;
 };
 
@@ -27,6 +29,7 @@ type Props = {
   articles: BlogListArticle[];
   tags: BlogTag[];
   locale: Locale;
+  filterable?: boolean;
 };
 
 const PAGE_SIZE = 8;
@@ -34,6 +37,8 @@ const TAG_PARAMETER = 'tag';
 const PAGE_PARAMETER = 'page';
 
 export default function BlogBrowser(props: Props) {
+  const filterable = () => props.filterable !== false;
+  const tagsByName = new Map(props.tags.map((tag) => [tag.name, tag]));
   const [selectedTags, setSelectedTags] = createSignal<string[]>([]);
   const [pageIndex, setPageIndex] = createSignal(0);
 
@@ -59,7 +64,10 @@ export default function BlogBrowser(props: Props) {
     url.searchParams.delete(TAG_PARAMETER);
     url.searchParams.delete(PAGE_PARAMETER);
 
-    tags.forEach((tag) => url.searchParams.append(TAG_PARAMETER, tag));
+    tags.forEach((tag) => {
+      const tagSlug = tagsByName.get(tag)?.slug;
+      if (tagSlug) url.searchParams.append(TAG_PARAMETER, tagSlug);
+    });
     if (nextPageIndex > 0) url.searchParams.set(PAGE_PARAMETER, String(nextPageIndex + 1));
     return url;
   };
@@ -106,7 +114,10 @@ export default function BlogBrowser(props: Props) {
 
   const restoreUrlState = () => {
     const parameters = new URLSearchParams(window.location.search);
-    const validTags = orderTags(parameters.getAll(TAG_PARAMETER));
+    const requestedTags = new Set(parameters.getAll(TAG_PARAMETER));
+    const validTags = props.tags
+      .filter((tag) => requestedTags.has(tag.slug) || requestedTags.has(tag.name))
+      .map((tag) => tag.name);
     const requestedPage = Number.parseInt(parameters.get(PAGE_PARAMETER) ?? '1', 10);
     const initialPageIndex =
       Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage - 1 : 0;
@@ -124,12 +135,12 @@ export default function BlogBrowser(props: Props) {
   return (
     <div
       class={
-        props.tags.length > 0
+        filterable() && props.tags.length > 0
           ? 'grid gap-10 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start'
           : undefined
       }
     >
-      <Show when={props.tags.length > 0}>
+      <Show when={filterable() && props.tags.length > 0}>
         <aside class="lg:sticky lg:top-28 lg:max-h-[min(42rem,calc(100dvh-9rem))] lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
           <Collapsible defaultOpen>
             <Collapsible.Trigger class="group flex w-full items-center justify-between gap-4 py-2 text-left text-sm font-bold text-slate-700 dark:text-slate-200">
@@ -154,6 +165,7 @@ export default function BlogBrowser(props: Props) {
                     <ToggleGroup.Item
                       value={tag.name}
                       data-tag-filter={tag.name}
+                      data-tag-slug={tag.slug}
                       data-tag-count={tag.count}
                       class="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border-l-2 border-transparent px-3 py-2 text-left text-sm text-slate-600 transition-colors hover:bg-cyan-500/7 hover:text-slate-950 data-[pressed]:border-cyan-500 data-[pressed]:bg-cyan-500/10 data-[pressed]:font-bold data-[pressed]:text-cyan-800 dark:text-slate-400 dark:hover:text-white dark:data-[pressed]:text-cyan-300"
                     >
@@ -235,14 +247,27 @@ export default function BlogBrowser(props: Props) {
                         <For each={article.tags}>
                           {(tag) => (
                             <li>
-                              <ToggleButton
-                                pressed={selectedTags().includes(tag)}
-                                onChange={(pressed) => setTagPressed(tag, pressed)}
-                                data-article-tag={tag}
-                                class="rounded-full bg-cyan-500/8 px-2.5 py-1 font-mono text-[0.62rem] text-cyan-700 transition-colors hover:bg-cyan-500/15 data-[pressed]:bg-cyan-600 data-[pressed]:text-white dark:text-cyan-300 dark:data-[pressed]:bg-cyan-300 dark:data-[pressed]:text-slate-950"
+                              <Show
+                                when={filterable()}
+                                fallback={
+                                  <a
+                                    href={article.tagHrefs[tag]}
+                                    data-article-tag-link={tag}
+                                    class="block rounded-full bg-cyan-500/8 px-2.5 py-1 font-mono text-[0.62rem] text-cyan-700 transition-colors hover:bg-cyan-500/15 dark:text-cyan-300"
+                                  >
+                                    #{tag}
+                                  </a>
+                                }
                               >
-                                #{tag}
-                              </ToggleButton>
+                                <ToggleButton
+                                  pressed={selectedTags().includes(tag)}
+                                  onChange={(pressed) => setTagPressed(tag, pressed)}
+                                  data-article-tag={tag}
+                                  class="rounded-full bg-cyan-500/8 px-2.5 py-1 font-mono text-[0.62rem] text-cyan-700 transition-colors hover:bg-cyan-500/15 data-[pressed]:bg-cyan-600 data-[pressed]:text-white dark:text-cyan-300 dark:data-[pressed]:bg-cyan-300 dark:data-[pressed]:text-slate-950"
+                                >
+                                  #{tag}
+                                </ToggleButton>
+                              </Show>
                             </li>
                           )}
                         </For>

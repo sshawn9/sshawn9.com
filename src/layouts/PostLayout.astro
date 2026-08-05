@@ -10,6 +10,7 @@ import { localePath, toLanguageTag } from '../i18n/config';
 import { formatDate } from '../lib/date';
 import { getArticleHref, getArticleVersionHref } from '../lib/article-routes';
 import { getArticleTags, getVersionDate, type Article, type ArticleVersion } from '../lib/articles';
+import { getTagHref } from '../lib/tags';
 import BaseLayout from './BaseLayout.astro';
 import * as m from '../paraglide/messages.js';
 
@@ -115,9 +116,13 @@ const articleTags = getArticleTags(article);
                 aria-label={m.article_tags({}, { locale })}
               >
                 {articleTags.map((tag) => (
-                  <span class="rounded-full bg-cyan-500/8 px-3 py-1 font-mono text-[0.68rem] text-cyan-700 dark:text-cyan-300">
+                  <a
+                    href={getTagHref(tag, locale)}
+                    data-article-tag-link={tag}
+                    class="rounded-full bg-cyan-500/8 px-3 py-1 font-mono text-[0.68rem] text-cyan-700 transition-colors hover:bg-cyan-500/15 dark:text-cyan-300"
+                  >
                     #{tag}
-                  </span>
+                  </a>
                 ))}
               </div>
             )

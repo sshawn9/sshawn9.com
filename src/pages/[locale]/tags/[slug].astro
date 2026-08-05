@@ -1,0 +1,39 @@
+---
+import type { GetStaticPaths } from 'astro';
+import BlogListing from '../../../components/BlogListing.astro';
+import { LOCALES, type Locale } from '../../../i18n/config';
+import { getPublishedArticles, type Article } from '../../../lib/articles';
+import { getArticlesForTag, getTagDefinitions, type TagDefinition } from '../../../lib/tags';
+import * as m from '../../../paraglide/messages.js';
+
+type Props = {
+  locale: Locale;
+  tag: TagDefinition;
+  articles: Article[];
+};
+
+export const getStaticPaths = (async () => {
+  const paths = await Promise.all(
+    LOCALES.map(async (locale) => {
+      const articles = await getPublishedArticles(locale);
+      return getTagDefinitions(articles).map((tag) => ({
+        params: { locale, slug: tag.slug },
+        props: { locale, tag, articles: getArticlesForTag(articles, tag.name) },
+      }));
+    }),
+  );
+
+  return paths.flat();
+}) satisfies GetStaticPaths;
+
+const { locale, tag, articles } = Astro.props;
+---
+
+<BlogListing
+  description={m.tag_page_description({ tag: tag.name, count: articles.length }, { locale })}
+  pageTitle={m.tag_page_title({ tag: tag.name }, { locale })}
+  heading={tag.name}
+  filterable={false}
+  {articles}
+  {locale}
+/>

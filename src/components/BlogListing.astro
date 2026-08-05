@@ -4,26 +4,26 @@ import { toLanguageTag } from '../i18n/config';
 import { getArticleHref } from '../lib/article-routes';
 import { getArticleTags, type Article } from '../lib/articles';
 import { formatDate } from '../lib/date';
+import { getTagDefinitions, getTagHref } from '../lib/tags';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import BlogBrowser, { type BlogListArticle, type BlogTag } from './BlogBrowser';
+import BlogBrowser, { type BlogListArticle } from './BlogBrowser';
 
 type Props = {
   articles: Article[];
   description: string;
   pageTitle: string;
   locale: Locale;
+  heading?: string;
+  filterable?: boolean;
 };
 
-const { articles, description, pageTitle, locale } = Astro.props;
-const tagCounts = new Map<string, number>();
+const { articles, description, pageTitle, locale, heading, filterable = true } = Astro.props;
 
 const listArticles: BlogListArticle[] = articles.map((article) => {
   const latest = article.current.entry;
   const tags = getArticleTags(article);
   const publishedAt = article.versions[0].entry.data.publishedAt;
   const revisedAt = latest.data.revisedAt;
-
-  tags.forEach((tag) => tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1));
 
   return {
     id: article.id,
@@ -36,17 +36,20 @@ const listArticles: BlogListArticle[] = articles.map((article) => {
     revisedDateTime: revisedAt?.toISOString(),
     revisedLabel: revisedAt ? formatDate(revisedAt, locale) : undefined,
     tags,
+    tagHrefs: Object.fromEntries(tags.map((tag) => [tag, getTagHref(tag, locale)])),
   };
 });
 
-const tagCollator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
-const tags: BlogTag[] = [...tagCounts]
-  .map(([name, count]) => ({ name, count }))
-  .sort((left, right) => right.count - left.count || tagCollator.compare(left.name, right.name));
+const tags = getTagDefinitions(articles);
 ---
 
 <BaseLayout title={pageTitle} description={description} searchable={false} {locale}>
   <section class="content-shell py-12 sm:py-16 lg:pt-9">
-    <BlogBrowser client:load articles={listArticles} {tags} {locale} />
+    {
+      heading && (
+        <h1 class="mb-10 text-3xl font-extrabold tracking-tight sm:text-4xl">#{heading}</h1>
+      )
+    }
+    <BlogBrowser client:load articles={listArticles} {tags} {locale} {filterable} />
   </section>
 </BaseLayout>

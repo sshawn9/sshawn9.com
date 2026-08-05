@@ -1,14 +1,53 @@
+---
+import { BASE_LOCALE, LOCALES } from '../i18n/config';
+import { localStorageKey } from '../paraglide/runtime.js';
+---
+
 <!doctype html>
-<html lang="en">
+<html
+  lang="en"
+  data-base-locale={BASE_LOCALE}
+  data-locales={LOCALES.join(',')}
+  data-locale-storage-key={localStorageKey}
+>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="robots" content="noindex, follow" />
     <title>Shawn</title>
-    <script>
-      import { getLocale } from '../paraglide/runtime.js';
+    <script is:inline>
+      (() => {
+        const root = document.documentElement;
+        const baseLocale = root.dataset.baseLocale ?? 'en';
+        const locales = (root.dataset.locales ?? baseLocale).split(',');
+        const localeStorageKey = root.dataset.localeStorageKey ?? 'PARAGLIDE_LOCALE';
+        const supportedLocales = new Set(locales);
+        let locale;
 
-      location.replace(`/${getLocale()}/${location.search}${location.hash}`);
+        try {
+          const savedLocale = localStorage.getItem(localeStorageKey);
+          if (supportedLocales.has(savedLocale)) locale = savedLocale;
+        } catch {
+          // Storage can be unavailable in restricted browsing contexts.
+        }
+
+        if (!locale) {
+          const preferredLanguages = navigator.languages?.length
+            ? navigator.languages
+            : [navigator.language];
+
+          for (const language of preferredLanguages) {
+            const normalizedLanguage = language.toLowerCase();
+            locale = locales.find(
+              (candidate) =>
+                normalizedLanguage === candidate || normalizedLanguage.startsWith(`${candidate}-`),
+            );
+            if (locale) break;
+          }
+        }
+
+        location.replace(`/${locale ?? baseLocale}/${location.search}${location.hash}`);
+      })();
     </script>
     <style>
       body {
@@ -30,9 +69,11 @@
     </style>
   </head>
   <body>
-    <main>
-      <p><span lang="en">Choose a language</span> / <span lang="zh-CN">选择语言</span></p>
-      <a href="/en/" lang="en">English</a><a href="/zh/" lang="zh-CN">中文</a>
-    </main>
+    <noscript>
+      <main>
+        <p><span lang="en">Choose a language</span> / <span lang="zh-CN">选择语言</span></p>
+        <a href="/en/" lang="en">English</a><a href="/zh/" lang="zh-CN">中文</a>
+      </main>
+    </noscript>
   </body>
 </html>
