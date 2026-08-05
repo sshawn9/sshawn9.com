@@ -1,0 +1,579 @@
+---
+title: Frenet 坐标下的车辆运动学
+description: 以车辆后轴中心为参考点，系统推导 Frenet 坐标中的时间域三状态模型与参考路径弧长域二状态模型。
+---
+
+import 'katex/dist/katex.min.css';
+
+import FigureFocusDialog from '../../../components/FigureFocusDialog.astro';
+
+import FocusFigure from '../../../components/FocusFigure.astro';
+
+import ResearchFigure from '../../../components/ResearchFigure';
+
+import '../../../styles/research-figures.css';
+
+## 几何设定与状态定义
+
+设参考路径为二阶连续可微的弧长参数曲线
+
+$$
+\mathbf r:I\longrightarrow\mathbb E^2,
+\qquad
+s\longmapsto\mathbf r(s).
+$$
+
+固定平面的标准方向，令 $J$ 表示逆时针旋转 $90^\circ$ 的线性算子。参考路径的单位切向量、左单位法向量与有符号曲率分别记为 $\mathbf T$、$\mathbf N$ 与 $\kappa_r$。本文使用下列平面 Frenet 关系：
+
+$$
+\begin{aligned}
+\mathbf T(s)
+&=
+\frac{d\mathbf r}{ds},&
+\mathbf N(s)
+&=
+J\mathbf T(s),\\
+\frac{d\mathbf T}{ds}
+&=
+\kappa_r\mathbf N,&
+\frac{d\mathbf N}{ds}
+&=
+-\kappa_r\mathbf T,&
+\kappa_r
+&=
+\frac{d\theta_r}{ds}.
+\end{aligned}
+$$
+
+其中 $\theta_r(s)$ 是参考路径切向角。曲率符号与左法向约定保持一致：左转时 $\kappa_r>0$，右转时 $\kappa_r<0$。这些关系的完整构造与推导见配套文档 [《平面曲线的 Frenet 标架》](../planar-frenet-frame/)；本文只将其作为车辆运动学的几何基础。
+
+车辆位置 $\mathbf z(t)$ 取后轴中心，车辆航向角记为 $\theta(t)$，有符号纵向速度记为 $v(t)$。假设车辆作平面运动、车轮无侧滑，并忽略轮胎侧偏、载荷转移等动力学效应。以 $\ell$ 表示沿车辆航向取正的后轴中心轨迹有向弧长，因此 $d\ell/dt=v$；前进时 $d\ell>0$，倒车时 $d\ell<0$。相对于这一有向弧长，车辆轨迹的单位切向量与车辆航向单位向量一致。车辆曲率定义为
+
+$$
+\kappa_v
+:=
+\frac{d\theta}{d\ell}.
+$$
+
+在车辆到参考路径的最近点投影唯一时，以该投影点的弧长坐标 $s(t)$ 和沿左单位法向量测得的横向偏差 $d(t)$ 表示车辆位置。车辆航向相对于投影点参考切向的误差定义为
+
+$$
+\varphi(t)
+:=
+\theta(t)-\theta_r\bigl(s(t)\bigr).
+$$
+
+时间域模型以 $(s,d,\varphi)$ 为状态；改用参考路径弧长 $s$ 作为自变量后，空间域模型以 $(d,\varphi)$ 为状态。图 1 分别标示参考路径的 Frenet 标架、参考航向、横向偏差与车辆航向；图中的单位基向量和横向偏差采用不同的图形语义，箭头长度不用于表示 $d$。
+
+<FocusFigure number={1} variant="research">
+  <ResearchFigure kind="vehicle-state" client:only="solid-js" />
+  <figcaption slot="caption">
+    <strong>图 1.</strong> 车辆 Frenet 状态的几何定义。$\mathbf T(s)$ 与 $\mathbf N(s)$
+    是长度为一的基向量，紫色双向尺寸线单独表示横向偏差 $d$，二者的图示长度不相互编码。参考航向
+    $\theta_r$ 从固定全局方向量到 $\mathbf T(s)$，航向误差 $\varphi$ 则从与 $\mathbf T(s)$
+    平行的方向量到车辆航向 $\mathbf e_\theta$。
+  </figcaption>
+</FocusFigure>
+
+## 时间域 Frenet 运动学
+
+### 位置坐标运动学
+
+根据图 1 中的法向坐标表示，车辆位置为
+
+$$
+\mathbf z(t) =
+\mathbf r\bigl(s(t)\bigr)
++
+d(t)\mathbf N\bigl(s(t)\bigr).
+\tag{1}
+$$
+
+对式 (1) 关于时间 $t$ 求导，并使用 $d\mathbf r/ds=\mathbf T$ 与 $d\mathbf N/ds=-\kappa_r\mathbf T$：
+
+$$
+\begin{aligned}
+\dot{\mathbf z}
+&=
+\frac{d\mathbf r}{ds}\dot s
++
+\dot d\,\mathbf N
++
+d\,\frac{d\mathbf N}{ds}\dot s\\
+&=
+\mathbf T\dot s
++
+\dot d\,\mathbf N -
+d\kappa_r\mathbf T\dot s\\
+&=
+(1-d\kappa_r)\dot s\,\mathbf T
++
+\dot d\,\mathbf N.
+\end{aligned}
+$$
+
+这里及下文未显式写出的 $\mathbf T$、$\mathbf N$ 与 $\kappa_r$ 均在投影点 $s(t)$ 处取值。另一方面，无侧滑假设意味着车辆速度与车身纵轴共线。采用沿车辆航向取正的有符号纵向速度 $v$ 后，前进时 $v>0$，倒车时 $v<0$，两种情况下均有 $\dot{\mathbf z}=v\mathbf e_\theta$。根据上一节定义的航向误差，车辆航向单位向量为
+
+$$
+\mathbf e_\theta =
+\begin{bmatrix}
+\cos\theta\\
+\sin\theta
+\end{bmatrix}.
+$$
+
+由于 $(\mathbf T,\mathbf N)$ 是标准正交基，$\mathbf e_\theta$ 可按它在两个基向量方向上的正交投影展开：
+
+$$
+\mathbf e_\theta =
+\langle\mathbf e_\theta,\mathbf T\rangle\mathbf T
++
+\langle\mathbf e_\theta,\mathbf N\rangle\mathbf N.
+$$
+
+将
+
+$$
+\mathbf T =
+\begin{bmatrix}
+\cos\theta_r\\
+\sin\theta_r
+\end{bmatrix},
+\qquad
+\mathbf N =
+\begin{bmatrix}
+-\sin\theta_r\\
+\cos\theta_r
+\end{bmatrix}
+$$
+
+代入两个投影系数，得到
+
+$$
+\begin{aligned}
+\langle\mathbf e_\theta,\mathbf T\rangle
+&=
+\cos\theta\cos\theta_r
++
+\sin\theta\sin\theta_r\\
+&=
+\cos(\theta-\theta_r) =
+\cos\varphi,\\
+\langle\mathbf e_\theta,\mathbf N\rangle
+&=
+-\cos\theta\sin\theta_r
++
+\sin\theta\cos\theta_r\\
+&=
+\sin(\theta-\theta_r) =
+\sin\varphi.
+\end{aligned}
+$$
+
+因此，车辆航向单位向量在 Frenet 标架中的表示为
+
+$$
+\mathbf e_\theta =
+\cos\varphi\,\mathbf T
++
+\sin\varphi\,\mathbf N.
+$$
+
+车辆速度由此写成
+
+$$
+\dot{\mathbf z} =
+v\mathbf e_\theta =
+v\cos\varphi\,\mathbf T
++
+v\sin\varphi\,\mathbf N.
+$$
+
+图 2 在相同的 Frenet 标架和相同的合速度箭头下，分别画出位置坐标求导与无侧滑速度表示所给出的两个分量。这样的并列使后续的系数比较成为直接的图形对应。
+
+<FocusFigure number={2} variant="research">
+  <ResearchFigure kind="vehicle-velocity" client:only="solid-js" />
+  <figcaption slot="caption">
+    <strong>图 2.</strong> 同一车辆速度向量在同一 Frenet
+    标架中的两种分解。（a）对位置坐标求导得到切向分量 $(1-d\kappa_r)\dot s\,\mathbf T$ 与法向分量
+    $\dot d\,\mathbf N$；（b）无侧滑约束得到切向分量 $v\cos\varphi\,\mathbf T$ 与法向分量
+    $v\sin\varphi\,\mathbf N$。由于标准正交基下的分解唯一，对应分量的标量系数必须分别相等。
+  </figcaption>
+</FocusFigure>
+
+比较同一速度向量在基 $(\mathbf T,\mathbf N)$ 下的系数，得到
+
+$$
+(1-d\kappa_r)\dot s =
+v\cos\varphi,
+\qquad
+\dot d =
+v\sin\varphi.
+$$
+
+当 $1-d\kappa_r\ne0$ 时，时间域位置运动学为
+
+$$
+\dot s =
+\frac{v\cos\varphi}{1-d\kappa_r},
+\qquad
+\dot d =
+v\sin\varphi.
+$$
+
+式 (1) 的法向坐标表示与上述时间域运动学可分别参见文献 [1, §2.1–2.2, Eqs. (14)–(20)]、[2, §3.1, Eq. (1)] 与 [3, §4.3, Eqs. (4.32)–(4.33)]。
+
+### 航向误差运动学
+
+航向误差沿车辆运动定义为
+
+$$
+\varphi(t) =
+\theta(t) -
+\theta_r\bigl(s(t)\bigr).
+$$
+
+关于时间使用链式法则，并代入 $\kappa_r=d\theta_r/ds$：
+
+$$
+\begin{aligned}
+\dot\varphi
+&=
+\dot\theta -
+\frac{d\theta_r}{ds}\dot s\\
+&=
+\dot\theta -
+\kappa_r\dot s.
+\end{aligned}
+$$
+
+由几何设定中的 $\kappa_v=d\theta/d\ell$ 以及 $d\ell/dt=v$，
+
+$$
+\begin{aligned}
+\dot\theta
+&=
+\frac{d\theta}{d\ell}\frac{d\ell}{dt}\\
+&=
+v\kappa_v.
+\end{aligned}
+$$
+
+因此航向误差动力学为
+
+$$
+\dot\varphi =
+v\kappa_v -
+\kappa_r\dot s.
+$$
+
+### 完整三状态时间域模型
+
+将航向误差运动学与位置坐标运动学合并，得到状态 $(s,d,\varphi)$ 的三状态时间域模型：
+
+$$
+\begin{aligned}
+\dot s
+&=
+\frac{v\cos\varphi}{1-d\kappa_r},\\
+\dot d
+&=
+v\sin\varphi,\\
+\dot\varphi
+&=
+v\kappa_v -
+\dot s\,\kappa_r\\
+&=
+v\left(
+\kappa_v-\frac{\kappa_r\cos\varphi}{1-d\kappa_r}
+\right).
+\end{aligned}
+\tag{2}
+$$
+
+这里 $\kappa_r=\kappa_r(s)$ 由参考路径给定，$v$ 与 $\kappa_v$ 是车辆运动输入。模型在 $1-d\kappa_r\ne0$ 且最近点投影唯一的 Frenet 坐标正则域内成立。与式 (2) 对应的标准 Frenet 车辆模型见文献 [3, §4.3, Eq. (4.41)]。
+
+### 倒车运动的适用性
+
+式 (2) 同样适用于倒车，无须针对倒车重新推导。前述时间域推导已经把 $v$ 定义为沿车辆航向取正的有符号纵向速度，并使用统一的无侧滑运动学关系
+
+$$
+\dot{\mathbf z}=v\mathbf e_\theta,
+\qquad
+\dot\theta=v\kappa_v.
+$$
+
+这两个关系没有要求 $v>0$。前进时 $v>0$，速度向量 $\dot{\mathbf z}$ 与车辆航向单位向量 $\mathbf e_\theta$ 同向；倒车时 $v<0$，$\dot{\mathbf z}$ 与 $\mathbf e_\theta$ 反向。位置坐标关系 (1) 对时间求导、在 Frenet 标架中比较分量以及对航向误差使用链式法则的过程都不依赖 $v$ 的正负，因此倒车时仍然得到同一个三状态模型。
+
+由式 (2)，参考路径弧长坐标的变化方向一般满足
+
+$$
+\operatorname{sign}(\dot s)=
+\operatorname{sign}(v)
+\operatorname{sign}\!\left(\frac{\cos\varphi}{1-d\kappa_r}\right).
+$$
+
+在通常的 Frenet 跟踪区域 $1-d\kappa_r>0$ 且 $|\varphi|<\pi/2$ 内，前进对应 $\dot s>0$，倒车对应 $\dot s<0$。更一般的情形应直接由上式判断，不能脱离 $\varphi$ 和 $1-d\kappa_r$ 的符号仅凭“倒车”断定 $\dot s$ 的符号。
+
+倒车时各量的对应变化如下：
+
+| 量                                           | 前进                       | 倒车                         | 是否修改定义或模型            |
+| -------------------------------------------- | -------------------------- | ---------------------------- | ----------------------------- |
+| 有符号纵向速度 $v$                           | $v>0$                      | $v<0$                        | 使用同一定义                  |
+| 车辆速度 $\dot{\mathbf z}=v\mathbf e_\theta$ | 与 $\mathbf e_\theta$ 同向 | 与 $\mathbf e_\theta$ 反向   | 无侧滑关系不变                |
+| 有向弧长变化率 $d\ell/dt$                    | 为正                       | 为负                         | 始终有 $d\ell/dt=v$           |
+| 参考路径进度 $\dot s$                        | 通常为正                   | 通常为负                     | 由式 (2) 决定                 |
+| 横向偏差变化率 $\dot d=v\sin\varphi$         | 原方向                     | 对相同状态反向               | $d$ 本身不预先取反            |
+| 航向角速度 $\dot\theta=v\kappa_v$            | 原方向                     | 对相同 $\kappa_v$ 反向       | $\kappa_v$ 不因倒车而人为变号 |
+| 航向误差变化率 $\dot\varphi$                 | 原方向                     | 对相同状态和 $\kappa_v$ 反向 | $\varphi$ 本身不预先取反      |
+| 参考曲率 $\kappa_r$ 与车辆曲率 $\kappa_v$    | 使用既定符号约定           | 使用同一符号约定             | 均不修改                      |
+| 式 (2) 的三个右端                            | 原形式                     | 原形式                       | 完全不变                      |
+
+因此，对给定的状态 $(s,d,\varphi)$ 和相同的车辆曲率 $\kappa_v$，将 $v$ 从正值改为对应的负值会使式 (2) 的三个状态变化率同时反向。时间 $t$ 仍按正方向推进；与参考路径弧长域模型不同，时间域倒车通过输入 $v<0$ 表示，而不是通过反向积分时间实现。停车时 $v=0$，式 (2) 给出 $\dot s=\dot d=\dot\varphi=0$。
+
+## 参考路径弧长域 Frenet 运动学
+
+本节直接从弧长参数化的位置关系与航向关系建立模型，不调用时间域状态方程，也不使用关于时间的导数。
+
+### 车辆轨迹有向弧长参数化
+
+变量 $s$ 是参考路径上投影点的弧长坐标，$\ell$ 是沿车辆航向取正的后轴中心轨迹有向弧长。在 Frenet 坐标有效的轨迹段上，$s$ 和 $d$ 都可视为 $\ell$ 的函数，式 (1) 相应写成
+
+$$
+\mathbf z(\ell) =
+\mathbf r\bigl(s(\ell)\bigr)
++
+d(\ell)\mathbf N\bigl(s(\ell)\bigr).
+$$
+
+直接关于车辆轨迹有向弧长 $\ell$ 求导：
+
+$$
+\begin{aligned}
+\frac{d\mathbf z}{d\ell}
+&=
+\frac{d\mathbf r}{ds}\frac{ds}{d\ell}
++
+\frac{d d}{d\ell}\mathbf N
++
+d\frac{d\mathbf N}{ds}\frac{ds}{d\ell}\\
+&=
+\mathbf T\frac{ds}{d\ell}
++
+\frac{d d}{d\ell}\mathbf N
++
+d\frac{d\mathbf N}{ds}\frac{ds}{d\ell}.
+\end{aligned}
+$$
+
+由 Frenet 关系 $d\mathbf N/ds=-\kappa_r\mathbf T$ 与 $\langle\mathbf T,\mathbf N\rangle=0$，
+
+$$
+\left\langle
+\frac{d\mathbf N}{ds},
+\mathbf N
+\right\rangle
+=-\kappa_r\langle\mathbf T,\mathbf N\rangle=0.
+$$
+
+将位置导数投影到 $\mathbf N$ 方向，并使用 $\langle\mathbf T,\mathbf N\rangle=0$ 与 $\langle\mathbf N,\mathbf N\rangle=1$，得到
+
+$$
+\left\langle
+\frac{d\mathbf z}{d\ell},
+\mathbf N
+\right\rangle =
+\frac{d d}{d\ell}.
+$$
+
+由于 $\ell$ 是沿车辆航向取正的有向弧长，结合无侧滑约束，$d\mathbf z/d\ell$ 是与车辆航向单位向量相同的轨迹单位切向量：
+
+$$
+\frac{d\mathbf z}{d\ell} =
+\mathbf e_\theta =
+\cos\varphi\,\mathbf T
++
+\sin\varphi\,\mathbf N.
+$$
+
+其法向分量为
+
+$$
+\left\langle
+\frac{d\mathbf z}{d\ell},
+\mathbf N
+\right\rangle =
+\sin\varphi.
+$$
+
+比较同一个法向分量，得到
+
+$$
+\frac{d d}{d\ell} =
+\sin\varphi =
+\sin(\theta-\theta_r).
+$$
+
+这一结果直接来自以 $\ell$ 参数化的位置关系，没有借助时间导数反推，也没有使用参考路径曲率。最近点投影与 Frenet 管状坐标的一般正则性背景见文献 [4, Eq. (22) and Theorem 5]。
+
+### 参考路径弧长与车辆轨迹有向弧长的换算
+
+将 $d\mathbf N/ds=-\kappa_r\mathbf T$ 代入上一小节的位置导数，可得
+
+$$
+\frac{d\mathbf z}{d\ell} =
+(1-d\kappa_r)\frac{ds}{d\ell}\mathbf T
++
+\frac{d d}{d\ell}\mathbf N.
+$$
+
+同时，车辆轨迹相对于有向弧长 $\ell$ 的单位切向量为
+
+$$
+\frac{d\mathbf z}{d\ell} =
+\cos\varphi\,\mathbf T
++
+\sin\varphi\,\mathbf N.
+$$
+
+比较切向分量：
+
+$$
+(1-d\kappa_r)\frac{ds}{d\ell} =
+\cos\varphi.
+$$
+
+当 $1-d\kappa_r\ne0$ 且 $\cos\varphi\ne0$ 时，上式给出 $ds/d\ell\ne0$，因而 $s$ 与 $\ell$ 在局部互为参数。两种弧长的局部换算关系为
+
+$$
+\frac{d\ell}{ds} =
+\frac{1-d\kappa_r}{\cos\varphi}.
+\tag{3}
+$$
+
+相应的逆关系为
+
+$$
+\frac{ds}{d\ell} =
+\frac{\cos\varphi}{1-d\kappa_r}.
+$$
+
+### 横向偏差方程
+
+在 $ds/d\ell\ne0$ 的区间内，链式法则给出
+
+$$
+\frac{d d}{d\ell} =
+\frac{d d}{ds}\frac{ds}{d\ell}.
+$$
+
+代入 $d d/d\ell=\sin\varphi$ 与式 (3) 的逆关系：
+
+$$
+\begin{aligned}
+\frac{d d}{ds}
+&=
+\frac{\sin\varphi}
+{\cos\varphi/(1-d\kappa_r)}\\
+&=
+(1-d\kappa_r)\tan\varphi.
+\end{aligned}
+$$
+
+关系 $d d/d\ell=\sin\varphi$ 不显含参考路径曲率，因为它描述每单位车辆实际行驶弧长产生的法向变化；而 $d d/ds$ 显含 $\kappa_r$，因为改用参考路径进度作为自变量时必须使用式 (3) 的逆关系完成尺度换算。
+
+### 航向误差方程
+
+在式 (3) 的成立条件下，$s$ 与 $\ell$ 在局部互为参数。沿同一车辆轨迹，将航向误差直接写成
+
+$$
+\varphi(s)=\theta\bigl(\ell(s)\bigr)-\theta_r(s).
+$$
+
+关于参考路径弧长 $s$ 求导，并使用 $\kappa_v=d\theta/d\ell$、$\kappa_r=d\theta_r/ds$ 以及式 (3)：
+
+$$
+\begin{aligned}
+\frac{d\varphi}{ds}
+&=
+\frac{d\theta}{d\ell}\frac{d\ell}{ds}-\frac{d\theta_r}{ds}\\
+&=
+\kappa_v\frac{1-d\kappa_r}{\cos\varphi}-\kappa_r.
+\end{aligned}
+$$
+
+第一项是车辆航向每单位参考路径弧长的变化率，第二项 $\kappa_r=d\theta_r/ds$ 是参考航向在同一自变量下的变化率。
+
+### 完整二状态参考路径弧长域模型
+
+将横向偏差方程与航向误差方程合并，得到以 $s$ 为自变量、以 $(d,\varphi)$ 为状态的空间域模型：
+
+$$
+\begin{aligned}
+\frac{d d}{ds}
+&=
+(1-d\kappa_r)\tan\varphi,\\
+\frac{d\varphi}{ds}
+&=
+\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r.
+\end{aligned}
+\tag{4}
+$$
+
+这里 $\kappa_r=\kappa_r(s)$ 由参考路径给定，$\kappa_v$ 是车辆曲率输入。式 (4) 完全由弧长参数化的几何关系得到，不依赖时间域模型；其成立条件是最近点投影唯一、$1-d\kappa_r\ne0$ 且 $\cos\varphi\ne0$。
+
+式 (3) 的单变量截面、双变量曲面及其对应的 Frenet 几何构型，见 [Frenet 弧长换算关系的交互可视化](../frenet-arc-length-conversion/)。
+
+### 倒车运动的适用性
+
+式 (4) 同样适用于倒车，无须针对倒车重新推导。原因是前述弧长域推导使用的是沿车辆航向取正的有向弧长 $\ell$，并且只依赖无侧滑条件下的几何微分关系
+
+$$
+d\mathbf z=\mathbf e_\theta\,d\ell,
+\qquad
+d\theta=\kappa_v\,d\ell.
+$$
+
+这两个关系没有要求 $d\ell>0$。前进时 $d\ell>0$，位移 $d\mathbf z$ 与车辆航向单位向量 $\mathbf e_\theta$ 同向；倒车时 $d\ell<0$，位移 $d\mathbf z$ 与 $\mathbf e_\theta$ 反向，但 $d\mathbf z/d\ell=\mathbf e_\theta$ 仍然成立。因此，前述位置微分的分量比较、弧长换算和链式法则在倒车时均保持不变，最终得到的仍是同一个二状态模型。
+
+式 (3) 的逆关系给出
+
+$$
+\frac{ds}{d\ell}=\frac{\cos\varphi}{1-d\kappa_r}.
+$$
+
+因此一般情况下，$ds$ 与 $d\ell$ 的符号关系为
+
+$$
+\operatorname{sign}(ds)=
+\operatorname{sign}(d\ell)
+\operatorname{sign}\!\left(\frac{\cos\varphi}{1-d\kappa_r}\right).
+$$
+
+在通常的 Frenet 跟踪区域 $1-d\kappa_r>0$ 且 $|\varphi|<\pi/2$ 内，$ds/d\ell>0$，所以前进对应 $ds>0$，倒车对应 $ds<0$。倒车时只是沿参考路径弧长坐标减小的方向经过同一空间域状态曲线，式 (4) 的右端不需要修改。
+
+倒车时各量的对应变化如下：
+
+| 量                                           | 前进                       | 倒车                            | 是否修改定义或模型            |
+| -------------------------------------------- | -------------------------- | ------------------------------- | ----------------------------- |
+| 车辆轨迹有向弧长增量 $d\ell$                 | $d\ell>0$                  | $d\ell<0$                       | 不修改定义                    |
+| 车辆位移 $d\mathbf z=\mathbf e_\theta d\ell$ | 与 $\mathbf e_\theta$ 同向 | 与 $\mathbf e_\theta$ 反向      | 几何关系不变                  |
+| 参考路径弧长增量 $ds$                        | 通常为正                   | 通常为负                        | 由式 (3) 决定                 |
+| 航向增量 $d\theta=\kappa_v d\ell$            | 按正向弧长累积             | 对相同 $\kappa_v$，增量方向反转 | $\kappa_v$ 不因倒车而人为变号 |
+| 状态 $d$、$\varphi$                          | 由模型沿 $s$ 正向演化      | 由模型沿 $s$ 反向演化           | 状态定义不变，也不预先取反    |
+| 参考曲率 $\kappa_r$ 与车辆曲率 $\kappa_v$    | 使用既定符号约定           | 使用同一符号约定                | 均不修改                      |
+| 式 (4) 的两个右端                            | 原形式                     | 原形式                          | 完全不变                      |
+
+相应地，使用 $s$ 直接求解时，前进通常从较小的 $s$ 积分到较大的 $s$，倒车则从较大的 $s$ 积分到较小的 $s$。如果数值实现另外定义始终递增的倒车进度 $\sigma=-s$，则由 $d/d\sigma=-d/ds$ 可知两个状态方程的右端会整体乘以 $-1$；这是更换自变量造成的结果，不是倒车改变了式 (4)。
+
+## 参考文献
+
+1. Jan Eilbrecht and Olaf Stursberg, [_Challenges of Trajectory Planning with Integrator Models on Curved Roads_](https://ifatwww.et.uni-magdeburg.de/ifac2020/media/pdfs/3769.pdf), IFAC World Congress, 2020, §2.1–2.2, Eqs. (14)–(20). 本文使用该文献核对 Frenet 位置坐标、速度分解及时间域状态方程。
+
+2. Keisuke Yoneda et al., [_Trajectory Optimization and State Selection for Urban Automated Driving_](https://link.springer.com/article/10.1007/s10015-018-0484-4), _Artificial Life and Robotics_, 23, 474–480, 2018, §3.1, Eq. (1). 本文使用该文献核对车辆位置的法向坐标表示 $\mathbf z=\mathbf r(s)+d\mathbf N(s)$。
+
+3. Oskar Ljungqvist, [_Motion Planning and Feedback Control Techniques with Applications to Long Tractor-Trailer Vehicles_](https://liu.diva-portal.org/smash/get/diva2%3A1424832/FULLTEXT02.pdf), Linköping Studies in Science and Technology, Dissertation No. 2070, 2020, §4.3. 本文使用该文献核对 Frenet 坐标正则域及三自由度车辆运动学模型。
+
+4. Catherine Kublik and Richard Tsai, [_Integration over Curves and Surfaces Defined by the Closest Point Mapping_](https://link.springer.com/article/10.1186/s40687-016-0053-1), _Research in the Mathematical Sciences_, 3, Article 3, 2016, Eq. (22) and Theorem 5. 本文使用该文献说明最近点投影、Frenet 管状坐标与法向偏置尺度因子的几何背景。
+
+<FigureFocusDialog />

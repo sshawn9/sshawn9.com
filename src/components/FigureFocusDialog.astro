@@ -1,6 +1,7 @@
 ---
 import { BASE_LOCALE, requireLocale, toLanguageTag } from '../i18n/config';
 import * as m from '../paraglide/messages.js';
+import '../styles/figure-focus.css';
 
 const locale = requireLocale(Astro.currentLocale ?? BASE_LOCALE);
 const languageTag = toLanguageTag(locale);

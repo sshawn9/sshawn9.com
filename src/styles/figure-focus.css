@@ -1,0 +1,54 @@
+.frenet-focus-toggle {
+  cursor: pointer;
+}
+
+.frenet-figure-placeholder {
+  width: 100%;
+  pointer-events: none;
+}
+
+html[data-figure-focus-open],
+html[data-figure-focus-open] body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.figure-focus-dialog {
+  --figure-focus-inset: clamp(0.75rem, 2vw, 2rem);
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 0;
+  background: transparent;
+  padding: var(--figure-focus-inset);
+  color: var(--ink);
+}
+
+.figure-focus-dialog::backdrop {
+  background: rgb(3 6 15 / 0.78);
+  backdrop-filter: blur(10px);
+}
+
+.figure-focus-stage {
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 100%;
+  align-items: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frenet-focus-toggle {
+    transition: none;
+  }
+}

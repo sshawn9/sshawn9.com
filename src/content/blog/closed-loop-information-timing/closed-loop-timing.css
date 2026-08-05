@@ -1,0 +1,133 @@
+.closed-loop-timing {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--surface-strong);
+}
+
+.timing-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3rem;
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.timing-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.52rem;
+  padding: 0.3rem 0.42rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.timing-switch-control {
+  position: relative;
+  width: 1.85rem;
+  height: 1.02rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 30%, transparent);
+  transition: background-color 140ms ease;
+}
+
+.timing-switch[data-checked] .timing-switch-control {
+  background: #0891b2;
+}
+
+.timing-switch-thumb {
+  position: absolute;
+  top: 0.14rem;
+  left: 0.14rem;
+  width: 0.74rem;
+  height: 0.74rem;
+  border-radius: 50%;
+  background: white;
+  transition: transform 140ms ease;
+}
+
+.timing-switch[data-checked] .timing-switch-thumb {
+  transform: translateX(0.83rem);
+}
+
+.timing-switch:focus-within .timing-switch-control,
+.timing-reset:focus-visible {
+  outline: 2px solid color-mix(in srgb, #06b6d4 55%, transparent);
+  outline-offset: 2px;
+}
+
+.timing-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36rem;
+  border-radius: 0.62rem;
+  padding: 0.42rem 0.58rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.timing-reset:hover {
+  background: color-mix(in srgb, var(--muted) 9%, transparent);
+  color: var(--ink);
+}
+
+.timing-reset svg {
+  width: 0.82rem;
+  height: 0.82rem;
+}
+
+.closed-loop-timing-plot {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  height: 38.75rem;
+  touch-action: none;
+  user-select: none;
+}
+
+.closed-loop-timing-plot .vega-view,
+.closed-loop-timing-plot svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.closed-loop-timing[data-dragging] .closed-loop-timing-plot,
+.closed-loop-timing[data-dragging] .closed-loop-timing-plot * {
+  cursor: grabbing !important;
+}
+
+.research-article-figure[data-focus-active] .closed-loop-timing {
+  height: 100%;
+  min-height: 0;
+}
+
+.research-article-figure[data-focus-active] .closed-loop-timing-plot {
+  height: auto;
+  min-height: 0;
+}
+
+@media (max-width: 45rem) {
+  .closed-loop-timing-plot {
+    height: 34rem;
+  }
+
+  .timing-switch label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
