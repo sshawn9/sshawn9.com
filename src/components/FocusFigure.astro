@@ -1,0 +1,40 @@
+---
+import { Maximize2, Minimize2 } from '@lucide/astro';
+import { BASE_LOCALE, requireLocale, toLanguageTag } from '../i18n/config';
+import * as m from '../paraglide/messages.js';
+
+type Props = {
+  number: number;
+  dimensions?: 1 | 2;
+};
+
+const { number, dimensions = 1 } = Astro.props;
+const locale = requireLocale(Astro.currentLocale ?? BASE_LOCALE);
+const languageTag = toLanguageTag(locale);
+const expandLabel = m.figure_expand({ number }, { locale });
+const collapseLabel = m.figure_collapse({ number }, { locale });
+---
+
+<figure
+  class="not-prose frenet-article-figure"
+  data-figure-focus
+  data-dimensions={dimensions === 2 ? '2' : undefined}
+>
+  <slot />
+  <button
+    type="button"
+    lang={languageTag}
+    class="frenet-focus-toggle"
+    data-figure-focus-toggle
+    data-expand-label={expandLabel}
+    data-collapse-label={collapseLabel}
+    aria-label={expandLabel}
+    aria-controls="figure-focus-dialog"
+    aria-pressed="false"
+    title={expandLabel}
+  >
+    <Maximize2 class="frenet-focus-expand-icon" aria-hidden="true" />
+    <Minimize2 class="frenet-focus-collapse-icon" aria-hidden="true" />
+  </button>
+  <slot name="caption" />
+</figure>

@@ -46,11 +46,11 @@ const pageTitle = currentRoute
 const breadcrumbs = currentRoute
   ? [
       { label: m.nav_blog({}, { locale }), href: localePath(locale, '/blog/') },
-      { label: post.data.title },
+      { label: post.data.title, lang: contentLanguageTag },
     ]
   : [
       { label: m.nav_blog({}, { locale }), href: localePath(locale, '/blog/') },
-      { label: post.data.title, href: getArticleHref(article) },
+      { label: post.data.title, href: getArticleHref(article), lang: contentLanguageTag },
       { label: `v${version.number}` },
     ];
 const fallbackLanguage =
@@ -77,19 +77,21 @@ const articleTags = getArticleTags(article);
 >
   <Schema slot="head" item={articleSchema} />
 
-  <article class="content-shell pt-12 sm:pt-16" lang={contentLanguageTag}>
+  <article class="content-shell pt-12 sm:pt-16">
     <div class="mx-auto grid max-w-6xl gap-x-12 lg:grid-cols-[minmax(0,1fr)_13rem] lg:items-start">
       <div class="min-w-0" data-article-main>
         <header data-reveal>
           <Breadcrumbs items={breadcrumbs} {locale} />
 
           <h1
+            lang={contentLanguageTag}
             class="mt-8 text-4xl font-extrabold tracking-[-0.045em] text-balance sm:text-5xl"
             data-pagefind-meta="title"
           >
             {post.data.title}
           </h1>
           <p
+            lang={contentLanguageTag}
             class="mt-5 max-w-4xl text-lg leading-8 text-slate-600 sm:text-xl dark:text-slate-400"
             data-pagefind-meta="description"
           >
@@ -184,8 +186,14 @@ const articleTags = getArticleTags(article);
                   popover
                   class="modal-popover surface-strong fixed top-1/2 left-1/2 m-0 max-h-[min(70dvh,32rem)] w-[min(28rem,calc(100%_-_2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl p-5 shadow-2xl"
                 >
-                  <h2 class="text-sm font-extrabold">{m.article_toc({}, { locale })}</h2>
-                  <nav class="mt-4 border-l border-slate-900/10 dark:border-white/10">
+                  <h2 id="article-toc-mobile-heading" class="text-sm font-extrabold">
+                    {m.article_toc({}, { locale })}
+                  </h2>
+                  <nav
+                    lang={contentLanguageTag}
+                    aria-labelledby="article-toc-mobile-heading"
+                    class="mt-4 border-l border-slate-900/10 dark:border-white/10"
+                  >
                     {toc.map((heading) => (
                       <a
                         href={`#${heading.slug}`}
@@ -213,6 +221,7 @@ const articleTags = getArticleTags(article);
         </header>
 
         <div
+          lang={contentLanguageTag}
           class="article-prose js-toc-content prose prose-lg mt-10 max-w-none prose-headings:tracking-tight prose-headings:text-balance prose-blockquote:not-italic"
         >
           <slot />
@@ -286,7 +295,11 @@ const articleTags = getArticleTags(article);
                 <h2 id="article-toc-heading" class="sidebar-heading">
                   {m.article_toc({}, { locale })}
                 </h2>
-                <nav class="js-toc mt-4" aria-label={m.article_toc({}, { locale })} />
+                <nav
+                  class="js-toc mt-4"
+                  lang={contentLanguageTag}
+                  aria-labelledby="article-toc-heading"
+                />
               </section>
             )
           }

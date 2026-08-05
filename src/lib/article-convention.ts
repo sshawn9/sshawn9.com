@@ -18,7 +18,7 @@ export function parseArticleEntryId(id: string): ParsedArticleEntryId {
   if (indexFileMatch) segments.pop();
   if (segments.length !== 1 && segments.length !== 2) {
     throw new Error(
-      `Invalid article path “${id}”. Use article/index[.locale].md or article/vN/index[.locale].md.`,
+      `Invalid article path “${id}”. Use article/index[.locale].{md,mdx} or article/vN/index[.locale].{md,mdx}.`,
     );
   }
 

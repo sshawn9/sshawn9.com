@@ -2,11 +2,15 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
+import { unified } from '@astrojs/markdown-remark';
+import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import solid from '@astrojs/solid-js';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import tailwindcss from '@tailwindcss/vite';
 import expressiveCode from 'astro-expressive-code';
+import rehypeKatex from 'rehype-katex';
+import remarkMath from 'remark-math';
 
 const site = 'https://sshawn9.com';
 const outDirUrl = new URL('./dist/', import.meta.url);
@@ -59,12 +63,18 @@ export default defineConfig({
       defaultLocale: 'en-US',
       getBlockLocale: ({ file }) => {
         const source = file.url?.pathname || file.path;
-        return /\.zh\.md$/.test(source) ? 'zh-CN' : 'en-US';
+        return /\.zh\.(?:md|mdx)$/.test(source) ? 'zh-CN' : 'en-US';
       },
       defaultProps: { wrap: true },
       styleOverrides: {
         borderRadius: '0.9rem',
       },
+    }),
+    mdx({
+      processor: unified({
+        remarkPlugins: [remarkMath],
+        rehypePlugins: [rehypeKatex],
+      }),
     }),
     sitemap({
       filter: (page) =>

@@ -19,8 +19,8 @@ const articleMetadata = defineCollection({
 const blog = defineCollection({
   loader: glob({
     base: './src/content/blog',
-    pattern: '**/*.md',
-    generateId: ({ entry }) => entry.replace(/\.md$/, ''),
+    pattern: '**/*.{md,mdx}',
+    generateId: ({ entry }) => entry.replace(/\.(?:md|mdx)$/, ''),
   }),
   schema: z.object({
     title: z.string(),

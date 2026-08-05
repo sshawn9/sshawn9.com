@@ -5,6 +5,7 @@ import * as m from '../paraglide/messages.js';
 type BreadcrumbItem = {
   label: string;
   href?: string;
+  lang?: string;
 };
 
 type Props = {
@@ -29,6 +30,7 @@ const { items, locale } = Astro.props;
             {item.href && !current ? (
               <a
                 href={item.href}
+                lang={item.lang}
                 class="transition-colors hover:text-cyan-700 dark:hover:text-cyan-300"
               >
                 {item.label}
@@ -36,6 +38,7 @@ const { items, locale } = Astro.props;
             ) : (
               <span
                 aria-current={current ? 'page' : undefined}
+                lang={item.lang}
                 class={current ? 'text-slate-900 dark:text-white' : undefined}
               >
                 {item.label}

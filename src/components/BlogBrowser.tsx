@@ -193,10 +193,7 @@ export default function BlogBrowser(props: Props) {
                     data-article-tags={JSON.stringify(article.tags)}
                     data-reveal
                   >
-                    <article
-                      lang={article.contentLanguage}
-                      class="group grid gap-4 border-b border-slate-900/10 py-7 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-7 lg:grid-cols-[9rem_minmax(0,1fr)_minmax(12rem,18rem)_1.5rem] lg:items-start dark:border-white/10"
-                    >
+                    <article class="group grid gap-4 border-b border-slate-900/10 py-7 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-7 lg:grid-cols-[9rem_minmax(0,1fr)_minmax(12rem,18rem)_1.5rem] lg:items-start dark:border-white/10">
                       <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 sm:block">
                         <time
                           datetime={article.publishedDateTime}
@@ -217,7 +214,7 @@ export default function BlogBrowser(props: Props) {
                         </Show>
                       </div>
 
-                      <div class="min-w-0">
+                      <div class="min-w-0" lang={article.contentLanguage}>
                         <h2 class="text-xl font-extrabold tracking-tight sm:text-2xl">
                           <a
                             href={article.href}

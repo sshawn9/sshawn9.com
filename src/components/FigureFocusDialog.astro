@@ -1,0 +1,134 @@
+---
+import { BASE_LOCALE, requireLocale, toLanguageTag } from '../i18n/config';
+import * as m from '../paraglide/messages.js';
+
+const locale = requireLocale(Astro.currentLocale ?? BASE_LOCALE);
+const languageTag = toLanguageTag(locale);
+---
+
+<dialog
+  id="figure-focus-dialog"
+  lang={languageTag}
+  class="figure-focus-dialog"
+  data-figure-focus-dialog
+  aria-label={m.figure_dialog_label({}, { locale })}
+>
+  <div class="figure-focus-stage" data-figure-focus-stage></div>
+</dialog>
+
+<script>
+  type FocusState = {
+    figure: HTMLElement;
+    parent: Node;
+    nextSibling: Node | null;
+    placeholder: HTMLElement;
+    scrollX: number;
+    scrollY: number;
+  };
+
+  const states = new WeakMap<HTMLDialogElement, FocusState>();
+  const initializedDialogs = new WeakSet<HTMLDialogElement>();
+
+  function updateToggle(figure: HTMLElement, expanded: boolean): HTMLButtonElement | null {
+    const toggle = figure.querySelector<HTMLButtonElement>('[data-figure-focus-toggle]');
+    if (!toggle) return null;
+    const label = expanded ? toggle.dataset.collapseLabel : toggle.dataset.expandLabel;
+    toggle.setAttribute('aria-pressed', String(expanded));
+    if (label) {
+      toggle.setAttribute('aria-label', label);
+      toggle.title = label;
+    }
+    return toggle;
+  }
+
+  function restorePagePosition(state: FocusState): void {
+    window.scrollTo(state.scrollX, state.scrollY);
+    requestAnimationFrame(() => window.scrollTo(state.scrollX, state.scrollY));
+  }
+
+  function restoreFigure(dialog: HTMLDialogElement, restoreFocus = true): void {
+    const state = states.get(dialog);
+    if (!state) {
+      document.documentElement.removeAttribute('data-figure-focus-open');
+      if (dialog.open) dialog.close();
+      return;
+    }
+
+    states.delete(dialog);
+    const { figure, parent, nextSibling, placeholder } = state;
+    if (placeholder.isConnected) placeholder.replaceWith(figure);
+    else {
+      const reference = nextSibling?.parentNode === parent ? nextSibling : null;
+      parent.insertBefore(figure, reference);
+    }
+    figure.removeAttribute('data-focus-active');
+    const toggle = updateToggle(figure, false);
+    document.documentElement.removeAttribute('data-figure-focus-open');
+    if (dialog.open) dialog.close();
+    restorePagePosition(state);
+    if (restoreFocus) requestAnimationFrame(() => toggle?.focus({ preventScroll: true }));
+  }
+
+  function openFigure(dialog: HTMLDialogElement, figure: HTMLElement): void {
+    const stage = dialog.querySelector<HTMLElement>('[data-figure-focus-stage]');
+    if (!stage || dialog.open) return;
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    const placeholder = document.createElement('div');
+    const figureStyle = getComputedStyle(figure);
+    placeholder.className = 'frenet-figure-placeholder';
+    placeholder.setAttribute('aria-hidden', 'true');
+    placeholder.style.height = `${figure.getBoundingClientRect().height}px`;
+    placeholder.style.marginBlockStart = figureStyle.marginBlockStart;
+    placeholder.style.marginBlockEnd = figureStyle.marginBlockEnd;
+    figure.before(placeholder);
+    states.set(dialog, {
+      figure,
+      parent: figure.parentNode!,
+      nextSibling: figure.nextSibling,
+      placeholder,
+      scrollX,
+      scrollY,
+    });
+    stage.append(figure);
+    figure.setAttribute('data-focus-active', '');
+    updateToggle(figure, true);
+    document.documentElement.setAttribute('data-figure-focus-open', '');
+    dialog.showModal();
+    restorePagePosition(states.get(dialog)!);
+  }
+
+  function initializeDialog(dialog: HTMLDialogElement): void {
+    if (initializedDialogs.has(dialog)) return;
+    initializedDialogs.add(dialog);
+    dialog.addEventListener('close', () => restoreFigure(dialog));
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) restoreFigure(dialog);
+    });
+  }
+
+  function initializeDialogs(): void {
+    document
+      .querySelectorAll<HTMLDialogElement>('[data-figure-focus-dialog]')
+      .forEach(initializeDialog);
+  }
+
+  document.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const toggle = target.closest<HTMLButtonElement>('[data-figure-focus-toggle]');
+    const figure = toggle?.closest<HTMLElement>('[data-figure-focus]');
+    const dialog = document.querySelector<HTMLDialogElement>('[data-figure-focus-dialog]');
+    if (!toggle || !figure || !dialog) return;
+    initializeDialog(dialog);
+    if (figure.hasAttribute('data-focus-active')) restoreFigure(dialog);
+    else openFigure(dialog, figure);
+  });
+
+  document.addEventListener('astro:before-swap', () => {
+    const dialog = document.querySelector<HTMLDialogElement>('[data-figure-focus-dialog]');
+    if (dialog) restoreFigure(dialog, false);
+  });
+  document.addEventListener('astro:page-load', initializeDialogs);
+  initializeDialogs();
+</script>

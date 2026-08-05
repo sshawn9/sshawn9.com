@@ -23,7 +23,19 @@ const href = `${replacePathLocale(Astro.url.pathname, targetLocale)}${Astro.url.
 </a>
 
 <script>
+  import { navigate } from 'astro:transitions/client';
   import { localStorageKey } from '../paraglide/runtime.js';
+
+  type ScrollPosition = { left: number; top: number };
+  let pendingLocaleScroll: ScrollPosition | undefined;
+
+  document.addEventListener('astro:after-swap', () => {
+    const position = pendingLocaleScroll;
+    pendingLocaleScroll = undefined;
+    if (!position) return;
+
+    window.scrollTo({ ...position, behavior: 'instant' });
+  });
 
   document.addEventListener(
     'click',
@@ -40,10 +52,16 @@ const href = `${replacePathLocale(Astro.url.pathname, targetLocale)}${Astro.url.
       const locale = link?.dataset.localeSwitch;
       if (!link || (locale !== 'en' && locale !== 'zh')) return;
 
-      // The localized link remains owned by Astro's ClientRouter. Persisting the
-      // preference here only affects future visits to the unprefixed entry page.
       localStorage.setItem(localStorageKey, locale);
-      link.href = `${link.pathname}${window.location.search}${window.location.hash}`;
+      event.preventDefault();
+      const position = { left: window.scrollX, top: window.scrollY };
+      const destination = new URL(link.href);
+      destination.search = window.location.search;
+      destination.hash = '';
+      pendingLocaleScroll = position;
+      void navigate(destination.href, { sourceElement: link }).finally(() => {
+        if (pendingLocaleScroll === position) pendingLocaleScroll = undefined;
+      });
     },
     { capture: true },
   );

@@ -15,7 +15,6 @@ const articleTags = getArticleTags(article);
 ---
 
 <article
-  lang={toLanguageTag(article.current.contentLocale)}
   class="surface spotlight-card card-lift group relative flex h-full flex-col rounded-3xl p-6 sm:p-7"
   data-reveal
 >
@@ -32,10 +31,16 @@ const articleTags = getArticleTags(article);
       aria-hidden="true"
     />
   </div>
-  <h3 class="mt-5 text-xl font-extrabold tracking-tight sm:text-2xl">
+  <h3
+    lang={toLanguageTag(article.current.contentLocale)}
+    class="mt-5 text-xl font-extrabold tracking-tight sm:text-2xl"
+  >
     <a href={getArticleHref(article)} class="after:absolute after:inset-0">{post.data.title}</a>
   </h3>
-  <p class="mt-3 flex-1 text-sm leading-6 text-slate-600 dark:text-slate-400">
+  <p
+    lang={toLanguageTag(article.current.contentLocale)}
+    class="mt-3 flex-1 text-sm leading-6 text-slate-600 dark:text-slate-400"
+  >
     {post.data.description}
   </p>
   <ul class="mt-6 flex flex-wrap gap-2" aria-label={m.article_tags({}, { locale })}>

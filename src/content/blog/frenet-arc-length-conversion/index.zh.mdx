@@ -1,0 +1,108 @@
+---
+title: Frenet 弧长换算关系的交互可视化
+description: 通过三条单变量曲线和三个双变量曲面，交互考察航向误差、横向偏差与参考曲率对弧长换算率的共同作用。
+---
+
+import 'katex/dist/katex.min.css';
+import FigureFocusDialog from '../../../components/FigureFocusDialog.astro';
+import FocusFigure from '../../../components/FocusFigure.astro';
+import FrenetExplorer from './FrenetExplorer';
+import './frenet-explorer.css';
+
+参考路径弧长 $s$ 与车辆实际轨迹弧长 $\ell$ 之间并不是始终一比一。下面用六组交互图考察航向误差 $\varphi$、横向偏差 $d$ 与参考曲率 $\kappa_r$ 如何共同改变局部换算率 $d\ell/ds$。每组关系图都与同一参数下的 Frenet 几何构型联动，因此代数变化和几何状态可以被同时观察。
+
+## 弧长换算关系
+
+本文考察的局部换算关系为
+
+$$
+\frac{d\ell}{ds}=\frac{1-d\kappa_r}{\cos\varphi}.
+$$
+
+其中，$s$ 是参考路径上投影点的弧长坐标，$\ell$ 是车辆后轴中心实际轨迹的弧长，$d$ 是沿左单位法向量取正的横向偏差，$\varphi$ 是车辆航向相对参考航向的有符号误差，$\kappa_r$ 是参考路径的有符号曲率。
+
+## 如何使用交互图
+
+关系曲线或曲面与右侧的局部 Frenet 几何共用同一组参数。移动鼠标到曲线采样点或曲面网格点，右侧几何会立即切换到对应状态；在触控设备上点击数据点也能完成选择。
+
+普通滑块设置当前固定参数，双端滑块设置坐标轴或 $d\ell/ds$ 的显示区间。滑块每一步的数值都会被完整保留，图形结构更新会在浏览器的下一绘制帧合并重复请求；鼠标在关系图上的联动不额外延迟，只更新发生变化的图形数据。只有需要扩展探索范围时，才需要展开“设置绝对范围”。
+
+几何图采用以下符号约定：参考路径正向为 $s$ 增大方向，横向偏差向左为正，航向误差向左转为正。背景网格由参考路径的等距曲线与法线坐标线构成。
+
+## 单变量关系曲线
+
+### 关于航向误差的关系曲线
+
+<FocusFigure number={1}>
+  <figcaption slot="caption">
+    <strong>图 1.</strong> 固定 $(d,\kappa_r)$ 时，$d\ell/ds$ 随航向误差 $\varphi$
+    的变化。紫色点线表示 $d\ell/ds=1$；把横轴扩展到 $\pm90^\circ$ 时，橙色虚线标出
+    $\cos\varphi=0$，曲线在其邻域中断。
+  </figcaption>
+  <FrenetExplorer axes={['phi']} contentLocale="zh" client:only="solid-js" />
+</FocusFigure>
+
+### 关于横向偏差的关系曲线
+
+<FocusFigure number={2}>
+  <figcaption slot="caption">
+    <strong>图 2.</strong> 固定 $(\varphi,\kappa_r)$ 时，$d\ell/ds$ 关于横向偏差 $d$
+    呈线性变化。当有符号曲率半径 $\rho_r=1/\kappa_r$ 位于横轴范围内时，红色虚线标出 $d=\rho_r$。
+  </figcaption>
+  <FrenetExplorer axes={['d']} contentLocale="zh" client:only="solid-js" />
+</FocusFigure>
+
+### 关于参考曲率的关系曲线
+
+<FocusFigure number={3}>
+  <figcaption slot="caption">
+    <strong>图 3.</strong> 固定 $(\varphi,d)$ 时，$d\ell/ds$ 关于参考曲率 $\kappa_r$ 呈线性变化。当
+    $d\ne0$ 且 $1/d$ 位于横轴范围内时，红色虚线标出 $\kappa_r=1/d$。
+  </figcaption>
+  <FrenetExplorer axes={['kappa']} contentLocale="zh" client:only="solid-js" />
+</FocusFigure>
+
+## 双变量关系曲面
+
+### 航向误差—横向偏差曲面
+
+<FocusFigure number={4} dimensions={2}>
+  <figcaption slot="caption">
+    <strong>图 4.</strong> 以 $(\varphi,d)$ 为水平坐标、$d\ell/ds$ 为竖直坐标，参考曲率 $\kappa_r$
+    由滑块给出。半透明紫色平面表示 $d\ell/ds=1$；$\varphi=\pm90^\circ$ 附近为不可定义区域。
+  </figcaption>
+  <FrenetExplorer axes={['phi', 'd']} contentLocale="zh" client:only="solid-js" />
+</FocusFigure>
+
+### 航向误差—参考曲率曲面
+
+<FocusFigure number={5} dimensions={2}>
+  <figcaption slot="caption">
+    <strong>图 5.</strong> 以 $(\varphi,\kappa_r)$ 为水平坐标，横向偏差 $d$ 由滑块给出。当 $d\ne0$
+    时，曲面沿 $\kappa_r$ 方向线性倾斜；$\varphi=\pm90^\circ$ 对应不可定义边界。
+  </figcaption>
+  <FrenetExplorer axes={['phi', 'kappa']} contentLocale="zh" client:only="solid-js" />
+</FocusFigure>
+
+### 横向偏差—参考曲率曲面
+
+<FocusFigure number={6} dimensions={2}>
+  <figcaption slot="caption">
+    <strong>图 6.</strong> 以 $(d,\kappa_r)$ 为水平坐标，航向误差 $\varphi$ 由滑块给出。当
+    $\cos\varphi\ne0$ 时，曲面与零平面的交线满足 $d\kappa_r=1$。
+  </figcaption>
+  <FrenetExplorer axes={['d', 'kappa']} contentLocale="zh" client:only="solid-js" />
+</FocusFigure>
+
+<FigureFocusDialog />
+
+## 观察要点
+
+- 当 $d=0$ 且 $\varphi=0$ 时，换算率恒为 $1$，参考曲率本身不会改变局部弧长比例。
+- 航向误差通过 $1/\cos\varphi$ 产生非线性影响；越接近 $\pm90^\circ$，换算率的绝对值增长越快。
+- 横向偏差与参考曲率只以乘积 $d\kappa_r$ 出现，因此二者符号是否一致直接决定分子被压缩还是放大。
+- $1-d\kappa_r=0$ 是局部退化条件，此时参考路径弧长变化不再对应车辆轨迹弧长变化。
+
+## 实现说明
+
+数值关系与几何构型都直接在浏览器中计算。界面使用 Solid 与 Kobalte 管理可访问的滑块和数值输入，Plotly.js 负责二维曲线、三维曲面和指针交互。整个页面是静态构建产物，不需要 Jupyter、Python 内核或服务器回调。

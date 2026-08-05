@@ -1,0 +1,656 @@
+.frenet-explorer {
+  --frenet-accent: #0891b2;
+  --frenet-accent-soft: rgb(6 182 212 / 0.16);
+  --frenet-plot-background: transparent;
+  --frenet-plot-height: 31.25rem;
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  background: color-mix(in srgb, var(--surface-strong) 82%, transparent);
+  box-shadow: 0 20px 60px rgb(15 23 42 / 0.08);
+  container: frenet-explorer / inline-size;
+  isolation: isolate;
+}
+
+.frenet-explorer[data-frenet-dimensions='2'] {
+  --frenet-plot-height: 35rem;
+}
+
+.dark .frenet-explorer {
+  --frenet-accent: #22d3ee;
+  --frenet-accent-soft: rgb(34 211 238 / 0.16);
+  box-shadow: 0 24px 70px rgb(0 0 0 / 0.22);
+}
+
+.frenet-controls {
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.1rem 1.5rem;
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--page-muted) 48%, transparent);
+}
+
+.frenet-control {
+  min-width: 0;
+}
+
+.frenet-control-heading {
+  display: flex;
+  min-width: 0;
+  min-height: 1.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.frenet-slider-value {
+  overflow: hidden;
+  max-width: 52%;
+  flex: none;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.frenet-slider {
+  --frenet-thumb-size: 1.05rem;
+  display: grid;
+  min-width: 0;
+  width: 100%;
+  gap: 0.2rem;
+  touch-action: none;
+}
+
+.frenet-slider-track {
+  position: relative;
+  width: auto;
+  height: 0.3rem;
+  margin: 0.45rem calc(var(--frenet-thumb-size) / 2);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 22%, transparent);
+}
+
+.frenet-slider-fill {
+  position: absolute;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #06b6d4, #6366f1);
+}
+
+.frenet-slider-thumb {
+  display: block;
+  top: 50%;
+  width: var(--frenet-thumb-size);
+  height: var(--frenet-thumb-size);
+  translate: 0 -50%;
+  border: 2px solid var(--frenet-accent);
+  border-radius: 999px;
+  background: var(--surface-strong);
+  box-shadow: 0 2px 10px rgb(15 23 42 / 0.18);
+  transition:
+    width 150ms ease,
+    height 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.frenet-slider-thumb:hover,
+.frenet-slider-thumb:focus-visible,
+.frenet-slider-thumb[data-dragging] {
+  width: 1.22rem;
+  height: 1.22rem;
+  outline: none;
+  box-shadow: 0 0 0 0.3rem var(--frenet-accent-soft);
+}
+
+.frenet-slider-bounds {
+  display: flex;
+  justify-content: space-between;
+  color: color-mix(in srgb, var(--muted) 82%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.frenet-control-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.frenet-advanced {
+  min-width: 0;
+  flex: 1;
+}
+
+.frenet-advanced-trigger,
+.frenet-reset {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
+  padding: 0.45rem 0.8rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background-color 160ms ease;
+}
+
+.frenet-advanced-trigger:hover,
+.frenet-reset:hover {
+  border-color: color-mix(in srgb, var(--frenet-accent) 55%, var(--line));
+  color: var(--ink);
+}
+
+.frenet-advanced-trigger svg,
+.frenet-reset svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.frenet-chevron {
+  margin-left: 0.1rem;
+  transition: transform 180ms ease;
+}
+
+.frenet-advanced-trigger[data-expanded] .frenet-chevron {
+  transform: rotate(180deg);
+}
+
+.frenet-advanced-content {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 1rem;
+  padding-top: 1rem;
+  animation: frenet-expand 180ms ease-out;
+}
+
+.frenet-bounds-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  min-width: 0;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0;
+  border: 0;
+}
+
+.frenet-bounds-row legend {
+  grid-column: 1 / -1;
+  margin-bottom: 0.15rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+}
+
+.frenet-bounds-row input {
+  width: 100%;
+  min-width: 0;
+  height: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: var(--surface-strong);
+  padding: 0 0.55rem;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.frenet-status {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 2.25rem;
+  padding: 0.7rem 1.25rem 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.frenet-plot-shell {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: var(--frenet-plot-height);
+  overflow: hidden;
+}
+
+.frenet-plot {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.frenet-plot-splitter {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  contain: layout paint;
+}
+
+.frenet-plot-splitter[data-orientation='vertical'] {
+  flex-direction: column;
+}
+
+.frenet-split-panel {
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+}
+
+.frenet-split-trigger {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 0.85rem;
+  width: 0.85rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.frenet-split-trigger:focus-visible {
+  outline: none;
+}
+
+.frenet-split-indicator {
+  position: absolute;
+  inset-block: 12%;
+  left: 50%;
+  width: 1px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 22%, transparent);
+  transform: translateX(-50%);
+  transition:
+    inset 150ms ease,
+    background-color 150ms ease,
+    opacity 150ms ease;
+}
+
+.frenet-split-indicator::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.2rem;
+  height: 1.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 24%, transparent);
+  content: '';
+  transform: translate(-50%, -50%);
+  transition:
+    height 150ms ease,
+    background-color 150ms ease;
+}
+
+.frenet-split-trigger:hover .frenet-split-indicator,
+.frenet-split-trigger:focus-visible .frenet-split-indicator {
+  inset-block: 7%;
+  background: color-mix(in srgb, var(--frenet-accent) 46%, transparent);
+}
+
+.frenet-split-trigger:hover .frenet-split-indicator::after,
+.frenet-split-trigger:focus-visible .frenet-split-indicator::after {
+  height: 2rem;
+  background: color-mix(in srgb, var(--frenet-accent) 62%, transparent);
+}
+
+.frenet-split-trigger:focus-visible .frenet-split-indicator::after {
+  background: color-mix(in srgb, var(--frenet-accent) 34%, transparent);
+  box-shadow:
+    0 0 0 2px var(--surface-strong),
+    0 0 0 3px color-mix(in srgb, var(--frenet-accent) 38%, transparent);
+}
+
+.frenet-plot-message {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.frenet-plot-error {
+  color: #dc2626;
+}
+
+@keyframes frenet-expand {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem);
+  }
+}
+
+@container frenet-explorer (max-width: 45rem) {
+  .frenet-controls {
+    grid-template-columns: 1fr;
+    gap: 0.9rem;
+    padding-inline: 1rem;
+  }
+
+  .frenet-control-actions {
+    grid-column: auto;
+  }
+
+  .frenet-advanced-content {
+    grid-template-columns: 1fr;
+  }
+
+  .frenet-status {
+    overflow-x: auto;
+    padding-inline: 1rem;
+    white-space: nowrap;
+  }
+
+  .frenet-plot-shell {
+    height: 45rem;
+  }
+
+  .frenet-explorer[data-frenet-dimensions='2'] .frenet-plot-shell {
+    height: 50rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frenet-slider-thumb,
+  .frenet-split-indicator,
+  .frenet-chevron,
+  .frenet-advanced-content {
+    transition: none;
+    animation: none;
+  }
+}
+
+.frenet-article-figure {
+  --frenet-accent: #0891b2;
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: clip;
+  margin-block: 1.75rem 3rem;
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  background: color-mix(in srgb, var(--surface-strong) 82%, transparent);
+  box-shadow: 0 20px 60px rgb(15 23 42 / 0.08);
+}
+
+.dark .frenet-article-figure {
+  --frenet-accent: #22d3ee;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 0.22);
+}
+
+.frenet-article-figure .frenet-explorer {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.frenet-article-figure > astro-island {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  min-height: 48.125rem;
+}
+
+.frenet-article-figure[data-dimensions='2'] > astro-island {
+  min-height: 51.875rem;
+}
+
+@media (max-width: 45rem) {
+  .frenet-article-figure > astro-island {
+    min-height: 70rem;
+  }
+
+  .frenet-article-figure[data-dimensions='2'] > astro-island {
+    min-height: 75rem;
+  }
+}
+
+.frenet-article-figure figcaption {
+  min-height: 3.5rem;
+  margin: 0;
+  background: transparent;
+  padding: 1rem 4.25rem 1.1rem 1.25rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.7;
+}
+
+.frenet-article-figure figcaption p {
+  margin: 0;
+}
+
+.frenet-article-figure figcaption strong {
+  color: var(--ink);
+}
+
+.frenet-focus-toggle {
+  position: absolute;
+  z-index: 3;
+  bottom: 0.78rem;
+  right: 0.78rem;
+  display: inline-grid;
+  width: 2.15rem;
+  height: 2.15rem;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, var(--surface-strong) 88%, transparent);
+  color: var(--muted);
+  box-shadow: 0 6px 18px rgb(15 23 42 / 0.08);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.frenet-focus-toggle:hover {
+  border-color: color-mix(in srgb, var(--frenet-accent) 55%, var(--line));
+  background: var(--surface-strong);
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+
+.frenet-focus-toggle svg {
+  grid-area: 1 / 1;
+  width: 1rem;
+  height: 1rem;
+}
+
+.frenet-focus-collapse-icon,
+.frenet-focus-toggle[aria-pressed='true'] .frenet-focus-expand-icon {
+  display: none;
+}
+
+.frenet-focus-toggle[aria-pressed='true'] .frenet-focus-collapse-icon {
+  display: block;
+}
+
+.frenet-figure-placeholder {
+  width: 100%;
+  pointer-events: none;
+}
+
+html[data-figure-focus-open],
+html[data-figure-focus-open] body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.figure-focus-dialog {
+  --figure-focus-inset: clamp(0.75rem, 2vw, 2rem);
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 0;
+  background: transparent;
+  padding: var(--figure-focus-inset);
+  color: var(--ink);
+}
+
+.figure-focus-dialog::backdrop {
+  background: rgb(3 6 15 / 0.78);
+  backdrop-filter: blur(10px);
+  animation: frenet-focus-backdrop-in 180ms ease-out;
+}
+
+.figure-focus-stage {
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 100%;
+  align-items: center;
+}
+
+.figure-focus-stage > .frenet-article-figure[data-focus-active] {
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: calc(100dvh - var(--figure-focus-inset) - var(--figure-focus-inset));
+  min-height: 42rem;
+  grid-template-rows: minmax(0, 1fr) auto;
+  margin: 0;
+  background: var(--surface-strong);
+  box-shadow: 0 32px 100px rgb(0 0 0 / 0.38);
+  animation: frenet-focus-card-in 180ms ease-out;
+}
+
+.frenet-article-figure[data-focus-active] > astro-island {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.frenet-article-figure[data-focus-active] .frenet-explorer {
+  --frenet-plot-height: 100%;
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 100%;
+  grid-template-rows: auto auto minmax(18rem, 1fr);
+}
+
+.frenet-article-figure[data-focus-active] .frenet-plot-shell,
+.frenet-article-figure[data-focus-active] .frenet-plot-splitter,
+.frenet-article-figure[data-focus-active] .frenet-split-panel,
+.frenet-article-figure[data-focus-active] .frenet-plot {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 100%;
+  min-height: 18rem;
+}
+
+@keyframes frenet-focus-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes frenet-focus-card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+
+@media (max-width: 45rem) {
+  .frenet-article-figure figcaption {
+    padding-left: 1rem;
+  }
+
+  .figure-focus-stage > .frenet-article-figure[data-focus-active] {
+    height: auto;
+  }
+
+  .frenet-article-figure[data-focus-active] > astro-island {
+    height: auto;
+    min-height: 70rem;
+  }
+
+  .frenet-article-figure[data-focus-active][data-dimensions='2'] > astro-island {
+    min-height: 75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frenet-focus-toggle {
+    transition: none;
+  }
+
+  .figure-focus-dialog::backdrop,
+  .figure-focus-stage > .frenet-article-figure[data-focus-active] {
+    animation: none;
+  }
+}
