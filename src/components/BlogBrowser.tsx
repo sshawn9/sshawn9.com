@@ -130,7 +130,7 @@ export default function BlogBrowser(props: Props) {
       }
     >
       <Show when={props.tags.length > 0}>
-        <aside class="lg:sticky lg:top-28 lg:max-h-[calc(100dvh-8rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
+        <aside class="lg:sticky lg:top-28 lg:max-h-[min(42rem,calc(100dvh-9rem))] lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
           <Collapsible defaultOpen>
             <Collapsible.Trigger class="group flex w-full items-center justify-between gap-4 py-2 text-left text-sm font-bold text-slate-700 dark:text-slate-200">
               <span>{m.article_tags({}, { locale: props.locale })}</span>

@@ -46,7 +46,7 @@ const tags: BlogTag[] = [...tagCounts]
 ---
 
 <BaseLayout title={pageTitle} description={description} searchable={false} {locale}>
-  <section class="content-shell py-12 sm:py-16">
+  <section class="content-shell py-12 sm:py-16 lg:pt-9">
     <BlogBrowser client:load articles={listArticles} {tags} {locale} />
   </section>
 </BaseLayout>
