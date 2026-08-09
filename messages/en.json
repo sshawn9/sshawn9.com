@@ -181,7 +181,6 @@
   "blog_article_count": "Articles: {count}",
   "blog_page_count": "Articles: {count} · Page {current} of {total}",
   "blog_empty": "No public articles match the current view.",
-  "blog_updated_on": "Updated {date}",
   "blog_read_article": "Read “{title}”",
   "blog_published": "Published {date}",
   "blog_revised": "Revised {date}",

@@ -13,8 +13,6 @@ export type BlogListArticle = {
   description?: string;
   publishedDateTime: string;
   publishedLabel: string;
-  revisedDateTime?: string;
-  revisedLabel?: string;
   tags: string[];
   tagHrefs: Record<string, string>;
 };
@@ -205,27 +203,7 @@ export default function BlogBrowser(props: Props) {
                     data-article-tags={JSON.stringify(article.tags)}
                     data-reveal
                   >
-                    <article class="group grid gap-4 border-b border-slate-900/10 py-7 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-7 lg:grid-cols-[9rem_minmax(0,1fr)_minmax(12rem,18rem)_1.5rem] lg:items-start dark:border-white/10">
-                      <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 sm:block">
-                        <time
-                          datetime={article.publishedDateTime}
-                          class="font-mono text-xs font-bold text-slate-600 dark:text-slate-300"
-                        >
-                          {article.publishedLabel}
-                        </time>
-                        <Show when={article.revisedDateTime && article.revisedLabel}>
-                          <time
-                            datetime={article.revisedDateTime}
-                            class="font-mono text-[0.62rem] text-slate-500 sm:mt-2 sm:block dark:text-slate-400"
-                          >
-                            {m.blog_updated_on(
-                              { date: article.revisedLabel ?? '' },
-                              { locale: props.locale },
-                            )}
-                          </time>
-                        </Show>
-                      </div>
-
+                    <article class="group grid gap-4 border-b border-slate-900/10 py-7 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,18rem)_1.5rem] lg:items-start lg:gap-7 dark:border-white/10">
                       <div class="min-w-0" lang={article.contentLanguage}>
                         <h2 class="text-xl font-extrabold tracking-tight sm:text-2xl">
                           <a
@@ -244,38 +222,46 @@ export default function BlogBrowser(props: Props) {
                         </Show>
                       </div>
 
-                      <ul
-                        class="flex flex-wrap items-center gap-2 sm:col-start-2 lg:col-start-auto"
-                        aria-label={m.article_tags({}, { locale: props.locale })}
-                      >
-                        <For each={article.tags}>
-                          {(tag) => (
-                            <li>
-                              <Show
-                                when={filterable()}
-                                fallback={
-                                  <a
-                                    href={article.tagHrefs[tag]}
-                                    data-article-tag-link={tag}
-                                    class="block rounded-full bg-cyan-500/8 px-2.5 py-1 font-mono text-[0.62rem] text-cyan-700 transition-colors hover:bg-cyan-500/15 dark:text-cyan-300"
+                      <footer class="min-w-0">
+                        <time
+                          datetime={article.publishedDateTime}
+                          class="mb-3 ml-2.5 block font-mono text-xs font-bold text-slate-600 dark:text-slate-300"
+                        >
+                          {article.publishedLabel}
+                        </time>
+                        <ul
+                          class="flex flex-wrap items-center gap-2"
+                          aria-label={m.article_tags({}, { locale: props.locale })}
+                        >
+                          <For each={article.tags}>
+                            {(tag) => (
+                              <li>
+                                <Show
+                                  when={filterable()}
+                                  fallback={
+                                    <a
+                                      href={article.tagHrefs[tag]}
+                                      data-article-tag-link={tag}
+                                      class="block rounded-full bg-cyan-500/8 px-2.5 py-1 font-mono text-[0.62rem] text-cyan-700 transition-colors hover:bg-cyan-500/15 dark:text-cyan-300"
+                                    >
+                                      #{tag}
+                                    </a>
+                                  }
+                                >
+                                  <ToggleButton
+                                    pressed={selectedTags().includes(tag)}
+                                    onChange={(pressed) => setTagPressed(tag, pressed)}
+                                    data-article-tag={tag}
+                                    class="rounded-full bg-cyan-500/8 px-2.5 py-1 font-mono text-[0.62rem] text-cyan-700 transition-colors hover:bg-cyan-500/15 data-[pressed]:bg-cyan-600 data-[pressed]:text-white dark:text-cyan-300 dark:data-[pressed]:bg-cyan-300 dark:data-[pressed]:text-slate-950"
                                   >
                                     #{tag}
-                                  </a>
-                                }
-                              >
-                                <ToggleButton
-                                  pressed={selectedTags().includes(tag)}
-                                  onChange={(pressed) => setTagPressed(tag, pressed)}
-                                  data-article-tag={tag}
-                                  class="rounded-full bg-cyan-500/8 px-2.5 py-1 font-mono text-[0.62rem] text-cyan-700 transition-colors hover:bg-cyan-500/15 data-[pressed]:bg-cyan-600 data-[pressed]:text-white dark:text-cyan-300 dark:data-[pressed]:bg-cyan-300 dark:data-[pressed]:text-slate-950"
-                                >
-                                  #{tag}
-                                </ToggleButton>
-                              </Show>
-                            </li>
-                          )}
-                        </For>
-                      </ul>
+                                  </ToggleButton>
+                                </Show>
+                              </li>
+                            )}
+                          </For>
+                        </ul>
+                      </footer>
 
                       <a
                         href={article.href}

@@ -55,7 +55,12 @@ test('tag filtering keeps the complete facet list and fixed global counts', asyn
     })),
   );
   const initialArticleCount = await page.locator('[data-blog-article]').count();
-  await expect(page.locator('[data-blog-article] [data-article-tag]').first()).toBeVisible();
+  const firstArticle = page.locator('[data-blog-article]').first();
+  const articleMetadata = firstArticle.locator('article > footer');
+  await expect(articleMetadata.locator('time')).toHaveCount(1);
+  await expect(articleMetadata).not.toContainText('First published');
+  await expect(articleMetadata.locator('[data-article-tag]').first()).toBeVisible();
+  await expect(firstArticle.locator('article > div time')).toHaveCount(0);
   const candidateIndex = initialFilters.findIndex(
     ({ count }) => count > 0 && count < initialArticleCount,
   );
