@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { getArticleTags, resolveArticles, type BlogEntry } from '../../src/lib/articles';
+import {
+  getArticleTags,
+  getArticleUpdatedAt,
+  resolveArticles,
+  type BlogEntry,
+} from '../../src/lib/articles';
 
 type EntryOptions = {
   publishedAt?: string;
   revisedAt?: string;
+  sourceLastModifiedAt?: string;
   tags?: string[];
 };
 
@@ -12,6 +18,9 @@ function entry(id: string, options: EntryOptions = {}): BlogEntry {
     id,
     collection: 'blog',
     body: `Body for ${id}`,
+    sourceLastModifiedAt: options.sourceLastModifiedAt
+      ? new Date(options.sourceLastModifiedAt)
+      : undefined,
     data: {
       title: id,
       description: id,
@@ -42,6 +51,32 @@ describe('article resolution', () => {
     expect(article.current.contentLocale).toBe('zh');
     expect(article.current.hasRequestedLocale).toBe(false);
     expect(article.current.availableLocales).toEqual(['zh']);
+  });
+
+  it('uses the selected index commit as the automatic update date', () => {
+    const [article] = resolveArticles(
+      [
+        entry('localized/index.en', { sourceLastModifiedAt: '2025-01-02T00:00:00Z' }),
+        entry('localized/index.zh', { sourceLastModifiedAt: '2025-03-04T00:00:00Z' }),
+      ],
+      'zh',
+    );
+
+    expect(getArticleUpdatedAt(article.current)?.toISOString()).toBe('2025-03-04T00:00:00.000Z');
+  });
+
+  it('prefers an explicitly authored revision date over the index commit date', () => {
+    const [article] = resolveArticles(
+      [
+        entry('guide/index', {
+          revisedAt: '2025-02-03T00:00:00Z',
+          sourceLastModifiedAt: '2025-03-04T00:00:00Z',
+        }),
+      ],
+      'en',
+    );
+
+    expect(getArticleUpdatedAt(article.current)?.toISOString()).toBe('2025-02-03T00:00:00.000Z');
   });
 
   it('orders versions and derives tags from the latest version only', () => {

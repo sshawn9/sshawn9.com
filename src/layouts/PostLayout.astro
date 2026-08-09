@@ -9,7 +9,12 @@ import { SITE } from '../config';
 import { localePath, toLanguageTag } from '../i18n/config';
 import { formatDate } from '../lib/date';
 import { getArticleHref, getArticleVersionHref } from '../lib/article-routes';
-import { getArticleTags, getVersionDate, type Article, type ArticleVersion } from '../lib/articles';
+import {
+  getArticleTags,
+  getArticleUpdatedAt,
+  type Article,
+  type ArticleVersion,
+} from '../lib/articles';
 import { getTagHref } from '../lib/tags';
 import BaseLayout from './BaseLayout.astro';
 import * as m from '../paraglide/messages.js';
@@ -29,13 +34,15 @@ const canonicalPath = currentRoute
   ? getArticleHref(article, version.contentLocale)
   : getArticleVersionHref(article, version, version.contentLocale);
 const canonical = post.data.canonical ?? new URL(canonicalPath, Astro.site ?? SITE.url).toString();
+const firstPublished = article.versions[0].entry.data.publishedAt;
+const updatedAt = getArticleUpdatedAt(version);
 const articleSchema: WithContext<BlogPosting> = {
   '@context': 'https://schema.org',
   '@type': 'BlogPosting',
   headline: post.data.title,
   ...(post.data.description ? { description: post.data.description } : {}),
-  datePublished: article.versions[0].entry.data.publishedAt.toISOString(),
-  dateModified: getVersionDate(version).toISOString(),
+  datePublished: firstPublished.toISOString(),
+  dateModified: (updatedAt ?? firstPublished).toISOString(),
   inLanguage: contentLanguageTag,
   mainEntityOfPage: canonical,
   author: { '@type': 'Person', name: SITE.author, url: SITE.url },
@@ -62,7 +69,6 @@ const requestedLanguage =
   locale === 'zh'
     ? m.article_fallback_language_zh({}, { locale })
     : m.article_fallback_language_en({}, { locale });
-const firstPublished = article.versions[0].entry.data.publishedAt;
 const articleTags = getArticleTags(article);
 ---
 
@@ -161,15 +167,13 @@ const articleTags = getArticleTags(article);
               </dd>
             </div>
             {
-              version.entry.data.revisedAt && (
+              updatedAt && (
                 <div>
                   <dt class="text-slate-500 dark:text-slate-400">
-                    {m.article_this_version({}, { locale })}
+                    {m.article_last_updated({}, { locale })}
                   </dt>
                   <dd class="mt-1 font-medium">
-                    <time datetime={version.entry.data.revisedAt.toISOString()}>
-                      {formatDate(version.entry.data.revisedAt, locale)}
-                    </time>
+                    <time datetime={updatedAt.toISOString()}>{formatDate(updatedAt, locale)}</time>
                   </dd>
                 </div>
               )
@@ -279,14 +283,14 @@ const articleTags = getArticleTags(article);
                 </dd>
               </div>
               {
-                version.entry.data.revisedAt && (
+                updatedAt && (
                   <div class="-ml-px flex items-baseline gap-3 border-l border-transparent py-1.5 pl-4 text-xs leading-5">
                     <dt class="text-slate-500 dark:text-slate-400">
-                      {m.article_this_version({}, { locale })}
+                      {m.article_last_updated({}, { locale })}
                     </dt>
                     <dd class="ml-auto font-mono text-[0.62rem] text-slate-400 dark:text-slate-500">
-                      <time datetime={version.entry.data.revisedAt.toISOString()}>
-                        {formatDate(version.entry.data.revisedAt, locale)}
+                      <time datetime={updatedAt.toISOString()}>
+                        {formatDate(updatedAt, locale)}
                       </time>
                     </dd>
                   </div>

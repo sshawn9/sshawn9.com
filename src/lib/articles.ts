@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { getCollection, type CollectionEntry } from 'astro:content';
 import { BASE_LOCALE, otherLocale, type Locale } from '../i18n/config';
 import { parseArticleEntryId } from './article-convention';
@@ -6,6 +7,7 @@ type BlogContentEntry = CollectionEntry<'blog'>;
 type ArticleMetadataEntry = CollectionEntry<'articleMetadata'>;
 export type BlogEntry = Omit<BlogContentEntry, 'data'> & {
   data: BlogContentEntry['data'] & ArticleMetadataEntry['data'];
+  sourceLastModifiedAt?: Date;
 };
 
 export type ArticleVersion = {
@@ -29,6 +31,42 @@ type SourceCandidate = {
   contentLocale: Locale;
   explicitLocale: boolean;
 };
+
+const sourceLastModifiedCache = new Map<string, Date | undefined>();
+let repositoryHistoryChecked = false;
+
+function assertCompleteGitHistory(): void {
+  if (repositoryHistoryChecked) return;
+
+  const shallow = execFileSync('git', ['rev-parse', '--is-shallow-repository'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+  }).trim();
+  if (shallow === 'true') {
+    throw new Error(
+      'Automatic article update dates require complete Git history. Fetch the repository with depth 0.',
+    );
+  }
+  repositoryHistoryChecked = true;
+}
+
+function getSourceLastModifiedAt(filePath: string | undefined): Date | undefined {
+  if (!filePath) return undefined;
+  if (sourceLastModifiedCache.has(filePath)) return sourceLastModifiedCache.get(filePath);
+
+  assertCompleteGitHistory();
+  const timestamp = execFileSync('git', ['log', '-1', '--format=%cI', '--', filePath], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+  }).trim();
+  const modifiedAt = timestamp ? new Date(timestamp) : undefined;
+  if (modifiedAt && Number.isNaN(modifiedAt.getTime())) {
+    throw new Error(`Git returned an invalid update date for ${filePath}: ${timestamp}`);
+  }
+
+  sourceLastModifiedCache.set(filePath, modifiedAt);
+  return modifiedAt;
+}
 
 function selectSource(candidates: SourceCandidate[], locale: Locale): SourceCandidate | undefined {
   const forLocale = (candidateLocale: Locale) =>
@@ -55,6 +93,9 @@ function mergeArticleMetadata(
     return {
       ...entry,
       data: { ...entry.data, ...metadata.data },
+      sourceLastModifiedAt: metadata.data.revisedAt
+        ? undefined
+        : getSourceLastModifiedAt(entry.filePath),
     };
   });
 }
@@ -126,6 +167,10 @@ export function getVersionByNumber(
 
 export function getVersionDate(version: ArticleVersion): Date {
   return version.entry.data.revisedAt ?? version.entry.data.publishedAt;
+}
+
+export function getArticleUpdatedAt(version: ArticleVersion): Date | undefined {
+  return version.entry.data.revisedAt ?? version.entry.sourceLastModifiedAt;
 }
 
 export function getArticleTags(article: Article): string[] {
