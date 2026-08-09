@@ -33,11 +33,55 @@
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.1rem 1.5rem;
-  padding: 1.25rem 1.25rem 1rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.65rem;
+  padding: 0.9rem 1.1rem 0.75rem;
   border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--page-muted) 48%, transparent);
+}
+
+.frenet-controls-toolbar {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.frenet-controls-title {
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+
+.frenet-control-group {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0.45rem 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.frenet-control-group > legend {
+  padding: 0 0.55rem 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.frenet-condition-controls,
+.frenet-range-controls {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 1.25rem;
+}
+
+.frenet-condition-controls[data-frenet-control-count='1'] {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .frenet-control {
@@ -47,7 +91,7 @@
 .frenet-control-heading {
   display: flex;
   min-width: 0;
-  min-height: 1.5rem;
+  min-height: 1.25rem;
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
@@ -74,7 +118,7 @@
   display: grid;
   min-width: 0;
   width: 100%;
-  gap: 0.2rem;
+  gap: 0.1rem;
   touch-action: none;
 }
 
@@ -82,7 +126,7 @@
   position: relative;
   width: auto;
   height: 0.3rem;
-  margin: 0.45rem calc(var(--frenet-thumb-size) / 2);
+  margin: 0.3rem calc(var(--frenet-thumb-size) / 2);
   border-radius: 999px;
   background: color-mix(in srgb, var(--muted) 22%, transparent);
 }
@@ -92,6 +136,34 @@
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #06b6d4, #6366f1);
+}
+
+.frenet-scalar-control {
+  --frenet-condition-accent: #2563eb;
+}
+
+.dark .frenet-scalar-control {
+  --frenet-condition-accent: #60a5fa;
+}
+
+.frenet-scalar-control .frenet-slider-fill {
+  background: var(--frenet-condition-accent);
+}
+
+.frenet-scalar-control .frenet-slider-thumb {
+  border-color: var(--surface-strong);
+  background: var(--frenet-condition-accent);
+  box-shadow:
+    0 0 0 2px var(--frenet-condition-accent),
+    0 2px 10px rgb(15 23 42 / 0.16);
+}
+
+.frenet-scalar-control .frenet-slider-thumb:hover,
+.frenet-scalar-control .frenet-slider-thumb:focus-visible,
+.frenet-scalar-control .frenet-slider-thumb[data-dragging] {
+  box-shadow:
+    0 0 0 2px var(--frenet-condition-accent),
+    0 0 0 0.3rem color-mix(in srgb, var(--frenet-condition-accent) 18%, transparent);
 }
 
 .frenet-slider-thumb {
@@ -129,19 +201,8 @@
   line-height: 1.2;
 }
 
-.frenet-control-actions {
-  display: flex;
-  grid-column: 1 / -1;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  min-width: 0;
-  flex-wrap: wrap;
-}
-
 .frenet-advanced {
   min-width: 0;
-  flex: 1;
 }
 
 .frenet-advanced-trigger,
@@ -189,7 +250,7 @@
   min-width: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.65rem 1rem;
-  padding-top: 1rem;
+  padding-top: 0.7rem;
   animation: frenet-expand 180ms ease-out;
 }
 
@@ -209,6 +270,10 @@
   color: var(--muted);
   font-size: 0.68rem;
   font-weight: 650;
+}
+
+.frenet-math-label {
+  font-family: KaTeX_Math, KaTeX_Main, 'Times New Roman', serif;
 }
 
 .frenet-bounds-row input {
@@ -258,6 +323,14 @@
   max-width: 100%;
   min-height: 0;
   overflow: hidden;
+}
+
+.frenet-geometry-plot .textpoint text {
+  stroke: var(--surface-strong);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+  font-weight: 650;
 }
 
 .frenet-plot-splitter {
@@ -372,13 +445,14 @@
 
 @container frenet-explorer (max-width: 45rem) {
   .frenet-controls {
-    grid-template-columns: 1fr;
     gap: 0.9rem;
     padding-inline: 1rem;
   }
 
-  .frenet-control-actions {
-    grid-column: auto;
+  .frenet-condition-controls,
+  .frenet-range-controls {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.9rem;
   }
 
   .frenet-advanced-content {
@@ -444,16 +518,16 @@
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
-  min-height: 48.125rem;
+  min-height: 51.5rem;
 }
 
 .frenet-article-figure[data-dimensions='2'] > astro-island {
-  min-height: 51.875rem;
+  min-height: 53.625rem;
 }
 
 @media (max-width: 45rem) {
   .frenet-article-figure > astro-island {
-    min-height: 70rem;
+    min-height: 74rem;
   }
 
   .frenet-article-figure[data-dimensions='2'] > astro-island {

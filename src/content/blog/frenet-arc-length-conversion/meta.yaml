@@ -1,8 +1,7 @@
 publishedAt: 2026-08-04
 tags:
   - Frenet
-  - Path Tracking
   - Vehicle Kinematics
+  - Arc-Length Parameterization
   - Interactive Visualization
-  - Plotly
 draft: false

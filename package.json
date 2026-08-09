@@ -35,7 +35,7 @@
     "diff": "^8.0.4",
     "diff2html": "^3.4.56",
     "github-slugger": "^2.0.0",
-    "katex": "^0.18.1",
+    "katex": "^0.16.47",
     "lucide-solid": "^1.28.0",
     "motion": "^12.42.2",
     "plotly.js-gl3d-dist-min": "^3.7.0",

@@ -38,12 +38,16 @@ const articleTags = getArticleTags(article);
   >
     <a href={getArticleHref(article)} class="after:absolute after:inset-0">{post.data.title}</a>
   </h3>
-  <p
-    lang={toLanguageTag(article.current.contentLocale)}
-    class="mt-3 flex-1 text-sm leading-6 text-slate-600 dark:text-slate-400"
-  >
-    {post.data.description}
-  </p>
+  {
+    post.data.description && (
+      <p
+        lang={toLanguageTag(article.current.contentLocale)}
+        class="mt-3 flex-1 text-sm leading-6 text-slate-600 dark:text-slate-400"
+      >
+        {post.data.description}
+      </p>
+    )
+  }
   <ul class="mt-6 flex flex-wrap gap-2" aria-label={m.article_tags({}, { locale })}>
     {
       articleTags.map((tag) => (

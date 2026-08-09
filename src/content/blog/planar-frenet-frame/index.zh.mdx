@@ -1,6 +1,6 @@
 ---
-title: 平面曲线的 Frenet 标架
-description: 从正交标架与航向角表示出发，推导平面曲线的有符号 Frenet 公式，并统一左转、右转与零曲率情形。
+title: 平面曲线的有符号 Frenet 标架
+description: 定义平面参考路径的单位切向量、左单位法向量与有符号曲率，从正交标架和路径航向角两种形式推导 Frenet 微分关系，并为 Frenet 坐标下的车辆运动学统一几何与符号约定。
 ---
 
 import 'katex/dist/katex.min.css';
@@ -9,22 +9,28 @@ import FigureFocusDialog from '../../../components/FigureFocusDialog.astro';
 
 import FocusFigure from '../../../components/FocusFigure.astro';
 
-import ResearchFigure from '../../../components/ResearchFigure';
+import ResearchFigure from '../../../components/ResearchFigure.astro';
 
 import '../../../styles/research-figures.css';
 
-## Frenet 标架的构造与表示
+## 基本术语与标架约定
 
-### 几何设定与符号约定
+一条参数曲线称为**正则曲线**，是指它在参数区间内的一阶导数始终不为零。这一条件排除了曲线运动在某点完全停住的情形，并保证每一点都有确定的切线方向。曲线属于 $C^2$，是指曲线本身及其一阶、二阶导数都连续；本文需要二阶导数来定义切向量的变化和曲率。
 
-设参考路径为二阶连续可微的弧长参数曲线
+本文直接采用**弧长参数** $s$：参数的增量等于沿曲线走过的距离。因此参考路径写为
 
 $$
-\mathbf r:I\longrightarrow\mathbb E^2,
+\mathbf r:I\longrightarrow\mathbb R^2,
 \qquad s\longmapsto\mathbf r(s).
 $$
 
-单位切向量定义为
+其中 $I$ 是弧长参数所在的区间，$\mathbf r$ 是一条 $C^2$ 曲线。弧长参数化满足
+
+$$
+\left\|\frac{d\mathbf r}{ds}\right\|=1,
+$$
+
+所以它自动是正则曲线。单位切向量定义为
 
 $$
 \mathbf T(s):=\frac{d\mathbf r}{ds},
@@ -32,11 +38,27 @@ $$
 \|\mathbf T(s)\|=1.
 $$
 
-固定平面的标准方向，并令 $J$ 表示逆时针旋转 $90^\circ$ 的算子。左单位法向量定义为
+本文采用直角坐标平面的**标准定向**：从 $x$ 轴正方向转向 $y$ 轴正方向的逆时针旋转为正。令
+
+$$
+J:=
+\begin{bmatrix}
+0 & -1\\
+1 & 0
+\end{bmatrix},
+$$
+
+即逆时针旋转 $90^\circ$ 的算子。左单位法向量定义为
 
 $$
 \mathbf N(s):=J\mathbf T(s).
 $$
+
+在微分几何中，**标架**（frame）是附着在每个研究位置的一组有序基向量。它可以理解为随对象一起移动的局部坐标尺：固定的 $x,y$ 坐标轴描述整个平面，而本文的 $(\mathbf T,\mathbf N)$ 附着在曲线上，并随弧长 $s$ 改变位置和方向。
+
+这里的 $\mathbf T$ 与 $\mathbf N$ 都是单位向量且相互垂直；从 $\mathbf T$ 逆时针旋转 $90^\circ$ 得到 $\mathbf N$，所以有序向量组 $(\mathbf T,\mathbf N)$ 称为**正向标准正交标架**。它就是本文采用的有符号 Frenet 标架。
+
+## 有符号曲率及其几何意义
 
 曲率向量定义为单位切向量关于弧长的导数：
 
@@ -55,31 +77,33 @@ $$
 $$
 \begin{aligned}
 \kappa_r(s)
-&:=\mathbf K(s)\cdot\mathbf N(s)\\
+&:=\mathbf K(s)\cdot\mathbf N(s)\\[0.45em]
 &=\frac{d\mathbf T}{ds}\cdot\mathbf N(s).
 \end{aligned}
 $$
 
-于是 $(\mathbf T,\mathbf N)$ 是沿曲线变化的正向标准正交标架。无符号曲率 $\kappa$ 只描述弯曲程度；有符号曲率 $\kappa_r$ 还记录转向，左转为正，右转为负。下文将由正交分解得到
+无符号曲率 $\kappa$ 只描述弯曲程度；有符号曲率 $\kappa_r$ 还记录转向，左转为正，右转为负。下文将由正交分解得到
 
 $$
 \kappa=|\kappa_r|.
 $$
 
-这里固定使用 $\mathbf N=J\mathbf T$，而不是在 $\kappa\ne0$ 时才有定义的主法向量 $\mathbf T'/\|\mathbf T'\|$。因此，该标架在直线路段或孤立的零曲率点仍然保持定义。弧长参数、定向平面标架与有符号曲率的标准约定参见文献 [1, Chapters 2D, 3A–B, 6A]。
-
 图 1 在固定左法向约定下对比三种曲率符号，并显示零曲率处仍然存在的正向标准正交标架。
 
 <FocusFigure number={1} variant="research">
-  <ResearchFigure kind="planar-curvature-signs" client:only="solid-js" />
+  <ResearchFigure kind="planar-curvature-signs" />
   <figcaption slot="caption">
-    <strong>图 1.</strong> 固定左法向约定下的平面 Frenet 标架与曲率符号。沿曲线前进时，左转对应
-    $\mathbf K$ 与 $\mathbf N$ 同向，右转对应二者反向；在 $\kappa_r=0$ 时，$\mathbf K=\mathbf 0$，而
-    $\mathbf N=J\mathbf T$ 仍然有定义。
+    <strong>图 1.</strong> 固定左法向约定下的平面有符号 Frenet
+    标架与曲率符号。沿曲线前进时，左转对应 $\mathbf K$ 与 $\mathbf N$ 同向，右转对应二者反向；在
+    $\kappa_r=0$ 时，$\mathbf K=\mathbf 0$，而 $\mathbf N=J\mathbf T$ 仍然有定义。
   </figcaption>
 </FocusFigure>
 
-### 从正交性推导 Frenet 公式
+## 平面有符号 Frenet 公式
+
+### 正交标架推导
+
+#### 切向量导数
 
 由 $\|\mathbf T\|=1$，有
 
@@ -132,6 +156,8 @@ $$
 |\kappa_r|.
 $$
 
+#### 法向量导数
+
 为了确定 $d\mathbf N/ds$，使用正交标架的另外两个恒等式
 
 $$
@@ -181,9 +207,9 @@ $$
 -\kappa_r\mathbf T.
 $$
 
-至此，切向量与左单位法向量对弧长的导数都已由有符号曲率确定。上述正交性推导的标准形式见文献 [1, §6A, pp. 54–55]。
+至此，切向量与左单位法向量对弧长的导数都已由有符号曲率确定。上述正交性推导的标准形式见 [[1, §6.A, pp. 54–55]](#ref-petrunin-zamora-2025)。
 
-#### 旋转算子视角
+#### 旋转算子的直接验证
 
 第二条关系也可以直接由 $\mathbf N=J\mathbf T$ 得到。由于 $J$ 是与 $s$ 无关的固定线性算子，并且依次旋转两次 $90^\circ$ 等价于旋转 $180^\circ$，
 
@@ -198,11 +224,11 @@ $$
 \begin{aligned}
 \frac{d\mathbf N}{ds}
 &=
-J\frac{d\mathbf T}{ds}\\
+J\frac{d\mathbf T}{ds}\\[0.55em]
 &=
-\kappa_rJ\mathbf N\\
+\kappa_rJ\mathbf N\\[0.55em]
 &=
-\kappa_rJ^2\mathbf T\\
+\kappa_rJ^2\mathbf T\\[0.55em]
 &=
 -\kappa_r\mathbf T.
 \end{aligned}
@@ -211,7 +237,7 @@ $$
 该计算只提供 $d\mathbf N/ds$ 的另一种推导；第一条关系
 $d\mathbf T/ds=\kappa_r\mathbf N$ 仍来自曲率向量在正交标架中的分解。
 
-### 航向角表示
+### 航向角坐标推导
 
 同一组关系可以在直角坐标中显式表示。设
 
@@ -224,7 +250,7 @@ y_r(s)
 $$
 
 并在所讨论的参数区间上选择可微且连续展开的参考路径航向角
-$\theta_r(s)$。切向量与左单位法向量可以写为
+$\theta_r(s)$。几何方向通常只在模 $2\pi$ 的意义下确定，同一个方向可以写成相差 $2k\pi$ 的多个角度；**连续展开**是指在沿曲线前进时选择连续变化的角度值，避免角度经过 $\pi$ 与 $-\pi$ 的边界时发生人为跳变。切向量与左单位法向量可以写为
 
 $$
 \mathbf T(s) =
@@ -250,7 +276,7 @@ $$
 图 2(a) 给出切向量与左单位法向量的直角坐标分量；图 2(b) 则以相邻切向量的转角说明 $\kappa_r=d\theta_r/ds$ 的局部几何意义。
 
 <FocusFigure number={2} variant="research">
-  <ResearchFigure kind="planar-heading" client:only="solid-js" />
+  <ResearchFigure kind="planar-heading" />
   <figcaption slot="caption">
     <strong>图 2.</strong> 航向角的坐标表示及其沿弧长的变化。（a）$\mathbf T$ 与 $\mathbf N=J\mathbf
     T$ 在固定直角坐标系中的分量；（b）相邻弧长位置的切向量转角 $\Delta\theta_r$，其与 $\Delta s$
@@ -270,7 +296,7 @@ $$
 -\sin\theta_r\\
 \cos\theta_r
 \end{bmatrix} =
-\kappa_r\mathbf N,\\
+\kappa_r\mathbf N,\\[0.8em]
 \frac{d\mathbf N}{ds}
 &=
 \frac{d\theta_r}{ds}
@@ -283,15 +309,15 @@ $$
 $$
 
 第一行表明，切向角相对于弧长的变化率正是曲率向量在左单位法向量方向上的有符号分量；第二行则与正交性推导所得的法向量导数一致。切向角表示及关系
-$\kappa_r=d\theta_r/ds$ 的标准坐标推导见文献 [2, Theorem 1.17, pp. 8–9]。
+$\kappa_r=d\theta_r/ds$ 的标准坐标推导见 [[2, Theorem 1.17, p. 8]](#ref-donaldson-2024)。
 
-### 平面 Frenet 公式
+## Frenet 公式的矩阵形式
 
 综合正交标架推导与航向角坐标表示，得到平面有符号 Frenet 公式
 
 $$
 \begin{bmatrix}
-\dfrac{d\mathbf T}{ds}\\
+\dfrac{d\mathbf T}{ds}\\[0.8em]
 \dfrac{d\mathbf N}{ds}
 \end{bmatrix} =
 \begin{bmatrix}
@@ -302,16 +328,201 @@ $$
 \mathbf T\\
 \mathbf N
 \end{bmatrix}.
-\tag{1}
 $$
 
 正交标架推导不需要选取 $x,y$ 坐标，也不需要展开三角函数；航向角表示则进一步明确了后续车辆模型所使用的关系
 $\kappa_r=d\theta_r/ds$。由于全文始终采用左单位法向量与有符号曲率，同一组公式可以连续描述左转、右转以及 $\kappa_r=0$ 的路径点。
 
+## 与经典主法向量的关系
+
+本文的 $\mathbf N=J\mathbf T$ 是标准定向下的**左单位法向量**，需要与经典 Frenet 标架中的**主法向量**区分。经典主法向量按
+
+$$
+\mathbf N_{\mathrm p}:=
+\frac{\mathbf T'}{\|\mathbf T'\|}
+$$
+
+定义，因此只在无符号曲率 $\kappa=\|\mathbf T'\|>0$ 时存在。当
+$\kappa=0$ 时，$\mathbf T'=\mathbf 0$，上述归一化成为 $\mathbf 0/0$；从几何上说，曲线在该点没有由曲率向量指定的瞬时弯曲方向。相比之下，
+$\mathbf N=J\mathbf T$ 只依赖单位切向量与固定的旋转算子 $J$。只要曲线正则，
+$\mathbf T$ 就存在，因而左单位法向量以及标架 $(\mathbf T,\mathbf N)$
+在直线路段和孤立零曲率点仍然保持定义。弧长参数、定向平面标架与有符号曲率的标准约定见 [[1, §§2.D, 3.A–B, 6.A]](#ref-petrunin-zamora-2025)；经典 Frenet 标架在零曲率处失效的问题见 [[3, §2.1, p. 98]](#ref-carroll-kose-sterling-2013)。
+
+这不是经典 Frenet 标架定义内部的矛盾，而是它明确的适用条件：经典构造只在
+$\kappa>0$ 的曲线区段上给出主法向量。一般正则曲线当然可以包含直线段，但它在这些区段上没有经典 Frenet 标架；只能在
+$\{s\in I:\kappa(s)>0\}$ 中每个曲率持续大于零的连续区段分别使用该标架，或者像本文一样改用不需要除以曲率的有符号标架。
+
+由前文已经得到的 $d\mathbf T/ds=\kappa_r\mathbf N$ 可知，在 $\kappa>0$ 的点，经典主法向量与本文的左单位法向量满足
+
+$$
+\begin{aligned}
+\mathbf N_{\mathrm p}
+&=
+\frac{\mathbf T'}{\|\mathbf T'\|}\\[0.55em]
+&=
+\frac{\kappa_r}{|\kappa_r|}\mathbf N\\[0.55em]
+&=
+\operatorname{sgn}(\kappa_r)\mathbf N.
+\end{aligned}
+$$
+
+其中 $\operatorname{sgn}$ 是符号函数：
+
+$$
+\operatorname{sgn}(x)=
+\begin{cases}
+1, & x>0,\\
+0, & x=0,\\
+-1, & x<0.
+\end{cases}
+$$
+
+上式只讨论 $\kappa>0$ 的点，因此这里只会用到 $\operatorname{sgn}(\kappa_r)=\pm1$；在 $\kappa_r=0$ 时，经典主法向量 $\mathbf N_{\mathrm p}$ 本身没有定义。
+
+这说明二者只在左转的 $\kappa_r>0$ 区域同向；在右转的
+$\kappa_r<0$ 区域，主法向量为 $-\mathbf N$。在 $\kappa_r=0$ 时，
+$\mathbf N_{\mathrm p}$ 不再由定义式给出，而 $\mathbf N=J\mathbf T$ 不受影响。
+
+### 曲率变号示例
+
+零曲率造成的困难并不总能通过取极限消除。下面给出一个主法向量必然发生翻转的例子。设路径的弧长参数满足 $s\in[0,L]$，并在路径内部选取 $s_{\ast}\in(0,L)$。定义单位切向量
+
+$$
+\mathbf T(s)=
+\begin{bmatrix}
+\cos\bigl((s-s_{\ast})^2/2\bigr)\\
+\sin\bigl((s-s_{\ast})^2/2\bigr)
+\end{bmatrix}
+$$
+
+它的长度恒为 $1$，所以可以把它作为某条单位速曲线的切向量。例如，取
+
+$$
+\mathbf r(s)
+:=
+\mathbf r(0)+
+\int_0^s \mathbf T(u)\,du,
+$$
+
+便有 $\mathbf r'(s)=\mathbf T(s)$ 和 $\|\mathbf r'(s)\|=1$。在这个例子中，切向量的航向角是
+
+$$
+\theta_r(s)=\frac{(s-s_{\ast})^2}{2}.
+$$
+
+因此
+
+$$
+\mathbf N(s)=J\mathbf T(s)=
+\begin{bmatrix}
+-\sin\bigl((s-s_{\ast})^2/2\bigr)\\
+\cos\bigl((s-s_{\ast})^2/2\bigr)
+\end{bmatrix},
+$$
+
+并且
+
+$$
+\frac{d\mathbf T}{ds}
+=
+(s-s_{\ast})
+\begin{bmatrix}
+-\sin\bigl((s-s_{\ast})^2/2\bigr)\\
+\cos\bigl((s-s_{\ast})^2/2\bigr)
+\end{bmatrix}
+=
+(s-s_{\ast})\mathbf N(s).
+$$
+
+与 $d\mathbf T/ds=\kappa_r\mathbf N$ 对照可知
+
+$$
+\kappa_r(s)=s-s_{\ast},
+\qquad
+\kappa(s)=|s-s_{\ast}|.
+$$
+
+这意味着曲线在 $s<s_{\ast}$ 时向右转，在 $s>s_{\ast}$ 时向左转，并在路径内部的 $s=s_{\ast}$ 处经过曲率为零的拐点。对任意 $s\ne s_{\ast}$，经典主法向量为
+
+$$
+\mathbf N_{\mathrm p}(s)
+=
+\frac{d\mathbf T/ds}{\|d\mathbf T/ds\|}
+=
+\frac{s-s_{\ast}}{|s-s_{\ast}|}\mathbf N(s)
+=
+\begin{cases}
+-\mathbf N(s), & s<s_{\ast},\\
+\mathbf N(s), & s>s_{\ast}.
+\end{cases}
+$$
+
+由于 $\mathbf N(s_{\ast})=(0,1)^{\mathsf T}$，主法向量在拐点两侧的极限分别是
+
+$$
+\lim_{s\to s_{\ast}^-}\mathbf N_{\mathrm p}(s)
+=
+\begin{bmatrix}0\\-1\end{bmatrix},
+\qquad
+\lim_{s\to s_{\ast}^+}\mathbf N_{\mathrm p}(s)
+=
+\begin{bmatrix}0\\1\end{bmatrix}.
+$$
+
+两个极限方向相反，所以不可能在 $s=s_{\ast}$ 为 $\mathbf N_{\mathrm p}$ 补上一个值，使它连续。相比之下，$\mathbf N=J\mathbf T$ 从始至终由连续的切向量确定，不会在拐点翻转。
+
+这个例子说明的不是“每个孤立零曲率点都会导致翻转”，而是经典定义并不保证主法向量能够跨过零曲率点连续延拓。如果 $\kappa_r$ 经过零点时不变号，左右极限可能碰巧一致；但在零点本身，$\mathbf T'/\|\mathbf T'\|$ 仍然没有定义。在整段直线上，$\mathbf T'=0$ 处处成立，曲率向量更无法选出唯一的弯曲方向。
+
+## 后续模型使用的几何关系
+
+后续 Frenet 坐标下的车辆运动学将直接使用以下参考路径几何关系：
+
+$$
+\begin{aligned}
+\frac{d\mathbf r}{ds} &= \mathbf T,\\[0.5em]
+\mathbf N &= J\mathbf T,\\[0.5em]
+\frac{d\mathbf T}{ds} &= \kappa_r\mathbf N,\\[0.5em]
+\frac{d\mathbf N}{ds} &= -\kappa_r\mathbf T,\\[0.5em]
+\frac{d\theta_r}{ds} &= \kappa_r.
+\end{aligned}
+$$
+
+这些关系统一了参考路径的位置、切向、左法向、航向角和有符号曲率。后续将在该标架上定义车辆相对于参考路径的纵向位置、横向偏差与航向误差，并推导 Frenet 坐标下的车辆运动学。
+
 ## 参考文献
 
-1. Anton Petrunin and Sergio Zamora Barrera, [_What Is Differential Geometry? Curves and Surfaces_](https://arxiv.org/abs/2012.11814), Chapters 2D, 3A–B, and 6A, especially pp. 54–55. 本文使用该文献统一弧长参数、定向平面标架、有符号曲率以及平面 Frenet 公式的正交性推导。
-
-2. Neil Donaldson, [_Math 162A: Introduction to Differential Geometry_](https://www.math.uci.edu/~ndonalds/math162a/notes.pdf), Theorem 1.17, pp. 8–9. 本文使用该文献核对航向角坐标表示以及关系 $\kappa_r=d\theta_r/ds$。
+<ol>
+  <li id="ref-petrunin-zamora-2025">
+    Anton Petrunin and Sergio Zamora Barrera,{' '}
+    <cite>
+      <a href="https://arxiv.org/abs/2012.11814" target="_blank" rel="noopener noreferrer">
+        What Is Differential Geometry? Curves and Surfaces
+      </a>
+    </cite>
+    , arXiv:2012.11814v7, 2025.
+  </li>
+  <li id="ref-donaldson-2024">
+    Neil Donaldson,{' '}
+    <cite>
+      <a
+        href="https://www.math.uci.edu/~ndonalds/math162a/notes.pdf"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Math 162A: Introduction to Differential Geometry
+      </a>
+    </cite>
+    , course notes, University of California, Irvine, Winter 2024.
+  </li>
+  <li id="ref-carroll-kose-sterling-2013">
+    Daniel Carroll, Emek Köse, and Ivan Sterling,{' '}
+    <cite>
+      <a href="https://doi.org/10.5539/jmr.v5n4p97" target="_blank" rel="noopener noreferrer">
+        Improving Frenet's Frame Using Bishop's Frame
+      </a>
+    </cite>
+    , <cite>Journal of Mathematics Research</cite>, vol. 5, no. 4, 2013, pp. 97–106.
+  </li>
+</ol>
 
 <FigureFocusDialog />

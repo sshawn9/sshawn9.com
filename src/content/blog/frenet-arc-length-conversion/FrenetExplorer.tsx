@@ -15,15 +15,21 @@ import {
 } from 'solid-js';
 import { createStore, reconcile } from 'solid-js/store';
 import type { Data, PlotlyHTMLElement, PlotMouseEvent } from 'plotly.js';
+import { loadPlotly } from '../../../lib/plotly-client';
 import * as m from '../../../paraglide/messages.js';
 import { getLocale } from '../../../paraglide/runtime.js';
 import {
-  arcLengthRate,
   clamp,
   createInitialState,
+  GEOMETRY_TRACE_KEYS,
   geometryPayload,
+  geometryViewRanges,
+  isCoordinateDegenerate,
+  quantityValue,
   VARIABLE_ORDER,
   VARIABLE_SPECS,
+  type AnalysisQuantity,
+  type CurvatureSign,
   type ExplorerState,
   type Parameters,
   type Range,
@@ -33,6 +39,7 @@ import {
   DEFAULT_SPLIT_PERCENTAGE,
   buildGeometryFigure,
   buildMainFigure,
+  geometryViewportLayout,
   readPlotTheme,
   selectedPointTrace,
   type FrenetPlotLabels,
@@ -41,58 +48,20 @@ import {
 
 type PlotlyApi = typeof import('plotly.js');
 
-let plotlyPromise: Promise<PlotlyApi> | undefined;
-let plotlyStyleElement: HTMLStyleElement | undefined;
-let plotlyStyleLifecycleInstalled = false;
-
-function rememberPlotlyStyle(): void {
-  const currentStyle = document.getElementById('plotly.js-style-global');
-  if (!(currentStyle instanceof HTMLStyleElement)) return;
-  if (!currentStyle.textContent && currentStyle.sheet?.cssRules.length) {
-    currentStyle.textContent = Array.from(currentStyle.sheet.cssRules, (rule) => rule.cssText).join(
-      '\n',
-    );
-  }
-  plotlyStyleElement = currentStyle;
-}
-
-function installPlotlyStyleLifecycle(): void {
-  if (plotlyStyleLifecycleInstalled) return;
-  plotlyStyleLifecycleInstalled = true;
-  document.addEventListener('astro:after-swap', () => {
-    if (
-      plotlyStyleElement &&
-      !plotlyStyleElement.isConnected &&
-      document.querySelector('.frenet-article-figure')
-    ) {
-      document.head.append(plotlyStyleElement);
-    }
-  });
-}
-
-async function loadPlotly(): Promise<PlotlyApi> {
-  installPlotlyStyleLifecycle();
-  plotlyPromise ??= import('plotly.js-gl3d-dist-min').then((module) => module.default);
-  const plotly = await plotlyPromise;
-  rememberPlotlyStyle();
-  if (plotlyStyleElement && !plotlyStyleElement.isConnected)
-    document.head.append(plotlyStyleElement);
-  return plotly;
-}
-
 type Props = {
   axes: Variable[];
   contentLocale?: ContentLocale;
+  quantity?: AnalysisQuantity;
+  curvatureSign?: CurvatureSign;
 };
 
 type ContentLocale = ReturnType<typeof getLocale>;
 
+const INITIAL_SPLIT_SIZES = [DEFAULT_SPLIT_PERCENTAGE, 100 - DEFAULT_SPLIT_PERCENTAGE];
 const SPLITTER_PANELS = [
   { id: 'relation', minSize: 48 },
-  { id: 'geometry', minSize: 28 },
+  { id: 'geometry', minSize: INITIAL_SPLIT_SIZES[1] },
 ];
-
-const INITIAL_SPLIT_SIZES = [DEFAULT_SPLIT_PERCENTAGE, 100 - DEFAULT_SPLIT_PERCENTAGE];
 
 type ScalarControlProps = {
   variable: Variable;
@@ -104,19 +73,30 @@ type ScalarControlProps = {
 
 const ScalarControl: Component<ScalarControlProps> = (props) => {
   const spec = () => VARIABLE_SPECS[props.variable];
+  const [draftValue, setDraftValue] = createSignal([props.value]);
+  createEffect(() => setDraftValue([props.value]));
   return (
-    <div class="frenet-control" data-frenet-control={props.variable}>
+    <div
+      class="frenet-control frenet-scalar-control"
+      data-frenet-control={props.variable}
+      data-frenet-control-kind="condition"
+    >
       <Slider
         class="frenet-slider"
-        value={[props.value]}
+        value={draftValue()}
         minValue={props.bounds[0]}
         maxValue={props.bounds[1]}
         step={spec().step}
-        onChange={(values) => props.onChange(values[0] ?? props.value)}
+        onChange={(values) => {
+          setDraftValue(values);
+          props.onChange(values[0] ?? props.value);
+        }}
         getValueLabel={({ values }) => (values[0] ?? props.value).toFixed(spec().digits)}
       >
         <div class="frenet-control-heading">
-          <Slider.Label>{props.label}</Slider.Label>
+          <Slider.Label classList={{ 'frenet-math-label': props.label.includes('φ') }}>
+            {props.label}
+          </Slider.Label>
           <Slider.ValueLabel as="output" class="frenet-slider-value" />
         </div>
         <Slider.Track class="frenet-slider-track">
@@ -144,42 +124,50 @@ type RangeControlProps = {
   onChange: (range: Range) => void;
 };
 
-const RangeControl: Component<RangeControlProps> = (props) => (
-  <div class="frenet-control" data-frenet-control={props.name}>
-    <Slider
-      class="frenet-slider"
-      value={props.values}
-      minValue={props.bounds[0]}
-      maxValue={props.bounds[1]}
-      step={props.step}
-      minStepsBetweenThumbs={1}
-      onChange={(values) =>
-        props.onChange([values[0] ?? props.values[0], values[1] ?? props.values[1]])
-      }
-      getValueLabel={({ values }) =>
-        `${(values[0] ?? props.values[0]).toFixed(props.digits)} – ${(values[1] ?? props.values[1]).toFixed(props.digits)}`
-      }
-    >
-      <div class="frenet-control-heading">
-        <Slider.Label>{props.label}</Slider.Label>
-        <Slider.ValueLabel as="output" class="frenet-slider-value" />
-      </div>
-      <Slider.Track class="frenet-slider-track">
-        <Slider.Fill class="frenet-slider-fill" />
-        <Slider.Thumb class="frenet-slider-thumb">
-          <Slider.Input />
-        </Slider.Thumb>
-        <Slider.Thumb class="frenet-slider-thumb">
-          <Slider.Input />
-        </Slider.Thumb>
-      </Slider.Track>
-      <div class="frenet-slider-bounds" aria-hidden="true">
-        <span>{props.bounds[0].toFixed(props.digits)}</span>
-        <span>{props.bounds[1].toFixed(props.digits)}</span>
-      </div>
-    </Slider>
-  </div>
-);
+const RangeControl: Component<RangeControlProps> = (props) => {
+  const [draftValues, setDraftValues] = createSignal<Range>([...props.values]);
+  createEffect(() => setDraftValues([...props.values]));
+  return (
+    <div class="frenet-control" data-frenet-control={props.name}>
+      <Slider
+        class="frenet-slider"
+        value={draftValues()}
+        minValue={props.bounds[0]}
+        maxValue={props.bounds[1]}
+        step={props.step}
+        minStepsBetweenThumbs={1}
+        onChange={(values) => {
+          const range: Range = [values[0] ?? props.values[0], values[1] ?? props.values[1]];
+          setDraftValues(range);
+          props.onChange(range);
+        }}
+        getValueLabel={({ values }) =>
+          `${(values[0] ?? props.values[0]).toFixed(props.digits)} – ${(values[1] ?? props.values[1]).toFixed(props.digits)}`
+        }
+      >
+        <div class="frenet-control-heading">
+          <Slider.Label classList={{ 'frenet-math-label': props.label.includes('φ') }}>
+            {props.label}
+          </Slider.Label>
+          <Slider.ValueLabel as="output" class="frenet-slider-value" />
+        </div>
+        <Slider.Track class="frenet-slider-track">
+          <Slider.Fill class="frenet-slider-fill" />
+          <Slider.Thumb class="frenet-slider-thumb">
+            <Slider.Input />
+          </Slider.Thumb>
+          <Slider.Thumb class="frenet-slider-thumb">
+            <Slider.Input />
+          </Slider.Thumb>
+        </Slider.Track>
+        <div class="frenet-slider-bounds" aria-hidden="true">
+          <span>{props.bounds[0].toFixed(props.digits)}</span>
+          <span>{props.bounds[1].toFixed(props.digits)}</span>
+        </div>
+      </Slider>
+    </div>
+  );
+};
 
 type BoundsEditorProps = {
   label: string;
@@ -207,14 +195,8 @@ const BoundsEditor: Component<BoundsEditorProps> = (props) => {
 
   return (
     <fieldset class="frenet-bounds-row">
-      <legend>{props.label}</legend>
-      <NumberField
-        rawValue={lower()}
-        onRawValueChange={setLower}
-        step={props.step}
-        changeOnWheel
-        format={false}
-      >
+      <legend classList={{ 'frenet-math-label': props.label.includes('φ') }}>{props.label}</legend>
+      <NumberField rawValue={lower()} onRawValueChange={setLower} step={props.step} changeOnWheel>
         <NumberField.Input
           aria-label={m.frenet_minimum_value({ label: props.label }, { locale: props.locale })}
           onBlur={commit}
@@ -222,13 +204,7 @@ const BoundsEditor: Component<BoundsEditorProps> = (props) => {
         />
       </NumberField>
       <span aria-hidden="true">—</span>
-      <NumberField
-        rawValue={upper()}
-        onRawValueChange={setUpper}
-        step={props.step}
-        changeOnWheel
-        format={false}
-      >
+      <NumberField rawValue={upper()} onRawValueChange={setUpper} step={props.step} changeOnWheel>
         <NumberField.Input
           aria-label={m.frenet_maximum_value({ label: props.label }, { locale: props.locale })}
           onBlur={commit}
@@ -241,6 +217,8 @@ const BoundsEditor: Component<BoundsEditorProps> = (props) => {
 
 const FrenetExplorer: Component<Props> = (props) => {
   const axes = [...props.axes];
+  const quantity = props.quantity ?? 'arc-length-rate';
+  const initialStateOptions = { quantity, curvatureSign: props.curvatureSign };
   const uiLocale = getLocale();
   const uiLanguageTag = uiLocale === 'zh' ? 'zh-CN' : 'en';
   const contentLocale = props.contentLocale ?? 'en';
@@ -252,11 +230,16 @@ const FrenetExplorer: Component<Props> = (props) => {
   };
   const plotLabels: FrenetPlotLabels = {
     variables: variableTitles,
-    relationCurve: m.frenet_relation_curve_title({}, { locale: contentLocale }),
+    quantity: quantity === 'coordinate-scale' ? '1 − dκᵣ' : 'dℓ/ds',
+    relationCurve:
+      quantity === 'coordinate-scale'
+        ? m.frenet_coordinate_scale_curve_title({}, { locale: contentLocale })
+        : m.frenet_relation_curve_title({}, { locale: contentLocale }),
     relationSurface: m.frenet_relation_surface_title({}, { locale: contentLocale }),
-    geometry: m.frenet_geometry_title({}, { locale: contentLocale }),
   };
-  const [state, setState] = createStore<ExplorerState>(createInitialState(axes));
+  const [state, setState] = createStore<ExplorerState>(
+    createInitialState(axes, initialStateOptions),
+  );
   const [status, setStatus] = createSignal<'loading' | 'ready' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = createSignal('');
   const [compact, setCompact] = createSignal(false);
@@ -274,19 +257,42 @@ const FrenetExplorer: Component<Props> = (props) => {
   let destroyed = false;
   let frame = 0;
   let rendering = false;
-  let dirtyFigure = true;
+  let dirtyMainFigure = true;
+  let dirtyGeometryFigure = true;
+  let dirtyGeometryData = false;
   let pendingSelection: Parameters | undefined;
   let dirtyResize = false;
   let mainViewRevision = 0;
   let observedWidth = 0;
 
-  const fixedVariables = VARIABLE_ORDER.filter((variable) => !axes.includes(variable));
-  const rate = createMemo(() =>
-    arcLengthRate(state.selected.phi, state.selected.d, state.selected.kappa),
-  );
+  const relevantVariables =
+    quantity === 'coordinate-scale' ? (['d', 'kappa'] as Variable[]) : VARIABLE_ORDER;
+  const fixedVariables = relevantVariables.filter((variable) => !axes.includes(variable));
+  const axisRangeLabel = (variable: Variable, index: number) => {
+    const label = variableTitles[variable];
+    if (axes.length === 1) {
+      return m.frenet_horizontal_axis_range({ label }, { locale: contentLocale });
+    }
+    return index === 0
+      ? m.frenet_x_axis_range({ label }, { locale: contentLocale })
+      : m.frenet_y_axis_range({ label }, { locale: contentLocale });
+  };
+  const outputLabel = plotLabels.quantity;
+  const outputRangeLabel =
+    axes.length === 1
+      ? m.frenet_vertical_axis_range({ label: outputLabel }, { locale: contentLocale })
+      : m.frenet_z_axis_range({ label: outputLabel }, { locale: contentLocale });
+  const outputValue = createMemo(() => quantityValue(quantity, state.selected));
   const statusText = createMemo(() => {
-    const value = rate();
-    return `φ=${state.selected.phi.toFixed(2)}°, d=${state.selected.d.toFixed(4)}, κᵣ=${state.selected.kappa.toFixed(4)}, dℓ/ds=${value === null ? m.frenet_undefined({}, { locale: contentLocale }) : value.toFixed(4)}`;
+    const value = outputValue();
+    const degeneracy = isCoordinateDegenerate(state.selected.d, state.selected.kappa)
+      ? ` · ${m.frenet_coordinate_degeneracy({}, { locale: contentLocale })}`
+      : '';
+    if (quantity === 'coordinate-scale') {
+      const radius = 1 / state.selected.kappa;
+      return `d=${state.selected.d.toFixed(4)}, κᵣ=${state.selected.kappa.toFixed(4)}, ρᵣ=${radius.toFixed(4)}, 1−dκᵣ=${value?.toFixed(4)}${degeneracy}`;
+    }
+    return `φ=${state.selected.phi.toFixed(2)}°, d=${state.selected.d.toFixed(4)}, κᵣ=${state.selected.kappa.toFixed(4)}, dℓ/ds=${value === null ? m.frenet_undefined({}, { locale: contentLocale }) : value.toFixed(4)}${degeneracy}`;
   });
 
   const schedule = () => {
@@ -297,8 +303,16 @@ const FrenetExplorer: Component<Props> = (props) => {
     });
   };
 
-  const invalidateFigure = () => {
-    dirtyFigure = true;
+  const invalidateMainFigure = (geometryChanged = false) => {
+    dirtyMainFigure = true;
+    if (geometryChanged) dirtyGeometryData = true;
+    schedule();
+  };
+
+  const invalidateAllFigures = () => {
+    dirtyMainFigure = true;
+    dirtyGeometryFigure = true;
+    dirtyGeometryData = false;
     schedule();
   };
 
@@ -316,37 +330,73 @@ const FrenetExplorer: Component<Props> = (props) => {
     if (destroyed || rendering || !plotly || !mainPlot || !geometryPlot) return;
     rendering = true;
     try {
-      if (dirtyFigure) {
-        dirtyFigure = false;
+      if (dirtyMainFigure || dirtyGeometryFigure || dirtyGeometryData) {
+        const updates: Array<Promise<unknown>> = [];
         pendingSelection = undefined;
         const theme = readPlotTheme(rootElement);
-        mainFigure = buildMainFigure(state, theme, plotLabels, mainViewRevision);
-        const geometryFigure = buildGeometryFigure(state, theme, plotLabels);
-        await plotly.react(mainPlot, mainFigure.data, mainFigure.layout, mainFigure.config);
-        await plotly.react(
-          geometryPlot,
-          geometryFigure.data,
-          geometryFigure.layout,
-          geometryFigure.config,
-        );
+        if (dirtyMainFigure) {
+          dirtyMainFigure = false;
+          mainFigure = buildMainFigure(state, theme, plotLabels, mainViewRevision);
+          updates.push(
+            plotly.react(mainPlot, mainFigure.data, mainFigure.layout, mainFigure.config),
+          );
+        }
+        if (dirtyGeometryFigure) {
+          dirtyGeometryFigure = false;
+          dirtyGeometryData = false;
+          const geometryFigure = buildGeometryFigure(state, theme);
+          updates.push(
+            plotly.react(
+              geometryPlot,
+              geometryFigure.data,
+              geometryFigure.layout,
+              geometryFigure.config,
+            ),
+          );
+        } else if (dirtyGeometryData) {
+          dirtyGeometryData = false;
+          const payload = geometryPayload(
+            state.selected,
+            geometryViewRanges(state),
+            quantity === 'coordinate-scale',
+          );
+          const traces = GEOMETRY_TRACE_KEYS.map((key) => payload[key]);
+          updates.push(
+            plotly.restyle(
+              geometryPlot,
+              {
+                x: traces.map((trace) => trace.x),
+                y: traces.map((trace) => trace.y),
+                text: traces.map((trace) => trace.text),
+              } as unknown as Data,
+              GEOMETRY_TRACE_KEYS.map((_, index) => index),
+            ),
+          );
+        }
+        await Promise.all(updates);
       } else if (pendingSelection) {
         const selection = pendingSelection;
         pendingSelection = undefined;
         if (!mainFigure) throw new Error('Missing main plot figure.');
-        const payload = geometryPayload(selection);
+        const payload = geometryPayload(
+          selection,
+          geometryViewRanges(state),
+          quantity === 'coordinate-scale',
+        );
+        const traces = GEOMETRY_TRACE_KEYS.map((key) => payload[key]);
         const updates: Array<Promise<unknown>> = [
           plotly.restyle(
             geometryPlot,
             {
-              x: payload.map((trace) => trace.x),
-              y: payload.map((trace) => trace.y),
-              text: payload.map((trace) => trace.text),
+              x: traces.map((trace) => trace.x),
+              y: traces.map((trace) => trace.y),
+              text: traces.map((trace) => trace.text),
             } as unknown as Data,
-            payload.map((_, index) => index),
+            GEOMETRY_TRACE_KEYS.map((_, index) => index),
           ),
         ];
         if (mainFigure.selectedTraceIndex !== undefined) {
-          const selected = selectedPointTrace({ axes, selected: selection });
+          const selected = selectedPointTrace({ axes, quantity, selected: selection });
           updates.push(
             plotly.restyle(mainPlot, { x: [selected.x], y: [selected.y] } as unknown as Data, [
               mainFigure.selectedTraceIndex,
@@ -357,9 +407,13 @@ const FrenetExplorer: Component<Props> = (props) => {
       }
       if (dirtyResize) {
         dirtyResize = false;
+        const geometryView = geometryViewRanges(state);
         await Promise.all([
           plotly.relayout(mainPlot, { autosize: true }),
-          plotly.relayout(geometryPlot, { autosize: true }),
+          plotly.relayout(geometryPlot, {
+            autosize: true,
+            ...geometryViewportLayout(geometryView),
+          }),
         ]);
       }
     } catch (error) {
@@ -367,7 +421,7 @@ const FrenetExplorer: Component<Props> = (props) => {
       setStatus('error');
     } finally {
       rendering = false;
-      if (dirtyFigure) schedule();
+      if (dirtyMainFigure || dirtyGeometryFigure || dirtyGeometryData) schedule();
       else if (dirtyResize || pendingSelection) void flush();
     }
   };
@@ -377,28 +431,29 @@ const FrenetExplorer: Component<Props> = (props) => {
     const next = clamp(value, lower, upper);
     setState('parameters', variable, next);
     setState('selected', variable, next);
-    invalidateFigure();
+    invalidateMainFigure(true);
   };
 
   const setAxisRange = (variable: Variable, range: Range) => {
+    const previousSelection = state.selected[variable];
     setState('ranges', variable, range);
     setState('selected', variable, clamp(state.selected[variable], range[0], range[1]));
-    invalidateFigure();
+    invalidateMainFigure(state.selected[variable] !== previousSelection);
   };
 
-  const setRateRange = (range: Range) => {
-    setState('rateRange', range);
-    invalidateFigure();
+  const setOutputRange = (range: Range) => {
+    setState('valueRange', range);
+    invalidateMainFigure();
   };
 
-  const setBounds = (key: Variable | 'rate', bounds: Range) => {
-    if (key === 'rate') {
-      setState('rateBounds', bounds);
+  const setBounds = (key: Variable | 'output', bounds: Range) => {
+    if (key === 'output') {
+      setState('valueBounds', bounds);
       const nextRange: Range = [
-        clamp(state.rateRange[0], bounds[0], bounds[1]),
-        clamp(state.rateRange[1], bounds[0], bounds[1]),
+        clamp(state.valueRange[0], bounds[0], bounds[1]),
+        clamp(state.valueRange[1], bounds[0], bounds[1]),
       ];
-      setState('rateRange', nextRange[0] < nextRange[1] ? nextRange : [...bounds]);
+      setState('valueRange', nextRange[0] < nextRange[1] ? nextRange : [...bounds]);
     } else {
       setState('bounds', key, bounds);
       setState('parameters', key, clamp(state.parameters[key], bounds[0], bounds[1]));
@@ -412,13 +467,13 @@ const FrenetExplorer: Component<Props> = (props) => {
         setState('ranges', key, nextRange[0] < nextRange[1] ? nextRange : [...bounds]);
       }
     }
-    invalidateFigure();
+    invalidateAllFigures();
   };
 
   const reset = () => {
-    setState(reconcile(createInitialState(axes)));
+    setState(reconcile(createInitialState(axes, initialStateOptions)));
     mainViewRevision += 1;
-    invalidateFigure();
+    invalidateAllFigures();
   };
 
   const selectFromPlot = (event: PlotMouseEvent) => {
@@ -460,7 +515,7 @@ const FrenetExplorer: Component<Props> = (props) => {
       setCompact(rootElement.clientWidth < 720);
       const theme = readPlotTheme(rootElement);
       mainFigure = buildMainFigure(state, theme, plotLabels, mainViewRevision);
-      const geometryFigure = buildGeometryFigure(state, theme, plotLabels);
+      const geometryFigure = buildGeometryFigure(state, theme);
       mainPlot = await plotly.newPlot(
         mainPlotElement,
         mainFigure.data,
@@ -474,7 +529,9 @@ const FrenetExplorer: Component<Props> = (props) => {
         geometryFigure.config,
       );
       if (destroyed) return;
-      dirtyFigure = false;
+      dirtyMainFigure = false;
+      dirtyGeometryFigure = false;
+      dirtyGeometryData = false;
       setStatus('ready');
 
       mainPlot.on('plotly_hover', selectFromPlot);
@@ -500,7 +557,7 @@ const FrenetExplorer: Component<Props> = (props) => {
       resizeObserver.observe(mainPlotElement);
       resizeObserver.observe(geometryPlotElement);
 
-      themeObserver = new MutationObserver(() => invalidateFigure());
+      themeObserver = new MutationObserver(() => invalidateAllFigures());
       themeObserver.observe(document.documentElement, {
         attributes: true,
         attributeFilter: ['class'],
@@ -532,6 +589,8 @@ const FrenetExplorer: Component<Props> = (props) => {
       class="frenet-explorer"
       ref={rootElement}
       data-frenet-explorer={axes.join('-')}
+      data-frenet-quantity={quantity}
+      data-frenet-curvature-sign={props.curvatureSign}
       data-frenet-dimensions={axes.length}
       data-pagefind-ignore
       aria-label={m.frenet_interactive_figure(
@@ -545,73 +604,115 @@ const FrenetExplorer: Component<Props> = (props) => {
       )}
     >
       <div class="frenet-controls">
-        <For each={fixedVariables}>
-          {(variable) => (
-            <ScalarControl
-              variable={variable}
-              label={variableTitles[variable]}
-              value={state.parameters[variable]}
-              bounds={state.bounds[variable]}
-              onChange={(value) => setParameter(variable, value)}
-            />
-          )}
-        </For>
-        <For each={axes}>
-          {(variable) => (
-            <RangeControl
-              name={`${variable}-range`}
-              label={m.frenet_range({ label: variableTitles[variable] }, { locale: contentLocale })}
-              values={state.ranges[variable]!}
-              bounds={state.bounds[variable]}
-              step={VARIABLE_SPECS[variable].step}
-              digits={VARIABLE_SPECS[variable].digits}
-              onChange={(range) => setAxisRange(variable, range)}
-            />
-          )}
-        </For>
-        <RangeControl
-          name="rate-range"
-          label={m.frenet_rate_range({}, { locale: contentLocale })}
-          values={state.rateRange}
-          bounds={state.rateBounds}
-          step={0.001}
-          digits={3}
-          onChange={setRateRange}
-        />
-
-        <div class="frenet-control-actions">
-          <Collapsible class="frenet-advanced">
-            <Collapsible.Trigger class="frenet-advanced-trigger" lang={uiLanguageTag}>
-              <SlidersHorizontal aria-hidden="true" />
-              {m.frenet_absolute_ranges({}, { locale: uiLocale })}
-              <ChevronDown class="frenet-chevron" aria-hidden="true" />
-            </Collapsible.Trigger>
-            <Collapsible.Content class="frenet-advanced-content">
-              <For each={VARIABLE_ORDER}>
-                {(variable) => (
-                  <BoundsEditor
-                    label={variableTitles[variable]}
-                    locale={contentLocale}
-                    bounds={state.bounds[variable]}
-                    step={VARIABLE_SPECS[variable].step}
-                    onCommit={(bounds) => setBounds(variable, bounds)}
-                  />
-                )}
-              </For>
-              <BoundsEditor
-                label="dℓ/ds"
-                locale={contentLocale}
-                bounds={state.rateBounds}
-                step={0.001}
-                onCommit={(bounds) => setBounds('rate', bounds)}
-              />
-            </Collapsible.Content>
-          </Collapsible>
+        <div class="frenet-controls-toolbar">
+          <span class="frenet-controls-title" lang={contentLanguageTag}>
+            {m.frenet_controls_title({}, { locale: contentLocale })}
+          </span>
           <button class="frenet-reset" type="button" lang={uiLanguageTag} onClick={reset}>
             <RotateCcw aria-hidden="true" />
             {m.frenet_reset({}, { locale: uiLocale })}
           </button>
         </div>
+
+        <Show when={axes.length === 1}>
+          <fieldset class="frenet-control-group" data-frenet-control-group="conditions">
+            <legend lang={contentLanguageTag}>
+              {m.frenet_experiment_conditions({}, { locale: contentLocale })}
+            </legend>
+            <div
+              class="frenet-condition-controls"
+              data-frenet-control-count={fixedVariables.length}
+            >
+              <For each={fixedVariables}>
+                {(variable) => (
+                  <ScalarControl
+                    variable={variable}
+                    label={variableTitles[variable]}
+                    value={state.parameters[variable]}
+                    bounds={state.bounds[variable]}
+                    onChange={(value) => setParameter(variable, value)}
+                  />
+                )}
+              </For>
+            </div>
+          </fieldset>
+        </Show>
+
+        <fieldset class="frenet-control-group" data-frenet-control-group="window">
+          <legend lang={contentLanguageTag}>
+            {axes.length === 1
+              ? m.frenet_plot_window({}, { locale: contentLocale })
+              : m.frenet_surface_controls({}, { locale: contentLocale })}
+          </legend>
+          <div class="frenet-range-controls">
+            <For each={axes}>
+              {(variable, index) => (
+                <RangeControl
+                  name={`${variable}-range`}
+                  label={axisRangeLabel(variable, index())}
+                  values={state.ranges[variable]!}
+                  bounds={state.bounds[variable]}
+                  step={VARIABLE_SPECS[variable].step}
+                  digits={VARIABLE_SPECS[variable].digits}
+                  onChange={(range) => setAxisRange(variable, range)}
+                />
+              )}
+            </For>
+            <RangeControl
+              name="output-range"
+              label={outputRangeLabel}
+              values={state.valueRange}
+              bounds={state.valueBounds}
+              step={0.001}
+              digits={3}
+              onChange={setOutputRange}
+            />
+            <Show when={axes.length === 2}>
+              <For each={fixedVariables}>
+                {(variable) => (
+                  <ScalarControl
+                    variable={variable}
+                    label={m.frenet_experiment_condition(
+                      { label: variableTitles[variable] },
+                      { locale: contentLocale },
+                    )}
+                    value={state.parameters[variable]}
+                    bounds={state.bounds[variable]}
+                    onChange={(value) => setParameter(variable, value)}
+                  />
+                )}
+              </For>
+            </Show>
+          </div>
+        </fieldset>
+
+        <Collapsible class="frenet-advanced">
+          <Collapsible.Trigger class="frenet-advanced-trigger" lang={uiLanguageTag}>
+            <SlidersHorizontal aria-hidden="true" />
+            {m.frenet_absolute_ranges({}, { locale: uiLocale })}
+            <ChevronDown class="frenet-chevron" aria-hidden="true" />
+          </Collapsible.Trigger>
+          <Collapsible.Content class="frenet-advanced-content">
+            <For each={relevantVariables}>
+              {(variable) => (
+                <BoundsEditor
+                  label={variableTitles[variable]}
+                  locale={contentLocale}
+                  bounds={state.bounds[variable]}
+                  step={VARIABLE_SPECS[variable].step}
+                  onCommit={(bounds) => setBounds(variable, bounds)}
+                />
+              )}
+            </For>
+            <BoundsEditor
+              label={outputLabel}
+              locale={contentLocale}
+              bounds={state.valueBounds}
+              step={0.001}
+              onCommit={(bounds) => setBounds('output', bounds)}
+            />
+          </Collapsible.Content>
+        </Collapsible>
       </div>
 
       <output class="frenet-status" data-frenet-status>

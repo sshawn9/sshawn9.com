@@ -24,7 +24,7 @@ const blog = defineCollection({
   }),
   schema: z.object({
     title: z.string(),
-    description: z.string(),
+    description: z.string().optional(),
     revisionSummary: z.string().min(1).optional(),
     canonical: z.url().optional(),
   }),

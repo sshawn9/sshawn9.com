@@ -10,7 +10,7 @@ export type BlogListArticle = {
   href: string;
   contentLanguage: string;
   title: string;
-  description: string;
+  description?: string;
   publishedDateTime: string;
   publishedLabel: string;
   revisedDateTime?: string;
@@ -235,9 +235,13 @@ export default function BlogBrowser(props: Props) {
                             {article.title}
                           </a>
                         </h2>
-                        <p class="mt-2 max-w-4xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-                          {article.description}
-                        </p>
+                        <Show when={article.description}>
+                          {(description) => (
+                            <p class="mt-2 max-w-4xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+                              {description()}
+                            </p>
+                          )}
+                        </Show>
                       </div>
 
                       <ul

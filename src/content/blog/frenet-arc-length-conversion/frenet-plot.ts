@@ -1,15 +1,17 @@
-import type { Config, Data, Layout } from 'plotly.js';
+import type { Config, Data, Layout, PlotData } from 'plotly.js';
 import {
-  arcLengthRate,
   automaticRange,
+  GEOMETRY_TRACE_KEYS,
   geometryPayload,
   geometryViewRanges,
+  quantityValue,
+  relationBoundaries,
   relationArrays,
-  singularPositions,
+  surfaceCoordinateDegeneracy,
   surfaceArrays,
   VARIABLE_SPECS,
   type ExplorerState,
-  type Parameters,
+  type GeometryTraceKey,
   type Variable,
 } from './frenet-model';
 
@@ -25,9 +27,9 @@ export type MainPlotFigure = PlotFigure & {
 
 export type FrenetPlotLabels = {
   variables: Record<Variable, string>;
+  quantity: string;
   relationCurve: string;
   relationSurface: string;
-  geometry: string;
 };
 
 export const DEFAULT_SPLIT_PERCENTAGE = 64;
@@ -48,6 +50,21 @@ const COLORS = {
   purple: '#a78bfa',
   red: '#ef4444',
 };
+
+const KATEX_MATH_FONT_FAMILY = 'KaTeX_Math, KaTeX_Main, Times New Roman, serif';
+
+function traceIndexBySemantic(data: Data[], semantic: string): number {
+  const index = data.findIndex(
+    (trace) =>
+      ((trace as { meta?: { semantic?: string } }).meta?.semantic ?? undefined) === semantic,
+  );
+  if (index < 0) throw new Error(`Missing Plotly trace: ${semantic}.`);
+  return index;
+}
+
+function labelFontFamily(text: string, theme: PlotTheme): string {
+  return text.includes('φ') ? KATEX_MATH_FONT_FAMILY : theme.fontFamily;
+}
 
 export function readPlotTheme(element: HTMLElement): PlotTheme {
   const style = getComputedStyle(element);
@@ -77,7 +94,7 @@ function baseLayout(theme: PlotTheme, revision: string): Partial<Layout> {
     autosize: true,
     paper_bgcolor: theme.background,
     plot_bgcolor: theme.background,
-    font: { color: theme.foreground, family: theme.fontFamily, size: 12 },
+    font: { color: theme.foreground, family: theme.fontFamily, size: 13 },
     hovermode: 'closest',
     showlegend: false,
     uirevision: revision,
@@ -95,7 +112,7 @@ function titleAnnotation(
     xref: 'paper',
     yref: 'paper',
     showarrow: false,
-    font: { size: 14, color: theme.foreground },
+    font: { size: 15, color: theme.foreground },
   };
 }
 
@@ -118,65 +135,85 @@ function geometryConfig(): Partial<Config> {
   };
 }
 
-function geometryTraces(theme: PlotTheme): Data[] {
-  const arrowMarker = {
-    symbol: ['circle', 'arrow'],
-    size: [1, 12],
-    angleref: 'previous' as const,
-  };
+type GeometryTraceMap = Record<GeometryTraceKey, Data>;
+
+function geometryTraces(theme: PlotTheme): GeometryTraceMap {
   const base = {
     type: 'scatter' as const,
     showlegend: false,
     hoverinfo: 'skip' as const,
   };
+  const trace = (semantic: GeometryTraceKey, data: Partial<PlotData>): Data =>
+    ({ ...base, ...data, meta: { semantic } }) as unknown as Data;
 
-  return [
-    { ...base, mode: 'lines', line: { color: theme.grid, width: 1 } },
-    { ...base, mode: 'lines', line: { color: theme.grid, width: 1.4 } },
-    { ...base, mode: 'lines', line: { color: COLORS.blue, width: 4 } },
-    {
-      ...base,
-      mode: 'lines+text',
-      line: { color: COLORS.green, width: 3 },
-      textposition: 'middle right',
-    },
-    {
-      ...base,
-      mode: 'lines+markers+text',
-      line: { color: COLORS.orange, width: 3 },
-      marker: arrowMarker,
-      textposition: 'top left',
-    },
-    {
-      ...base,
+  return {
+    parallelGrid: trace('parallelGrid', {
       mode: 'lines',
-      line: { color: COLORS.orange, width: 1.5, dash: 'dot' },
-    },
-    {
-      ...base,
-      mode: 'lines+markers+text',
+      line: { color: theme.grid, width: 1 },
+    }),
+    normalGrid: trace('normalGrid', {
+      mode: 'lines',
+      line: { color: theme.grid, width: 1.4 },
+    }),
+    referencePath: trace('referencePath', {
+      mode: 'lines',
+      line: { color: COLORS.blue, width: 4 },
+    }),
+    referenceIncrement: trace('referenceIncrement', {
+      mode: 'lines',
+      line: { color: COLORS.cyan, width: 5 },
+    }),
+    lateralOffset: trace('lateralOffset', {
+      mode: 'lines',
+      line: { color: COLORS.green, width: 3 },
+    }),
+    projectionGuide: trace('projectionGuide', {
+      mode: 'lines',
+      line: { color: theme.muted, width: 1.25, dash: 'dot' },
+    }),
+    trajectoryIncrement: trace('trajectoryIncrement', {
+      mode: 'lines',
       line: { color: COLORS.purple, width: 4 },
-      marker: arrowMarker,
-      textposition: 'top right',
-    },
-    {
-      ...base,
-      mode: 'lines+text',
+    }),
+    headingAngle: trace('headingAngle', {
+      mode: 'lines',
       line: { color: theme.muted, width: 1.5 },
-      textposition: 'middle right',
-    },
-    {
-      ...base,
-      mode: 'markers+text',
-      marker: { color: [COLORS.blue, COLORS.purple], size: [10, 11] },
-      textposition: ['bottom left', 'top left'],
-    },
-  ] as unknown as Data[];
+    }),
+    endpoints: trace('endpoints', {
+      mode: 'markers',
+      marker: {
+        color: [COLORS.blue, COLORS.purple, COLORS.cyan, COLORS.purple],
+        size: [10, 11, 9, 9],
+      },
+    }),
+    labels: trace('labels', {
+      mode: 'text',
+      textfont: {
+        family: KATEX_MATH_FONT_FAMILY,
+        size: 16,
+        color: [COLORS.cyan, COLORS.green, COLORS.purple, theme.muted],
+      },
+      textposition: 'middle center',
+    }),
+    continuation: trace('continuation', {
+      mode: 'text',
+      textfont: {
+        family: theme.fontFamily,
+        size: 22,
+        color: COLORS.cyan,
+      },
+      textposition: 'middle center',
+    }),
+  };
 }
 
-function assignGeometryData(traces: Data[], parameters: Parameters): void {
-  const payload = geometryPayload(parameters);
-  payload.forEach((values, index) => Object.assign(traces[index]!, values));
+function assignGeometryData(
+  traces: GeometryTraceMap,
+  state: ExplorerState,
+  view: { x: number; y: number },
+): void {
+  const payload = geometryPayload(state.selected, view, state.quantity === 'coordinate-scale');
+  for (const key of GEOMETRY_TRACE_KEYS) Object.assign(traces[key], payload[key]);
 }
 
 function relationFigure(
@@ -191,11 +228,12 @@ function relationFigure(
   if (!range) throw new Error(`Missing range for ${variable}.`);
 
   const arrays = relationArrays(state);
-  const displayRange = automaticRange(arrays.rate, state.rateRange);
+  const displayRange = automaticRange(arrays.values, state.valueRange);
   const singularX: Array<number | null> = [];
   const singularY: Array<number | null> = [];
-  for (const position of singularPositions(state)) {
-    singularX.push(position, position, null);
+  const boundaries = relationBoundaries(state);
+  for (const boundary of boundaries) {
+    singularX.push(boundary.position, boundary.position, null);
     singularY.push(displayRange[0], displayRange[1], null);
   }
 
@@ -204,9 +242,11 @@ function relationFigure(
       type: 'scatter',
       mode: 'lines',
       x: arrays.x,
-      y: arrays.rate,
+      y: arrays.values,
       line: { color: COLORS.blue, width: 3 },
-      hovertemplate: `${VARIABLE_SPECS[variable].label}=%{x:.4f}<br>dℓ/ds=%{y:.4f}<extra></extra>`,
+      meta: { semantic: 'relationCurve' },
+      hovertemplate: `${VARIABLE_SPECS[variable].label}=%{x:.4f}<br>${labels.quantity}=%{y:.4f}<extra></extra>`,
+      hoverlabel: { font: { family: labelFontFamily(labels.variables[variable], theme) } },
       showlegend: false,
     },
     {
@@ -215,6 +255,7 @@ function relationFigure(
       x: range,
       y: [1, 1],
       line: { color: COLORS.purple, width: 1.5, dash: 'dot' },
+      meta: { semantic: 'unitReference' },
       hoverinfo: 'skip',
       showlegend: false,
     },
@@ -224,10 +265,11 @@ function relationFigure(
       x: singularX,
       y: singularY,
       line: {
-        color: variable === 'phi' ? COLORS.orange : COLORS.red,
+        color: boundaries[0]?.kind === 'parameterization-failure' ? COLORS.orange : COLORS.red,
         width: 1.5,
         dash: 'dash',
       },
+      meta: { semantic: 'boundary' },
       hoverinfo: 'skip',
       showlegend: false,
     },
@@ -236,6 +278,7 @@ function relationFigure(
       mode: 'markers',
       ...selectedPointTrace(state),
       marker: { color: COLORS.cyan, size: 9, line: { color: theme.background, width: 2 } },
+      meta: { semantic: 'selectedPoint' },
       hoverinfo: 'skip',
       showlegend: false,
     },
@@ -249,18 +292,24 @@ function relationFigure(
       annotations: [titleAnnotation(labels.relationCurve, theme)],
       xaxis: {
         ...axisTheme(theme),
-        title: { text: labels.variables[variable], font: { color: theme.foreground } },
+        title: {
+          text: labels.variables[variable],
+          font: {
+            color: theme.foreground,
+            family: labelFontFamily(labels.variables[variable], theme),
+          },
+        },
         range: [...range],
         ticksuffix: variable === 'phi' ? '°' : '',
       },
       yaxis: {
         ...axisTheme(theme),
-        title: { text: 'dℓ/ds', font: { color: theme.foreground } },
+        title: { text: labels.quantity, font: { color: theme.foreground } },
         range: displayRange,
       },
     },
     config: plotConfig(),
-    selectedTraceIndex: 3,
+    selectedTraceIndex: traceIndexBySemantic(data, 'selectedPoint'),
   };
 }
 
@@ -277,7 +326,8 @@ function surfaceFigure(
   if (!xRange || !yRange) throw new Error('Missing surface axis range.');
 
   const arrays = surfaceArrays(state);
-  const displayRange = automaticRange(arrays.z, state.rateRange);
+  const displayRange = automaticRange(arrays.z, state.valueRange);
+  const coordinateBoundary = surfaceCoordinateDegeneracy(state);
   const data = [
     {
       type: 'surface',
@@ -289,14 +339,22 @@ function surfaceFigure(
       cmax: displayRange[1],
       connectgaps: false,
       colorbar: {
-        title: { text: 'dℓ/ds' },
+        title: { text: labels.quantity },
         thickness: 14,
         x: 1.02,
         xanchor: 'left',
         len: 0.74,
         y: 0.5,
       },
-      hovertemplate: `${VARIABLE_SPECS[xVariable].label}=%{x:.4f}<br>${VARIABLE_SPECS[yVariable].label}=%{y:.4f}<br>dℓ/ds=%{z:.4f}<extra></extra>`,
+      hovertemplate: `${VARIABLE_SPECS[xVariable].label}=%{x:.4f}<br>${VARIABLE_SPECS[yVariable].label}=%{y:.4f}<br>${labels.quantity}=%{z:.4f}<extra></extra>`,
+      hoverlabel: {
+        font: {
+          family: labelFontFamily(
+            `${labels.variables[xVariable]} ${labels.variables[yVariable]}`,
+            theme,
+          ),
+        },
+      },
       showscale: true,
     },
     {
@@ -322,6 +380,18 @@ function surfaceFigure(
       hoverinfo: 'skip',
     },
   ] as unknown as Data[];
+  if (coordinateBoundary) {
+    data.push({
+      type: 'scatter3d',
+      mode: 'lines',
+      x: coordinateBoundary.x,
+      y: coordinateBoundary.y,
+      z: coordinateBoundary.z,
+      line: { color: COLORS.red, width: 4 },
+      hovertemplate: '1 − dκᵣ = 0<extra></extra>',
+      showlegend: false,
+    } as unknown as Data);
+  }
 
   return {
     data,
@@ -333,19 +403,31 @@ function surfaceFigure(
         domain: { x: [0, 1], y: [0, 1] },
         xaxis: {
           ...axisTheme(theme),
-          title: { text: labels.variables[xVariable], font: { color: theme.foreground } },
+          title: {
+            text: labels.variables[xVariable],
+            font: {
+              color: theme.foreground,
+              family: labelFontFamily(labels.variables[xVariable], theme),
+            },
+          },
           range: [...xRange],
           ticksuffix: xVariable === 'phi' ? '°' : '',
         },
         yaxis: {
           ...axisTheme(theme),
-          title: { text: labels.variables[yVariable], font: { color: theme.foreground } },
+          title: {
+            text: labels.variables[yVariable],
+            font: {
+              color: theme.foreground,
+              family: labelFontFamily(labels.variables[yVariable], theme),
+            },
+          },
           range: [...yRange],
           ticksuffix: yVariable === 'phi' ? '°' : '',
         },
         zaxis: {
           ...axisTheme(theme),
-          title: { text: 'dℓ/ds', font: { color: theme.foreground } },
+          title: { text: labels.quantity, font: { color: theme.foreground } },
           range: displayRange,
         },
         bgcolor: theme.background,
@@ -368,45 +450,52 @@ export function buildMainFigure(
     : surfaceFigure(state, theme, labels, viewRevision);
 }
 
-export function buildGeometryFigure(
-  state: ExplorerState,
-  theme: PlotTheme,
-  labels: FrenetPlotLabels,
-): PlotFigure {
+export function geometryViewportLayout(view: {
+  x: number;
+  y: number;
+}): Pick<Layout, 'xaxis' | 'yaxis'> {
+  return {
+    xaxis: {
+      visible: false,
+      fixedrange: true,
+      range: [view.x, -view.x],
+      domain: [0, 1],
+      constrain: 'domain',
+    },
+    yaxis: {
+      visible: false,
+      fixedrange: true,
+      range: [-view.y, view.y],
+      domain: [0, 1],
+      scaleanchor: 'x',
+      scaleratio: 1,
+    },
+  };
+}
+
+export function buildGeometryFigure(state: ExplorerState, theme: PlotTheme): PlotFigure {
   const view = geometryViewRanges(state);
-  const data = geometryTraces(theme);
-  assignGeometryData(data, state.selected);
+  const traces = geometryTraces(theme);
+  assignGeometryData(traces, state, view);
+  const data = GEOMETRY_TRACE_KEYS.map((key) => traces[key]);
 
   return {
     data,
     layout: {
       ...baseLayout(theme, `frenet-geometry-${state.axes.join('-')}`),
-      margin: { l: 18, r: 18, t: 58, b: 24 },
-      annotations: [titleAnnotation(labels.geometry, theme)],
-      xaxis: {
-        visible: false,
-        fixedrange: true,
-        range: [view.x, -view.x],
-        constrain: 'domain',
-      },
-      yaxis: {
-        visible: false,
-        fixedrange: true,
-        range: [-view.y, view.y],
-        scaleanchor: 'x',
-        scaleratio: 1,
-      },
+      margin: { l: 18, r: 18, t: 18, b: 18 },
+      ...geometryViewportLayout(view),
     },
     config: geometryConfig(),
   };
 }
 
-export function selectedPointTrace(state: Pick<ExplorerState, 'axes' | 'selected'>): {
+export function selectedPointTrace(state: Pick<ExplorerState, 'axes' | 'quantity' | 'selected'>): {
   x: number[];
   y: Array<number | null>;
 } {
   const [xVariable] = state.axes;
   if (!xVariable) throw new Error('Missing selected axis.');
-  const rate = arcLengthRate(state.selected.phi, state.selected.d, state.selected.kappa);
-  return { x: [state.selected[xVariable]], y: [rate] };
+  const value = quantityValue(state.quantity, state.selected);
+  return { x: [state.selected[xVariable]], y: [value] };
 }

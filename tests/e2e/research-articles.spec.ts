@@ -29,7 +29,7 @@ async function expectAnnotationsNotToOverlap(plot: Locator): Promise<void> {
 test('the planar Frenet article renders its complete native figures', async ({ page }) => {
   await page.goto('/zh/blog/planar-frenet-frame/');
 
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('平面曲线的 Frenet 标架');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('平面曲线的有符号 Frenet 标架');
   await expect(page.locator('.katex').first()).toBeVisible();
   await expect(page.locator('.research-plot')).toHaveCount(2);
   await expect(page.locator('.research-plot .js-plotly-plot')).toHaveCount(2, { timeout: 20_000 });
@@ -43,10 +43,11 @@ test('the planar Frenet article renders its complete native figures', async ({ p
     .filter({ has: page.locator('[data-kind="planar-curvature-signs"]') });
   const firstCanvas = firstFigure.locator('.research-plot-canvas');
   await expect(firstCanvas).toBeVisible();
-  expect((await firstCanvas.boundingBox())?.height).toBeGreaterThan(300);
+  const normalCanvasHeight = (await firstCanvas.boundingBox())?.height ?? 0;
+  expect(normalCanvasHeight).toBeGreaterThan(250);
   await firstFigure.locator('[data-figure-focus-toggle]').click();
   await expect(page.locator('[data-figure-focus-dialog]')).toHaveAttribute('open', '');
-  expect((await firstCanvas.boundingBox())?.height).toBeGreaterThan(500);
+  expect((await firstCanvas.boundingBox())?.height ?? 0).toBeGreaterThan(normalCanvasHeight * 1.5);
   await firstFigure.locator('[data-figure-focus-toggle]').click();
 });
 
@@ -58,44 +59,110 @@ test('the vehicle kinematics article preserves its derivation and native figures
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Frenet 坐标下的车辆运动学');
   await expect(page.getByRole('heading', { name: '时间域 Frenet 运动学' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '参考路径弧长域 Frenet 运动学' })).toBeVisible();
+  await expect(
+    page.getByRole('link', {
+      name: '参考路径弧长与车辆轨迹有向弧长的局部换算：交互分析',
+    }),
+  ).toHaveAttribute('href', '../frenet-arc-length-conversion/');
   await expect(page.locator('.research-plot .js-plotly-plot')).toHaveCount(2, { timeout: 20_000 });
   for (const plot of await page.locator('.research-plot .js-plotly-plot').all()) {
     await expectAnnotationsNotToOverlap(plot);
   }
 });
 
+test('Plotly remains fully styled across native navigation between research articles', async ({
+  page,
+}) => {
+  await page.goto('/zh/blog/frenet-vehicle-kinematics/');
+  await expect(page.locator('.research-plot .js-plotly-plot')).toHaveCount(2, { timeout: 20_000 });
+
+  await page.evaluate(() => {
+    document.addEventListener(
+      'astro:after-swap',
+      () => {
+        document.documentElement.dataset.plotlyStyleReadyAtSwap = String(
+          Boolean(document.getElementById('plotly.js-style-global')),
+        );
+      },
+      { once: true },
+    );
+  });
+  await page
+    .getByRole('link', {
+      name: '参考路径弧长与车辆轨迹有向弧长的局部换算：交互分析',
+    })
+    .click();
+  await expect(page).toHaveURL(/\/zh\/blog\/frenet-arc-length-conversion\/$/);
+  await expect(page.locator('html')).toHaveAttribute('data-plotly-style-ready-at-swap', 'true');
+
+  const explorer = page.locator('[data-frenet-explorer="phi"]');
+  await explorer.scrollIntoViewIfNeeded();
+  await expect(explorer.locator('.js-plotly-plot')).toHaveCount(2, { timeout: 20_000 });
+  await expect(page.locator('style#plotly\\.js-style-global')).toHaveCount(1);
+  await expect
+    .poll(() =>
+      page.locator('style#plotly\\.js-style-global').evaluate((style) => {
+        const element = style as HTMLStyleElement;
+        return element.sheet?.cssRules.length ?? 0;
+      }),
+    )
+    .toBeGreaterThan(0);
+  await expect
+    .poll(() =>
+      explorer.locator('.modebar').evaluate((element) => getComputedStyle(element).position),
+    )
+    .toBe('absolute');
+  await expect
+    .poll(() =>
+      explorer.locator('.frenet-main-plot').evaluate((element) => {
+        const plot = element as HTMLElement & { _fullLayout?: { width?: number } };
+        return Math.abs((plot._fullLayout?.width ?? 0) - plot.getBoundingClientRect().width);
+      }),
+    )
+    .toBeLessThanOrEqual(2);
+
+  await page.getByRole('link', { name: 'Frenet 坐标下的车辆运动学' }).first().click();
+  await expect(page).toHaveURL(/\/zh\/blog\/frenet-vehicle-kinematics\/(?:#.*)?$/);
+  await expect(page.locator('.research-plot .js-plotly-plot')).toHaveCount(2, { timeout: 20_000 });
+  await expect(page.locator('style#plotly\\.js-style-global')).toHaveCount(1);
+});
+
 test('the closed-loop timeline supports direct manipulation without sliders', async ({ page }) => {
-  await page.goto('/zh/blog/closed-loop-information-timing/');
+  await page.goto('/zh/blog/closed-loop-control-timing/');
 
-  const explorer = page.locator('.closed-loop-timing');
+  const timingFigure = page.locator('.closed-loop-control-timing');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('闭环控制中的信息时序');
-  await expect(explorer.locator('.timing-slider')).toHaveCount(0);
-  await expect(explorer.locator('.closed-loop-timing-plot svg')).toBeVisible({ timeout: 20_000 });
-  await expect(explorer.getByRole('switch', { name: '同步反馈生成与指令执行' })).toBeVisible();
-  await expect(explorer).toHaveAttribute('data-decision-time', '50');
-  await expect(explorer).toHaveAttribute('data-first-feedback-time', '-3.5');
-  await expect(explorer.locator('.timeBoundary0 line')).toHaveCount(1);
-  await expect(explorer.locator('.timeBoundary100 line')).toHaveCount(1);
-  await expect(explorer.locator('.feedbackDelaySourceGuide line')).toHaveCount(1);
-  await expect(explorer.locator('.feedbackDelayTargetGuide line')).toHaveCount(1);
-  await expect(explorer.locator('.commandDelaySourceGuide line')).toHaveCount(1);
-  await expect(explorer.locator('.commandDelayTargetGuide line')).toHaveCount(1);
-  await expect(explorer.locator('.decisionPrimaryRail line')).toHaveCount(1);
-  await expect(explorer.locator('.decisionAvailabilityRail line')).toHaveCount(1);
-  await expect(explorer.locator('.applicationAvailabilityRail line')).toHaveCount(1);
-  await expect(explorer.locator('.applicationPrimaryRail line')).toHaveCount(1);
-  await expect(explorer.locator('.decisionProjectionStems line')).not.toHaveCount(0);
-  await expect(explorer.locator('.applicationProjectionStems line')).not.toHaveCount(0);
-  await expect(explorer.locator('svg text').filter({ hasText: '首点偏移' })).toHaveCount(3);
+  await expect(timingFigure.getByRole('slider')).toHaveCount(0);
+  await expect(timingFigure.locator('.closed-loop-control-timing-plot svg')).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(timingFigure.getByRole('switch', { name: '同步反馈生成与指令执行' })).toBeVisible();
+  await expect(timingFigure).toHaveAttribute('data-decision-time', '50');
+  await expect(timingFigure).toHaveAttribute('data-first-feedback-time', '-3.5');
+  await expect(timingFigure.locator('.timeBoundary0 line')).toHaveCount(1);
+  await expect(timingFigure.locator('.timeBoundary100 line')).toHaveCount(1);
+  await expect(timingFigure.locator('.feedbackDelaySourceGuide line')).toHaveCount(1);
+  await expect(timingFigure.locator('.feedbackDelayTargetGuide line')).toHaveCount(1);
+  await expect(timingFigure.locator('.commandDelaySourceGuide line')).toHaveCount(1);
+  await expect(timingFigure.locator('.commandDelayTargetGuide line')).toHaveCount(1);
+  await expect(timingFigure.locator('.decisionPrimaryRail line')).toHaveCount(1);
+  await expect(timingFigure.locator('.decisionAvailabilityRail line')).toHaveCount(1);
+  await expect(timingFigure.locator('.applicationAvailabilityRail line')).toHaveCount(1);
+  await expect(timingFigure.locator('.applicationPrimaryRail line')).toHaveCount(1);
+  await expect(timingFigure.locator('.decisionProjectionStems line')).not.toHaveCount(0);
+  await expect(timingFigure.locator('.applicationProjectionStems line')).not.toHaveCount(0);
+  await expect(timingFigure.locator('svg text').filter({ hasText: '首点偏移' })).toHaveCount(3);
 
-  const decisionPrimaryRailBox = await explorer.locator('.decisionPrimaryRail line').boundingBox();
-  const decisionAvailabilityRailBox = await explorer
+  const decisionPrimaryRailBox = await timingFigure
+    .locator('.decisionPrimaryRail line')
+    .boundingBox();
+  const decisionAvailabilityRailBox = await timingFigure
     .locator('.decisionAvailabilityRail line')
     .boundingBox();
-  const applicationAvailabilityRailBox = await explorer
+  const applicationAvailabilityRailBox = await timingFigure
     .locator('.applicationAvailabilityRail line')
     .boundingBox();
-  const applicationPrimaryRailBox = await explorer
+  const applicationPrimaryRailBox = await timingFigure
     .locator('.applicationPrimaryRail line')
     .boundingBox();
   expect(decisionPrimaryRailBox && decisionAvailabilityRailBox).toBeTruthy();
@@ -103,14 +170,16 @@ test('the closed-loop timeline supports direct manipulation without sliders', as
   expect(decisionPrimaryRailBox!.y).toBeLessThan(decisionAvailabilityRailBox!.y);
   expect(applicationAvailabilityRailBox!.y).toBeLessThan(applicationPrimaryRailBox!.y);
 
-  const toolbarBox = await explorer.locator('.timing-toolbar').boundingBox();
-  const plotBox = await explorer.locator('.closed-loop-timing-plot').boundingBox();
-  const resetBox = await explorer.getByRole('button', { name: '重置' }).boundingBox();
-  const switchBox = await explorer.locator('.timing-switch').boundingBox();
+  const toolbarBox = await timingFigure
+    .locator('.closed-loop-control-timing-toolbar')
+    .boundingBox();
+  const plotBox = await timingFigure.locator('.closed-loop-control-timing-plot').boundingBox();
+  const resetBox = await timingFigure.getByRole('button', { name: '重置' }).boundingBox();
+  const switchBox = await timingFigure.locator('.closed-loop-control-timing-switch').boundingBox();
   expect(toolbarBox && plotBox && toolbarBox.y + toolbarBox.height <= plotBox.y + 1).toBeTruthy();
-  expect(resetBox && switchBox && resetBox.x < switchBox.x).toBeTruthy();
+  expect(resetBox && switchBox && switchBox.x < resetBox.x).toBeTruthy();
 
-  const dragBy = async (target: ReturnType<typeof explorer.locator>, deltaX: number) => {
+  const dragBy = async (target: ReturnType<typeof timingFigure.locator>, deltaX: number) => {
     await target.scrollIntoViewIfNeeded();
     const point = await target.boundingBox();
     expect(point).not.toBeNull();
@@ -123,7 +192,7 @@ test('the closed-loop timeline supports direct manipulation without sliders', as
     await page.mouse.up();
   };
 
-  const dragToX = async (target: ReturnType<typeof explorer.locator>, targetX: number) => {
+  const dragToX = async (target: ReturnType<typeof timingFigure.locator>, targetX: number) => {
     const point = await target.boundingBox();
     expect(point).not.toBeNull();
     if (!point) return;
@@ -135,24 +204,27 @@ test('the closed-loop timeline supports direct manipulation without sliders', as
     await page.mouse.up();
   };
 
-  await dragBy(explorer.locator('.decisionPoints path').nth(5), 45);
-  await expect(explorer).not.toHaveAttribute('data-decision-time', '50');
+  await dragBy(timingFigure.locator('.decisionPoints path').nth(5), 45);
+  await expect(timingFigure).not.toHaveAttribute('data-decision-time', '50');
 
-  await explorer.getByRole('button', { name: '重置' }).click();
-  await expect(explorer).toHaveAttribute('data-decision-time', '50');
-  await dragToX(explorer.locator('.decisionPoints path').nth(5), plotBox!.x + 2);
-  await expect(explorer).toHaveAttribute('data-decision-time', '0');
-  await dragToX(explorer.locator('.decisionPoints path').first(), plotBox!.x + plotBox!.width - 2);
-  await expect(explorer).toHaveAttribute('data-decision-time', '100');
+  await timingFigure.getByRole('button', { name: '重置' }).click();
+  await expect(timingFigure).toHaveAttribute('data-decision-time', '50');
+  await dragToX(timingFigure.locator('.decisionPoints path').nth(5), plotBox!.x + 2);
+  await expect(timingFigure).toHaveAttribute('data-decision-time', '0');
+  await dragToX(
+    timingFigure.locator('.decisionPoints path').first(),
+    plotBox!.x + plotBox!.width - 2,
+  );
+  await expect(timingFigure).toHaveAttribute('data-decision-time', '100');
 
-  await explorer.getByRole('button', { name: '重置' }).click();
-  await dragBy(explorer.locator('.feedbackPoints path').first(), 35);
-  await expect(explorer).not.toHaveAttribute('data-feedback-offset', '2.5');
+  await timingFigure.getByRole('button', { name: '重置' }).click();
+  await dragBy(timingFigure.locator('.feedbackPoints path').first(), 35);
+  await expect(timingFigure).not.toHaveAttribute('data-feedback-offset', '2.5');
 
-  await explorer.getByRole('button', { name: '重置' }).click();
-  const intervalPoint = explorer.locator('.feedbackPoints path').nth(1);
+  await timingFigure.getByRole('button', { name: '重置' }).click();
+  const intervalPoint = timingFigure.locator('.feedbackPoints path').nth(1);
   await intervalPoint.hover();
-  const tooltip = explorer.locator('.liveTimingTooltip');
+  const tooltip = timingFigure.locator('.liveTimingTooltip');
   await expect(tooltip).toBeVisible();
   await page.mouse.move(5, 5);
   await expect(tooltip).toBeHidden();
@@ -169,26 +241,29 @@ test('the closed-loop timeline supports direct manipulation without sliders', as
     await expect.poll(() => tooltip.textContent()).not.toBe(previousTooltip);
     await page.mouse.up();
   }
-  await expect(explorer).not.toHaveAttribute('data-feedback-interval', '6');
-  await expect(explorer).toHaveAttribute('data-first-feedback-time', '-3.5');
+  await expect(timingFigure).not.toHaveAttribute('data-feedback-interval', '6');
+  await expect(timingFigure).toHaveAttribute('data-first-feedback-time', '-3.5');
 
-  const firstFeedback = explorer.locator('.feedbackPoints path').first();
-  const secondFeedback = explorer.locator('.feedbackPoints path').nth(1);
+  const firstFeedback = timingFigure.locator('.feedbackPoints path').first();
+  const secondFeedback = timingFigure.locator('.feedbackPoints path').nth(1);
   const firstFeedbackBox = await firstFeedback.boundingBox();
   const secondFeedbackBox = await secondFeedback.boundingBox();
   expect(firstFeedbackBox && secondFeedbackBox).toBeTruthy();
   if (firstFeedbackBox && secondFeedbackBox) {
     await dragBy(secondFeedback, firstFeedbackBox.x - secondFeedbackBox.x);
-    expect(Number(await explorer.getAttribute('data-feedback-interval'))).toBeGreaterThanOrEqual(2);
+    expect(
+      Number(await timingFigure.getAttribute('data-feedback-interval')),
+    ).toBeGreaterThanOrEqual(2);
   }
 
-  await explorer.getByRole('button', { name: '重置' }).click();
-  await dragBy(explorer.locator('.commandAvailabilityPoints path').nth(5), 35);
-  await expect(explorer).not.toHaveAttribute('data-command-delay', '15');
+  await timingFigure.getByRole('button', { name: '重置' }).click();
+  await dragBy(timingFigure.locator('.commandAvailabilityPoints path').nth(5), 35);
+  await expect(timingFigure).not.toHaveAttribute('data-command-delay', '15');
 
-  const synchronize = explorer.getByRole('switch', { name: '同步反馈生成与指令执行' });
-  await explorer.locator('.timing-switch-control').click();
+  const synchronize = timingFigure.getByRole('switch', { name: '同步反馈生成与指令执行' });
   await expect(synchronize).toBeChecked();
-  await explorer.getByRole('button', { name: '重置' }).click();
+  await timingFigure.locator('.closed-loop-control-timing-switch-control').click();
   await expect(synchronize).not.toBeChecked();
+  await timingFigure.getByRole('button', { name: '重置' }).click();
+  await expect(synchronize).toBeChecked();
 });

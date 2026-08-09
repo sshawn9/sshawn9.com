@@ -1,6 +1,7 @@
 import type { Spec } from 'vega';
 
-export type ClosedLoopTimingCopy = {
+export type ClosedLoopControlTimingCopy = {
+  motorController: string;
   decisionUpdate: string;
   feedbackGeneration: string;
   commandApplication: string;
@@ -11,11 +12,12 @@ export type ClosedLoopTimingCopy = {
   available: string;
   delay: string;
   period: string;
-  at: string;
-  adoptedByExecution: string;
-  adoptedByDecision: string;
-  notAdoptedByExecution: string;
-  notAdoptedByDecision: string;
+  nextApplication: string;
+  nextDecision: string;
+  latestCommandThen: string;
+  latestFeedbackThen: string;
+  newerCommandThen: string;
+  newerFeedbackThen: string;
   dragDecisionOffset: string;
   dragDecisionPeriod: string;
   dragFeedbackGroup: string;
@@ -26,15 +28,35 @@ export type ClosedLoopTimingCopy = {
   firstPointOffset: string;
   past: string;
   future: string;
-  timeAxis: string;
   currentDecision: string;
   feedbackDelay: string;
   transmissionDelay: string;
+  stateKnown: string;
+  statePredictable: string;
+  stateUnknown: string;
 };
 
-const INDEX_VALUES = Array.from({ length: 2201 }, (_, position) => ({
-  index: position - 1100,
-}));
+export type ClosedLoopControlTimingLayout = {
+  plotLeft: number;
+  compactPlotLeft: number;
+};
+
+const DEFAULT_TIMING_LAYOUT: ClosedLoopControlTimingLayout = {
+  plotLeft: 176,
+  compactPlotLeft: 136,
+};
+
+export const INITIAL_TIMING_SIGNALS = {
+  decisionInterval: 10,
+  decisionTime: 50,
+  commandDelay: 15,
+  feedbackInterval: 6,
+  feedbackOffset: 2.5,
+  feedbackDelay: 10,
+  applicationInterval: 6,
+  applicationOffset: 2.5,
+  synchronized: true,
+} as const;
 
 const VIEW_START = -5;
 const VIEW_END = 105;
@@ -51,11 +73,14 @@ const dragEnd = 'window:pointerup, window:pointercancel';
 const color = (name: string) => ({ signal: name });
 const literal = (value: string) => JSON.stringify(value);
 
-export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
+export function createClosedLoopControlTimingSpec(
+  copy: ClosedLoopControlTimingCopy,
+  layout: ClosedLoopControlTimingLayout = DEFAULT_TIMING_LAYOUT,
+): Spec {
   return {
     $schema: 'https://vega.github.io/schema/vega/v6.json',
     width: 960,
-    height: 620,
+    height: 480,
     autosize: { type: 'none', contains: 'padding', resize: true },
     padding: 0,
     signals: [
@@ -68,21 +93,58 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
       { name: 'applicationColor', value: '#ffb000' },
 
       { name: 'compact', update: 'width < 640' },
-      { name: 'plotLeft', update: 'compact ? 112 : 178' },
-      { name: 'plotRight', update: 'width - (compact ? 12 : 24)' },
-      { name: 'decisionY', update: 'max(126, height * 0.25)' },
-      { name: 'feedbackY', update: 'height * 0.5' },
-      { name: 'applicationY', update: 'height * 0.78' },
+      { name: 'outerPadding', update: 'compact ? 10 : 16' },
+      {
+        name: 'plotLeft',
+        update: `compact ? ${layout.compactPlotLeft} : ${layout.plotLeft}`,
+      },
+      { name: 'plotRight', update: 'width - (compact ? 34 : 46)' },
+      { name: 'baselineY', update: 'height - 84' },
+      {
+        name: 'decisionY',
+        update: 'min(compact ? 104 : 112, max(compact ? 96 : 100, height * 0.22))',
+      },
+      {
+        name: 'applicationY',
+        update: 'baselineY - (compact ? 56 : 64)',
+      },
+      {
+        name: 'feedbackY',
+        update: 'applicationY - (compact ? 92 : 104)',
+      },
+      {
+        name: 'motorControllerTopY',
+        update: 'feedbackY - (compact ? 24 : 28)',
+      },
+      {
+        name: 'motorControllerBottomY',
+        update: 'applicationY + (compact ? 24 : 28)',
+      },
       { name: 'pairedRailGap', update: 'compact ? 13 : 17' },
       { name: 'decisionPrimaryY', update: 'decisionY - pairedRailGap / 2' },
       { name: 'decisionAvailabilityY', update: 'decisionY + pairedRailGap / 2' },
       { name: 'applicationAvailabilityY', update: 'applicationY - pairedRailGap / 2' },
       { name: 'applicationPrimaryY', update: 'applicationY + pairedRailGap / 2' },
-      { name: 'baselineY', update: 'height - 34' },
+      { name: 'decisionGuideHalfGap', update: 'compact ? 70 : 84' },
+      { name: 'stateRegionY', update: 'baselineY + 62' },
+      {
+        name: 'stateRegionInset',
+        update:
+          "min(compact ? 4 : 6, max(0, scale('time', decisionTime + commandDelay) - scale('time', currentFeedbackTime)) / 3)",
+      },
+      {
+        name: 'knownStateEndX',
+        update: "clamp(scale('time', currentFeedbackTime) + stateRegionInset, plotLeft, plotRight)",
+      },
+      {
+        name: 'unknownStateStartX',
+        update:
+          "clamp(scale('time', decisionTime + commandDelay) - stateRegionInset, knownStateEndX, plotRight)",
+      },
 
       {
         name: 'decisionInterval',
-        value: 10,
+        value: INITIAL_TIMING_SIGNALS.decisionInterval,
         on: [
           {
             events: dragMove,
@@ -92,7 +154,7 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
       },
       {
         name: 'decisionTime',
-        value: 50,
+        value: INITIAL_TIMING_SIGNALS.decisionTime,
         on: [
           {
             events: dragMove,
@@ -102,7 +164,7 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
       },
       {
         name: 'commandDelay',
-        value: 15,
+        value: INITIAL_TIMING_SIGNALS.commandDelay,
         on: [
           {
             events: dragMove,
@@ -112,7 +174,7 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
       },
       {
         name: 'feedbackInterval',
-        value: 6,
+        value: INITIAL_TIMING_SIGNALS.feedbackInterval,
         on: [
           {
             events: dragMove,
@@ -124,7 +186,7 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
       },
       {
         name: 'feedbackOffset',
-        value: 2.5,
+        value: INITIAL_TIMING_SIGNALS.feedbackOffset,
         on: [
           {
             events: dragMove,
@@ -138,7 +200,7 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
       },
       {
         name: 'feedbackDelay',
-        value: 10,
+        value: INITIAL_TIMING_SIGNALS.feedbackDelay,
         on: [
           {
             events: dragMove,
@@ -148,7 +210,7 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
       },
       {
         name: 'applicationInterval',
-        value: 6,
+        value: INITIAL_TIMING_SIGNALS.applicationInterval,
         on: [
           {
             events: dragMove,
@@ -160,7 +222,7 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
       },
       {
         name: 'applicationOffset',
-        value: 2.5,
+        value: INITIAL_TIMING_SIGNALS.applicationOffset,
         on: [
           {
             events: dragMove,
@@ -172,7 +234,7 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
           },
         ],
       },
-      { name: 'synchronized', value: false },
+      { name: 'synchronized', value: INITIAL_TIMING_SIGNALS.synchronized },
 
       {
         name: 'firstDecisionIndex',
@@ -372,16 +434,16 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
           "tooltipKind === 'feedback-availability' ? tooltipSourceTime + feedbackDelay : tooltipSourceTime",
       },
       {
-        name: 'tooltipSelectedTime',
+        name: 'tooltipNextEventTime',
         update:
           "tooltipKind === 'command-availability' ? applicationOffset + ceil((tooltipTime - applicationOffset) / applicationInterval - 1e-9) * applicationInterval : " +
           "tooltipKind === 'feedback-availability' ? decisionTime + ceil((tooltipTime - decisionTime) / decisionInterval - 1e-9) * decisionInterval : 0",
       },
       {
-        name: 'tooltipSelected',
+        name: 'tooltipLatestAtNextEvent',
         update:
-          `tooltipKind === 'command-availability' ? tooltipSelectedTime <= ${VIEW_END} && tooltipSelectedTime < tooltipTime + decisionInterval - 1e-9 : ` +
-          `tooltipKind === 'feedback-availability' ? tooltipSelectedTime <= ${VIEW_END} && tooltipSelectedTime < tooltipTime + feedbackInterval - 1e-9 : false`,
+          "tooltipKind === 'command-availability' ? tooltipNextEventTime < tooltipTime + decisionInterval - 1e-9 : " +
+          "tooltipKind === 'feedback-availability' ? tooltipNextEventTime < tooltipTime + feedbackInterval - 1e-9 : false",
       },
       {
         name: 'tooltipTitle',
@@ -406,8 +468,8 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
       {
         name: 'tooltipLine3',
         update:
-          `tooltipKind === 'command-availability' ? (tooltipSelected ? ${literal(copy.at)} + ' ' + format(tooltipSelectedTime, '.1f') + ' ms  ·  ' + ${literal(copy.adoptedByExecution)} : ${literal(copy.notAdoptedByExecution)}) : ` +
-          `tooltipKind === 'feedback-availability' ? (tooltipSelected ? ${literal(copy.at)} + ' ' + format(tooltipSelectedTime, '.1f') + ' ms  ·  ' + ${literal(copy.adoptedByDecision)} : ${literal(copy.notAdoptedByDecision)}) : ''`,
+          `tooltipKind === 'command-availability' ? ${literal(copy.nextApplication)} + '  ' + format(tooltipNextEventTime, '.1f') + ' ms  ·  ' + (tooltipLatestAtNextEvent ? ${literal(copy.latestCommandThen)} : ${literal(copy.newerCommandThen)}) : ` +
+          `tooltipKind === 'feedback-availability' ? ${literal(copy.nextDecision)} + '  ' + format(tooltipNextEventTime, '.1f') + ' ms  ·  ' + (tooltipLatestAtNextEvent ? ${literal(copy.latestFeedbackThen)} : ${literal(copy.newerFeedbackThen)}) : ''`,
       },
       {
         name: 'tooltipLine4',
@@ -419,18 +481,23 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
     ],
     data: [
       {
-        name: 'indices',
-        values: INDEX_VALUES,
-      },
-      {
         name: 'tooltipState',
         values: [{}],
         transform: [{ type: 'filter', expr: 'tooltipKind !== null' }],
       },
       {
         name: 'decisions',
-        source: 'indices',
         transform: [
+          {
+            type: 'sequence',
+            start: {
+              signal: `ceil((${VIEW_START} - decisionTime) / decisionInterval - 1e-9)`,
+            },
+            stop: {
+              signal: `floor((${VIEW_END} - decisionTime) / decisionInterval + 1e-9) + 1`,
+            },
+            as: 'index',
+          },
           { type: 'formula', as: 'time', expr: 'decisionTime + datum.index * decisionInterval' },
           {
             type: 'filter',
@@ -440,8 +507,17 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
       },
       {
         name: 'feedback',
-        source: 'indices',
         transform: [
+          {
+            type: 'sequence',
+            start: {
+              signal: `ceil((${VIEW_START} - feedbackOffset) / feedbackInterval - 1e-9)`,
+            },
+            stop: {
+              signal: `floor((${VIEW_END} - feedbackOffset) / feedbackInterval + 1e-9) + 1`,
+            },
+            as: 'index',
+          },
           { type: 'formula', as: 'time', expr: 'feedbackOffset + datum.index * feedbackInterval' },
           {
             type: 'filter',
@@ -451,8 +527,17 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
       },
       {
         name: 'applications',
-        source: 'indices',
         transform: [
+          {
+            type: 'sequence',
+            start: {
+              signal: `ceil((${VIEW_START} - applicationOffset) / applicationInterval - 1e-9)`,
+            },
+            stop: {
+              signal: `floor((${VIEW_END} - applicationOffset) / applicationInterval + 1e-9) + 1`,
+            },
+            as: 'index',
+          },
           {
             type: 'formula',
             as: 'time',
@@ -466,13 +551,26 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
       },
       {
         name: 'commandAvailability',
-        source: 'decisions',
         transform: [
-          { type: 'formula', as: 'sourceTime', expr: 'datum.time' },
+          {
+            type: 'sequence',
+            start: {
+              signal: `ceil((${VIEW_START} - commandDelay - decisionTime) / decisionInterval - 1e-9)`,
+            },
+            stop: {
+              signal: `floor((${VIEW_END} - commandDelay - decisionTime) / decisionInterval + 1e-9) + 1`,
+            },
+            as: 'index',
+          },
+          {
+            type: 'formula',
+            as: 'sourceTime',
+            expr: 'decisionTime + datum.index * decisionInterval',
+          },
           { type: 'formula', as: 'time', expr: 'datum.sourceTime + commandDelay' },
           {
             type: 'filter',
-            expr: `datum.sourceTime >= ${VIEW_START} && datum.time <= ${VIEW_END}`,
+            expr: `datum.time >= ${VIEW_START} && datum.time <= ${VIEW_END}`,
           },
           {
             type: 'formula',
@@ -481,20 +579,33 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
           },
           {
             type: 'formula',
-            as: 'selected',
-            expr: `datum.nextApplication <= ${VIEW_END} && datum.nextApplication < datum.time + decisionInterval - 1e-9`,
+            as: 'latestAtNextApplication',
+            expr: 'datum.nextApplication < datum.time + decisionInterval - 1e-9',
           },
         ],
       },
       {
         name: 'feedbackAvailability',
-        source: 'feedback',
         transform: [
-          { type: 'formula', as: 'sourceTime', expr: 'datum.time' },
+          {
+            type: 'sequence',
+            start: {
+              signal: `ceil((${VIEW_START} - feedbackDelay - feedbackOffset) / feedbackInterval - 1e-9)`,
+            },
+            stop: {
+              signal: `floor((${VIEW_END} - feedbackDelay - feedbackOffset) / feedbackInterval + 1e-9) + 1`,
+            },
+            as: 'index',
+          },
+          {
+            type: 'formula',
+            as: 'sourceTime',
+            expr: 'feedbackOffset + datum.index * feedbackInterval',
+          },
           { type: 'formula', as: 'time', expr: 'datum.sourceTime + feedbackDelay' },
           {
             type: 'filter',
-            expr: `datum.sourceTime >= ${VIEW_START} && datum.time <= ${VIEW_END}`,
+            expr: `datum.time >= ${VIEW_START} && datum.time <= ${VIEW_END}`,
           },
           {
             type: 'formula',
@@ -503,8 +614,28 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
           },
           {
             type: 'formula',
-            as: 'selected',
-            expr: `datum.nextDecision <= ${VIEW_END} && datum.nextDecision < datum.time + feedbackInterval - 1e-9`,
+            as: 'latestAtNextDecision',
+            expr: 'datum.nextDecision < datum.time + feedbackInterval - 1e-9',
+          },
+        ],
+      },
+      {
+        name: 'commandAvailabilityConnections',
+        source: 'commandAvailability',
+        transform: [
+          {
+            type: 'filter',
+            expr: `datum.sourceTime >= ${VIEW_START} && datum.sourceTime <= ${VIEW_END}`,
+          },
+        ],
+      },
+      {
+        name: 'feedbackAvailabilityConnections',
+        source: 'feedbackAvailability',
+        transform: [
+          {
+            type: 'filter',
+            expr: `datum.sourceTime >= ${VIEW_START} && datum.sourceTime <= ${VIEW_END}`,
           },
         ],
       },
@@ -521,8 +652,46 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
     ],
     marks: [
       {
+        name: 'motorControllerBoundary',
+        type: 'rect',
+        interactive: false,
+        encode: {
+          update: {
+            x: { signal: 'plotLeft - 8' },
+            x2: { signal: 'plotRight + 8' },
+            y: { signal: 'motorControllerTopY' },
+            y2: { signal: 'motorControllerBottomY' },
+            cornerRadius: { value: 14 },
+            fill: color('line'),
+            fillOpacity: { value: 0.035 },
+            stroke: color('line'),
+            strokeOpacity: { value: 0.68 },
+            strokeWidth: { value: 1 },
+          },
+        },
+      },
+      {
+        name: 'motorControllerLabel',
+        type: 'text',
+        interactive: false,
+        encode: {
+          update: {
+            x: { signal: 'plotRight + (compact ? 21 : 25)' },
+            y: { signal: '(motorControllerTopY + motorControllerBottomY) / 2' },
+            text: { value: copy.motorController },
+            align: { value: 'center' },
+            baseline: { value: 'middle' },
+            lineBreak: { value: '|' },
+            lineHeight: { signal: 'compact ? 12 : 14' },
+            fill: color('muted'),
+            fontSize: { signal: 'compact ? 10 : 11' },
+            fontWeight: { value: 700 },
+          },
+        },
+      },
+      {
         type: 'rule',
-        from: { data: 'commandAvailability' },
+        from: { data: 'commandAvailabilityConnections' },
         encode: {
           enter: { strokeDash: { value: [7, 7] } },
           update: {
@@ -538,7 +707,7 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
       },
       {
         type: 'rule',
-        from: { data: 'feedbackAvailability' },
+        from: { data: 'feedbackAvailabilityConnections' },
         encode: {
           enter: { strokeDash: { value: [3, 5] } },
           update: {
@@ -587,7 +756,8 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
       timelineRail('applicationPrimaryRail', 'applicationPrimaryY', false),
       ...rowLabels(copy),
       ...topGuideMarks(copy),
-      ...bottomGuideMarks(copy),
+      ...bottomGuideMarks(),
+      ...stateRegionMarks(copy),
       ...currentDecisionMarks(copy),
       ...delayDimensionMarks(copy),
       samplePoints('decisionPoints', 'decisions', 'decisionPrimaryY', 'decisionColor'),
@@ -599,6 +769,7 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
         'applicationAvailabilityY',
         'decisionColor',
         'triangle-down',
+        'latestAtNextApplication',
       ),
       availabilityPoints(
         'feedbackAvailabilityPoints',
@@ -606,13 +777,14 @@ export function createClosedLoopTimingSpec(copy: ClosedLoopTimingCopy): Spec {
         'decisionAvailabilityY',
         'feedbackColor',
         'triangle-up',
+        'latestAtNextDecision',
       ),
       ...liveTooltipMarks(),
     ],
   } as Spec;
 }
 
-function rowLabels(copy: ClosedLoopTimingCopy): NonNullable<Spec['marks']> {
+function rowLabels(copy: ClosedLoopControlTimingCopy): NonNullable<Spec['marks']> {
   const rows = [
     {
       y: 'decisionY',
@@ -642,14 +814,15 @@ function rowLabels(copy: ClosedLoopTimingCopy): NonNullable<Spec['marks']> {
       type: 'text',
       encode: {
         update: {
-          x: { signal: 'plotLeft - 18' },
+          x: { signal: 'plotLeft - 14' },
           y: { signal: row.y },
           text: { value: row.label },
           align: { value: 'right' },
           baseline: { value: 'middle' },
           fill: color(row.color),
           fontWeight: { value: 700 },
-          fontSize: { signal: 'compact ? 12 : 13' },
+          fontSize: { value: 12 },
+          limit: { signal: 'plotLeft - outerPadding - 14' },
         },
       },
     },
@@ -657,14 +830,14 @@ function rowLabels(copy: ClosedLoopTimingCopy): NonNullable<Spec['marks']> {
       type: 'text',
       encode: {
         update: {
-          x: { signal: 'plotLeft - 18' },
+          x: { signal: 'plotLeft - 14' },
           y: { signal: `${row.y} + 20` },
           text: { signal: row.offset },
           align: { value: 'right' },
           baseline: { value: 'middle' },
           fill: color('muted'),
           fontSize: { signal: 'compact ? 8 : 10' },
-          limit: { signal: 'compact ? 96 : 160' },
+          limit: { signal: 'plotLeft - outerPadding - 14' },
         },
       },
     },
@@ -672,33 +845,35 @@ function rowLabels(copy: ClosedLoopTimingCopy): NonNullable<Spec['marks']> {
       type: 'text',
       encode: {
         update: {
-          x: { signal: 'plotLeft - 18' },
+          x: { signal: 'plotLeft - 14' },
           y: { signal: `${row.y} + 36` },
           text: { signal: row.interval },
           align: { value: 'right' },
           baseline: { value: 'middle' },
           fill: color('muted'),
           fontSize: { signal: 'compact ? 8 : 10' },
-          limit: { signal: 'compact ? 96 : 160' },
+          limit: { signal: 'plotLeft - outerPadding - 14' },
         },
       },
     },
   ]) as NonNullable<Spec['marks']>;
 }
 
-function topGuideMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['marks']> {
+function topGuideMarks(copy: ClosedLoopControlTimingCopy): NonNullable<Spec['marks']> {
   return [
     {
       type: 'rule',
       encode: {
         update: {
-          x: { scale: 'time', value: 4 },
-          x2: { scale: 'time', signal: 'decisionTime - 4' },
+          x: { signal: 'plotLeft' },
+          x2: { signal: "scale('time', decisionTime) - decisionGuideHalfGap" },
           y: { value: 48 },
           stroke: color('muted'),
           strokeOpacity: { value: 0.72 },
           strokeWidth: { value: 1.2 },
-          opacity: { signal: 'decisionTime > 9 ? 1 : 0' },
+          opacity: {
+            signal: "scale('time', decisionTime) - decisionGuideHalfGap > plotLeft + 8 ? 1 : 0",
+          },
         },
       },
     },
@@ -706,12 +881,14 @@ function topGuideMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['marks']> {
       type: 'symbol',
       encode: {
         update: {
-          x: { scale: 'time', signal: 'decisionTime - 4' },
+          x: { signal: "scale('time', decisionTime) - decisionGuideHalfGap" },
           y: { value: 48 },
           shape: { value: 'triangle-right' },
           size: { value: 55 },
           fill: color('muted'),
-          opacity: { signal: 'decisionTime > 9 ? 1 : 0' },
+          opacity: {
+            signal: "scale('time', decisionTime) - decisionGuideHalfGap > plotLeft + 8 ? 1 : 0",
+          },
         },
       },
     },
@@ -719,13 +896,15 @@ function topGuideMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['marks']> {
       type: 'rule',
       encode: {
         update: {
-          x: { scale: 'time', signal: 'decisionTime + 4' },
-          x2: { scale: 'time', value: 96 },
+          x: { signal: "scale('time', decisionTime) + decisionGuideHalfGap" },
+          x2: { signal: 'plotRight' },
           y: { value: 48 },
           stroke: color('muted'),
           strokeOpacity: { value: 0.72 },
           strokeWidth: { value: 1.2 },
-          opacity: { signal: 'decisionTime < 91 ? 1 : 0' },
+          opacity: {
+            signal: "scale('time', decisionTime) + decisionGuideHalfGap < plotRight - 8 ? 1 : 0",
+          },
         },
       },
     },
@@ -733,12 +912,14 @@ function topGuideMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['marks']> {
       type: 'symbol',
       encode: {
         update: {
-          x: { scale: 'time', signal: 'decisionTime + 4' },
+          x: { signal: "scale('time', decisionTime) + decisionGuideHalfGap" },
           y: { value: 48 },
           shape: { value: 'triangle-left' },
           size: { value: 55 },
           fill: color('muted'),
-          opacity: { signal: 'decisionTime < 91 ? 1 : 0' },
+          opacity: {
+            signal: "scale('time', decisionTime) + decisionGuideHalfGap < plotRight - 8 ? 1 : 0",
+          },
         },
       },
     },
@@ -747,15 +928,18 @@ function topGuideMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['marks']> {
       encode: {
         update: {
           x: {
-            signal: "(scale('time', 4) + scale('time', decisionTime - 4)) / 2",
+            signal: "(plotLeft + scale('time', decisionTime) - decisionGuideHalfGap) / 2",
           },
-          y: { value: 29 },
+          y: { value: 43 },
           text: { value: copy.past },
           align: { value: 'center' },
+          baseline: { value: 'bottom' },
           fill: color('muted'),
           fontStyle: { value: 'italic' },
           fontSize: { value: 12 },
-          opacity: { signal: 'decisionTime > 9 ? 1 : 0' },
+          opacity: {
+            signal: "scale('time', decisionTime) - decisionGuideHalfGap > plotLeft + 8 ? 1 : 0",
+          },
         },
       },
     },
@@ -764,22 +948,25 @@ function topGuideMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['marks']> {
       encode: {
         update: {
           x: {
-            signal: "(scale('time', decisionTime + 4) + scale('time', 96)) / 2",
+            signal: "(scale('time', decisionTime) + decisionGuideHalfGap + plotRight) / 2",
           },
-          y: { value: 29 },
+          y: { value: 43 },
           text: { value: copy.future },
           align: { value: 'center' },
+          baseline: { value: 'bottom' },
           fill: color('muted'),
           fontStyle: { value: 'italic' },
           fontSize: { value: 12 },
-          opacity: { signal: 'decisionTime < 91 ? 1 : 0' },
+          opacity: {
+            signal: "scale('time', decisionTime) + decisionGuideHalfGap < plotRight - 8 ? 1 : 0",
+          },
         },
       },
     },
   ] as NonNullable<Spec['marks']>;
 }
 
-function bottomGuideMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['marks']> {
+function bottomGuideMarks(): NonNullable<Spec['marks']> {
   return [
     {
       type: 'rule',
@@ -800,7 +987,7 @@ function bottomGuideMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['marks']
       encode: {
         update: {
           x: { scale: 'time', value: 0 },
-          y: { signal: 'baselineY + 22' },
+          y: { signal: 'baselineY + 16' },
           text: { value: '0 ms' },
           align: { value: 'center' },
           fill: color('muted'),
@@ -813,21 +1000,8 @@ function bottomGuideMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['marks']
       encode: {
         update: {
           x: { scale: 'time', value: 100 },
-          y: { signal: 'baselineY + 22' },
+          y: { signal: 'baselineY + 16' },
           text: { value: '100 ms' },
-          align: { value: 'center' },
-          fill: color('muted'),
-          fontSize: { value: 11 },
-        },
-      },
-    },
-    {
-      type: 'text',
-      encode: {
-        update: {
-          x: { signal: '(plotLeft + plotRight) / 2' },
-          y: { signal: 'baselineY + 22' },
-          text: { value: copy.timeAxis },
           align: { value: 'center' },
           fill: color('muted'),
           fontSize: { value: 11 },
@@ -849,6 +1023,104 @@ function bottomGuideMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['marks']
         },
       },
     })),
+  ] as NonNullable<Spec['marks']>;
+}
+
+function stateRegionMarks(copy: ClosedLoopControlTimingCopy): NonNullable<Spec['marks']> {
+  const boundaryGuides = [
+    {
+      name: 'knownStateBoundaryGuide',
+      x: 'knownStateEndX',
+      y: 'feedbackY - 11',
+      color: 'feedbackColor',
+    },
+    {
+      name: 'unknownStateBoundaryGuide',
+      x: 'unknownStateStartX',
+      y: 'applicationAvailabilityY - 11',
+      color: 'decisionColor',
+    },
+  ].map((guide) => ({
+    name: guide.name,
+    type: 'rule',
+    interactive: false,
+    encode: {
+      update: {
+        x: { signal: guide.x },
+        y: { signal: guide.y },
+        y2: { signal: 'stateRegionY - 9' },
+        stroke: color(guide.color),
+        strokeOpacity: { value: 0.52 },
+        strokeDash: { value: [3, 4] },
+        strokeWidth: { value: 1.05 },
+      },
+    },
+  }));
+
+  const regions = [
+    {
+      name: 'knownState',
+      x: 'plotLeft',
+      x2: 'knownStateEndX',
+      label: copy.stateKnown,
+      color: 'feedbackColor',
+    },
+    {
+      name: 'predictableState',
+      x: 'knownStateEndX',
+      x2: 'unknownStateStartX',
+      label: copy.statePredictable,
+      color: 'decisionColor',
+    },
+    {
+      name: 'unknownState',
+      x: 'unknownStateStartX',
+      x2: 'plotRight',
+      label: copy.stateUnknown,
+      color: 'muted',
+    },
+  ];
+
+  return [
+    ...boundaryGuides,
+    ...regions.flatMap((region) => [
+      {
+        name: `${region.name}Region`,
+        type: 'rect',
+        interactive: false,
+        encode: {
+          update: {
+            x: { signal: region.x },
+            x2: { signal: region.x2 },
+            y: { signal: 'stateRegionY - 9' },
+            y2: { signal: 'stateRegionY + 9' },
+            fill: color(region.color),
+            fillOpacity: { value: 0.08 },
+            stroke: color(region.color),
+            strokeOpacity: { value: 0.38 },
+            strokeWidth: { value: 1 },
+          },
+        },
+      },
+      {
+        name: `${region.name}Label`,
+        type: 'text',
+        interactive: false,
+        encode: {
+          update: {
+            x: { signal: `(${region.x} + ${region.x2}) / 2` },
+            y: { signal: 'stateRegionY' },
+            text: { value: region.label },
+            align: { value: 'center' },
+            baseline: { value: 'middle' },
+            fill: color(region.color),
+            fontSize: { signal: 'compact ? 8 : 10' },
+            fontWeight: { value: 700 },
+            limit: { signal: `max(0, ${region.x2} - ${region.x} - 10)` },
+          },
+        },
+      },
+    ]),
   ] as NonNullable<Spec['marks']>;
 }
 
@@ -944,6 +1216,7 @@ function availabilityPoints(
   ySignal: string,
   colorSignal: string,
   shape: 'triangle-up' | 'triangle-down',
+  latestField: 'latestAtNextApplication' | 'latestAtNextDecision',
 ): NonNullable<Spec['marks']>[number] {
   const activeDrag =
     data === 'commandAvailability'
@@ -961,7 +1234,7 @@ function availabilityPoints(
         x: { scale: 'time', field: 'time' },
         y: { signal: ySignal },
         size: { signal: `(${activeDrag}) && datum.index === dragIndex ? 120 : 72` },
-        fill: [{ test: 'datum.selected', signal: colorSignal }, { signal: 'surface' }],
+        fill: [{ test: `datum.${latestField}`, signal: colorSignal }, { signal: 'surface' }],
         stroke: color(colorSignal),
         strokeWidth: { value: 1.7 },
         cursor: { value: 'ew-resize' },
@@ -1040,7 +1313,7 @@ function liveTooltipMarks(): NonNullable<Spec['marks']> {
   ] as NonNullable<Spec['marks']>;
 }
 
-function currentDecisionMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['marks']> {
+function currentDecisionMarks(copy: ClosedLoopControlTimingCopy): NonNullable<Spec['marks']> {
   return [
     {
       type: 'rule',
@@ -1071,10 +1344,10 @@ function currentDecisionMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['mar
       encode: {
         update: {
           x: { scale: 'time', signal: 'decisionTime' },
-          y: { value: 43 },
+          y: { value: 48 },
           text: { value: copy.currentDecision },
           align: { value: 'center' },
-          baseline: { value: 'bottom' },
+          baseline: { value: 'middle' },
           fill: color('decisionColor'),
           fontWeight: { value: 700 },
           fontSize: { signal: 'compact ? 11 : 13' },
@@ -1084,28 +1357,32 @@ function currentDecisionMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['mar
   ] as NonNullable<Spec['marks']>;
 }
 
-function delayDimensionMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['marks']> {
+function delayDimensionMarks(copy: ClosedLoopControlTimingCopy): NonNullable<Spec['marks']> {
   const dimensions = [
     {
       name: 'feedback',
       x: 'currentFeedbackTime',
       x2: 'currentFeedbackTime + feedbackDelay',
-      y: 'baselineY - 39',
+      y: 'baselineY + 34',
       sourceY: 'feedbackY',
       targetY: 'decisionAvailabilityY',
       color: 'feedbackColor',
       label: `${literal(copy.feedbackDelay)} + ' ' + format(feedbackDelay, '.1f') + ' ms'`,
+      labelX: "scale('time', currentFeedbackTime) - 8",
+      labelAlign: 'right',
       valid: `currentFeedbackTime >= ${VIEW_START} && currentFeedbackTime + feedbackDelay < decisionTime - 1e-9`,
     },
     {
       name: 'command',
       x: 'decisionTime',
       x2: 'decisionTime + commandDelay',
-      y: 'baselineY - 17',
+      y: 'baselineY + 34',
       sourceY: 'decisionPrimaryY',
       targetY: 'applicationAvailabilityY',
       color: 'decisionColor',
       label: `${literal(copy.transmissionDelay)} + ' ' + format(commandDelay, '.1f') + ' ms'`,
+      labelX: "scale('time', decisionTime + commandDelay) + 8",
+      labelAlign: 'left',
       valid: `decisionTime + commandDelay <= ${VIEW_END}`,
     },
   ];
@@ -1132,7 +1409,7 @@ function delayDimensionMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['mark
         update: {
           x: { scale: 'time', signal: dimension.x },
           y: { signal: dimension.sourceY },
-          y2: { signal: 'baselineY' },
+          y2: { signal: dimension.y },
           stroke: color(dimension.color),
           strokeOpacity: { signal: `${dimension.valid} ? 0.68 : 0` },
           strokeDash: { value: [3, 4] },
@@ -1147,7 +1424,7 @@ function delayDimensionMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['mark
         update: {
           x: { scale: 'time', signal: dimension.x2 },
           y: { signal: dimension.targetY },
-          y2: { signal: 'baselineY' },
+          y2: { signal: dimension.y },
           stroke: color(dimension.color),
           strokeOpacity: { signal: `${dimension.valid} ? 0.68 : 0` },
           strokeDash: { value: [3, 4] },
@@ -1155,17 +1432,29 @@ function delayDimensionMarks(copy: ClosedLoopTimingCopy): NonNullable<Spec['mark
         },
       },
     },
+    ...[dimension.x, dimension.x2].map((endpoint, index) => ({
+      name: `${dimension.name}Delay${index === 0 ? 'Start' : 'End'}Tick`,
+      type: 'rule',
+      encode: {
+        update: {
+          x: { scale: 'time', signal: endpoint },
+          y: { signal: `${dimension.y} - 4` },
+          y2: { signal: `${dimension.y} + 4` },
+          stroke: color(dimension.color),
+          strokeWidth: { value: 1.2 },
+          opacity: { signal: `${dimension.valid} ? 0.82 : 0` },
+        },
+      },
+    })),
     {
       type: 'text',
       encode: {
         update: {
-          x: {
-            signal: `(scale('time', ${dimension.x}) + scale('time', ${dimension.x2})) / 2`,
-          },
-          y: { signal: `${dimension.y} - 6` },
+          x: { signal: dimension.labelX },
+          y: { signal: dimension.y },
           text: { signal: dimension.label },
-          align: { value: 'center' },
-          baseline: { value: 'bottom' },
+          align: { value: dimension.labelAlign },
+          baseline: { value: 'middle' },
           fill: color(dimension.color),
           fontSize: { signal: 'compact ? 8 : 10' },
           opacity: { signal: `${dimension.valid} ? 1 : 0` },

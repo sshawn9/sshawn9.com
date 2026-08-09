@@ -33,7 +33,7 @@ const articleSchema: WithContext<BlogPosting> = {
   '@context': 'https://schema.org',
   '@type': 'BlogPosting',
   headline: post.data.title,
-  description: post.data.description,
+  ...(post.data.description ? { description: post.data.description } : {}),
   datePublished: article.versions[0].entry.data.publishedAt.toISOString(),
   dateModified: getVersionDate(version).toISOString(),
   inLanguage: contentLanguageTag,
@@ -91,13 +91,17 @@ const articleTags = getArticleTags(article);
           >
             {post.data.title}
           </h1>
-          <p
-            lang={contentLanguageTag}
-            class="mt-5 max-w-4xl text-lg leading-8 text-slate-600 sm:text-xl dark:text-slate-400"
-            data-pagefind-meta="description"
-          >
-            {post.data.description}
-          </p>
+          {
+            post.data.description && (
+              <p
+                lang={contentLanguageTag}
+                class="mt-5 max-w-4xl text-lg leading-8 text-slate-600 sm:text-xl dark:text-slate-400"
+                data-pagefind-meta="description"
+              >
+                {post.data.description}
+              </p>
+            )
+          }
 
           <div class="sr-only" aria-hidden="true" data-pagefind-ignore>
             <time

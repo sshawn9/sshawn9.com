@@ -27,13 +27,15 @@ type Props = {
 const {
   locale = BASE_LOCALE,
   title = m.site_title({}, { locale }),
-  description = m.site_description({}, { locale }),
+  description: providedDescription,
   canonical,
   image,
   type = 'website',
   noIndex = false,
   alternateLocales = [...LOCALES],
 } = Astro.props;
+const description =
+  providedDescription ?? (type === 'article' ? undefined : m.site_description({}, { locale }));
 const siteTitle = m.site_title({}, { locale });
 const pageTitle = title === siteTitle ? title : `${title} — ${SITE.name}`;
 const canonicalUrl = canonical ?? new URL(Astro.url.pathname, Astro.site ?? SITE.url).toString();
@@ -102,7 +104,7 @@ const openGraph = socialImage
           { property: 'og:type', content: type },
           { property: 'og:site_name', content: SITE.name },
           { property: 'og:title', content: pageTitle },
-          { property: 'og:description', content: description },
+          ...(description ? [{ property: 'og:description', content: description }] : []),
           { property: 'og:url', content: canonicalUrl },
           { property: 'og:locale', content: openGraphLocale(locale) },
           ...openGraphLocaleAlternates.map((alternateLocale) => ({

@@ -1,0 +1,11 @@
+---
+import ResearchFigureClient, { type ResearchFigureKind } from './ResearchFigure.tsx';
+
+type Props = {
+  kind: ResearchFigureKind;
+};
+
+const { kind } = Astro.props;
+---
+
+<ResearchFigureClient {kind} client:load />

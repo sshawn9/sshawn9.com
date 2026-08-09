@@ -1,6 +1,6 @@
 ---
-title: Frenet 弧长换算关系的交互可视化
-description: 通过三条单变量曲线和三个双变量曲面，交互考察航向误差、横向偏差与参考曲率对弧长换算率的共同作用。
+title: 参考路径弧长与车辆轨迹有向弧长的局部换算：交互分析
+description: 基于车辆运动学中的弧长换算关系，通过交互图观察车辆轨迹有向弧长与参考路径弧长在不同状态下的接近程度。
 ---
 
 import 'katex/dist/katex.min.css';
@@ -9,100 +9,285 @@ import FocusFigure from '../../../components/FocusFigure.astro';
 import FrenetExplorer from './FrenetExplorer';
 import './frenet-explorer.css';
 
-参考路径弧长 $s$ 与车辆实际轨迹弧长 $\ell$ 之间并不是始终一比一。下面用六组交互图考察航向误差 $\varphi$、横向偏差 $d$ 与参考曲率 $\kappa_r$ 如何共同改变局部换算率 $d\ell/ds$。每组关系图都与同一参数下的 Frenet 几何构型联动，因此代数变化和几何状态可以被同时观察。
+## 换算关系
 
-## 弧长换算关系
-
-本文考察的局部换算关系为
+《[Frenet 坐标下的车辆运动学](../frenet-vehicle-kinematics/#参考路径弧长与车辆轨迹有向弧长的局部换算)》从车辆位置的 Frenet 表示与车辆航向单位向量出发，在式 (3) 中得到参考路径弧长和车辆轨迹有向弧长的局部换算关系
 
 $$
-\frac{d\ell}{ds}=\frac{1-d\kappa_r}{\cos\varphi}.
+\frac{\mathrm d\ell}{\mathrm ds}=\frac{1-d\kappa_r}{\cos\varphi}
 $$
 
-其中，$s$ 是参考路径上投影点的弧长坐标，$\ell$ 是车辆后轴中心实际轨迹的弧长，$d$ 是沿左单位法向量取正的横向偏差，$\varphi$ 是车辆航向相对参考航向的有符号误差，$\kappa_r$ 是参考路径的有符号曲率。
+后面由不同交互图分别改变航向误差 $\varphi$、横向偏差 $d$ 与参考曲率 $\kappa_r$，观察 $\mathrm d\ell/\mathrm ds$ 的变化趋势。
 
-## 如何使用交互图
+式中，$s$ 是车辆最近投影点在参考路径上的弧长坐标；$\ell$ 是车辆后轴中心轨迹的有向弧长坐标，沿车辆航向为正；$d$ 是从投影点沿参考路径左单位法向量测得的有符号横向偏差，左侧为正、右侧为负；$\varphi$ 是车辆航向与投影点处参考路径切向之间的航向误差，逆时针为正；$\kappa_r$ 是投影点处参考路径的有符号曲率，左转为正、右转为负。
 
-关系曲线或曲面与右侧的局部 Frenet 几何共用同一组参数。移动鼠标到曲线采样点或曲面网格点，右侧几何会立即切换到对应状态；在触控设备上点击数据点也能完成选择。
+## 如何操作交互图
 
-普通滑块设置当前固定参数，双端滑块设置坐标轴或 $d\ell/ds$ 的显示区间。滑块每一步的数值都会被完整保留，图形结构更新会在浏览器的下一绘制帧合并重复请求；鼠标在关系图上的联动不额外延迟，只更新发生变化的图形数据。只有需要扩展探索范围时，才需要展开“设置绝对范围”。
+每组关系曲线或曲面都与右侧的局部 Frenet 几何共用同一组参数。把指针移到曲线采样点或曲面网格点上，右侧几何会立即切换到对应状态；触控设备可以点击数据点完成选择。
 
-几何图采用以下符号约定：参考路径正向为 $s$ 增大方向，横向偏差向左为正，航向误差向左转为正。背景网格由参考路径的等距曲线与法线坐标线构成。
+弧长局部换算关系图采用同一套标记：蓝色曲线或渐变色曲面表示 $\mathrm d\ell/\mathrm ds$，紫色点线或半透明平面表示 $\mathrm d\ell/\mathrm ds=1$，橙色虚线表示 $\cos\varphi=0$，红色边界线表示 $1-d\kappa_r=0$。后文的 $1-d\kappa_r$ 关系图沿用蓝色关系曲线、紫色单位基准线和红色退化边界。右侧几何图中，参考路径正向为 $s$ 增大方向，横向偏差向左为正，车辆航向相对参考路径切向逆时针偏转为正。
 
-## 单变量关系曲线
+右侧几何图以当前投影点为局部原点，用统一长度的线段 $\Delta\ell$ 表示车辆轨迹有向弧长增量，并由 $\Delta s=\cos\varphi\,\Delta\ell/(1-d\kappa_r)$ 确定参考路径弧长增量的大小和方向。$\Delta s<0$ 时，高亮弧段从当前投影点向后绘制。参考曲线只表示投影点处的局部曲率；当 $\kappa_r\ne0$ 且 $|\kappa_r\Delta s|\le\pi/3$ 时完整绘制高亮弧段，超过六分之一圆后才在保持正确方向的前提下截断并显示省略标记，不把密切圆当作完整参考路径重新寻找投影点。$1-d\kappa_r=0$ 时不绘制不存在的有限 $\Delta s$。
 
-### 关于航向误差的关系曲线
+“实验条件”中的单值滑块用于固定当前图没有作为坐标轴展示的变量。“绘图窗口”中的双端滑块只调整坐标轴或当前分析量的显示范围，不改变数学关系。需要探索默认边界之外的区域时，可以展开“高级范围设置”；“重置”会恢复当前实验的全部初始参数和显示范围。
+
+## 单一因素对弧长局部换算关系的影响
+
+### 航向误差引起的非线性变化
 
 <FocusFigure number={1}>
   <figcaption slot="caption">
-    <strong>图 1.</strong> 固定 $(d,\kappa_r)$ 时，$d\ell/ds$ 随航向误差 $\varphi$
-    的变化。紫色点线表示 $d\ell/ds=1$；把横轴扩展到 $\pm90^\circ$ 时，橙色虚线标出
-    $\cos\varphi=0$，曲线在其邻域中断。
+    <strong>图 1.</strong> 固定 $(d,\kappa_r)$ 时，$\mathrm d\ell/\mathrm ds$ 随航向误差 $\varphi$
+    按 $1/\cos\varphi$ 非线性变化。紫色点线表示 $\mathrm d\ell/\mathrm ds=1$；把横轴扩展到
+    $\pm90^\circ$ 时，橙色虚线标出 $\cos\varphi=0$，曲线在其邻域中断。当 $1-d\kappa_r\ne0$
+    时，$\left|\mathrm d\ell/\mathrm ds\right|$ 在该边界附近发散。
   </figcaption>
   <FrenetExplorer axes={['phi']} contentLocale="zh" client:only="solid-js" />
 </FocusFigure>
 
-### 关于横向偏差的关系曲线
+### 横向偏差引起的线性变化
 
 <FocusFigure number={2}>
   <figcaption slot="caption">
-    <strong>图 2.</strong> 固定 $(\varphi,\kappa_r)$ 时，$d\ell/ds$ 关于横向偏差 $d$
-    呈线性变化。当有符号曲率半径 $\rho_r=1/\kappa_r$ 位于横轴范围内时，红色虚线标出 $d=\rho_r$。
+    <strong>图 2.</strong> 固定 $(\varphi,\kappa_r)$ 时，$\mathrm d\ell/\mathrm ds$ 关于横向偏差 $d$
+    呈线性变化。当 $\kappa_r\ne0$ 且有符号曲率半径 $\rho_r=1/\kappa_r$
+    位于横轴范围内时，红色虚线标出 $d=\rho_r$。该位置满足 $1-d\kappa_r=0$，表示 Frenet
+    法向坐标退化，不能解释为有效 Frenet 坐标状态下的 $\mathrm d\ell/\mathrm ds=0$。
   </figcaption>
   <FrenetExplorer axes={['d']} contentLocale="zh" client:only="solid-js" />
 </FocusFigure>
 
-### 关于参考曲率的关系曲线
+### 参考曲率引起的线性变化
 
 <FocusFigure number={3}>
   <figcaption slot="caption">
-    <strong>图 3.</strong> 固定 $(\varphi,d)$ 时，$d\ell/ds$ 关于参考曲率 $\kappa_r$ 呈线性变化。当
-    $d\ne0$ 且 $1/d$ 位于横轴范围内时，红色虚线标出 $\kappa_r=1/d$。
+    <strong>图 3.</strong> 固定 $(\varphi,d)$ 时，$\mathrm d\ell/\mathrm ds$ 关于参考曲率 $\kappa_r$
+    呈线性变化。当 $d\ne0$ 且 $1/d$ 位于横轴范围内时，红色虚线标出 $\kappa_r=1/d$，即
+    $1-d\kappa_r=0$ 对应的 Frenet 坐标退化边界。
   </figcaption>
   <FrenetExplorer axes={['kappa']} contentLocale="zh" client:only="solid-js" />
 </FocusFigure>
 
-## 双变量关系曲面
+## 两个因素共同变化时的弧长局部换算关系
 
-### 航向误差—横向偏差曲面
+### 航向误差与横向偏差的共同影响
 
 <FocusFigure number={4} dimensions={2}>
   <figcaption slot="caption">
-    <strong>图 4.</strong> 以 $(\varphi,d)$ 为水平坐标、$d\ell/ds$ 为竖直坐标，参考曲率 $\kappa_r$
-    由滑块给出。半透明紫色平面表示 $d\ell/ds=1$；$\varphi=\pm90^\circ$ 附近为不可定义区域。
+    <strong>图 4.</strong> 以 $(\varphi,d)$ 为自变量、$\mathrm d\ell/\mathrm ds$
+    为曲面高度，参考曲率 $\kappa_r$ 由“实验条件”滑块给出。半透明紫色平面表示 $\mathrm d\ell/\mathrm
+    ds=1$； $\varphi=\pm90^\circ$ 对应空间域参数化失效边界。当 $\kappa_r\ne0$ 时， $d=1/\kappa_r$
+    对应 Frenet 坐标退化边界。
   </figcaption>
   <FrenetExplorer axes={['phi', 'd']} contentLocale="zh" client:only="solid-js" />
 </FocusFigure>
 
-### 航向误差—参考曲率曲面
+### 航向误差与参考曲率的共同影响
 
 <FocusFigure number={5} dimensions={2}>
   <figcaption slot="caption">
-    <strong>图 5.</strong> 以 $(\varphi,\kappa_r)$ 为水平坐标，横向偏差 $d$ 由滑块给出。当 $d\ne0$
-    时，曲面沿 $\kappa_r$ 方向线性倾斜；$\varphi=\pm90^\circ$ 对应不可定义边界。
+    <strong>图 5.</strong> 以 $(\varphi,\kappa_r)$ 为自变量、$\mathrm d\ell/\mathrm ds$
+    为曲面高度，横向偏差 $d$ 由“实验条件”滑块给出。航向误差形成 $1/\cos\varphi$ 的非线性变化；当
+    $d\ne0$ 时， $\kappa_r=1/d$ 对应 Frenet 坐标退化边界。
   </figcaption>
   <FrenetExplorer axes={['phi', 'kappa']} contentLocale="zh" client:only="solid-js" />
 </FocusFigure>
 
-### 横向偏差—参考曲率曲面
+### 横向偏差与参考曲率的共同影响
 
 <FocusFigure number={6} dimensions={2}>
   <figcaption slot="caption">
-    <strong>图 6.</strong> 以 $(d,\kappa_r)$ 为水平坐标，航向误差 $\varphi$ 由滑块给出。当
-    $\cos\varphi\ne0$ 时，曲面与零平面的交线满足 $d\kappa_r=1$。
+    <strong>图 6.</strong> 以 $(d,\kappa_r)$ 为自变量、$\mathrm d\ell/\mathrm ds$
+    为曲面高度，航向误差 $\varphi$ 由“实验条件”滑块给出。曲面与零平面的交线满足
+    $d\kappa_r=1$；这条交线表示 Frenet 法向坐标退化边界，不能解释为有效 Frenet 坐标状态下的 $\mathrm
+    d\ell/\mathrm ds=0$。
   </figcaption>
   <FrenetExplorer axes={['d', 'kappa']} contentLocale="zh" client:only="solid-js" />
 </FocusFigure>
 
+## 横向偏差与投影点曲率半径相对关系变化的影响
+
+$1-d\kappa_r$ 是弧长局部换算关系
+
+$$
+\frac{\mathrm d\ell}{\mathrm ds}=\frac{1-d\kappa_r}{\cos\varphi}
+$$
+
+中由横向偏差 $d$ 和投影点参考曲率 $\kappa_r$ 共同决定的部分。在该关系的适用范围内，固定航向误差 $\varphi$ 后，$d$ 与 $\kappa_r$ 对 $\mathrm d\ell/\mathrm ds$ 的影响全部通过这个因子体现。
+
+以下只讨论当前投影点处的局部关系。记该投影点的参考路径弧长坐标为 $s_0$，并简记 $\kappa_r=\kappa_r(s_0)$。当 $\kappa_r\ne0$ 时，记
+
+$$
+d_c=\frac{1}{\kappa_r},
+\qquad
+R_r=\frac{1}{|\kappa_r|}.
+$$
+
+$R_r$ 是投影点处密切圆的曲率半径；$d_c$ 是该密切圆圆心沿左单位法向量测量的有符号坐标。曲率中心的位置为 $\boldsymbol r(s_0)+d_c\boldsymbol N(s_0)$，并且
+
+$$
+1-d\kappa_r=1-\frac{d}{d_c}.
+$$
+
+因此，真正决定这一因子的是车辆横向偏差 $d$ 相对于曲率中心法向坐标 $d_c$ 的位置关系：
+
+- $d/d_c<0$：车辆与曲率中心位于参考路径两侧，$1-d\kappa_r>1$；
+- $0<d/d_c<1$：车辆位于参考路径与曲率中心之间，$0<1-d\kappa_r<1$；
+- $d=d_c$：车辆位置与当前投影点的曲率中心重合，$1-d\kappa_r=0$；
+- $d/d_c>1$：车辆越过曲率中心，$1-d\kappa_r<0$。
+
+这里的曲率中心只描述参考路径在当前投影点的局部二阶几何，不表示参考路径本身是一段圆弧。下面直接由车辆到参考路径的距离说明 $1-d\kappa_r$ 与最近投影的关系。
+
+固定车辆位置 $\boldsymbol z$，让候选点 $\boldsymbol r(\xi)$ 沿参考路径移动，其中 $\xi$ 是候选点的弧长坐标，$s_0$ 是当前垂足对应的特定坐标。定义
+
+$$
+q(\xi)=\frac{1}{2}\left\|\boldsymbol z-\boldsymbol r(\xi)\right\|^2.
+$$
+
+$q(\xi)$ 是车辆到候选点的距离平方乘以 $1/2$；常数 $1/2$ 不改变极值点，只用于简化求导。参考路径以弧长参数化，因此
+
+$$
+\frac{\mathrm d\boldsymbol r}{\mathrm d\xi}=\boldsymbol T,
+\qquad
+\frac{\mathrm d\boldsymbol T}{\mathrm d\xi}=\kappa_r(\xi)\boldsymbol N,
+\qquad
+\boldsymbol T\mathbin{\cdot}\boldsymbol T=1.
+$$
+
+保持 $\boldsymbol z$ 不变，对候选坐标 $\xi$ 求一阶导数：
+
+$$
+\begin{aligned}
+q'(\xi)
+&=\frac{1}{2}\frac{\mathrm d}{\mathrm d\xi}
+\left[
+(\boldsymbol z-\boldsymbol r(\xi))
+\mathbin{\cdot}
+(\boldsymbol z-\boldsymbol r(\xi))
+\right]\\[0.6em]
+&=-(\boldsymbol z-\boldsymbol r(\xi))\mathbin{\cdot}\boldsymbol T(\xi).
+\end{aligned}
+$$
+
+车辆位置在当前垂足 $s_0$ 处满足
+
+$$
+\boldsymbol z-\boldsymbol r(s_0)=d\boldsymbol N(s_0).
+$$
+
+由于 $\boldsymbol N\perp\boldsymbol T$，将 $\xi=s_0$ 代入一阶导数可得
+
+$$
+q'(s_0)
+=-d\boldsymbol N(s_0)\mathbin{\cdot}\boldsymbol T(s_0)
+=0.
+$$
+
+这只说明 $s_0$ 是距离函数的驻点；要判断它是局部最近点还是局部最远点，还要继续求二阶导数：
+
+$$
+\begin{aligned}
+q''(\xi)
+&=-\frac{\mathrm d}{\mathrm d\xi}
+\left[
+(\boldsymbol z-\boldsymbol r(\xi))\mathbin{\cdot}\boldsymbol T(\xi)
+\right]\\[0.6em]
+&=\frac{\mathrm d\boldsymbol r}{\mathrm d\xi}\mathbin{\cdot}\boldsymbol T
+-(\boldsymbol z-\boldsymbol r)\mathbin{\cdot}
+\frac{\mathrm d\boldsymbol T}{\mathrm d\xi}\\[0.6em]
+&=\boldsymbol T\mathbin{\cdot}\boldsymbol T
+-(\boldsymbol z-\boldsymbol r)\mathbin{\cdot}
+\kappa_r(\xi)\boldsymbol N.
+\end{aligned}
+$$
+
+最后在 $\xi=s_0$ 处代入 $\boldsymbol z-\boldsymbol r(s_0)=d\boldsymbol N(s_0)$、$\boldsymbol T\mathbin{\cdot}\boldsymbol T=1$ 和 $\boldsymbol N\mathbin{\cdot}\boldsymbol N=1$：
+
+$$
+\left.\frac{\mathrm d^2q}{\mathrm d\xi^2}\right|_{\xi=s_0}
+=q''(s_0)
+=1-d\kappa_r.
+$$
+
+等式中的 $1$ 来自单位切向量的长度 $\boldsymbol T\mathbin{\cdot}\boldsymbol T=1$，$-d\kappa_r$ 来自参考路径切向量随曲率发生的转动。由此可以确定：$1-d\kappa_r>0$ 时，$s_0$ 是距离函数的严格局部极小点；$1-d\kappa_r<0$ 时，$s_0$ 是严格局部极大点，不可能是车辆的最近投影点；$1-d\kappa_r=0$ 时，二阶判别失效，是否仍为局部最近点以及投影是否唯一，不能仅凭当前点的 $d$ 与 $\kappa_r$ 判断。即使 $1-d\kappa_r>0$，它也只保证局部极小，最近投影的全局唯一性仍取决于整条参考路径的几何。
+
+### 正曲率：曲率中心位于参考路径左侧
+
+当 $\kappa_r>0$ 时，$d_c=R_r>0$，曲率中心位于左单位法向一侧。车辆从参考路径向左接近曲率中心时，$d$ 从 $0$ 增至 $R_r$，$1-d\kappa_r$ 从 $1$ 线性减至 $0$；车辆位于参考路径右侧时 $d<0$，该因子大于 $1$。当 $d>R_r$ 时，该因子为负，当前参考点不可能是车辆的最近投影点，因而这一区域不属于以该点为最近投影建立的 Frenet 坐标状态。
+
+图 7 固定正参考曲率并改变横向偏差，直接比较 $d$ 与当前曲率半径；图 8 固定横向偏差并改变正参考曲率，观察曲率半径及曲率中心位置变化时同一关系如何变化。
+
+<FocusFigure number={7}>
+  <figcaption slot="caption">
+    <strong>图 7.</strong> 当 $\kappa_r>0$ 时，曲率中心的有符号法向坐标为
+    $d_c=R_r=1/\kappa_r$。红色虚线标出 $d=d_c$；右侧局部几何的网格至少覆盖该曲率中心。调整“参考曲率”可观察曲率半径、曲率中心位置以及 $1-d\kappa_r$ 随之发生的变化。
+  </figcaption>
+  <FrenetExplorer
+    axes={['d']}
+    quantity="coordinate-scale"
+    curvatureSign="positive"
+    contentLocale="zh"
+    client:only="solid-js"
+  />
+</FocusFigure>
+
+<FocusFigure number={8}>
+  <figcaption slot="caption">
+    <strong>图 8.</strong> 横向偏差 $d$ 由“实验条件”滑块给出，横轴为正参考曲率
+    $\kappa_r$。$1-d\kappa_r$ 随 $\kappa_r$ 线性变化；当 $d\ne0$ 且 $\kappa_r=1/d$
+    位于当前横轴范围内时，红色虚线标出车辆位置与曲率中心重合的位置。调整 $d$
+    可以观察这一位置是否落入正曲率范围，以及它如何随横向偏差移动。
+  </figcaption>
+  <FrenetExplorer
+    axes={['kappa']}
+    quantity="coordinate-scale"
+    curvatureSign="positive"
+    contentLocale="zh"
+    client:only="solid-js"
+  />
+</FocusFigure>
+
+### 负曲率：曲率中心位于参考路径右侧
+
+当 $\kappa_r<0$ 时，$d_c=-R_r<0$，曲率中心位于右单位法向一侧。车辆从参考路径向右接近曲率中心时，$d$ 从 $0$ 减至 $-R_r$，$1-d\kappa_r$ 同样从 $1$ 线性减至 $0$；车辆位于参考路径左侧时 $d>0$，该因子大于 $1$。当 $d<-R_r$ 时，该因子为负，当前参考点同样不可能是车辆的最近投影点，因而这一区域也不属于以该点为最近投影建立的 Frenet 坐标状态。
+
+图 9 固定负参考曲率并改变横向偏差；图 10 固定横向偏差并改变负参考曲率。两图与正曲率实验分析同一关系，但曲率中心位于参考路径右侧。
+
+<FocusFigure number={9}>
+  <figcaption slot="caption">
+    <strong>图 9.</strong> 当 $\kappa_r<0$ 时，曲率中心的有符号法向坐标为
+    $d_c=-R_r=1/\kappa_r$。红色虚线标出 $d=d_c$；右侧局部几何的网格至少覆盖该曲率中心。图中的变化规律与图 7 相同，只是曲率中心及相应的横向偏差方向位于参考路径右侧。
+  </figcaption>
+  <FrenetExplorer
+    axes={['d']}
+    quantity="coordinate-scale"
+    curvatureSign="negative"
+    contentLocale="zh"
+    client:only="solid-js"
+  />
+</FocusFigure>
+
+<FocusFigure number={10}>
+  <figcaption slot="caption">
+    <strong>图 10.</strong> 横向偏差 $d$ 由“实验条件”滑块给出，横轴为负参考曲率
+    $\kappa_r$。$1-d\kappa_r$ 随 $\kappa_r$ 线性变化；当 $d\ne0$ 且 $\kappa_r=1/d$
+    位于当前横轴范围内时，红色虚线标出车辆位置与曲率中心重合的位置。该图与图 8
+    的区别是参考路径曲率、曲率中心方向及相应横向偏差均取相反符号。
+  </figcaption>
+  <FrenetExplorer
+    axes={['kappa']}
+    quantity="coordinate-scale"
+    curvatureSign="negative"
+    contentLocale="zh"
+    client:only="solid-js"
+  />
+</FocusFigure>
+
+当 $\kappa_r=0$ 时，投影点处的曲率半径为无穷大，不存在有限的曲率中心，并且对任意 $d$ 都有 $1-d\kappa_r=1$。此时横向偏差不改变弧长局部换算关系中的这一部分，因此无需再单独作图。
+
 <FigureFocusDialog />
 
-## 观察要点
+## 来源与延伸阅读
 
-- 当 $d=0$ 且 $\varphi=0$ 时，换算率恒为 $1$，参考曲率本身不会改变局部弧长比例。
-- 航向误差通过 $1/\cos\varphi$ 产生非线性影响；越接近 $\pm90^\circ$，换算率的绝对值增长越快。
-- 横向偏差与参考曲率只以乘积 $d\kappa_r$ 出现，因此二者符号是否一致直接决定分子被压缩还是放大。
-- $1-d\kappa_r=0$ 是局部退化条件，此时参考路径弧长变化不再对应车辆轨迹弧长变化。
-
-## 实现说明
-
-数值关系与几何构型都直接在浏览器中计算。界面使用 Solid 与 Kobalte 管理可访问的滑块和数值输入，Plotly.js 负责二维曲线、三维曲面和指针交互。整个页面是静态构建产物，不需要 Jupyter、Python 内核或服务器回调。
+- [Frenet 坐标下的车辆运动学](../frenet-vehicle-kinematics/#参考路径弧长与车辆轨迹有向弧长的局部换算)：本文换算关系的完整推导、变量定义、最近点投影条件和参考文献来源。
+- [平面曲线的 Frenet 标架](../planar-frenet-frame/)：本文使用的单位切向量、左单位法向量与有符号曲率约定。

@@ -120,6 +120,8 @@ function arrow(
 type VectorLabelPlacement = {
   position?: number;
   normalOffset?: number;
+  fontSize?: number;
+  fontFamily?: string;
   xanchor?: 'left' | 'center' | 'right';
   yanchor?: 'top' | 'middle' | 'bottom';
   xshift?: number;
@@ -161,7 +163,11 @@ function vector(
       yshift: placement.yshift ?? 0,
       bgcolor: background,
       borderpad: 2,
-      font: { color, size: 12 },
+      font: {
+        color,
+        size: placement.fontSize ?? 12,
+        family: placement.fontFamily,
+      },
     } as Annotation,
   ];
 }
@@ -205,7 +211,6 @@ function buildCurvatureSigns(theme: Theme): Figure {
   const xs = range(-2.2, 2.2, 241);
 
   bends.forEach((bend, index) => {
-    const suffix = index === 0 ? '' : String(index + 1);
     const xaxis = index === 0 ? undefined : `x${index + 1}`;
     const yaxis = index === 0 ? undefined : `y${index + 1}`;
     const xref = (index === 0 ? 'x' : `x${index + 1}`) as XReference;
@@ -222,21 +227,22 @@ function buildCurvatureSigns(theme: Theme): Figure {
     data.push(marker(0, 0, theme.blue, xaxis, yaxis));
     annotations.push(
       ...vector(1.05, 0, 0, 0, '<b>T</b>', theme.orange, theme.surface, xref, yref, {
-        normalOffset: -0.28,
+        normalOffset: index === 2 ? 0.28 : -0.28,
       }),
       ...vector(0, 1.12, 0, 0, '<b>N = JT</b>', theme.green, theme.surface, xref, yref, {
-        position: 0.72,
-        normalOffset: -0.34,
+        position: 0.88,
+        normalOffset: -0.18,
+        xanchor: 'left',
       }),
       {
-        x: 0.04,
-        y: 0.94,
-        xref: `x${suffix} domain`,
-        yref: `y${suffix} domain`,
+        x: (domains[index][0] + domains[index][1]) / 2,
+        y: 1.06,
+        xref: 'paper',
+        yref: 'paper',
         text: labels[index],
         showarrow: false,
-        xanchor: 'left',
-        yanchor: 'top',
+        xanchor: 'center',
+        yanchor: 'bottom',
         font: { color: theme.ink, size: 13 },
       } as Annotation,
     );
@@ -273,6 +279,7 @@ function buildCurvatureSigns(theme: Theme): Figure {
     data,
     layout: {
       ...layout,
+      margin: { l: 24, r: 24, t: 52, b: 18 },
       annotations,
       xaxis: hiddenAxis(domains[0], [-2.25, 2.25]),
       yaxis: { ...hiddenAxis([0, 1], [-1.35, 1.45]), scaleanchor: 'x', scaleratio: 1 },
@@ -446,7 +453,7 @@ function buildVehicleState(theme: Theme): Figure {
       theme.surface,
       'x',
       'y',
-      { position: 0.65, normalOffset: -0.3, yanchor: 'top' },
+      { position: 0.65, normalOffset: -0.3, fontSize: 18, yanchor: 'top' },
     ),
     ...vector(
       point[0] + normal[0],
@@ -458,19 +465,25 @@ function buildVehicleState(theme: Theme): Figure {
       theme.surface,
       'x',
       'y',
-      { position: 0.58, normalOffset: 0.32, xanchor: 'right' },
+      { position: 0.58, normalOffset: 0.32, fontSize: 18, xanchor: 'right' },
     ),
     ...vector(
       vehicle[0] + 1.15 * heading[0],
       vehicle[1] + 1.15 * heading[1],
       vehicle[0],
       vehicle[1],
-      '<b>eθ</b>',
+      '<b>e<sub>θ</sub></b>',
       theme.purple,
       theme.surface,
       'x',
       'y',
-      { position: 0.66, normalOffset: -0.3, yanchor: 'top' },
+      {
+        position: 0.82,
+        normalOffset: 0.2,
+        fontSize: 18,
+        xanchor: 'right',
+        yanchor: 'bottom',
+      },
     ),
     ...vector(
       dimensionEnd[0],
@@ -482,7 +495,7 @@ function buildVehicleState(theme: Theme): Figure {
       theme.surface,
       'x',
       'y',
-      { position: 0.5, normalOffset: -0.28, xanchor: 'left' },
+      { position: 0.5, normalOffset: -0.28, fontSize: 18, xanchor: 'left' },
     ),
     arrow(
       dimensionStart[0],
@@ -500,7 +513,7 @@ function buildVehicleState(theme: Theme): Figure {
       yref: 'y domain',
       text: '‖T‖ = ‖N‖ = 1',
       showarrow: false,
-      font: { color: theme.muted, size: 12 },
+      font: { color: theme.muted, size: 18 },
     },
   ];
   return {
@@ -546,12 +559,12 @@ function buildVehicleVelocity(theme: Theme): Figure {
         normal,
         0,
         0,
-        index === 0 ? '<b>ż</b>' : '<b>v eθ</b>',
+        index === 0 ? '<b>ż</b>' : '<b>v e<sub>θ</sub></b>',
         theme.purple,
         theme.surface,
         xref,
         yref,
-        { position: 0.6, normalOffset: 0.36, yanchor: 'bottom' },
+        { position: 0.6, normalOffset: 0.36, fontSize: 18, yanchor: 'bottom' },
       ),
       ...vector(
         tangent,
@@ -563,7 +576,13 @@ function buildVehicleVelocity(theme: Theme): Figure {
         theme.surface,
         xref,
         yref,
-        { position: 0.5, normalOffset: -0.32, yanchor: 'top' },
+        {
+          position: 0.5,
+          normalOffset: -0.32,
+          fontSize: 18,
+          fontFamily: index === 0 ? undefined : 'KaTeX_Math, KaTeX_Main, Times New Roman, serif',
+          yanchor: 'top',
+        },
       ),
       ...vector(
         tangent,
@@ -575,16 +594,25 @@ function buildVehicleVelocity(theme: Theme): Figure {
         theme.surface,
         xref,
         yref,
-        { position: 0.5, normalOffset: -0.36, xanchor: 'left', xshift: 2 },
+        {
+          position: 0.5,
+          normalOffset: -0.36,
+          fontSize: 18,
+          fontFamily: index === 0 ? undefined : 'KaTeX_Math, KaTeX_Main, Times New Roman, serif',
+          xanchor: 'left',
+          xshift: 2,
+        },
       ),
       {
-        x: 0.03,
-        y: 0.95,
+        x: 0,
+        y: 1.02,
         xref: `${xref} domain`,
         yref: `${yref} domain`,
         text: index === 0 ? '(a)' : '(b)',
         showarrow: false,
-        font: { color: theme.ink, size: 13 },
+        xanchor: 'left',
+        yanchor: 'bottom',
+        font: { color: theme.ink, size: 18 },
       } as Annotation,
     );
   });
