@@ -133,17 +133,7 @@
   "project_related_articles": "Related articles",
 
   "about_page_title": "About",
-  "about_page_description": "An introduction to Shawn's direction, working style, and contact context.",
-  "about_direction_title": "Direction",
-  "about_direction_text": "Summarize the first field you intend to explore over the long term.",
-  "about_work_title": "Working style",
-  "about_work_text": "Explain your methods, principles, or the problems you are good at solving.",
-  "about_content_title": "Content scope",
-  "about_content_text": "Explain what you plan to keep publishing on this site.",
-  "about_long_eyebrow": "OPTIONAL LONG INTRO",
-  "about_long_title": "A place for a longer personal introduction.",
-  "about_long_text_one": "Describe why this personal site exists and how it differs from other publishing platforms.",
-  "about_long_text_two": "Remove this longer section if the introduction above is sufficient.",
+  "about_under_construction": "This page is still taking shape.",
 
   "search_page_title": "Search",
   "search_page_description": "Search public content across this site.",

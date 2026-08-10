@@ -1,5 +1,4 @@
 ---
-import { Box, FlaskConical, NotebookPen } from '@lucide/astro';
 import { getLocaleStaticPaths, type Locale } from '../../i18n/config';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import * as m from '../../paraglide/messages.js';
@@ -7,56 +6,12 @@ import * as m from '../../paraglide/messages.js';
 type Props = { locale: Locale };
 export const getStaticPaths = getLocaleStaticPaths;
 const { locale } = Astro.props;
-const cards = [
-  {
-    icon: FlaskConical,
-    title: m.about_direction_title({}, { locale }),
-    text: m.about_direction_text({}, { locale }),
-  },
-  {
-    icon: Box,
-    title: m.about_work_title({}, { locale }),
-    text: m.about_work_text({}, { locale }),
-  },
-  {
-    icon: NotebookPen,
-    title: m.about_content_title({}, { locale }),
-    text: m.about_content_text({}, { locale }),
-  },
-];
 ---
 
-<BaseLayout
-  title={m.about_page_title({}, { locale })}
-  description={m.about_page_description({}, { locale })}
-  {locale}
->
-  <section class="content-shell py-14 sm:py-20">
-    <div class="grid gap-5 md:grid-cols-3">
-      {
-        cards.map(({ icon: Icon, title, text }) => (
-          <article class="surface card-lift rounded-3xl p-7" data-reveal>
-            <Icon class="size-6 text-cyan-500" aria-hidden="true" />
-            <h2 class="mt-8 text-xl font-extrabold tracking-tight">{title}</h2>
-            <p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">{text}</p>
-          </article>
-        ))
-      }
-    </div>
-  </section>
-
-  <section class="content-shell pb-10 sm:pb-20">
-    <div class="surface spotlight-card rounded-[2rem] p-7 sm:p-12" data-reveal>
-      <p class="eyebrow">{m.about_long_eyebrow({}, { locale })}</p>
-      <div class="mt-6 grid gap-8 lg:grid-cols-2 lg:gap-16">
-        <h2 class="text-3xl font-extrabold tracking-[-0.035em] text-balance sm:text-4xl">
-          {m.about_long_title({}, { locale })}
-        </h2>
-        <div class="space-y-4 text-base leading-7 text-slate-600 dark:text-slate-400">
-          <p>{m.about_long_text_one({}, { locale })}</p>
-          <p>{m.about_long_text_two({}, { locale })}</p>
-        </div>
-      </div>
-    </div>
+<BaseLayout title={m.about_page_title({}, { locale })} {locale}>
+  <section class="content-shell flex min-h-[60vh] items-center justify-center text-center">
+    <p class="text-3xl font-semibold tracking-tight text-slate-700 sm:text-4xl dark:text-slate-300">
+      {m.about_under_construction({}, { locale })}
+    </p>
   </section>
 </BaseLayout>
