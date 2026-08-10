@@ -1,0 +1,43 @@
+name: Deploy site to Cloudflare
+
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        description: Name of the verified site artifact
+        required: true
+        type: string
+      environment:
+        description: GitHub deployment environment
+        required: true
+        type: string
+      environment_url:
+        description: Public URL recorded for the deployment
+        required: true
+        type: string
+    secrets:
+      cloudflare_api_token:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.environment_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download verified site
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: dist/
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.cloudflare_api_token }}
+          wranglerVersion: '4.120.0'

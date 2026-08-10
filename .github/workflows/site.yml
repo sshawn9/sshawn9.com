@@ -1,0 +1,33 @@
+name: Site
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml
+    with:
+      upload_site: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+
+  deploy-production:
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    needs: verify
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: true
+    uses: ./.github/workflows/deploy-cloudflare.yml
+    with:
+      artifact_name: site-${{ github.sha }}
+      environment: production
+      environment_url: https://sshawn9.com
+    secrets:
+      cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}

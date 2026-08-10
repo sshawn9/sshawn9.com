@@ -16,6 +16,7 @@ Shawn's personal site for projects, a blog, and a personal introduction. The cur
 - `astro-seo`, `astro-seo-schema`, and the official Astro sitemap integration for metadata
 - the browser Popover API for menus and disclosure panels
 - Motion for progressive, reduced-motion-aware animation
+- Cloudflare Workers Static Assets for production hosting
 
 ## Development
 
@@ -162,10 +163,19 @@ Paraglide owns page-level and interface copy. Long-form articles and project rec
 
 ## Quality checks
 
-Vitest covers the article path, version, locale fallback, and tag-count conventions. Playwright covers behavior that static checks cannot prove: locale preference, ClientRouter language and theme transitions, fixed tag facets, and on-demand version comparison. The GitHub Actions quality workflow runs formatting, types, unit tests, a production build, and those browser checks.
+Vitest covers the article path, version, locale fallback, and tag-count conventions. Playwright covers behavior that static checks cannot prove: locale preference, ClientRouter language and theme transitions, fixed tag facets, and on-demand version comparison. The GitHub Actions verification job runs formatting, types, unit tests, a production build, and those browser checks.
+
+## Deployment
+
+The site workflow passes its verified `dist/` artifact to a separate deployment job after a push to `main`. It can also be started manually on `main` with `workflow_dispatch`. Pull requests and other branches are verified but never deployed.
+
+One GitHub Actions repository secret is required:
+
+- `CLOUDFLARE_API_TOKEN`: a token created from Cloudflare's **Edit Cloudflare Workers** template and restricted to the target account and `sshawn9.com` zone
+
+`wrangler.jsonc` is the deployment source of truth. The first successful workflow run creates or updates the `sshawn9-com` Worker, uploads the static build, enables its `workers.dev` address, and attaches `sshawn9.com` as a Custom Domain. No Cloudflare Pages project or Worker script is involved, and no project needs to be created manually in the Cloudflare dashboard.
 
 ## Current boundaries
 
 - The old `sshawn9.github.io` articles are not migrated yet.
-- Deployment automation and hosting configuration are intentionally deferred; the existing workflow checks quality only.
 - Forms, comments, authentication, and other dynamic features should be added only when a real requirement appears.

@@ -1,15 +1,16 @@
-name: Quality
+name: Verify site
 
 on:
-  push:
-  pull_request:
+  workflow_call:
+    inputs:
+      upload_site:
+        description: Upload the verified production build for a deployment job
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
-
-concurrency:
-  group: quality-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   verify:
@@ -30,6 +31,14 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      - name: Upload verified site
+        if: ${{ inputs.upload_site }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
       - name: Upload Playwright traces
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
