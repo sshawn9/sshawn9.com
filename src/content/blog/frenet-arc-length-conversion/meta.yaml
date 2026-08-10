@@ -4,4 +4,6 @@ tags:
   - Vehicle Kinematics
   - Arc-Length Parameterization
   - Interactive Visualization
+projects:
+  - autonomous-driving-motion-control
 draft: false

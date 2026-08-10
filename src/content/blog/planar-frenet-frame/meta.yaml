@@ -4,4 +4,6 @@ tags:
   - Differential Geometry
   - Plane Curves
   - Signed Curvature
+projects:
+  - autonomous-driving-motion-control
 draft: false

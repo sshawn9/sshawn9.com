@@ -1,7 +1,5 @@
 ---
-import { ArrowUpRight, CircleCheck } from '@lucide/astro';
-import ProjectCard from '../../../components/ProjectCard.astro';
-import { SITE } from '../../../config';
+import ProjectListItem from '../../../components/ProjectListItem.astro';
 import { getLocaleStaticPaths, type Locale } from '../../../i18n/config';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import { getProjects } from '../../../lib/projects';
@@ -11,12 +9,7 @@ type Props = { locale: Locale };
 export const getStaticPaths = getLocaleStaticPaths;
 const { locale } = Astro.props;
 const projects = await getProjects(locale);
-const detailItems = [
-  ['01', m.projects_detail_context({}, { locale }), m.projects_detail_context_text({}, { locale })],
-  ['02', m.projects_detail_role({}, { locale }), m.projects_detail_role_text({}, { locale })],
-  ['03', m.projects_detail_process({}, { locale }), m.projects_detail_process_text({}, { locale })],
-  ['04', m.projects_detail_result({}, { locale }), m.projects_detail_result_text({}, { locale })],
-];
+const projectTagsLabel = m.project_tags({}, { locale });
 ---
 
 <BaseLayout
@@ -24,57 +17,22 @@ const detailItems = [
   description={m.projects_page_description({}, { locale })}
   {locale}
 >
-  <section class="content-shell py-14 sm:py-20">
-    <div class="grid gap-5 lg:grid-cols-3">
-      {projects.map((project) => <ProjectCard {project} {locale} detailed />)}
-    </div>
-  </section>
-
-  <section class="content-shell py-10 sm:py-20">
-    <div
-      class="surface grid gap-10 rounded-[2rem] p-7 sm:p-10 lg:grid-cols-[0.8fr_1.2fr]"
-      data-reveal
-    >
-      <div>
-        <p class="eyebrow">{m.projects_details_eyebrow({}, { locale })}</p>
-        <h2 class="mt-5 text-3xl font-extrabold tracking-tight">
-          {m.projects_details_title({}, { locale })}
-        </h2>
-      </div>
-      <ol class="grid gap-4 sm:grid-cols-2">
+  <section class="content-shell py-12 sm:py-16">
+    <div>
+      <ol class="grid gap-6">
         {
-          detailItems.map(([number, title, text]) => (
-            <li class="rounded-2xl border border-slate-900/8 bg-slate-900/[0.025] p-5 dark:border-white/8 dark:bg-white/[0.025]">
-              <div class="flex items-center gap-3">
-                <CircleCheck class="size-4 text-cyan-500" aria-hidden="true" />
-                <span class="font-mono text-[0.62rem] text-slate-500">{number}</span>
-                <strong>{title}</strong>
-              </div>
-              <p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">{text}</p>
+          projects.map((project, index) => (
+            <li>
+              <ProjectListItem
+                {project}
+                tagsLabel={projectTagsLabel}
+                showVisual
+                reverse={index % 2 === 1}
+              />
             </li>
           ))
         }
       </ol>
-    </div>
-  </section>
-
-  <section class="content-shell py-10 sm:py-20">
-    <div
-      class="flex flex-col gap-6 border-t border-slate-900/8 pt-10 sm:flex-row sm:items-center sm:justify-between dark:border-white/8"
-      data-reveal
-    >
-      <div>
-        <h2 class="text-2xl font-extrabold tracking-tight">
-          {m.projects_github_title({}, { locale })}
-        </h2>
-        <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">
-          {m.projects_github_description({}, { locale })}
-        </p>
-      </div>
-      <a class="button-primary" href={SITE.github} target="_blank" rel="noreferrer"
-        >{m.projects_visit_github({}, { locale })}
-        <ArrowUpRight class="size-4" aria-hidden="true" /></a
-      >
     </div>
   </section>
 </BaseLayout>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getArticleProjectIds,
   getArticleTags,
   getArticleUpdatedAt,
   resolveArticles,
@@ -11,6 +12,7 @@ type EntryOptions = {
   revisedAt?: string;
   sourceLastModifiedAt?: string;
   tags?: string[];
+  projects?: string[];
 };
 
 function entry(id: string, options: EntryOptions = {}): BlogEntry {
@@ -27,6 +29,10 @@ function entry(id: string, options: EntryOptions = {}): BlogEntry {
       publishedAt: new Date(options.publishedAt ?? '2024-01-01T00:00:00Z'),
       revisedAt: options.revisedAt ? new Date(options.revisedAt) : undefined,
       tags: options.tags ?? [],
+      projects: (options.projects ?? []).map((id) => ({
+        collection: 'projectMetadata' as const,
+        id,
+      })),
       draft: false,
     },
   } as BlogEntry;
@@ -92,6 +98,20 @@ describe('article resolution', () => {
     expect(article.current.number).toBe(2);
     expect(article.isVersioned).toBe(true);
     expect(getArticleTags(article)).toEqual(['Current', 'Shared']);
+  });
+
+  it('derives unique project memberships from the latest version only', () => {
+    const [article] = resolveArticles(
+      [
+        entry('guide/v1/index', { projects: ['legacy-project'] }),
+        entry('guide/v2/index', {
+          projects: ['current-project', 'shared-project', 'current-project'],
+        }),
+      ],
+      'en',
+    );
+
+    expect(getArticleProjectIds(article)).toEqual(['current-project', 'shared-project']);
   });
 
   it('rejects paths outside the documented article convention', () => {

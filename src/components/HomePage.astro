@@ -15,7 +15,7 @@ import { getPublishedArticles } from '../lib/articles';
 import { getProjects } from '../lib/projects';
 import * as m from '../paraglide/messages.js';
 import PostCard from './PostCard.astro';
-import ProjectCard from './ProjectCard.astro';
+import ProjectListItem from './ProjectListItem.astro';
 import SectionHeading from './SectionHeading.astro';
 
 type Props = { locale: Locale };
@@ -25,6 +25,7 @@ const latestArticles = (await getPublishedArticles(locale)).slice(0, 3);
 const projectsHref = localePath(locale, '/projects/');
 const blogHref = localePath(locale, '/blog/');
 const aboutHref = localePath(locale, '/about/');
+const projectTagsLabel = m.project_tags({}, { locale });
 ---
 
 <BaseLayout {locale}>
@@ -222,9 +223,15 @@ const aboutHref = localePath(locale, '/about/');
         <ArrowRight class="size-4" aria-hidden="true" />
       </a>
     </div>
-    <div class="mt-10 grid gap-5 lg:grid-cols-3">
-      {projects.map((project) => <ProjectCard {project} {locale} />)}
-    </div>
+    <ol class="mt-10 grid gap-5">
+      {
+        projects.map((project) => (
+          <li>
+            <ProjectListItem {project} tagsLabel={projectTagsLabel} headingLevel="h3" />
+          </li>
+        ))
+      }
+    </ol>
   </section>
 
   <section

@@ -43,6 +43,67 @@ test('theme choice survives client-side navigation', async ({ page }) => {
     .toBe(!wasDark);
 });
 
+test('the motion-control project preview supports continuous two-dimensional dragging', async ({
+  page,
+}) => {
+  await page.goto('/zh/projects/');
+
+  const project = page.locator('article').filter({ hasText: '自动驾驶运动控制' });
+  const visual = project.locator('.motion-control-project-visual');
+  const handle = visual.locator('[data-vehicle-drag-handle]');
+  await expect(visual.locator('svg')).toBeVisible();
+  await expect(visual.locator('.vega-view')).toHaveCount(0);
+  await expect(visual.locator('.motion-control-vehicle-body')).toHaveCount(1);
+  await expect(visual.locator('.motion-control-vehicle-cabin')).toHaveCount(0);
+  await expect(visual.locator('.motion-control-wheel')).toHaveCount(4);
+  await expect(visual.locator('[data-wheel-axle="front"]')).toHaveCount(2);
+  await expect(visual.locator('[data-motion-label]')).toHaveCount(0);
+  await expect(visual.locator('.motion-control-steering-arc')).toHaveCount(0);
+
+  const initial = await visual.evaluate((element) => ({
+    x: Number(element.getAttribute('data-vehicle-x')),
+    y: Number(element.getAttribute('data-vehicle-y')),
+    heading: Number(element.getAttribute('data-heading-angle')),
+  }));
+  const initialFrontWheelAngles = await visual
+    .locator('[data-wheel-axle="front"]')
+    .evaluateAll((elements) => elements.map((element) => element.getAttribute('data-wheel-angle')));
+  const handleBox = await handle.boundingBox();
+  expect(handleBox).not.toBeNull();
+
+  const startX = handleBox!.x + handleBox!.width / 2;
+  const startY = handleBox!.y + handleBox!.height / 2;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + 36, startY - 22, { steps: 3 });
+
+  const duringDrag = await visual.evaluate((element) => ({
+    x: Number(element.getAttribute('data-vehicle-x')),
+    y: Number(element.getAttribute('data-vehicle-y')),
+    heading: Number(element.getAttribute('data-heading-angle')),
+    lateralError: Number(element.getAttribute('data-lateral-error')),
+    steering: Number(element.getAttribute('data-steering-angle')),
+  }));
+  expect(duringDrag.x).not.toBe(initial.x);
+  expect(duringDrag.y).not.toBe(initial.y);
+  expect(duringDrag.heading).toBe(initial.heading);
+  expect(Math.sign(duringDrag.steering)).toBe(-Math.sign(duringDrag.lateralError));
+  await expect
+    .poll(() =>
+      visual
+        .locator('[data-wheel-axle="front"]')
+        .evaluateAll((elements) =>
+          elements.map((element) => element.getAttribute('data-wheel-angle')),
+        ),
+    )
+    .not.toEqual(initialFrontWheelAngles);
+
+  await page.mouse.move(startX + 70, startY - 46, { steps: 3 });
+  await page.mouse.up();
+  await expect(visual).not.toHaveAttribute('data-dragging', '');
+  await expect(visual.locator('[data-motion-label]')).toHaveCount(0);
+});
+
 test('tag filtering keeps the complete facet list and fixed global counts', async ({ page }) => {
   await page.goto('/en/blog/');
 

@@ -1,6 +1,17 @@
-import { defineCollection } from 'astro:content';
+import { defineCollection, reference } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
+
+const projectMetadata = defineCollection({
+  loader: glob({
+    base: './src/content/projects',
+    pattern: '**/meta.yaml',
+    generateId: ({ entry }) => entry.replace(/\/meta\.yaml$/, ''),
+  }),
+  schema: z.object({
+    order: z.number().int(),
+  }),
+});
 
 const articleMetadata = defineCollection({
   loader: glob({
@@ -12,6 +23,7 @@ const articleMetadata = defineCollection({
     publishedAt: z.coerce.date(),
     revisedAt: z.coerce.date().optional(),
     tags: z.array(z.string().trim().min(1)).default([]),
+    projects: z.array(reference('projectMetadata')).default([]),
     draft: z.boolean().default(false),
   }),
 });
@@ -37,16 +49,10 @@ const projects = defineCollection({
     generateId: ({ entry }) => entry.replace(/\.md$/, ''),
   }),
   schema: z.object({
-    eyebrow: z.string(),
     title: z.string(),
     description: z.string(),
-    status: z.string(),
     tags: z.array(z.string()),
-    accent: z.enum(['cyan', 'violet', 'amber']),
-    order: z.number().int(),
-    href: z.string().optional(),
-    external: z.boolean().default(false),
   }),
 });
 
-export const collections = { articleMetadata, blog, projects };
+export const collections = { projectMetadata, articleMetadata, blog, projects };

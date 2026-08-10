@@ -4,4 +4,6 @@ tags:
   - Vehicle Kinematics
   - Path Tracking
   - Arc-Length Parameterization
+projects:
+  - autonomous-driving-motion-control
 draft: false

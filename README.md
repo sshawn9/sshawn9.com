@@ -64,7 +64,7 @@ A single-version article omits a version directory:
 
 ```text
 src/content/blog/my-article/
-├── meta.yaml         # shared dates, tags, and publication state
+├── meta.yaml         # shared dates, tags, project references, and publication state
 ├── index.md          # base English form
 ├── index.en.md       # optional explicit English form
 ├── index.zh.md       # optional Chinese form
@@ -95,6 +95,8 @@ publishedAt: 2026-07-31
 tags:
   - Astro
   - Content revision
+projects:
+  - my-project
 ```
 
 ```yaml
@@ -126,6 +128,14 @@ tags:
   - Content revision
 ```
 
+The optional `projects` array uses Astro Content Collection references. One article can belong to several projects, and only the latest published version participates in project membership:
+
+```yaml
+projects:
+  - autonomous-driving-motion-control
+  - another-project
+```
+
 ## Creating a revision
 
 There is deliberately no repository-mutation script. When the first substantial revision is needed, preserve the original article and its metadata as the complete `v1/` snapshot and create `v2/` as a complete new snapshot. Later revisions add `v3/`, `v4/`, and so on. Copy any version-specific assets into that version directory and leave every published older directory unchanged.
@@ -136,9 +146,17 @@ Version comparison has one canonical page per article. It downloads only the two
 
 ## Page and project content
 
-Localized page and interface copy lives in `messages/<locale>.json`. Localized projects live in `src/content/projects/<project>/index.<locale>.md`; their cards use typed frontmatter, while future detail content and assets remain colocated with the project. `src/lib/projects.ts` applies the same requested-language-then-fallback rule as articles.
+Localized page and interface copy lives in `messages/<locale>.json`. Each project keeps stable metadata, localized content, and future assets together:
 
-`featured-project` is the complete authoring example: its frontmatter supplies the project card and its Markdown body demonstrates the future detail-page sections. The other demo entries stay intentionally minimal so the project listing can show several card variants without pretending to be real work.
+```text
+src/content/projects/my-project/
+├── meta.yaml       # display order and stable project ID
+├── index.en.md     # English summary and project body
+├── index.zh.md     # optional Chinese summary and project body
+└── images/
+```
+
+`src/lib/projects.ts` applies the same requested-language-then-fallback rule as articles. A detail page renders the authored project body first, then derives its related-article list from the latest published article metadata. Article titles and optional descriptions therefore follow the current locale and its normal fallback without being copied into project Markdown.
 
 Paraglide owns page-level and interface copy. Long-form articles and project records remain in content collections.
 

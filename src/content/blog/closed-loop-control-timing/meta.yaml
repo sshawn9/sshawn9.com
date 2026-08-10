@@ -4,4 +4,6 @@ tags:
   - Control Timing
   - Sampling
   - Interactive Visualization
+projects:
+  - autonomous-driving-motion-control
 draft: false

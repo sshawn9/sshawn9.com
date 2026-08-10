@@ -1,7 +1,9 @@
-import { getCollection, type CollectionEntry } from 'astro:content';
+import { getCollection, getEntries, getEntry, type CollectionEntry } from 'astro:content';
 import { BASE_LOCALE, localePath, otherLocale, type Locale } from '../i18n/config';
+import { getArticleProjectIds, getPublishedArticles, type Article } from './articles';
 
 type ProjectEntry = CollectionEntry<'projects'>;
+type ProjectMetadataEntry = CollectionEntry<'projectMetadata'>;
 type Candidate = {
   entry: ProjectEntry;
   locale: Locale;
@@ -12,19 +14,21 @@ const PROJECT_ENTRY_ID = /^([^/]+)\/index(?:\.(en|zh))?$/;
 
 export type Project = {
   id: string;
-  eyebrow: string;
   title: string;
   description: string;
-  status: string;
   tags: string[];
   href: string;
-  external: boolean;
-  accent: 'cyan' | 'violet' | 'amber';
+  contentLocale: Locale;
+  entry: ProjectEntry;
 };
 
 export async function getProjects(locale: Locale): Promise<Project[]> {
-  const entries = await getCollection('projects');
+  const [entries, metadataEntries] = await Promise.all([
+    getCollection('projects'),
+    getCollection('projectMetadata'),
+  ]);
   const projects = new Map<string, Candidate[]>();
+  const metadataById = new Map(metadataEntries.map((entry) => [entry.id, entry]));
 
   for (const entry of entries) {
     const match = entry.id.match(PROJECT_ENTRY_ID);
@@ -41,8 +45,17 @@ export async function getProjects(locale: Locale): Promise<Project[]> {
     projects.set(match[1], candidates);
   }
 
+  for (const metadata of metadataEntries) {
+    if (!projects.has(metadata.id)) {
+      throw new Error(`No localized project content found for “${metadata.id}”.`);
+    }
+  }
+
   return [...projects.entries()]
     .map(([id, candidates]) => {
+      const metadata = metadataById.get(id);
+      if (!metadata) throw new Error(`No project metadata found for “${id}”.`);
+
       const forLocale = (target: Locale) =>
         candidates
           .filter((candidate) => candidate.locale === target)
@@ -52,10 +65,34 @@ export async function getProjects(locale: Locale): Promise<Project[]> {
 
       return {
         id,
-        ...selected.entry.data,
-        href: selected.entry.data.href ?? `${localePath(locale, '/projects/')}#${id}`,
+        title: selected.entry.data.title,
+        description: selected.entry.data.description,
+        tags: selected.entry.data.tags,
+        order: metadata.data.order,
+        href: localePath(locale, `/projects/${id}/`),
+        contentLocale: selected.locale,
+        entry: selected.entry,
       };
     })
     .sort((left, right) => left.order - right.order)
     .map(({ order: _order, ...project }) => project);
+}
+
+export async function getProjectArticles(projectId: string, locale: Locale): Promise<Article[]> {
+  const [project, articles] = await Promise.all([
+    getEntry('projectMetadata', projectId),
+    getPublishedArticles(locale),
+  ]);
+  if (!project) throw new Error(`Unknown project “${projectId}”.`);
+
+  const references = articles.flatMap((article) => article.current.entry.data.projects);
+  if (references.length > 0) {
+    const resolved = (await getEntries(references)) as Array<ProjectMetadataEntry | undefined>;
+    const missingIndex = resolved.findIndex((entry) => !entry);
+    if (missingIndex >= 0) {
+      throw new Error(`Unknown project reference “${references[missingIndex].id}”.`);
+    }
+  }
+
+  return articles.filter((article) => getArticleProjectIds(article).includes(projectId));
 }

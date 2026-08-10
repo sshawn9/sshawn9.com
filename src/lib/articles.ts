@@ -176,3 +176,7 @@ export function getArticleUpdatedAt(version: ArticleVersion): Date | undefined {
 export function getArticleTags(article: Article): string[] {
   return [...new Set(article.current.entry.data.tags)];
 }
+
+export function getArticleProjectIds(article: Article): string[] {
+  return [...new Set(article.current.entry.data.projects.map((project) => project.id))];
+}

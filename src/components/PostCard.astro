@@ -1,5 +1,4 @@
 ---
-import { ArrowUpRight } from '@lucide/astro';
 import { formatDate } from '../lib/date';
 import { toLanguageTag } from '../i18n/config';
 import { getArticleHref } from '../lib/article-routes';
@@ -19,7 +18,7 @@ const articleTags = getArticleTags(article);
   class="surface spotlight-card card-lift group relative flex h-full flex-col rounded-3xl p-6 sm:p-7"
   data-reveal
 >
-  <div class="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+  <div class="text-xs text-slate-500 dark:text-slate-400">
     <time datetime={getVersionDate(article.current).toISOString()}>
       {
         article.isVersioned
@@ -27,10 +26,6 @@ const articleTags = getArticleTags(article);
           : m.blog_published({ date: versionDate }, { locale })
       }
     </time>
-    <ArrowUpRight
-      class="ml-auto size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-      aria-hidden="true"
-    />
   </div>
   <h3
     lang={toLanguageTag(article.current.contentLocale)}

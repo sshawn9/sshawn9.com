@@ -203,7 +203,7 @@ export default function BlogBrowser(props: Props) {
                     data-article-tags={JSON.stringify(article.tags)}
                     data-reveal
                   >
-                    <article class="group grid gap-4 border-b border-slate-900/10 py-7 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,18rem)_1.5rem] lg:items-start lg:gap-7 dark:border-white/10">
+                    <article class="group grid gap-4 border-b border-slate-900/10 py-7 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,18rem)] lg:items-start lg:gap-7 dark:border-white/10">
                       <div class="min-w-0" lang={article.contentLanguage}>
                         <h2 class="text-xl font-extrabold tracking-tight sm:text-2xl">
                           <a
@@ -262,17 +262,6 @@ export default function BlogBrowser(props: Props) {
                           </For>
                         </ul>
                       </footer>
-
-                      <a
-                        href={article.href}
-                        class="hidden text-slate-400 transition-[color,transform] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-cyan-600 lg:block dark:group-hover:text-cyan-300"
-                        aria-label={m.blog_read_article(
-                          { title: article.title },
-                          { locale: props.locale },
-                        )}
-                      >
-                        <span aria-hidden="true">↗</span>
-                      </a>
                     </article>
                   </li>
                 );
