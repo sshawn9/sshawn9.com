@@ -142,7 +142,7 @@
   "article_toc": "On this page",
   "article_back_to_top": "Back to top",
   "article_version_title": "{title} (v{version})",
-  "article_fallback_notice": "This article is shown in {language} because a {requestedLanguage} edition is not available.",
+  "article_fallback_notice": "You’re viewing the {language} version because no {requestedLanguage} version is available.",
   "article_fallback_language_en": "English",
   "article_fallback_language_zh": "Chinese",
   "version_heading": "Versions",
