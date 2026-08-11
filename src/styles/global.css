@@ -309,6 +309,10 @@
   text-underline-offset: 0.2em;
 }
 
+.article-prose :where(blockquote) {
+  quotes: none;
+}
+
 .article-prose :where(code)::before,
 .article-prose :where(code)::after {
   content: none;
