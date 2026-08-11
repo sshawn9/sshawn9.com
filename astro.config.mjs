@@ -9,6 +9,7 @@ import solid from '@astrojs/solid-js';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import tailwindcss from '@tailwindcss/vite';
 import expressiveCode from 'astro-expressive-code';
+import rehypeExternalLinks from 'rehype-external-links';
 import rehypeKatex from 'rehype-katex';
 import remarkMath from 'remark-math';
 
@@ -16,6 +17,15 @@ const site = 'https://sshawn9.com';
 const outDirUrl = new URL('./dist/', import.meta.url);
 /** @type {Map<string, Promise<boolean>>} */
 const indexability = new Map();
+
+const createMarkdownProcessor = () =>
+  unified({
+    remarkPlugins: [remarkMath],
+    rehypePlugins: [
+      rehypeKatex,
+      [rehypeExternalLinks, { target: '_blank', rel: ['noopener', 'noreferrer'] }],
+    ],
+  });
 
 /** @param {string} url */
 const isIndexablePage = async (url) => {
@@ -43,6 +53,9 @@ export default defineConfig({
   site,
   outDir: fileURLToPath(outDirUrl),
   trailingSlash: 'always',
+  markdown: {
+    processor: createMarkdownProcessor(),
+  },
   prefetch: {
     prefetchAll: true,
     defaultStrategy: 'hover',
@@ -70,12 +83,7 @@ export default defineConfig({
         borderRadius: '0.9rem',
       },
     }),
-    mdx({
-      processor: unified({
-        remarkPlugins: [remarkMath],
-        rehypePlugins: [rehypeKatex],
-      }),
-    }),
+    mdx({ processor: createMarkdownProcessor() }),
     sitemap({
       filter: (page) =>
         page !== `${site}/` &&

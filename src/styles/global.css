@@ -309,6 +309,11 @@
   text-underline-offset: 0.2em;
 }
 
+.article-prose :where(code)::before,
+.article-prose :where(code)::after {
+  content: none;
+}
+
 .article-prose :where(.expressive-code) {
   margin-block: 2rem;
 }

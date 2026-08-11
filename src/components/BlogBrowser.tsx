@@ -272,7 +272,7 @@ export default function BlogBrowser(props: Props) {
 
         <Show when={pageCount() > 1}>
           <nav
-            class="mt-10 flex items-center justify-between gap-4 border-t border-slate-900/10 pt-6 dark:border-white/10"
+            class="mt-8 flex items-center justify-between gap-4"
             aria-label={m.pagination_label({}, { locale: props.locale })}
           >
             <button
