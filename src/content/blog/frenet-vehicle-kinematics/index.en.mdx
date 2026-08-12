@@ -1,0 +1,655 @@
+---
+title: Frenet Vehicle Kinematics
+description: Defines the vehicle's Frenet state through the closest-point projection of the rear-axle center, derives a three-state time-domain model and a two-state reference-path-arc-length-domain model under the no-sideslip kinematic assumption, and explains arc-length conversion, the coordinate validity domain, and sign conventions for reversing.
+---
+
+import 'katex/dist/katex.min.css';
+
+import FigureFocusDialog from '../../../components/FigureFocusDialog.astro';
+
+import FocusFigure from '../../../components/FocusFigure.astro';
+
+import ResearchFigure from '../../../components/ResearchFigure.astro';
+
+import '../../../styles/research-figures.css';
+
+## Basic terminology and definition of the Frenet state
+
+This article considers only vehicle **kinematics**: it describes how position and heading change with motion, without constructing a dynamic model of tire forces, load transfer, vehicle mass, or similar effects. The vehicle moves in a plane, and the center of its rear axle is used as the position reference point.
+
+A **state** here is a set of variables that describes the vehicle's geometric position and orientation relative to the reference path and evolves with an independent variable. An **input** is supplied from outside the model and determines the state derivatives. A model whose independent variable is time $t$ is called a **time-domain model**. A model whose independent variable is the reference-path arc length $s$ is called a **reference-path-arc-length-domain model**, or, more briefly, a spatial-domain model.
+
+The reference path is a $C^2$ planar curve parameterized by arc length $s$:
+
+$$
+\mathbf r:I\longrightarrow\mathbb R^2,
+\qquad
+s\longmapsto\mathbf r(s).
+$$
+
+Here, $I$ is the range of the arc-length parameter $s$. Give the Cartesian plane its standard orientation and let $J$ denote counterclockwise rotation by $90^\circ$. The reference path's unit tangent, left unit normal, signed curvature, and continuously unwrapped heading angle are denoted respectively by $\mathbf T$, $\mathbf N$, $\kappa_r$, and $\theta_r$. The following planar signed Frenet relations are used:
+
+$$
+\begin{aligned}
+\mathbf T(s)
+&=
+\frac{d\mathbf r}{ds},&
+\mathbf N(s)
+&=
+J\mathbf T(s),\\[0.6em]
+\frac{d\mathbf T}{ds}
+&=
+\kappa_r\mathbf N,&
+\frac{d\mathbf N}{ds}
+&=
+-\kappa_r\mathbf T,\\[0.6em]
+\kappa_r
+&=
+\frac{d\theta_r}{ds}.
+\end{aligned}
+$$
+
+The curvature sign follows the left-normal convention: when traversing the reference path in the direction of increasing $s$, a left turn has $\kappa_r>0$ and a right turn has $\kappa_r<0$. The complete construction of arc length, frames, standard orientation, and these formulas appears in [Planar Frenet Frame](../planar-frenet-frame/). This article uses that construction as the geometric foundation of the vehicle kinematics.
+
+Let $\mathbf z(t)$ denote the position vector of the rear-axle center in a fixed planar coordinate system, and let $\theta(t)$ be the vehicle heading angle. Define the corresponding heading unit vector by
+
+$$
+\mathbf e_\theta(t):=
+\begin{bmatrix}
+\cos\theta(t)\\
+\sin\theta(t)
+\end{bmatrix}.
+$$
+
+Let $v(t)$ be the signed longitudinal velocity, positive in the $\mathbf e_\theta$ direction. **No sideslip** means that the instantaneous velocity of the rear-axle center has no component perpendicular to the vehicle's longitudinal axis:
+
+$$
+\dot{\mathbf z}=v\mathbf e_\theta.
+$$
+
+Thus, $v>0$ when driving forward, $v<0$ when reversing, and $v=0$ when stationary. The vector $\mathbf e_\theta$ always describes the vehicle-body orientation; the actual direction of velocity while the vehicle is moving also depends on the sign of $v$.
+
+Let $\ell$ be the **oriented arc-length coordinate** of the rear-axle-center trajectory. Given an initial value $\ell(t_0)$, define
+
+$$
+\ell(t)=\ell(t_0)+\int_{t_0}^{t}v(\tau)\,d\tau,
+$$
+
+so that
+
+$$
+\frac{d\ell}{dt}=v.
+$$
+
+The value of $\ell$ increases while driving forward and decreases while reversing. It is not the monotonically increasing cumulative distance, whose increment would instead be computed from $|v|\,dt$. On a trajectory segment where $v\ne0$, $\ell$ can serve as a local parameter. The chain rule then gives $d\mathbf z/d\ell=\mathbf e_\theta$, so the signed curvature of the vehicle trajectory under this orientation is defined by
+
+$$
+\kappa_v
+:=
+\frac{d\theta}{d\ell}.
+$$
+
+For a given vehicle position, the **closest-point projection** finds the point on the reference path that minimizes the distance to the rear-axle center. This article assumes that the projection is unique and lies in the interior of the reference-path parameter interval, so the line from the projection point to the rear-axle center is perpendicular to the path. Denote the projection point's arc-length coordinate by $s(t)$. Let $d(t)$ be the signed distance from that point to the vehicle along the left unit normal $\mathbf N$: $d>0$ places the vehicle to the left of the increasing-$s$ direction, and $d<0$ places it to the right. Define the difference between the vehicle heading and the reference heading at the projection point by
+
+$$
+\varphi(t)
+:=
+\theta(t)-\theta_r\bigl(s(t)\bigr).
+$$
+
+Both $\theta$ and $\theta_r$ are continuously unwrapped along the trajectory segment under consideration, preventing an artificial jump in $\varphi$ when an angle representation crosses the $\pm\pi$ boundary. The time-domain model uses time $t$ as its independent variable and $(s,d,\varphi)$ as its state. The reference-path-arc-length-domain, or spatial-domain, model instead uses $s$ as its independent variable and therefore requires only $(d,\varphi)$ as its state. Figure 1 shows the geometric relationship among these quantities. The vectors $\mathbf T(s)$ and $\mathbf N(s)$ are the Frenet basis vectors at the projection point; the purple bidirectional dimension line is the lateral deviation $d$ from the reference path to the rear-axle center; and the arrow $\mathbf e_\theta$ at the rear-axle center is the vehicle heading unit vector.
+
+<FocusFigure number={1} variant="research">
+  <ResearchFigure kind="vehicle-state" />
+  <figcaption slot="caption">
+    <strong>Figure 1.</strong> Geometric definition of the vehicle Frenet state. The blue point is
+    the vehicle's projection onto the reference path, and $\mathbf T(s)$ and $\mathbf N(s)$ are the
+    tangent and left-normal basis vectors at that point. The rear-axle center satisfies $\mathbf
+    z=\mathbf r(s)+d\mathbf N(s)$; the purple bidirectional dimension line denotes the lateral
+    deviation $d$, and $\mathbf e_\theta$ is the vehicle heading unit vector.
+  </figcaption>
+</FocusFigure>
+
+## Time-domain Frenet kinematics
+
+### Position-coordinate kinematics
+
+From the normal-coordinate representation in Figure 1, the vehicle position is
+
+$$
+\mathbf z(t) =
+\mathbf r\bigl(s(t)\bigr)
++
+d(t)\mathbf N\bigl(s(t)\bigr).
+\tag{1}
+$$
+
+Differentiate Equation (1) with respect to time $t$, using $d\mathbf r/ds=\mathbf T$ and $d\mathbf N/ds=-\kappa_r\mathbf T$:
+
+$$
+\begin{aligned}
+\dot{\mathbf z}
+&=
+\frac{d\mathbf r}{ds}\dot s
++
+\dot d\,\mathbf N
++
+d\,\frac{d\mathbf N}{ds}\dot s\\[0.6em]
+&=
+\mathbf T\dot s
++
+\dot d\,\mathbf N -
+d\kappa_r\mathbf T\dot s\\[0.6em]
+&=
+(1-d\kappa_r)\dot s\,\mathbf T
++
+\dot d\,\mathbf N.
+\end{aligned}
+$$
+
+Here and below, any $\mathbf T$, $\mathbf N$, and $\kappa_r$ without an explicit argument are evaluated at the projection point $s(t)$. The no-sideslip assumption gives $\dot{\mathbf z}=v\mathbf e_\theta$. This relation remains valid for both $v>0$ while driving forward and $v<0$ while reversing. Since $(\mathbf T,\mathbf N)$ is an orthonormal basis, $\mathbf e_\theta$ can be expanded by its orthogonal projections onto the two basis directions:
+
+$$
+\mathbf e_\theta =
+\langle\mathbf e_\theta,\mathbf T\rangle\mathbf T
++
+\langle\mathbf e_\theta,\mathbf N\rangle\mathbf N.
+$$
+
+Substituting
+
+$$
+\mathbf T =
+\begin{bmatrix}
+\cos\theta_r\\
+\sin\theta_r
+\end{bmatrix},
+\qquad
+\mathbf N =
+\begin{bmatrix}
+-\sin\theta_r\\
+\cos\theta_r
+\end{bmatrix}
+$$
+
+into the projection coefficients gives
+
+$$
+\begin{aligned}
+\langle\mathbf e_\theta,\mathbf T\rangle
+&=
+\cos\theta\cos\theta_r
++
+\sin\theta\sin\theta_r\\
+&=
+\cos(\theta-\theta_r) =
+\cos\varphi,\\[0.7em]
+\langle\mathbf e_\theta,\mathbf N\rangle
+&=
+-\cos\theta\sin\theta_r
++
+\sin\theta\cos\theta_r\\
+&=
+\sin(\theta-\theta_r) =
+\sin\varphi.
+\end{aligned}
+$$
+
+Therefore, the vehicle heading unit vector has the following representation in the Frenet frame:
+
+$$
+\mathbf e_\theta =
+\cos\varphi\,\mathbf T
++
+\sin\varphi\,\mathbf N.
+$$
+
+The vehicle velocity is consequently
+
+$$
+\dot{\mathbf z} =
+v\mathbf e_\theta =
+v\cos\varphi\,\mathbf T
++
+v\sin\varphi\,\mathbf N.
+$$
+
+Using the same Frenet frame and the same resultant velocity vector, Figure 2 separately shows the two components obtained by differentiating the position coordinates and by expressing the no-sideslip velocity. Placing them side by side makes the subsequent coefficient comparison a direct geometric correspondence.
+
+<FocusFigure number={2} variant="research">
+  <ResearchFigure kind="vehicle-velocity" />
+  <figcaption slot="caption">
+    <strong>Figure 2.</strong> Two decompositions of the same vehicle velocity vector in the same
+    Frenet frame. (a) Differentiating the position coordinates gives the tangential component
+    $(1-d\kappa_r)\dot s\,\mathbf T$ and normal component $\dot d\,\mathbf N$. (b) The no-sideslip
+    constraint gives the tangential component $v\cos\varphi\,\mathbf T$ and normal component
+    $v\sin\varphi\,\mathbf N$. Because decomposition in an orthonormal basis is unique, the scalar
+    coefficients of corresponding components must be equal.
+  </figcaption>
+</FocusFigure>
+
+Equating the coefficients of the same velocity vector in the basis $(\mathbf T,\mathbf N)$ gives
+
+$$
+(1-d\kappa_r)\dot s =
+v\cos\varphi,
+\qquad
+\dot d =
+v\sin\varphi.
+$$
+
+When $1-d\kappa_r\ne0$, the time-domain position kinematics are
+
+$$
+\dot s =
+\frac{v\cos\varphi}{1-d\kappa_r},
+\qquad
+\dot d =
+v\sin\varphi.
+$$
+
+The normal coordinates and velocity decomposition of Equation (1) appear in [[1, §2.1–2.2, Eqs. (14)–(20)]](#ref-eilbrecht-stursberg-2020), and an equivalent position representation appears in [[2, §3.1, Eq. (1)]](#ref-yoneda-et-al-2018). The longitudinal and lateral state equations under the same coordinate convention appear in [[3, §4.3, Eqs. (4.33a)–(4.33b)]](#ref-ljungqvist-2020).
+
+### Heading-error kinematics
+
+The heading error is defined by
+
+$$
+\varphi(t) =
+\theta(t) -
+\theta_r\bigl(s(t)\bigr).
+$$
+
+Apply the chain rule with respect to time and substitute $\kappa_r=d\theta_r/ds$:
+
+$$
+\begin{aligned}
+\dot\varphi
+&=
+\dot\theta -
+\frac{d\theta_r}{ds}\dot s\\[0.6em]
+&=
+\dot\theta -
+\kappa_r\dot s.
+\end{aligned}
+$$
+
+On an interval where $v\ne0$, using $\kappa_v=d\theta/d\ell$ and $d\ell/dt=v$ gives
+
+$$
+\begin{aligned}
+\dot\theta
+&=
+\frac{d\theta}{d\ell}\frac{d\ell}{dt}\\[0.6em]
+&=
+v\kappa_v.
+\end{aligned}
+$$
+
+When $v=0$, $\ell$ cannot locally replace $t$ as a parameter at that instant. If the curvature input $\kappa_v$ is bounded, however, the kinematic relation $\dot\theta=v\kappa_v$ extends continuously to the stationary state, where $\dot\theta=0$.
+
+The heading-error kinematics are therefore
+
+$$
+\dot\varphi =
+v\kappa_v -
+\kappa_r\dot s.
+$$
+
+### Three-state time-domain model
+
+Combining the heading-error kinematics with the position-coordinate kinematics gives the three-state time-domain model for $(s,d,\varphi)$:
+
+$$
+\begin{aligned}
+\dot s
+&=
+\frac{v\cos\varphi}{1-d\kappa_r},\\[0.65em]
+\dot d
+&=
+v\sin\varphi,\\[0.65em]
+\dot\varphi
+&=
+v\kappa_v -
+\dot s\,\kappa_r\\[0.65em]
+&=
+v\left(
+\kappa_v-\frac{\kappa_r\cos\varphi}{1-d\kappa_r}
+\right).
+\end{aligned}
+\tag{2}
+$$
+
+Here, $\kappa_r=\kappa_r(s)$ is determined by the reference path. The signed longitudinal velocity $v$ and vehicle-trajectory curvature $\kappa_v$ are treated as inputs to the kinematic model. In a particular steering model, $\kappa_v$ is normally determined in turn by the steering geometry. Model validity requires both a unique closest-point projection and $1-d\kappa_r\ne0$. The former gives the vehicle position a unique $(s,d)$ representation, while the latter is the local regularity condition that prevents the normal-coordinate map from degenerating in the tangential direction. The region satisfying both conditions is called the Frenet-coordinate validity domain here. A standard Frenet vehicle model corresponding to Equation (2) appears in [[3, §4.3, Eq. (4.41)]](#ref-ljungqvist-2020).
+
+### Reversing in the time-domain model
+
+Equation (2) applies to reversing without a separate derivation. The time-domain derivation already defines $v$ as the signed longitudinal velocity positive along the heading unit vector $\mathbf e_\theta$ and uses the same no-sideslip kinematics:
+
+$$
+\dot{\mathbf z}=v\mathbf e_\theta,
+\qquad
+\dot\theta=v\kappa_v.
+$$
+
+Neither relation requires $v>0$. When driving forward, $v>0$ and the velocity vector $\dot{\mathbf z}$ points in the same direction as $\mathbf e_\theta$. When reversing, $v<0$ and $\dot{\mathbf z}$ points in the opposite direction. Differentiating the position-coordinate relation (1) with respect to time, comparing components in the Frenet frame, and applying the chain rule to the heading error are all independent of the sign of $v$. The same three-state model therefore remains valid in reverse.
+
+Let $\operatorname{sgn}(x)$ denote the sign function, whose value is respectively $1$, $0$, or $-1$ when $x>0$, $x=0$, or $x<0$. From Equation (2), the direction of change of the reference-path arc-length coordinate generally satisfies
+
+$$
+\operatorname{sgn}(\dot s)=
+\operatorname{sgn}(v)
+\operatorname{sgn}\!\left(\frac{\cos\varphi}{1-d\kappa_r}\right).
+$$
+
+In the usual Frenet tracking region where $1-d\kappa_r>0$ and $|\varphi|<\pi/2$, forward motion has $\dot s>0$ and reversing has $\dot s<0$. More generally, the sign must be determined from the equation above; “reversing” alone does not determine the sign of $\dot s$ independently of $\varphi$ and $1-d\kappa_r$.
+
+For a strict comparison, fix the same state $(s,d,\varphi)$, the same vehicle curvature $\kappa_v$, and the same speed magnitude $u>0$, changing only the longitudinal velocity from forward $v=u$ to reverse $v=-u$:
+
+| Quantity                                                        | Forward: $v=u$                                                    | Reverse: $v=-u$                                                    | Definition or model changed?           |
+| --------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------- |
+| Vehicle velocity $\dot{\mathbf z}$                              | $u\mathbf e_\theta$                                               | $-u\mathbf e_\theta$                                               | No-sideslip relation unchanged         |
+| Oriented arc-length rate $d\ell/dt$                             | $u$                                                               | $-u$                                                               | Always $d\ell/dt=v$                    |
+| Reference-path coordinate rate $\dot s$                         | $\dfrac{u\cos\varphi}{1-d\kappa_r}$                               | $-\dfrac{u\cos\varphi}{1-d\kappa_r}$                               | Determined by the same state equation  |
+| Lateral-deviation rate $\dot d$                                 | $u\sin\varphi$                                                    | $-u\sin\varphi$                                                    | Definition of $d$ unchanged            |
+| Heading rate $\dot\theta$                                       | $u\kappa_v$                                                       | $-u\kappa_v$                                                       | $\kappa_v$ is not artificially negated |
+| Heading-error rate $\dot\varphi$                                | $u\left(\kappa_v-\dfrac{\kappa_r\cos\varphi}{1-d\kappa_r}\right)$ | $-u\left(\kappa_v-\dfrac{\kappa_r\cos\varphi}{1-d\kappa_r}\right)$ | Definition of $\varphi$ unchanged      |
+| Reference curvature $\kappa_r$ and vehicle curvature $\kappa_v$ | Existing sign conventions                                         | Same sign conventions                                              | Neither is modified                    |
+| Equation (2)                                                    | Original equations                                                | Original equations                                                 | Completely unchanged                   |
+
+Under these comparison conditions, changing only the sign of $v$ reverses all three state derivatives in Equation (2). Time $t$ continues to advance in its positive direction. Unlike reversing in the reference-path-arc-length-domain model, time-domain reversing is represented by $v<0$, not by integrating time backward. When stationary, $v=0$, and Equation (2) gives $\dot s=\dot d=\dot\varphi=0$.
+
+## Reference-path-arc-length-domain Frenet kinematics
+
+This section constructs the model directly from the arc-length-parameterized position-coordinate relation and heading-error relation. It neither invokes the time-domain state equations nor uses time derivatives.
+
+### Oriented arc-length coordinate of the vehicle trajectory
+
+The variable $s$ is the arc-length coordinate of the projection point on the reference path. The variable $\ell$ is the oriented arc-length coordinate of the rear-axle-center trajectory, positive along the vehicle heading unit vector $\mathbf e_\theta$. On a nonstationary trajectory segment where the Frenet coordinates are valid, $s$ and $d$ can both be treated as functions of $\ell$, so Equation (1) becomes
+
+$$
+\mathbf z(\ell) =
+\mathbf r\bigl(s(\ell)\bigr)
++
+d(\ell)\mathbf N\bigl(s(\ell)\bigr).
+$$
+
+Differentiate directly with respect to $\ell$:
+
+$$
+\begin{aligned}
+\frac{d\mathbf z}{d\ell}
+&=
+\frac{d\mathbf r}{ds}\frac{ds}{d\ell}
++
+\frac{\mathrm d\,d}{\mathrm d\ell}\mathbf N
++
+d\frac{d\mathbf N}{ds}\frac{ds}{d\ell}\\[0.8em]
+&=
+\mathbf T\frac{ds}{d\ell}
++
+\frac{\mathrm d\,d}{\mathrm d\ell}\mathbf N
++
+d\frac{d\mathbf N}{ds}\frac{ds}{d\ell}.
+\end{aligned}
+$$
+
+From the Frenet relation $d\mathbf N/ds=-\kappa_r\mathbf T$ and $\langle\mathbf T,\mathbf N\rangle=0$,
+
+$$
+\left\langle
+\frac{d\mathbf N}{ds},
+\mathbf N
+\right\rangle
+=-\kappa_r\langle\mathbf T,\mathbf N\rangle=0.
+$$
+
+Project the position derivative onto $\mathbf N$ and use $\langle\mathbf T,\mathbf N\rangle=0$ and $\langle\mathbf N,\mathbf N\rangle=1$:
+
+$$
+\left\langle
+\frac{d\mathbf z}{d\ell},
+\mathbf N
+\right\rangle =
+\frac{\mathrm d\,d}{\mathrm d\ell}.
+$$
+
+By the orientation of $\ell$ and the no-sideslip constraint, the unit tangent of the vehicle trajectory with respect to $\ell$ is the heading unit vector:
+
+$$
+\frac{d\mathbf z}{d\ell} =
+\mathbf e_\theta =
+\cos\varphi\,\mathbf T
++
+\sin\varphi\,\mathbf N.
+$$
+
+Its normal component is
+
+$$
+\left\langle
+\frac{d\mathbf z}{d\ell},
+\mathbf N
+\right\rangle =
+\sin\varphi.
+$$
+
+Equating the same normal component gives
+
+$$
+\frac{\mathrm d\,d}{\mathrm d\ell} =
+\sin\varphi =
+\sin(\theta-\theta_r).
+$$
+
+This result follows directly from the position relation parameterized by $\ell$ and is not inferred backward from time derivatives. Reference-path curvature does not appear explicitly because the projection of $d\mathbf N/ds=-\kappa_r\mathbf T$ onto the $\mathbf N$ direction is zero. General regularity of the closest-point map within a tubular neighborhood is discussed in [[4, §2.1, Eq. (4), Proposition 2 and Theorem 3]](#ref-kublik-tsai-2016).
+
+### Local relationship between reference-path and vehicle-trajectory arc lengths
+
+Substituting $d\mathbf N/ds=-\kappa_r\mathbf T$ into the position derivative from the previous subsection gives
+
+$$
+\frac{d\mathbf z}{d\ell} =
+(1-d\kappa_r)\frac{ds}{d\ell}\mathbf T
++
+\frac{\mathrm d\,d}{\mathrm d\ell}\mathbf N.
+$$
+
+At the same time, the vehicle-trajectory unit tangent with respect to oriented arc length $\ell$ is
+
+$$
+\frac{d\mathbf z}{d\ell} =
+\cos\varphi\,\mathbf T
++
+\sin\varphi\,\mathbf N.
+$$
+
+Equating tangential components gives
+
+$$
+(1-d\kappa_r)\frac{ds}{d\ell} =
+\cos\varphi.
+$$
+
+When $1-d\kappa_r\ne0$ and $\cos\varphi\ne0$, this equation gives $ds/d\ell\ne0$, so $s$ and $\ell$ are locally interchangeable parameters. “Locally interchangeable” means that, near the current point, the same vehicle-trajectory segment can be described using either $s$ or $\ell$, with a differentiable local inverse transformation between them. Their local arc-length relationship is
+
+$$
+\frac{d\ell}{ds} =
+\frac{1-d\kappa_r}{\cos\varphi}.
+\tag{3}
+$$
+
+The inverse relation is
+
+$$
+\frac{ds}{d\ell} =
+\frac{\cos\varphi}{1-d\kappa_r}.
+$$
+
+For an interactive examination of how $d$, $\kappa_r$, and $\varphi$ jointly affect Equation (3), together with the Frenet geometric configurations corresponding to coordinate degeneration and parameterization failure, see [Frenet Arc-Length Conversion](../frenet-arc-length-conversion/).
+
+### Lateral-deviation equation
+
+On an interval where $ds/d\ell\ne0$, the chain rule gives
+
+$$
+\frac{\mathrm d\,d}{\mathrm d\ell} =
+\frac{\mathrm d\,d}{\mathrm ds}\frac{ds}{d\ell}.
+$$
+
+Substituting $\mathrm d\,d/\mathrm d\ell=\sin\varphi$ and the inverse of Equation (3) yields
+
+$$
+\begin{aligned}
+\frac{\mathrm d\,d}{\mathrm ds}
+&=
+\frac{\sin\varphi}
+{\cos\varphi/(1-d\kappa_r)}\\[0.6em]
+&=
+(1-d\kappa_r)\tan\varphi.
+\end{aligned}
+$$
+
+The relation $\mathrm d\,d/\mathrm d\ell=\sin\varphi$ contains no explicit reference-path curvature because it describes normal displacement per unit oriented vehicle-trajectory arc length. By contrast, $\mathrm d\,d/\mathrm ds$ explicitly contains $\kappa_r$, because changing the independent variable to the reference-path arc-length coordinate requires the inverse of Equation (3) for the scale conversion.
+
+### Heading-error equation
+
+Under the conditions for Equation (3), $s$ and $\ell$ are locally interchangeable parameters. Along the same vehicle trajectory, write the heading error directly as
+
+$$
+\varphi(s)=\theta\bigl(\ell(s)\bigr)-\theta_r(s).
+$$
+
+Differentiate with respect to reference-path arc length $s$, using $\kappa_v=d\theta/d\ell$, $\kappa_r=d\theta_r/ds$, and Equation (3):
+
+$$
+\begin{aligned}
+\frac{d\varphi}{ds}
+&=
+\frac{d\theta}{d\ell}\frac{d\ell}{ds}-\frac{d\theta_r}{ds}\\[0.65em]
+&=
+\kappa_v\frac{1-d\kappa_r}{\cos\varphi}-\kappa_r.
+\end{aligned}
+$$
+
+The first term is the rate of change of vehicle heading per unit reference-path arc length, while the second term, $\kappa_r=d\theta_r/ds$, is the rate of change of reference heading under the same independent variable.
+
+### Two-state reference-path-arc-length-domain model
+
+Combining the lateral-deviation and heading-error equations gives the spatial-domain model with independent variable $s$ and state $(d,\varphi)$:
+
+$$
+\begin{aligned}
+\frac{\mathrm d\,d}{\mathrm ds}
+&=
+(1-d\kappa_r)\tan\varphi,\\[0.7em]
+\frac{d\varphi}{ds}
+&=
+\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r.
+\end{aligned}
+\tag{4}
+$$
+
+Here, $\kappa_r=\kappa_r(s)$ is determined by the reference path, and $\kappa_v$ is the vehicle-trajectory curvature input. Equation (4) follows entirely from arc-length-parameterized geometric relations and does not depend on the time-domain model. In addition to a unique closest-point projection and $1-d\kappa_r\ne0$, it requires $\cos\varphi\ne0$. Otherwise, $ds/d\ell=0$, and the reference-path arc-length coordinate $s$ cannot serve as a local independent variable of the vehicle trajectory at that point.
+
+### Reversing in the arc-length-domain model
+
+Equation (4) also applies to reversing without a separate derivation. The reason is that the preceding derivation uses the oriented arc-length coordinate $\ell$, positive along the vehicle heading unit vector, and relies only on the no-sideslip geometric differential relations
+
+$$
+d\mathbf z=\mathbf e_\theta\,d\ell,
+\qquad
+d\theta=\kappa_v\,d\ell.
+$$
+
+Neither relation requires $d\ell>0$. For forward motion, $d\ell>0$ and the displacement $d\mathbf z$ points with $\mathbf e_\theta$. For reverse motion, $d\ell<0$ and $d\mathbf z$ points against $\mathbf e_\theta$, while $d\mathbf z/d\ell=\mathbf e_\theta$ remains true. The component comparison of the position differential, arc-length conversion, and chain rule are therefore unchanged in reverse, yielding the same two-state model.
+
+The inverse of Equation (3) gives
+
+$$
+\frac{ds}{d\ell}=\frac{\cos\varphi}{1-d\kappa_r}.
+$$
+
+In general, the signs of $ds$ and $d\ell$ are related by
+
+$$
+\operatorname{sgn}(ds)=
+\operatorname{sgn}(d\ell)
+\operatorname{sgn}\!\left(\frac{\cos\varphi}{1-d\kappa_r}\right).
+$$
+
+In the usual Frenet tracking region where $1-d\kappa_r>0$ and $|\varphi|<\pi/2$, $ds/d\ell>0$, so forward motion has $ds>0$ and reverse motion has $ds<0$. Given the same vehicle-curvature function $\kappa_v(s)$ and the same initial state, the same spatial-domain equations determine the same $(d,\varphi)$ state curve for forward and reverse motion; the curve is simply traversed in opposite directions of $s$. The right-hand side of Equation (4) requires no modification.
+
+Within this usual tracking region, while keeping the same state, initial condition, and curvature input, the quantities correspond as follows:
+
+| Quantity                                                        | Forward                               | Reverse                                              | Definition or model changed?                    |
+| --------------------------------------------------------------- | ------------------------------------- | ---------------------------------------------------- | ----------------------------------------------- |
+| Oriented vehicle-trajectory arc-length increment $d\ell$        | $d\ell>0$                             | $d\ell<0$                                            | Definition unchanged                            |
+| Vehicle displacement $d\mathbf z=\mathbf e_\theta d\ell$        | Same direction as $\mathbf e_\theta$  | Opposite direction to $\mathbf e_\theta$             | Geometric relation unchanged                    |
+| Reference-path arc-length increment $ds$                        | $ds>0$                                | $ds<0$                                               | Determined by Equation (3)                      |
+| Heading increment $d\theta=\kappa_v d\ell$                      | Accumulates along positive arc length | Increment direction reverses for the same $\kappa_v$ | $\kappa_v$ is not artificially negated          |
+| States $d$, $\varphi$                                           | Evolve forward in $s$                 | Evolve backward in $s$                               | State definitions unchanged and not pre-negated |
+| Reference curvature $\kappa_r$ and vehicle curvature $\kappa_v$ | Existing sign conventions             | Same sign conventions                                | Neither is modified                             |
+| Two right-hand sides of Equation (4)                            | Original form                         | Original form                                        | Completely unchanged                            |
+
+Accordingly, when solving directly in $s$ within this usual tracking region, forward motion integrates from a smaller $s$ to a larger $s$, while reverse motion integrates from a larger $s$ to a smaller $s$. On a reversing segment beginning at $s_{\mathrm{start}}$ with monotonically decreasing $s$, a numerical implementation may define an increasing progress variable $\sigma=s_{\mathrm{start}}-s$. Since $d/d\sigma=-d/ds$, both state-equation right-hand sides then acquire an overall factor of $-1$. This is a consequence of changing the independent variable, not a modification of Equation (4) caused by reversing.
+
+## References
+
+<ol>
+  <li id="ref-eilbrecht-stursberg-2020">
+    Jan Eilbrecht and Olaf Stursberg,{' '}
+    <cite>
+      <a
+        href="https://doi.org/10.1016/j.ifacol.2020.12.2492"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Challenges of Trajectory Planning with Integrator Models on Curved Roads
+      </a>
+    </cite>
+    , <cite>IFAC-PapersOnLine</cite>, 53(2), 2020, doi: 10.1016/j.ifacol.2020.12.2492, §2.1–2.2,
+    Eqs. (14)–(20). This reference is used to verify the Frenet position coordinates, velocity
+    decomposition, and time-domain state equations.
+  </li>
+  <li id="ref-yoneda-et-al-2018">
+    Keisuke Yoneda et al.,{' '}
+    <cite>
+      <a
+        href="https://link.springer.com/article/10.1007/s10015-018-0484-4"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Trajectory Optimization and State Selection for Urban Automated Driving
+      </a>
+    </cite>
+    , <cite>Artificial Life and Robotics</cite>, 23, 474–480, 2018, §3.1, Eq. (1). This reference is
+    used to verify the normal-coordinate position representation $\mathbf z=\mathbf r(s)+d\mathbf
+    N(s)$.
+  </li>
+  <li id="ref-ljungqvist-2020">
+    Oskar Ljungqvist,{' '}
+    <cite>
+      <a href="https://doi.org/10.3384/diss.diva-165246" target="_blank" rel="noopener noreferrer">
+        Motion Planning and Feedback Control Techniques with Applications to Long Tractor-Trailer
+        Vehicles
+      </a>
+    </cite>
+    , Linköping Studies in Science and Technology, Dissertation No. 2070, Linköping University,
+    2020, doi: 10.3384/diss.diva-165246, §4.3. This reference is used to verify the regular domain
+    of Frenet coordinates and the three-state vehicle-kinematics model.
+  </li>
+  <li id="ref-kublik-tsai-2016">
+    Catherine Kublik and Richard Tsai,{' '}
+    <cite>
+      <a href="https://doi.org/10.1186/s40687-016-0053-1" target="_blank" rel="noopener noreferrer">
+        Integration over Curves and Surfaces Defined by the Closest Point Mapping
+      </a>
+    </cite>
+    , <cite>Research in the Mathematical Sciences</cite>, 3, Article 3, 2016, doi:
+    10.1186/s40687-016-0053-1, §2.1, Eq. (4), Proposition 2 and Theorem 3. This reference supplies
+    the general regularity background for the closest-point map and its tubular neighborhood.
+  </li>
+</ol>
+
+<FigureFocusDialog />

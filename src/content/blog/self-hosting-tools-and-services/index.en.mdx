@@ -1,0 +1,48 @@
+---
+title: Self-Hosting Tools and Services
+description: A continuously updated index of self-hosted tools and related services, organized by purpose for exploration and evaluation.
+---
+
+import ZoomImage from '../../../components/ZoomImage.astro';
+import autonomousDocumentation from './images/autonomous-documentation-with-readthedocs.png';
+
+This article organizes self-hosting tools and related services that I have used or followed. The list will continue to evolve with practical exploration. It includes both directly deployable applications and the underlying tools needed to host, manage, and access them.
+
+## File synchronization and personal data
+
+- [Nextcloud](https://nextcloud.com/): a self-hosted platform combining file synchronization, sharing, and collaboration.
+
+## Personal productivity
+
+- [Reactive Resume](https://rxresu.me/): an open-source application for creating and exporting résumés, with support for self-hosting.
+
+## AI applications and model APIs
+
+- [Open WebUI](https://github.com/open-webui/open-webui): a self-hosted AI web interface for multiple model services.
+- [One API](https://github.com/songquanpeng/one-api): a management and distribution tool that exposes different model services through a unified API.
+
+## Documentation and static sites
+
+- [Sphinx](https://www.sphinx-doc.org/): a documentation tool that generates technical documentation and static sites from structured source files.
+- [Sphinx Read the Docs Theme](https://sphinx-rtd-theme.readthedocs.io/en/stable/): the Read the Docs-style theme for Sphinx technical documentation.
+- [Nginx](https://nginx.org/): a web server commonly used for static-file serving and reverse proxying.
+- [Caddy](https://caddyserver.com/): a web server and reverse proxy with automatic HTTPS by default.
+
+## Containers and server management
+
+- [containerd](https://containerd.io/): a container runtime; Docker can also use its image store for multi-platform images.
+- [1Panel](https://github.com/1Panel-dev/1Panel): a web interface for managing Linux servers, containers, and common self-hosted applications.
+
+## Network connectivity and remote access
+
+- [EasyTier](https://github.com/EasyTier/EasyTier): an open-source networking tool for connecting distributed devices into a virtual network.
+- [RustDesk](https://rustdesk.com/): an open-source remote-desktop tool whose supporting services can be self-hosted.
+
+## Historical deployment records
+
+This section preserves screenshots from services deployed in the past. Some of those services may no longer be running, but the records remain part of the self-hosting exploration process.
+
+<ZoomImage
+  src={autonomousDocumentation}
+  alt="A previously deployed documentation site for an autonomous-driving project"
+/>

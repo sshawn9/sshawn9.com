@@ -1,0 +1,309 @@
+---
+title: Frenet Arc-Length Conversion
+description: An interactive examination of how closely the oriented arc-length increment of a vehicle trajectory matches the reference-path arc-length increment under different vehicle states.
+---
+
+import 'katex/dist/katex.min.css';
+import FigureFocusDialog from '../../../components/FigureFocusDialog.astro';
+import FocusFigure from '../../../components/FocusFigure.astro';
+import FrenetExplorer from './FrenetExplorer';
+import './frenet-explorer.css';
+
+## Conversion relationship
+
+Starting from the Frenet representation of vehicle position and the vehicle-heading unit vector, “[Frenet Vehicle Kinematics](../frenet-vehicle-kinematics/#local-relationship-between-reference-path-and-vehicle-trajectory-arc-lengths)” derives the local relationship between reference-path arc length and the oriented arc length of the vehicle trajectory in Equation (3):
+
+$$
+\frac{\mathrm d\ell}{\mathrm ds}=\frac{1-d\kappa_r}{\cos\varphi}.
+$$
+
+The interactive figures below vary the heading error $\varphi$, lateral deviation $d$, and reference curvature $\kappa_r$ separately and jointly to show how $\mathrm d\ell/\mathrm ds$ changes.
+
+Here, $s$ is the reference-path arc-length coordinate of the vehicle's nearest projection point; $\ell$ is the oriented arc-length coordinate of the vehicle rear-axle-center trajectory, positive in the vehicle-heading direction; $d$ is the signed lateral deviation measured from the projection point along the left unit normal of the reference path, positive to the left and negative to the right; $\varphi$ is the heading error between the vehicle heading and the reference-path tangent at the projection point, positive counterclockwise; and $\kappa_r$ is the signed curvature of the reference path at the projection point, positive for a left turn and negative for a right turn.
+
+## Using the interactive figures
+
+Each relationship curve or surface shares one parameter set with the local Frenet geometry on its right. Move the pointer over a sampled point on a curve or a grid point on a surface to update the geometry immediately; on a touch device, tap a data point to select it.
+
+All local arc-length conversion plots use the same visual notation: blue curves or gradient surfaces represent $\mathrm d\ell/\mathrm ds$; purple dotted lines or translucent planes represent $\mathrm d\ell/\mathrm ds=1$; orange dashed lines mark $\cos\varphi=0$; and red boundary lines mark $1-d\kappa_r=0$. The later plots of $1-d\kappa_r$ retain the blue relationship curve, purple unit reference line, and red degeneracy boundary. In the geometry view, increasing $s$ defines the positive direction of the reference path, lateral deviation is positive to the left, and counterclockwise rotation of the vehicle heading from the reference-path tangent is positive.
+
+The geometry view treats the current projection point as its local origin. A line segment of fixed length $\Delta\ell$ represents the oriented vehicle-trajectory arc-length increment, while $\Delta s=\cos\varphi\,\Delta\ell/(1-d\kappa_r)$ determines the magnitude and direction of the corresponding reference-path arc-length increment. When $\Delta s<0$, the highlighted arc extends backward from the current projection point. The reference curve represents only the local curvature at that point. When $\kappa_r\ne0$ and $|\kappa_r\Delta s|\le\pi/3$, the complete highlighted arc is drawn. Only after the arc exceeds one sixth of a circle is it truncated, with an ellipsis shown in the correct direction; the osculating circle is not treated as the entire reference path and used to search for another projection point. When $1-d\kappa_r=0$, no finite $\Delta s$ exists and none is drawn.
+
+The single-value sliders under “Experimental conditions” fix variables that are not represented by the current plot axes. The range sliders under “Plot window” change only the displayed coordinate or analysis range; they do not alter the mathematical relationship. Expand “Advanced range settings” to explore beyond the default limits. “Reset” restores all initial parameters and display ranges for the current experiment.
+
+## Effect of one variable on the local arc-length conversion relationship
+
+### Nonlinear variation caused by heading error
+
+<FocusFigure number={1}>
+  <figcaption slot="caption">
+    <strong>Figure 1.</strong> With $(d,\kappa_r)$ fixed, $\mathrm d\ell/\mathrm ds$ varies
+    nonlinearly with heading error $\varphi$ through $1/\cos\varphi$. The purple dotted line marks
+    $\mathrm d\ell/\mathrm ds=1$. When the horizontal range is extended to $\pm90^\circ$, the orange
+    dashed lines mark $\cos\varphi=0$, where the curve is interrupted. If $1-d\kappa_r\ne0$,
+    $\left|\mathrm d\ell/\mathrm ds\right|$ diverges near this boundary.
+  </figcaption>
+  <FrenetExplorer axes={['phi']} contentLocale="en" client:only="solid-js" />
+</FocusFigure>
+
+### Linear variation caused by lateral deviation
+
+<FocusFigure number={2}>
+  <figcaption slot="caption">
+    <strong>Figure 2.</strong> With $(\varphi,\kappa_r)$ fixed, $\mathrm d\ell/\mathrm ds$ varies
+    linearly with lateral deviation $d$. When $\kappa_r\ne0$ and the signed radius of curvature
+    $\rho_r=1/\kappa_r$ lies within the horizontal range, the red dashed line marks $d=\rho_r$. At
+    this position, $1-d\kappa_r=0$ and the Frenet normal coordinate is degenerate; it must not be
+    interpreted as $\mathrm d\ell/\mathrm ds=0$ in a valid Frenet coordinate state.
+  </figcaption>
+  <FrenetExplorer axes={['d']} contentLocale="en" client:only="solid-js" />
+</FocusFigure>
+
+### Linear variation caused by reference curvature
+
+<FocusFigure number={3}>
+  <figcaption slot="caption">
+    <strong>Figure 3.</strong> With $(\varphi,d)$ fixed, $\mathrm d\ell/\mathrm ds$ varies linearly
+    with reference curvature $\kappa_r$. When $d\ne0$ and $1/d$ lies within the horizontal range,
+    the red dashed line marks $\kappa_r=1/d$, the Frenet-coordinate degeneracy boundary
+    $1-d\kappa_r=0$.
+  </figcaption>
+  <FrenetExplorer axes={['kappa']} contentLocale="en" client:only="solid-js" />
+</FocusFigure>
+
+## Local arc-length conversion with two varying factors
+
+### Combined effect of heading error and lateral deviation
+
+<FocusFigure number={4} dimensions={2}>
+  <figcaption slot="caption">
+    <strong>Figure 4.</strong> The independent variables are $(\varphi,d)$ and the surface height is
+    $\mathrm d\ell/\mathrm ds$; reference curvature $\kappa_r$ is set by the “Experimental
+    conditions” slider. The translucent purple plane represents $\mathrm d\ell/\mathrm ds=1$. At
+    $\varphi=\pm90^\circ$, the arc-length-domain parameterization fails. When $\kappa_r\ne0$,
+    $d=1/\kappa_r$ is the Frenet-coordinate degeneracy boundary.
+  </figcaption>
+  <FrenetExplorer axes={['phi', 'd']} contentLocale="en" client:only="solid-js" />
+</FocusFigure>
+
+### Combined effect of heading error and reference curvature
+
+<FocusFigure number={5} dimensions={2}>
+  <figcaption slot="caption">
+    <strong>Figure 5.</strong> The independent variables are $(\varphi,\kappa_r)$ and the surface
+    height is $\mathrm d\ell/\mathrm ds$; lateral deviation $d$ is set by the “Experimental
+    conditions” slider. Heading error produces the nonlinear factor $1/\cos\varphi$. When $d\ne0$,
+    $\kappa_r=1/d$ is the Frenet-coordinate degeneracy boundary.
+  </figcaption>
+  <FrenetExplorer axes={['phi', 'kappa']} contentLocale="en" client:only="solid-js" />
+</FocusFigure>
+
+### Combined effect of lateral deviation and reference curvature
+
+<FocusFigure number={6} dimensions={2}>
+  <figcaption slot="caption">
+    <strong>Figure 6.</strong> The independent variables are $(d,\kappa_r)$ and the surface height
+    is $\mathrm d\ell/\mathrm ds$; heading error $\varphi$ is set by the “Experimental conditions”
+    slider. The intersection between the surface and the zero plane satisfies $d\kappa_r=1$. This
+    intersection is the degeneracy boundary of the Frenet normal coordinate and must not be
+    interpreted as $\mathrm d\ell/\mathrm ds=0$ in a valid Frenet coordinate state.
+  </figcaption>
+  <FrenetExplorer axes={['d', 'kappa']} contentLocale="en" client:only="solid-js" />
+</FocusFigure>
+
+## Effect of the relationship between lateral deviation and curvature radius at the projection point
+
+The term $1-d\kappa_r$ is the part of the local arc-length conversion relationship
+
+$$
+\frac{\mathrm d\ell}{\mathrm ds}=\frac{1-d\kappa_r}{\cos\varphi}
+$$
+
+that is jointly determined by the lateral deviation $d$ and the reference curvature $\kappa_r$ at the projection point. Within the domain where this relationship applies, once the heading error $\varphi$ is fixed, the complete influence of $d$ and $\kappa_r$ on $\mathrm d\ell/\mathrm ds$ is expressed through this factor.
+
+Only the local relationship at the current projection point is considered below. Let the reference-path arc-length coordinate of this point be $s_0$, and abbreviate $\kappa_r=\kappa_r(s_0)$. For $\kappa_r\ne0$, define
+
+$$
+d_c=\frac{1}{\kappa_r},
+\qquad
+R_r=\frac{1}{|\kappa_r|}.
+$$
+
+$R_r$ is the radius of curvature of the osculating circle at the projection point, while $d_c$ is the signed coordinate of its center measured along the left unit normal. The center of curvature is located at $\boldsymbol r(s_0)+d_c\boldsymbol N(s_0)$, and
+
+$$
+1-d\kappa_r=1-\frac{d}{d_c}.
+$$
+
+The factor is therefore determined by the position of the vehicle's lateral deviation $d$ relative to the normal coordinate $d_c$ of the center of curvature:
+
+- $d/d_c<0$: the vehicle and the center of curvature lie on opposite sides of the reference path, so $1-d\kappa_r>1$;
+- $0<d/d_c<1$: the vehicle lies between the reference path and the center of curvature, so $0<1-d\kappa_r<1$;
+- $d=d_c$: the vehicle position coincides with the center of curvature at the current projection point, so $1-d\kappa_r=0$;
+- $d/d_c>1$: the vehicle lies beyond the center of curvature, so $1-d\kappa_r<0$.
+
+The center of curvature here describes only the second-order local geometry of the reference path at the current projection point; it does not imply that the reference path itself is a circular arc. The relationship between $1-d\kappa_r$ and the nearest projection can be established directly from the distance between the vehicle and the reference path.
+
+Fix the vehicle position $\boldsymbol z$, and let a candidate point $\boldsymbol r(\xi)$ move along the reference path, where $\xi$ is the candidate point's arc-length coordinate and $s_0$ is the particular coordinate of the current perpendicular foot. Define
+
+$$
+q(\xi)=\frac{1}{2}\left\|\boldsymbol z-\boldsymbol r(\xi)\right\|^2.
+$$
+
+$q(\xi)$ is one half of the squared distance from the vehicle to the candidate point. The constant $1/2$ does not change the extrema; it only simplifies differentiation. Because the reference path is parameterized by arc length,
+
+$$
+\frac{\mathrm d\boldsymbol r}{\mathrm d\xi}=\boldsymbol T,
+\qquad
+\frac{\mathrm d\boldsymbol T}{\mathrm d\xi}=\kappa_r(\xi)\boldsymbol N,
+\qquad
+\boldsymbol T\mathbin{\cdot}\boldsymbol T=1.
+$$
+
+Keeping $\boldsymbol z$ fixed, differentiate with respect to the candidate coordinate $\xi$:
+
+$$
+\begin{aligned}
+q'(\xi)
+&=\frac{1}{2}\frac{\mathrm d}{\mathrm d\xi}
+\left[
+(\boldsymbol z-\boldsymbol r(\xi))
+\mathbin{\cdot}
+(\boldsymbol z-\boldsymbol r(\xi))
+\right]\\[0.6em]
+&=-(\boldsymbol z-\boldsymbol r(\xi))\mathbin{\cdot}\boldsymbol T(\xi).
+\end{aligned}
+$$
+
+At the current perpendicular foot $s_0$, the vehicle position satisfies
+
+$$
+\boldsymbol z-\boldsymbol r(s_0)=d\boldsymbol N(s_0).
+$$
+
+Because $\boldsymbol N\perp\boldsymbol T$, substituting $\xi=s_0$ into the first derivative gives
+
+$$
+q'(s_0)
+=-d\boldsymbol N(s_0)\mathbin{\cdot}\boldsymbol T(s_0)
+=0.
+$$
+
+This establishes only that $s_0$ is a stationary point of the distance function. To determine whether it is a local minimum or a local maximum, differentiate again:
+
+$$
+\begin{aligned}
+q''(\xi)
+&=-\frac{\mathrm d}{\mathrm d\xi}
+\left[
+(\boldsymbol z-\boldsymbol r(\xi))\mathbin{\cdot}\boldsymbol T(\xi)
+\right]\\[0.6em]
+&=\frac{\mathrm d\boldsymbol r}{\mathrm d\xi}\mathbin{\cdot}\boldsymbol T
+-(\boldsymbol z-\boldsymbol r)\mathbin{\cdot}
+\frac{\mathrm d\boldsymbol T}{\mathrm d\xi}\\[0.6em]
+&=\boldsymbol T\mathbin{\cdot}\boldsymbol T
+-(\boldsymbol z-\boldsymbol r)\mathbin{\cdot}
+\kappa_r(\xi)\boldsymbol N.
+\end{aligned}
+$$
+
+Finally, at $\xi=s_0$, substitute $\boldsymbol z-\boldsymbol r(s_0)=d\boldsymbol N(s_0)$, $\boldsymbol T\mathbin{\cdot}\boldsymbol T=1$, and $\boldsymbol N\mathbin{\cdot}\boldsymbol N=1$:
+
+$$
+\left.\frac{\mathrm d^2q}{\mathrm d\xi^2}\right|_{\xi=s_0}
+=q''(s_0)
+=1-d\kappa_r.
+$$
+
+The term $1$ comes from the unit tangent length $\boldsymbol T\mathbin{\cdot}\boldsymbol T=1$, while $-d\kappa_r$ comes from the curvature-induced rotation of the reference-path tangent. Consequently, if $1-d\kappa_r>0$, $s_0$ is a strict local minimum of the distance function. If $1-d\kappa_r<0$, $s_0$ is a strict local maximum and cannot be the vehicle's nearest projection point. If $1-d\kappa_r=0$, the second-derivative test is inconclusive: whether the point remains a local minimum and whether the projection is unique cannot be determined from $d$ and $\kappa_r$ at that point alone. Even when $1-d\kappa_r>0$, it guarantees only a local minimum; global uniqueness of the nearest projection still depends on the geometry of the complete reference path.
+
+### Positive curvature: center of curvature to the left of the reference path
+
+When $\kappa_r>0$, $d_c=R_r>0$ and the center of curvature lies on the left-unit-normal side. As the vehicle moves leftward from the reference path toward the center of curvature, $d$ increases from $0$ to $R_r$ and $1-d\kappa_r$ decreases linearly from $1$ to $0$. When the vehicle is on the right side of the reference path, $d<0$ and the factor is greater than $1$. When $d>R_r$, the factor is negative, so the current reference point cannot be the vehicle's nearest projection. This region therefore does not belong to a Frenet coordinate state constructed from that point as the nearest projection.
+
+Figure 7 fixes a positive reference curvature and varies lateral deviation to compare $d$ directly with the current curvature radius. Figure 8 fixes lateral deviation and varies positive reference curvature to show how the same relationship changes as the radius and center of curvature move.
+
+<FocusFigure number={7}>
+  <figcaption slot="caption">
+    <strong>Figure 7.</strong> When $\kappa_r>0$, the signed normal coordinate of the center of
+    curvature is $d_c=R_r=1/\kappa_r$. The red dashed line marks $d=d_c$, and the grid in the
+    right-hand local geometry extends at least to this center of curvature. Adjust “Reference
+    curvature” to observe the resulting changes in the curvature radius, center position, and
+    $1-d\kappa_r$.
+  </figcaption>
+  <FrenetExplorer
+    axes={['d']}
+    quantity="coordinate-scale"
+    curvatureSign="positive"
+    contentLocale="en"
+    client:only="solid-js"
+  />
+</FocusFigure>
+
+<FocusFigure number={8}>
+  <figcaption slot="caption">
+    <strong>Figure 8.</strong> Lateral deviation $d$ is set by the “Experimental conditions” slider,
+    and positive reference curvature $\kappa_r$ is on the horizontal axis. $1-d\kappa_r$ varies
+    linearly with $\kappa_r$. If $d\ne0$ and $\kappa_r=1/d$ lies within the current horizontal
+    range, the red dashed line marks where the vehicle position coincides with the center of
+    curvature. Adjust $d$ to observe whether this point lies in the positive-curvature range and how
+    it moves with lateral deviation.
+  </figcaption>
+  <FrenetExplorer
+    axes={['kappa']}
+    quantity="coordinate-scale"
+    curvatureSign="positive"
+    contentLocale="en"
+    client:only="solid-js"
+  />
+</FocusFigure>
+
+### Negative curvature: center of curvature to the right of the reference path
+
+When $\kappa_r<0$, $d_c=-R_r<0$ and the center of curvature lies on the right-unit-normal side. As the vehicle moves rightward from the reference path toward the center of curvature, $d$ decreases from $0$ to $-R_r$ and $1-d\kappa_r$ likewise decreases linearly from $1$ to $0$. When the vehicle is on the left side of the reference path, $d>0$ and the factor is greater than $1$. When $d<-R_r$, the factor is negative, so the current reference point likewise cannot be the vehicle's nearest projection. This region therefore does not belong to a Frenet coordinate state constructed from that point as the nearest projection.
+
+Figure 9 fixes a negative reference curvature and varies lateral deviation; Figure 10 fixes lateral deviation and varies negative reference curvature. The two figures examine the same relationship as the positive-curvature experiments, but with the center of curvature on the right side of the reference path.
+
+<FocusFigure number={9}>
+  <figcaption slot="caption">
+    <strong>Figure 9.</strong> When $\kappa_r<0$, the signed normal coordinate of the center of
+    curvature is $d_c=-R_r=1/\kappa_r$. The red dashed line marks $d=d_c$, and the grid in the
+    right-hand local geometry extends at least to this center of curvature. The variation is
+    the same as in Figure 7, except that the center of curvature and the corresponding lateral
+    deviation lie to the right of the reference path.
+  </figcaption>
+  <FrenetExplorer
+    axes={['d']}
+    quantity="coordinate-scale"
+    curvatureSign="negative"
+    contentLocale="en"
+    client:only="solid-js"
+  />
+</FocusFigure>
+
+<FocusFigure number={10}>
+  <figcaption slot="caption">
+    <strong>Figure 10.</strong> Lateral deviation $d$ is set by the “Experimental conditions”
+    slider, and negative reference curvature $\kappa_r$ is on the horizontal axis. $1-d\kappa_r$
+    varies linearly with $\kappa_r$. If $d\ne0$ and $\kappa_r=1/d$ lies within the current
+    horizontal range, the red dashed line marks where the vehicle position coincides with the center
+    of curvature. This figure differs from Figure 8 only in the signs of the reference curvature,
+    center-of-curvature direction, and corresponding lateral deviation.
+  </figcaption>
+  <FrenetExplorer
+    axes={['kappa']}
+    quantity="coordinate-scale"
+    curvatureSign="negative"
+    contentLocale="en"
+    client:only="solid-js"
+  />
+</FocusFigure>
+
+When $\kappa_r=0$, the curvature radius at the projection point is infinite, no finite center of curvature exists, and $1-d\kappa_r=1$ for every $d$. Lateral deviation then has no effect on this part of the local arc-length conversion relationship, so no separate plot is needed.
+
+<FigureFocusDialog />
+
+## Sources and further reading
+
+- [Frenet Vehicle Kinematics](../frenet-vehicle-kinematics/#local-relationship-between-reference-path-and-vehicle-trajectory-arc-lengths): the full derivation of the conversion relationship, definitions of its variables, nearest-projection conditions, and references.
+- [Planar Frenet Frame](../planar-frenet-frame/): the unit tangent, left unit normal, and signed-curvature conventions used here.
