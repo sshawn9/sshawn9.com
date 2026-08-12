@@ -2,7 +2,7 @@
   "name": "sshawn9-com",
   "compatibility_date": "2026-08-10",
   "workers_dev": false,
-  "preview_urls": false,
+  "preview_urls": true,
   "assets": {
     "directory": "./dist",
     "not_found_handling": "404-page",
