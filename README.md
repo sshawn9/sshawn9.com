@@ -163,17 +163,21 @@ Paraglide owns page-level and interface copy. Long-form articles and project rec
 
 ## Quality checks
 
-Vitest covers the article path, version, locale fallback, and tag-count conventions. Playwright covers behavior that static checks cannot prove: locale preference, ClientRouter language and theme transitions, fixed tag facets, and on-demand version comparison. The GitHub Actions verification job runs formatting, types, unit tests, a production build, and those browser checks.
+Vitest covers the article path, version, locale fallback, and tag-count conventions. Playwright covers behavior that static checks cannot prove: locale preference, ClientRouter language and theme transitions, fixed tag facets, and on-demand version comparison. The GitHub Actions verification job runs formatting, types, unit tests, a preview build, and those browser checks. A `main` deployment also rebuilds and tests the production variant before release.
 
 ## Deployment
 
-The site workflow passes its verified `dist/` artifact to a separate deployment job after a push to `main`. It can also be started manually on `main` with `workflow_dispatch`. Pull requests and other branches are verified but never deployed.
+Every pushed branch receives a stable aliased Worker Preview URL. Preview builds include draft articles, omit the sitemap, and emit both HTML and HTTP `noindex` directives. Pull requests run the same preview-mode verification without deploying secrets. Each deployment summary exposes both the stable branch URL and the immutable version URL. Deleted branches and older versions are not actively removed; Cloudflare's Preview URL retention policy owns their eventual cleanup.
+
+On `main`, separately verified preview and production artifacts are deployed independently after verification. The production version excludes drafts and retains the sitemap; the preview version includes drafts and never changes production traffic. `workflow_dispatch` follows the same branch-specific behavior.
 
 One GitHub Actions repository secret is required:
 
-- `CLOUDFLARE_API_TOKEN`: a token created from Cloudflare's **Edit Cloudflare Workers** template and restricted to the target account and `sshawn9.com` zone
+- `CLOUDFLARE_API_TOKEN`: a token created from Cloudflare's **Edit Cloudflare Workers** template and restricted to the target account
 
-`wrangler.jsonc` is the deployment source of truth. The first successful workflow run creates or updates the `sshawn9-com` Worker, uploads the static build, enables its `workers.dev` address, and attaches `sshawn9.com` as a Custom Domain. No Cloudflare Pages project or Worker script is involved, and no project needs to be created manually in the Cloudflare dashboard.
+`wrangler.jsonc` is the source of truth for two isolated Worker environments. The default `sshawn9-com` Worker serves production through `sshawn9.com` and exposes no `workers.dev` or Preview URL. The `preview` environment uploads draft-inclusive versions to `sshawn9-com-preview`, where each branch has a stable aliased Preview URL and each upload also receives an immutable version URL. The stable production custom-domain mapping is managed separately as long-lived Terraform infrastructure. No Cloudflare Pages project or per-branch DNS records are used.
+
+For the one-time ownership migration, apply the `actions-private/cf-dns` configuration and verify that it has imported the existing `sshawn9.com` custom domain before deploying this repository's route-free Wrangler configuration.
 
 ## Current boundaries
 

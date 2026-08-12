@@ -11,7 +11,7 @@ import {
   getArticleVersionHref,
   getArticleVersionSourceHref,
 } from '../../../../../lib/article-routes';
-import { getPublishedArticles, getVersionDate, type Article } from '../../../../../lib/articles';
+import { getVersionDate, getVisibleArticles, type Article } from '../../../../../lib/articles';
 import { formatDate } from '../../../../../lib/date';
 import * as m from '../../../../../paraglide/messages.js';
 
@@ -19,7 +19,7 @@ type Props = { locale: Locale; article: Article };
 
 export async function getStaticPaths() {
   const localizedArticles = await Promise.all(
-    LOCALES.map(async (locale) => ({ locale, articles: await getPublishedArticles(locale) })),
+    LOCALES.map(async (locale) => ({ locale, articles: await getVisibleArticles(locale) })),
   );
 
   return localizedArticles.flatMap(({ locale, articles }) =>

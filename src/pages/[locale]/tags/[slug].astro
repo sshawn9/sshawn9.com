@@ -2,7 +2,7 @@
 import type { GetStaticPaths } from 'astro';
 import BlogListing from '../../../components/BlogListing.astro';
 import { LOCALES, type Locale } from '../../../i18n/config';
-import { getPublishedArticles, type Article } from '../../../lib/articles';
+import { getVisibleArticles, type Article } from '../../../lib/articles';
 import { getArticlesForTag, getTagDefinitions, type TagDefinition } from '../../../lib/tags';
 import * as m from '../../../paraglide/messages.js';
 
@@ -15,7 +15,7 @@ type Props = {
 export const getStaticPaths = (async () => {
   const paths = await Promise.all(
     LOCALES.map(async (locale) => {
-      const articles = await getPublishedArticles(locale);
+      const articles = await getVisibleArticles(locale);
       return getTagDefinitions(articles).map((tag) => ({
         params: { locale, slug: tag.slug },
         props: { locale, tag, articles: getArticlesForTag(articles, tag.name) },

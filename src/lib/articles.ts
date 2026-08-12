@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { getCollection, type CollectionEntry } from 'astro:content';
+import { SITE_MODE } from 'astro:env/server';
 import { BASE_LOCALE, otherLocale, type Locale } from '../i18n/config';
 import { parseArticleEntryId } from './article-convention';
 
@@ -147,13 +148,13 @@ export function resolveArticles(entries: BlogEntry[], locale: Locale = BASE_LOCA
     });
 }
 
-export async function getPublishedArticles(locale: Locale = BASE_LOCALE): Promise<Article[]> {
+export async function getVisibleArticles(locale: Locale = BASE_LOCALE): Promise<Article[]> {
   const [contentEntries, metadataEntries] = await Promise.all([
     getCollection('blog'),
     getCollection('articleMetadata'),
   ]);
   const entries = mergeArticleMetadata(contentEntries, metadataEntries).filter(
-    ({ data }) => !data.draft,
+    ({ data }) => SITE_MODE === 'preview' || !data.draft,
   );
   return resolveArticles(entries, locale);
 }

@@ -3,7 +3,12 @@ name: Verify site
 on:
   workflow_call:
     inputs:
-      upload_site:
+      upload_preview:
+        description: Upload the verified preview build for a deployment job
+        required: false
+        type: boolean
+        default: false
+      upload_production:
         description: Upload the verified production build for a deployment job
         required: false
         type: boolean
@@ -17,10 +22,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -28,20 +33,44 @@ jobs:
       - run: npm run format:check
       - run: npm run check
       - run: npm test
-      - run: npm run build
+      - name: Build preview site
+        run: npm run build
+        env:
+          SITE_MODE: preview
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
-      - name: Upload verified site
-        if: ${{ inputs.upload_site }}
-        uses: actions/upload-artifact@v4
+      - name: Test preview site
+        run: npm run test:e2e
+        env:
+          SITE_MODE: preview
+      - name: Upload verified preview site
+        if: ${{ inputs.upload_preview }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: site-${{ github.sha }}
+          name: site-preview-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+      - name: Build production site
+        if: ${{ inputs.upload_production }}
+        run: npm run build
+        env:
+          SITE_MODE: production
+      - name: Test production site
+        if: ${{ inputs.upload_production }}
+        run: npm run test:e2e
+        env:
+          SITE_MODE: production
+      - name: Upload verified production site
+        if: ${{ inputs.upload_production }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: site-production-${{ github.sha }}
           path: dist/
           if-no-files-found: error
           retention-days: 1
       - name: Upload Playwright traces
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-traces
           path: test-results/

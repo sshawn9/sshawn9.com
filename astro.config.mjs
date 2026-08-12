@@ -1,7 +1,7 @@
 // @ts-check
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'astro/config';
+import { defineConfig, envField } from 'astro/config';
 import { unified } from '@astrojs/markdown-remark';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
@@ -14,6 +14,7 @@ import rehypeKatex from 'rehype-katex';
 import remarkMath from 'remark-math';
 
 const site = 'https://sshawn9.com';
+const isPreviewBuild = process.env.SITE_MODE === 'preview';
 const outDirUrl = new URL('./dist/', import.meta.url);
 /** @type {Map<string, Promise<boolean>>} */
 const indexability = new Map();
@@ -53,6 +54,16 @@ export default defineConfig({
   site,
   outDir: fileURLToPath(outDirUrl),
   trailingSlash: 'always',
+  env: {
+    schema: {
+      SITE_MODE: envField.enum({
+        context: 'server',
+        access: 'secret',
+        values: ['production', 'preview'],
+        default: 'production',
+      }),
+    },
+  },
   image: {
     layout: 'constrained',
     responsiveStyles: true,
@@ -88,29 +99,36 @@ export default defineConfig({
       },
     }),
     mdx({ processor: createMarkdownProcessor() }),
-    sitemap({
-      filter: (page) =>
-        page !== `${site}/` &&
-        !page.includes('/compare/') &&
-        !page.includes('/v/') &&
-        !page.endsWith('/search/'),
-      i18n: {
-        defaultLocale: 'en',
-        locales: { en: 'en', zh: 'zh-CN' },
-      },
-      serialize: async (item) => {
-        if (!(await isIndexablePage(item.url))) return undefined;
-        if (item.links) {
-          const linkIndexability = await Promise.all(
-            item.links.map(async (link) => ({ link, indexable: await isIndexablePage(link.url) })),
-          );
-          item.links = linkIndexability
-            .filter(({ indexable }) => indexable)
-            .map(({ link }) => link);
-        }
-        return item;
-      },
-    }),
+    ...(isPreviewBuild
+      ? []
+      : [
+          sitemap({
+            filter: (page) =>
+              page !== `${site}/` &&
+              !page.includes('/compare/') &&
+              !page.includes('/v/') &&
+              !page.endsWith('/search/'),
+            i18n: {
+              defaultLocale: 'en',
+              locales: { en: 'en', zh: 'zh-CN' },
+            },
+            serialize: async (item) => {
+              if (!(await isIndexablePage(item.url))) return undefined;
+              if (item.links) {
+                const linkIndexability = await Promise.all(
+                  item.links.map(async (link) => ({
+                    link,
+                    indexable: await isIndexablePage(link.url),
+                  })),
+                );
+                item.links = linkIndexability
+                  .filter(({ indexable }) => indexable)
+                  .map(({ link }) => link);
+              }
+              return item;
+            },
+          }),
+        ]),
   ],
   vite: {
     plugins: [

@@ -2,6 +2,7 @@ name: Site
 
 on:
   push:
+    branches: ['**']
   pull_request:
   workflow_dispatch:
 
@@ -14,20 +15,34 @@ concurrency:
 
 jobs:
   verify:
+    if: ${{ github.event_name != 'push' || !github.event.deleted }}
     uses: ./.github/workflows/verify.yml
     with:
-      upload_site: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+      upload_preview: ${{ github.event_name != 'pull_request' && startsWith(github.ref, 'refs/heads/') }}
+      upload_production: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+
+  deploy-preview:
+    if: ${{ github.event_name != 'pull_request' && startsWith(github.ref, 'refs/heads/') && !github.event.deleted }}
+    needs: verify
+    concurrency:
+      group: deploy-preview-${{ github.ref }}
+      cancel-in-progress: true
+    uses: ./.github/workflows/deploy-cloudflare.yml
+    with:
+      artifact_name: site-preview-${{ github.sha }}
+      deployment_type: preview
+    secrets:
+      cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
   deploy-production:
-    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && !github.event.deleted }}
     needs: verify
     concurrency:
       group: deploy-production
       cancel-in-progress: true
     uses: ./.github/workflows/deploy-cloudflare.yml
     with:
-      artifact_name: site-${{ github.sha }}
-      environment: production
-      environment_url: https://sshawn9.com
+      artifact_name: site-production-${{ github.sha }}
+      deployment_type: production
     secrets:
       cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}

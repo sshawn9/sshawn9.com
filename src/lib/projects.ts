@@ -1,6 +1,6 @@
 import { getCollection, getEntries, getEntry, type CollectionEntry } from 'astro:content';
 import { BASE_LOCALE, localePath, otherLocale, type Locale } from '../i18n/config';
-import { getArticleProjectIds, getPublishedArticles, type Article } from './articles';
+import { getArticleProjectIds, getVisibleArticles, type Article } from './articles';
 
 type ProjectEntry = CollectionEntry<'projects'>;
 type ProjectMetadataEntry = CollectionEntry<'projectMetadata'>;
@@ -81,7 +81,7 @@ export async function getProjects(locale: Locale): Promise<Project[]> {
 export async function getProjectArticles(projectId: string, locale: Locale): Promise<Article[]> {
   const [project, articles] = await Promise.all([
     getEntry('projectMetadata', projectId),
-    getPublishedArticles(locale),
+    getVisibleArticles(locale),
   ]);
   if (!project) throw new Error(`Unknown project “${projectId}”.`);
 

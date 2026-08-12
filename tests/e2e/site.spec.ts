@@ -155,22 +155,10 @@ test('tag filtering keeps the complete facet list and fixed global counts', asyn
 });
 
 test('version comparison loads on demand and supports both layouts', async ({ page }) => {
-  await page.goto('/en/blog/');
-  const articleHrefs = await page
-    .locator('[data-blog-article] h2 a')
-    .evaluateAll((links) => links.map((link) => (link as HTMLAnchorElement).href));
-  let comparisonHref: string | null = null;
-
-  for (const href of articleHrefs) {
-    await page.goto(href);
-    const link = page.locator('[data-version-compare-link]').first();
-    if ((await link.count()) > 0) {
-      comparisonHref = await link.getAttribute('href');
-      break;
-    }
-  }
-
-  expect(comparisonHref).not.toBeNull();
+  await page.goto('/en/blog/my-personal-website/');
+  const comparisonLink = page.locator('[data-version-compare-link]').first();
+  await expect(comparisonLink).toHaveAttribute('href', /\/compare\//);
+  const comparisonHref = await comparisonLink.getAttribute('href');
   await page.goto(comparisonHref!);
 
   await expect(page.locator('[data-version-comparison]')).toBeVisible();

@@ -2,11 +2,7 @@
 import { render } from 'astro:content';
 import { LOCALES, type Locale } from '../../../../../i18n/config';
 import PostLayout from '../../../../../layouts/PostLayout.astro';
-import {
-  getPublishedArticles,
-  type Article,
-  type ArticleVersion,
-} from '../../../../../lib/articles';
+import { getVisibleArticles, type Article, type ArticleVersion } from '../../../../../lib/articles';
 
 type Props = {
   locale: Locale;
@@ -16,7 +12,7 @@ type Props = {
 
 export async function getStaticPaths() {
   const localizedArticles = await Promise.all(
-    LOCALES.map(async (locale) => ({ locale, articles: await getPublishedArticles(locale) })),
+    LOCALES.map(async (locale) => ({ locale, articles: await getVisibleArticles(locale) })),
   );
 
   return localizedArticles.flatMap(({ locale, articles }) =>

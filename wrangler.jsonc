@@ -1,16 +1,18 @@
 {
   "name": "sshawn9-com",
   "compatibility_date": "2026-08-10",
-  "workers_dev": true,
+  "workers_dev": false,
+  "preview_urls": false,
   "assets": {
     "directory": "./dist",
     "not_found_handling": "404-page",
     "html_handling": "auto-trailing-slash",
   },
-  "routes": [
-    {
-      "pattern": "sshawn9.com",
-      "custom_domain": true,
+  "env": {
+    "preview": {
+      "name": "sshawn9-com-preview",
+      "workers_dev": false,
+      "preview_urls": true,
     },
-  ],
+  },
 }

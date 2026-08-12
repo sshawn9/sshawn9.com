@@ -2,6 +2,7 @@
 import { SEO } from 'astro-seo';
 import { Schema } from 'astro-seo-schema';
 import { ClientRouter } from 'astro:transitions';
+import { SITE_MODE } from 'astro:env/server';
 import type { Person, WithContext } from 'schema-dts';
 import { SITE } from '../config';
 import {
@@ -36,6 +37,7 @@ const {
 } = Astro.props;
 const description =
   providedDescription ?? (type === 'article' ? undefined : m.site_description({}, { locale }));
+const shouldNoIndex = noIndex || SITE_MODE === 'preview';
 const siteTitle = m.site_title({}, { locale });
 const pageTitle = title === siteTitle ? title : `${title} — ${SITE.name}`;
 const canonicalUrl = canonical ?? new URL(Astro.url.pathname, Astro.site ?? SITE.url).toString();
@@ -88,7 +90,7 @@ const openGraph = socialImage
   title={pageTitle}
   {description}
   canonical={canonicalUrl}
-  noindex={noIndex}
+  noindex={shouldNoIndex}
   {languageAlternates}
   {openGraph}
   twitter={{

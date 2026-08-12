@@ -1,12 +1,12 @@
 import type { APIRoute, GetStaticPaths } from 'astro';
 import { LOCALES } from '../../../../../../i18n/config';
-import { getPublishedArticles, type ArticleVersion } from '../../../../../../lib/articles';
+import { getVisibleArticles, type ArticleVersion } from '../../../../../../lib/articles';
 
 type Props = { version: ArticleVersion };
 
 export const getStaticPaths = (async () => {
   const localizedArticles = await Promise.all(
-    LOCALES.map(async (locale) => ({ locale, articles: await getPublishedArticles(locale) })),
+    LOCALES.map(async (locale) => ({ locale, articles: await getVisibleArticles(locale) })),
   );
 
   return localizedArticles.flatMap(({ locale, articles }) =>
