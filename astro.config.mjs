@@ -53,6 +53,10 @@ export default defineConfig({
   site,
   outDir: fileURLToPath(outDirUrl),
   trailingSlash: 'always',
+  image: {
+    layout: 'constrained',
+    responsiveStyles: true,
+  },
   markdown: {
     processor: createMarkdownProcessor(),
   },

@@ -41,6 +41,7 @@
     "katex": "^0.16.47",
     "lucide-solid": "^1.28.0",
     "motion": "^12.42.2",
+    "photoswipe": "^5.4.4",
     "plotly.js-gl3d-dist-min": "^3.7.0",
     "rehype-external-links": "^3.0.0",
     "rehype-katex": "^7.0.1",

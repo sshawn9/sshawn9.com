@@ -1,0 +1,45 @@
+---
+title: 自托管工具与服务索引
+description: 按用途整理自托管工具与相关服务，作为持续更新的探索与选型索引。
+---
+
+import ZoomImage from '../../../components/ZoomImage.astro';
+import autonomousDocumentation from './images/autonomous-documentation-with-readthedocs.png';
+
+本文按用途整理我使用或关注过的 self-hosting 工具与相关服务。列表会随实际探索持续更新；其中既包括可直接部署的应用，也包括承载、管理和访问这些应用所需的基础工具。
+
+## 文件同步与个人数据
+
+- [Nextcloud](https://nextcloud.com/)：集文件同步、共享与协作功能于一体的自托管平台。
+
+## 个人生产力
+
+- [Reactive Resume](https://rxresu.me/)：用于创建和导出个人简历的开源应用，支持自行部署。
+
+## AI 应用与模型接口
+
+- [Open WebUI](https://github.com/open-webui/open-webui)：面向多种模型服务的自托管 AI Web 界面。
+- [One API](https://github.com/songquanpeng/one-api)：将不同模型服务转换为统一接口的管理与分发工具。
+
+## 文档与静态站点
+
+- [Sphinx](https://www.sphinx-doc.org/)：以结构化源文件生成技术文档和静态站点的文档工具。
+- [Sphinx Read the Docs Theme](https://sphinx-rtd-theme.readthedocs.io/en/stable/)：适用于 Sphinx 技术文档的 Read the Docs 风格主题。
+- [Nginx](https://nginx.org/)：常用于静态文件服务和反向代理的 Web 服务器。
+- [Caddy](https://caddyserver.com/)：默认支持自动 HTTPS 的 Web 服务器与反向代理。
+
+## 容器与服务器管理
+
+- [containerd](https://containerd.io/)：容器运行时，Docker 也可以使用其 image store 保存多平台镜像。
+- [1Panel](https://github.com/1Panel-dev/1Panel)：通过 Web 界面管理 Linux 服务器、容器和常用自托管应用。
+
+## 网络接入与远程访问
+
+- [EasyTier](https://github.com/EasyTier/EasyTier)：用于连接分散设备并建立虚拟网络的开源组网工具。
+- [RustDesk](https://rustdesk.com/)：支持自托管基础服务的开源远程桌面工具。
+
+## 历史部署记录
+
+这里保留一些过去部署服务时留下的截图。相关服务可能已经停用，但这些记录仍是自托管探索过程的一部分。
+
+<ZoomImage src={autonomousDocumentation} alt="曾经部署的自动驾驶项目文档站点" />

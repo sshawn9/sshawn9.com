@@ -330,7 +330,11 @@ const articleTags = getArticleTags(article);
   </article>
 
   <script>
+    import PhotoSwipeLightbox from 'photoswipe/lightbox';
+    import 'photoswipe/style.css';
     import tocbot from 'tocbot';
+
+    let articleLightbox: PhotoSwipeLightbox | undefined;
 
     function destroyToc() {
       tocbot.destroy();
@@ -360,7 +364,32 @@ const articleTags = getArticleTags(article);
       }
     }
 
-    document.addEventListener('astro:before-swap', destroyToc);
-    document.addEventListener('astro:page-load', setupToc);
+    function setupImageLightbox() {
+      articleLightbox?.destroy();
+      articleLightbox = undefined;
+
+      const article = document.querySelector<HTMLElement>('.article-prose');
+      if (!article?.querySelector('[data-pswp-item]')) return;
+
+      articleLightbox = new PhotoSwipeLightbox({
+        gallery: article,
+        children: 'a[data-pswp-item]',
+        pswpModule: () => import('photoswipe'),
+        bgOpacity: 0.92,
+      });
+      articleLightbox.init();
+    }
+
+    function teardownArticleEnhancements() {
+      destroyToc();
+      articleLightbox?.destroy();
+      articleLightbox = undefined;
+    }
+
+    document.addEventListener('astro:before-swap', teardownArticleEnhancements);
+    document.addEventListener('astro:page-load', () => {
+      setupToc();
+      setupImageLightbox();
+    });
   </script>
 </BaseLayout>
