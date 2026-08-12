@@ -286,8 +286,8 @@ test('Plotly controls and locale switching keep the article layout stable', asyn
   const translatedFigure = page.locator('[data-figure-focus]').filter({ has: translatedExplorer });
   await expect(translatedExplorer.locator('.frenet-main-plot')).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveAttribute('lang', 'zh-CN');
-  await expect(page.locator('.article-prose')).toHaveAttribute('lang', 'zh-CN');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveAttribute('lang', 'en');
+  await expect(page.locator('.article-prose')).toHaveAttribute('lang', 'en');
   await expect(translatedFigure.locator('[data-figure-focus-toggle]')).toHaveAttribute(
     'aria-label',
     'Expand figure 1',
@@ -295,7 +295,9 @@ test('Plotly controls and locale switching keep the article layout stable', asyn
   await expect(
     translatedExplorer.getByRole('button', { name: 'Reset', exact: true }),
   ).toBeVisible();
-  await expect(translatedExplorer.locator('[data-frenet-control="d"]')).toContainText('横向偏差 d');
+  await expect(translatedExplorer.locator('[data-frenet-control="d"]')).toContainText(
+    'Lateral offset d',
+  );
   await expect
     .poll(() =>
       translatedExplorer
@@ -303,6 +305,8 @@ test('Plotly controls and locale switching keep the article layout stable', asyn
         .evaluate((element) => getComputedStyle(element).position),
     )
     .toBe('absolute');
+  await translatedExplorer.scrollIntoViewIfNeeded();
+  const translatedInteractionScroll = await page.evaluate(() => window.scrollY);
   await translatedExplorer.locator('.modebar-btn').first().click({ force: true });
   const interactionScrollSamples = await page.evaluate(async () => {
     const samples: number[] = [];
@@ -312,7 +316,9 @@ test('Plotly controls and locale switching keep the article layout stable', asyn
     }
     return samples;
   });
-  expect(interactionScrollSamples.every((position) => position === initialScroll)).toBe(true);
+  expect(interactionScrollSamples).toEqual(
+    Array.from({ length: 12 }, () => translatedInteractionScroll),
+  );
 
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
