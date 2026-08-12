@@ -3,4 +3,6 @@ tags:
   - Configuration Management
   - Reproducibility
   - Autonomous Driving
+projects:
+  - autonomous-driving-motion-control
 draft: false
