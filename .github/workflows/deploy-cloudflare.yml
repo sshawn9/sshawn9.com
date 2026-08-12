@@ -41,8 +41,8 @@ jobs:
             preview|production) ;;
             *) echo "deployment_type must be preview or production"; exit 1 ;;
           esac
-      - name: Create stable preview alias
-        if: ${{ inputs.deployment_type == 'preview' }}
+      - name: Create stable branch preview alias
+        if: ${{ inputs.deployment_type == 'preview' && github.ref_name != 'main' }}
         id: preview
         shell: bash
         env:
@@ -50,28 +50,23 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "$BRANCH_NAME" == "main" ]]; then
-            alias="main"
-          else
-            normalized="$(
-              printf '%s' "$BRANCH_NAME" \
-                | tr '[:upper:]' '[:lower:]' \
-                | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-+/-/g'
-            )"
-            normalized="${normalized:-branch}"
-            if [[ ! "$normalized" =~ ^[a-z] ]]; then
-              normalized="branch-$normalized"
-            fi
-            fingerprint="$(printf '%s' "$BRANCH_NAME" | sha256sum | cut -c1-8)"
-            worker_name="sshawn9-com-preview"
-            max_alias_length=$((63 - 1 - ${#worker_name}))
-            max_base_length=$((max_alias_length - 1 - ${#fingerprint}))
-            normalized="${normalized:0:max_base_length}"
-            normalized="${normalized%-}"
-            alias="$normalized-$fingerprint"
+          normalized="$(
+            printf '%s' "$BRANCH_NAME" \
+              | tr '[:upper:]' '[:lower:]' \
+              | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-+/-/g'
+          )"
+          normalized="${normalized:-branch}"
+          if [[ ! "$normalized" =~ ^[a-z] ]]; then
+            normalized="branch-$normalized"
           fi
-
+          fingerprint="$(printf '%s' "$BRANCH_NAME" | sha256sum | cut -c1-8)"
           worker_name="sshawn9-com-preview"
+          max_alias_length=$((63 - 1 - ${#worker_name}))
+          max_base_length=$((max_alias_length - 1 - ${#fingerprint}))
+          normalized="${normalized:0:max_base_length}"
+          normalized="${normalized%-}"
+          alias="$normalized-$fingerprint"
+
           if [[ ! "$alias" =~ ^[a-z][a-z0-9-]*$ ]]; then
             echo "Generated preview alias is invalid: $alias" >&2
             exit 1
@@ -88,14 +83,16 @@ jobs:
         with:
           apiToken: ${{ secrets.cloudflare_api_token }}
           wranglerVersion: '4.120.0'
-          command: ${{ inputs.deployment_type == 'preview' && format('versions upload --env preview --preview-alias {0}', steps.preview.outputs.alias) || 'deploy --env=""' }}
+          command: ${{ inputs.deployment_type == 'production' && 'deploy --env=""' || github.ref_name == 'main' && 'deploy --env preview' || format('versions upload --env preview --preview-alias {0}', steps.preview.outputs.alias) }}
       - name: Record deployment URLs
         id: urls
         shell: bash
         env:
           DEPLOYMENT_TYPE: ${{ inputs.deployment_type }}
+          BRANCH_NAME: ${{ github.ref_name }}
           PREVIEW_ALIAS: ${{ steps.preview.outputs.alias }}
           VERSION_URL: ${{ steps.deploy.outputs.deployment-url }}
+          COMMAND_OUTPUT: ${{ steps.deploy.outputs.command-output }}
         run: |
           set -euo pipefail
 
@@ -109,15 +106,34 @@ jobs:
           fi
 
           worker_name="sshawn9-com-preview"
-          # Wrangler records both URLs, but the pinned wrangler-action currently
-          # exposes only the immutable preview_url as deployment-url.
-          stable_url="$(
-            printf '%s\n' "$VERSION_URL" \
-              | sed -E "s#^https://[^.]+-${worker_name}\\.#https://${PREVIEW_ALIAS}-${worker_name}.#"
-          )"
-          if [[ -z "$VERSION_URL" || "$stable_url" == "$VERSION_URL" ]]; then
-            echo "Unable to derive the stable preview URL from: $VERSION_URL" >&2
-            exit 1
+          if [[ "$BRANCH_NAME" == "main" ]]; then
+            stable_url="$VERSION_URL"
+            version_id="$(
+              printf '%s\n' "$COMMAND_OUTPUT" \
+                | sed -nE 's/.*Current Version ID: ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}).*/\1/p' \
+                | tail -n 1
+            )"
+            version_prefix="${version_id:0:8}"
+            version_url="$(
+              printf '%s\n' "$stable_url" \
+                | sed -E "s#^https://${worker_name}\\.#https://${version_prefix}-${worker_name}.#"
+            )"
+            if [[ -z "$version_id" || -z "$stable_url" || "$version_url" == "$stable_url" ]]; then
+              echo "Unable to resolve main preview URLs from the Wrangler deployment output." >&2
+              exit 1
+            fi
+          else
+            version_url="$VERSION_URL"
+            # Wrangler records both URLs, but wrangler-action exposes only the
+            # immutable preview URL as deployment-url for versions upload.
+            stable_url="$(
+              printf '%s\n' "$version_url" \
+                | sed -E "s#^https://[^.]+-${worker_name}\\.#https://${PREVIEW_ALIAS}-${worker_name}.#"
+            )"
+            if [[ -z "$version_url" || "$stable_url" == "$version_url" ]]; then
+              echo "Unable to derive the stable preview URL from: $version_url" >&2
+              exit 1
+            fi
           fi
 
           echo "stable-url=$stable_url" >> "$GITHUB_OUTPUT"
@@ -125,5 +141,5 @@ jobs:
             echo "### Preview deployment"
             echo
             echo "- Stable branch URL: $stable_url"
-            echo "- Immutable version URL: $VERSION_URL"
+            echo "- Immutable version URL: $version_url"
           } >> "$GITHUB_STEP_SUMMARY"

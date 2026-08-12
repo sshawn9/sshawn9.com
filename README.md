@@ -167,7 +167,7 @@ Vitest covers the article path, version, locale fallback, and tag-count conventi
 
 ## Deployment
 
-Every pushed branch receives a stable aliased Worker Preview URL. Preview builds include draft articles, omit the sitemap, and emit both HTML and HTTP `noindex` directives. Pull requests run the same preview-mode verification without deploying secrets. Each deployment summary exposes both the stable branch URL and the immutable version URL. Deleted branches and older versions are not actively removed; Cloudflare's Preview URL retention policy owns their eventual cleanup.
+Every pushed branch receives a stable Worker Preview URL. `main` owns the deployed `sshawn9-com-preview` Worker URL; other branches receive stable aliases without changing that deployment. Preview builds include draft articles, omit the sitemap, and emit both HTML and HTTP `noindex` directives. Pull requests run the same preview-mode verification without deploying secrets. Each deployment summary exposes both the stable branch URL and the immutable version URL. Deleted branches and older versions are not actively removed; Cloudflare's Preview URL retention policy owns their eventual cleanup.
 
 On `main`, separately verified preview and production artifacts are deployed independently after verification. The production version excludes drafts and retains the sitemap; the preview version includes drafts and never changes production traffic. `workflow_dispatch` follows the same branch-specific behavior.
 
@@ -175,7 +175,7 @@ One GitHub Actions repository secret is required:
 
 - `CLOUDFLARE_API_TOKEN`: a token created from Cloudflare's **Edit Cloudflare Workers** template and restricted to the target account
 
-`wrangler.jsonc` is the source of truth for two isolated Worker environments. The default `sshawn9-com` Worker serves production through `sshawn9.com` and exposes no `workers.dev` or Preview URL. The `preview` environment uploads draft-inclusive versions to `sshawn9-com-preview`, where each branch has a stable aliased Preview URL and each upload also receives an immutable version URL. The stable production custom-domain mapping is managed separately as long-lived Terraform infrastructure. No Cloudflare Pages project or per-branch DNS records are used.
+`wrangler.jsonc` is the source of truth for two isolated Worker environments. The default `sshawn9-com` Worker serves production through `sshawn9.com` and exposes no `workers.dev` or Preview URL. The `preview` environment deploys the draft-inclusive `main` build to `sshawn9-com-preview`; other branches upload non-deployed versions with stable aliases. Every build also receives an immutable version URL. The stable production custom-domain mapping is managed separately as long-lived Terraform infrastructure. No Cloudflare Pages project or per-branch DNS records are used.
 
 For the one-time ownership migration, apply the `actions-private/cf-dns` configuration and verify that it has imported the existing `sshawn9.com` custom domain before deploying this repository's route-free Wrangler configuration.
 

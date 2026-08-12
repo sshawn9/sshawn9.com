@@ -11,7 +11,7 @@
   "env": {
     "preview": {
       "name": "sshawn9-com-preview",
-      "workers_dev": false,
+      "workers_dev": true,
       "preview_urls": true,
     },
   },
