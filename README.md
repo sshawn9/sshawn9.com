@@ -1,37 +1,37 @@
 # sshawn9.com
 
-Shawn's personal site for projects, a blog, and a personal introduction. The current copy is intentionally short placeholder content for deciding which sections to keep.
+Shawn 的个人网站，用于展示项目、发布博客和进行个人介绍。当前文案有意保持简短，便于决定最终保留哪些内容。
 
-## Stack
+## 技术栈
 
-- Astro 7 for static generation and official client-side view transitions
-- Tailwind CSS 4 for the design system and responsive UI
-- Astro Content Collections for typed articles and projects
-- Paraglide JS for type-safe English and Chinese interface messages
-- Expressive Code for code blocks
-- Pagefind Component UI for build-time multilingual full-site search
-- a small SolidJS island with Kobalte primitives for article filtering and pagination
-- Tocbot for the active article table of contents
-- Diff2Html and jsdiff for on-demand comparisons between complete article versions
-- `astro-seo`, `astro-seo-schema`, and the official Astro sitemap integration for metadata
-- the browser Popover API for menus and disclosure panels
-- Motion for progressive, reduced-motion-aware animation
-- Cloudflare Workers Static Assets for production hosting
+- Astro 7：静态生成与官方客户端视图过渡
+- Tailwind CSS 4：设计系统与响应式界面
+- Astro Content Collections：具有类型约束的文章与项目内容
+- Paraglide JS：类型安全的中英文界面文案
+- Expressive Code：代码块渲染
+- Pagefind Component UI：构建时生成的多语言全站搜索
+- 基于 Kobalte 原语的小型 SolidJS 岛：文章筛选与分页
+- Tocbot：文章目录及当前章节高亮
+- Diff2Html 与 jsdiff：按需比较文章的完整历史版本
+- `astro-seo`、`astro-seo-schema` 与 Astro 官方 sitemap 集成：页面元信息
+- 浏览器原生 Popover API：菜单与展开面板
+- Motion：渐进增强且尊重“减少动态效果”偏好的动画
+- Cloudflare Workers Static Assets：生产环境托管
 
-## Development
+## 本地开发
 
 ```bash
 npm ci
 npm run dev
 ```
 
-The repository convention also supports Astro's managed background server:
+本仓库也支持由 Astro 管理的后台开发服务器：
 
 ```bash
 npm run astro -- dev --background
 ```
 
-Full local verification:
+完整的本地验证流程：
 
 ```bash
 npm run check
@@ -42,37 +42,37 @@ npm run test:e2e
 npm run preview
 ```
 
-Node 24 is the repository's tested development runtime; `.nvmrc` records that recommendation. `npm run build` generates the static site and its multilingual full-site Pagefind index. Browser tests use port 4322 so they never interfere with the normal development server on 4321.
+本仓库使用 Node 24 作为经过测试的开发运行时，`.nvmrc` 记录了这一建议版本。`npm run build` 会生成静态网站及其 Pagefind 多语言全站索引。浏览器测试使用 4322 端口，因此不会干扰运行在 4321 端口的常规开发服务器。
 
-## Internationalization
+## 国际化
 
-English is the internal base language. Public pages always use a locale prefix:
+英文是程序内部的基础语言。所有公开页面都使用语言前缀：
 
 ```text
 /en/...
 /zh/...
 ```
 
-The neutral `/` route chooses a locale from Paraglide's saved preference, then the browser's ordered language preferences, and finally English. An explicit locale in the URL determines the rendered page. The language icon switches directly between English and Chinese and saves that choice; no separate “auto” mode is exposed in the interface.
+访问不带语言前缀的 `/` 时，网站会依次依据 Paraglide 保存的语言偏好、浏览器的语言偏好顺序和英文默认值选择语言。URL 中显式指定的语言决定页面的渲染语言。语言图标用于直接切换中文和英文并保存选择，界面不会额外暴露“自动”模式。
 
-Interface messages live in `messages/en.json` and `messages/zh.json`. Astro owns the localized static route tree; Paraglide owns typed UI copy. Pagefind discovers the page's `<html lang>` and builds one index per language.
+界面文案位于 `messages/en.json` 和 `messages/zh.json`。Astro 负责本地化静态路由树，Paraglide 负责具有类型约束的界面文案。Pagefind 根据页面的 `<html lang>` 属性，为每种语言分别建立索引。
 
-## Article content
+## 文章内容
 
-Every conceptual article has its own directory so Markdown and assets can stay together.
+每篇逻辑文章都有独立目录，使 Markdown 正文与相关资源可以存放在一起。
 
-A single-version article omits a version directory:
+单版本文章不需要版本目录：
 
 ```text
 src/content/blog/my-article/
-├── meta.yaml         # shared dates, tags, project references, and publication state
-├── index.md          # base English form
-├── index.en.md       # optional explicit English form
-├── index.zh.md       # optional Chinese form
+├── meta.yaml         # 共享的日期、标签、所属项目与发布状态
+├── index.md          # 英文基础版本
+├── index.en.md       # 可选的显式英文版本
+├── index.zh.md       # 可选的中文版本
 └── images/
 ```
 
-Once an article has a substantial revision, every immutable version becomes a complete snapshot:
+当文章出现实质性修订后，每个不可变版本都保存为一份完整快照：
 
 ```text
 src/content/blog/my-article/
@@ -88,7 +88,7 @@ src/content/blog/my-article/
     └── images/
 ```
 
-Astro loads every `meta.yaml` through a dedicated Content Collection. Its ID is derived from the directory path, so the adjacent Markdown files do not repeat that relationship:
+Astro 通过专用 Content Collection 加载所有 `meta.yaml`。元信息 ID 由目录路径推导，因此相邻的 Markdown 文件不需要重复声明这一关系：
 
 ```yaml
 # meta.yaml
@@ -106,21 +106,21 @@ title: 文章标题
 description: 本地化摘要
 ```
 
-For a versioned article, the metadata ID is the version path, such as `my-article/v2`. Dates, tags, and draft state therefore have one source of truth per complete version; titles, descriptions, revision summaries, and bodies remain localized.
+对于多版本文章，元信息 ID 是包含版本号的路径，例如 `my-article/v2`。因此，每个完整版本的日期、标签和草稿状态都只有一个数据源；标题、描述、修订摘要和正文则分别进行本地化。
 
-`index.md` is the base English alias. If both `index.md` and `index.en.md` exist, the explicit English file wins. The code deliberately does not impose a complex prohibition system around partial translations.
+`index.md` 是基础英文别名。如果 `index.md` 与 `index.en.md` 同时存在，则优先使用显式的英文文件。代码不会围绕不完整翻译建立复杂的禁止规则。
 
-Article discovery and language resolution are separate operations:
+文章发现与语言解析是两个独立过程：
 
-1. Discover every conceptual article directory.
-2. Select the latest published conceptual version.
-3. Resolve that same version in the requested language.
-4. Fall back to the other available language when needed.
-5. Render every conceptual article exactly once in every locale's article list.
+1. 发现所有逻辑文章目录。
+2. 选择每篇文章最新的已发布逻辑版本。
+3. 在同一版本中解析请求的语言。
+4. 必要时回退到其他可用语言。
+5. 在每种语言的文章列表中，每篇逻辑文章只渲染一次。
 
-Missing Chinese content therefore never removes an article from `/zh/blog/`, and a missing translation never causes the resolver to fall back to an older version.
+因此，缺少中文内容不会使文章从 `/zh/blog/` 消失，缺少翻译也不会导致解析器回退到旧版本。
 
-Tags are content-independent canonical strings and are never translated. They live only in the version's shared `meta.yaml`. The blog taxonomy reads only the latest version of each conceptual article; older versions never contribute tags or counts:
+标签是与内容语言无关的规范字符串，永远不会被翻译。标签只存在于对应版本共享的 `meta.yaml` 中。博客分类系统只读取每篇逻辑文章的最新版本，旧版本不会参与标签集合或数量统计：
 
 ```yaml
 # meta.yaml
@@ -129,7 +129,7 @@ tags:
   - Content revision
 ```
 
-The optional `projects` array uses Astro Content Collection references. One article can belong to several projects, and only the latest published version participates in project membership:
+可选的 `projects` 数组使用 Astro Content Collection 引用。一篇文章可以属于多个项目，只有最新的已发布版本参与项目归属关系：
 
 ```yaml
 projects:
@@ -137,49 +137,48 @@ projects:
   - another-project
 ```
 
-## Creating a revision
+## 创建文章修订版本
 
-There is deliberately no repository-mutation script. When the first substantial revision is needed, preserve the original article and its metadata as the complete `v1/` snapshot and create `v2/` as a complete new snapshot. Later revisions add `v3/`, `v4/`, and so on. Copy any version-specific assets into that version directory and leave every published older directory unchanged.
+仓库刻意不提供修改内容目录的自动化脚本。当文章第一次发生实质性修订时，将原文章及其元信息完整保留为 `v1/` 快照，并将 `v2/` 创建为一份完整的新快照。后续修订依次增加 `v3/`、`v4/` 等目录。所有版本专属资源都应复制到对应版本目录，已经发布的旧版本目录保持不变。
 
-The path parser in `src/lib/article-convention.ts` and the small adapter in `src/lib/articles.ts` are the only code that understand this convention. Routes and components consume normalized `Article` and `ArticleVersion` values rather than parsing paths themselves.
+`src/lib/article-convention.ts` 中的路径解析器和 `src/lib/articles.ts` 中的小型适配器是仅有的理解这套约定的代码。路由和组件消费规范化后的 `Article` 与 `ArticleVersion` 数据，而不会自行解析路径。
 
-Version comparison has one canonical page per article. It downloads only the two selected immutable Markdown snapshots when a visitor opens that page.
+每篇文章只有一个规范的版本比较页面。访客打开该页面时，网站只下载当前选中的两份不可变 Markdown 快照。
 
-## Page and project content
+## 页面与项目内容
 
-Localized page and interface copy lives in `messages/<locale>.json`. Each project keeps stable metadata, localized content, and future assets together:
+本地化的页面文案和界面文案位于 `messages/<locale>.json`。每个项目将稳定元信息、本地化内容和未来资源存放在同一目录：
 
 ```text
 src/content/projects/my-project/
-├── meta.yaml       # display order and stable project ID
-├── index.en.md     # English summary and project body
-├── index.zh.md     # optional Chinese summary and project body
+├── meta.yaml       # 展示顺序与稳定的项目 ID
+├── index.en.md     # 英文摘要与项目正文
+├── index.zh.md     # 可选的中文摘要与项目正文
 └── images/
 ```
 
-`src/lib/projects.ts` applies the same requested-language-then-fallback rule as articles. A detail page renders the authored project body first, then derives its related-article list from the latest published article metadata. Article titles and optional descriptions therefore follow the current locale and its normal fallback without being copied into project Markdown.
+`src/lib/projects.ts` 使用与文章相同的“请求语言优先、其他语言回退”规则。项目详情页首先渲染人工编写的项目正文，然后根据最新已发布文章的元信息生成相关文章列表。因此，文章标题和可选描述会遵循当前语言及其常规回退规则，不需要复制到项目 Markdown 中。
 
-Paraglide owns page-level and interface copy. Long-form articles and project records remain in content collections.
+Paraglide 负责页面级文案和界面文案，长篇文章与项目记录仍由 Content Collections 管理。
 
-## Quality checks
+## 质量验证
 
-Vitest covers the article path, version, locale fallback, and tag-count conventions. Playwright covers behavior that static checks cannot prove: locale preference, ClientRouter language and theme transitions, fixed tag facets, and on-demand version comparison. The GitHub Actions verification job runs formatting, types, unit tests, a preview build, and those browser checks. A `main` deployment also rebuilds and tests the production variant before release.
+Vitest 覆盖文章路径、版本、语言回退和标签计数约定。Playwright 覆盖静态检查无法证明的行为，包括语言偏好、ClientRouter 下的语言与主题切换、固定标签筛选项以及按需版本比较。GitHub Actions 验证任务会执行格式检查、类型检查、单元测试、预览构建和浏览器测试。`main` 分支部署还会在发布前重新构建并测试生产版本。
 
-## Deployment
+## 部署
 
-Every pushed branch receives a stable Worker Preview URL. `main` owns the deployed `sshawn9-com-preview` Worker URL; other branches receive stable aliases without changing that deployment. Preview builds include draft articles, omit the sitemap, and emit both HTML and HTTP `noindex` directives. Pull requests run the same preview-mode verification without deploying secrets. Each deployment summary exposes both the stable branch URL and the immutable version URL. Deleted branches and older versions are not actively removed; Cloudflare's Preview URL retention policy owns their eventual cleanup.
+每个已推送分支都有稳定的 Worker Preview URL。`main` 分支拥有已部署的 `sshawn9-com-preview` Worker URL；其他分支使用稳定别名，且不会改变该部署。预览构建包含草稿文章、不生成 sitemap，并同时通过 HTML 与 HTTP 响应头声明 `noindex`。拉取请求执行相同的预览模式验证，但不会使用部署密钥。每次部署摘要都会提供稳定分支 URL 和不可变版本 URL。分支删除后不会主动删除其别名，旧版本也不会主动删除；它们最终由 Cloudflare 的 Preview URL 保留策略清理。
 
-On `main`, separately verified preview and production artifacts are deployed independently after verification. The production version excludes drafts and retains the sitemap; the preview version includes drafts and never changes production traffic. `workflow_dispatch` follows the same branch-specific behavior.
+在 `main` 分支上，分别通过验证的预览产物和生产产物会在验证完成后独立部署。生产版本排除草稿并保留 sitemap；预览版本包含草稿且不会改变生产流量。`workflow_dispatch` 遵循相同的分支行为。
 
-One GitHub Actions repository secret is required:
+需要配置一个 GitHub Actions 仓库密钥：
 
-- `CLOUDFLARE_API_TOKEN`: a token created from Cloudflare's **Edit Cloudflare Workers** template and restricted to the target account
+- `CLOUDFLARE_API_TOKEN`：使用 Cloudflare 的 **Edit Cloudflare Workers** 模板创建，并限制在目标账户内的令牌
 
-`wrangler.jsonc` is the source of truth for two isolated Worker environments. The default `sshawn9-com` Worker serves production through `sshawn9.com` and exposes no `workers.dev` or Preview URL. The `preview` environment deploys the draft-inclusive `main` build to `sshawn9-com-preview`; other branches upload non-deployed versions with stable aliases. Every build also receives an immutable version URL. The stable production custom-domain mapping is managed separately as long-lived Terraform infrastructure. No Cloudflare Pages project or per-branch DNS records are used.
+`wrangler.jsonc` 是两个隔离 Worker 环境的唯一配置来源。默认的 `sshawn9-com` Worker 通过 `sshawn9.com` 提供生产服务，不开放 `workers.dev` 或 Preview URL。`preview` 环境将包含草稿的 `main` 构建部署到 `sshawn9-com-preview`；其他分支上传带有稳定别名但不设为当前部署的版本。每次构建也会获得一个不可变版本 URL。稳定的生产自定义域映射由独立的长期 Terraform 基础设施管理。本方案不使用 Cloudflare Pages 项目，也不为每个分支创建 DNS 记录。
 
-For the one-time ownership migration, apply the `actions-private/cf-dns` configuration and verify that it has imported the existing `sshawn9.com` custom domain before deploying this repository's route-free Wrangler configuration.
+首次迁移资源所有权时，应先应用 `actions-private/cf-dns` 配置，并确认它已经导入现有的 `sshawn9.com` 自定义域，然后再部署本仓库中不含路由的 Wrangler 配置。
 
-## Current boundaries
+## 当前边界
 
-- The old `sshawn9.github.io` articles are not migrated yet.
-- Forms, comments, authentication, and other dynamic features should be added only when a real requirement appears.
+- 表单、评论、身份验证及其他动态功能只在出现真实需求时添加。
