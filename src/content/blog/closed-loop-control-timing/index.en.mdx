@@ -1,0 +1,69 @@
+---
+title: Closed-Loop Control Timing
+description: An interactive timing diagram of the periods, phases, and delays among steering-feedback generation, upper-level decision updates, command transmission, and lower-level updates in autonomous lateral control, together with the simplifications this timing abstraction makes relative to a real steering system.
+---
+
+import 'katex/dist/katex.min.css';
+
+import FigureFocusDialog from '../../../components/FigureFocusDialog.astro';
+import FocusFigure from '../../../components/FocusFigure.astro';
+import ClosedLoopControlTiming from './ClosedLoopControlTiming.astro';
+import '../../../styles/research-figures.css';
+import './closed-loop-control-timing.css';
+
+## Interactive timing diagram
+
+In an autonomous-driving system whose lateral-control interface uses a target front-wheel steering angle, the steering command produced by the path-tracking algorithm does not become the actual front-wheel angle immediately. The controller first reads the vehicle state and current steering-angle feedback, then computes a new target angle at a discrete instant. The command passes through the software chain, vehicle interface, and in-vehicle communication network before reaching the lower-level steering controller. The motor, transmission mechanism, and steering mechanism then produce the actual angle. A new steering-angle measurement subsequently returns to the upper-level controller through the feedback path, allowing the closed loop to continue.
+
+The diagram below represents this chain with three groups of periodic events:
+
+- **Feedback generation** is the instant at which the steering-angle sensor, state estimator, or vehicle interface produces a new steering-angle feedback sample.
+- **Decision update** is the instant at which the upper-level motion-control and path-tracking algorithm reads the inputs then available and computes a new control command.
+- **Command execution** represents a discrete lower-level steering-controller update that applies an upper-level command. It does not mean that the motor and front wheels have already completed their physical response at that instant.
+
+Circular markers denote periodic events. Triangular markers denote the instants at which feedback or a command becomes available at its destination. A diagonal dashed line connects the origin and arrival of the same information, and is drawn only when both endpoints are visible. A filled triangle means that the information will still be the newest available item when the next corresponding decision or execution event occurs. An open triangle means that newer information will arrive before that next event.
+
+For the decision-command path, each circle on the decision-update row marks the generation of a new control command. After the transmission delay, the command reaches the motor controller; its arrival is shown by a triangle above the command-execution row. A filled triangle means that, at the immediately following command-execution event, this command remains the newest command to have arrived. An open triangle means that a command generated later will arrive before that execution event, so the earlier command will no longer be the newest available one.
+
+Likewise, for the feedback path, each circle on the feedback-generation row marks the generation of new steering-angle feedback. After the feedback delay, the feedback reaches the upper-level motion-control algorithm; its arrival is shown by a triangle below the decision-update row. A filled triangle means that, at the immediately following decision update, this feedback remains the newest feedback to have arrived. An open triangle means that feedback generated later will arrive before that decision update, so the earlier feedback will no longer be the newest available one.
+
+<FocusFigure number={1} variant="research">
+  <ClosedLoopControlTiming locale="en" />
+  <figcaption slot="caption">
+    <strong>Figure 1.</strong> Timing of steering feedback, upper-level decisions, command
+    transmission, and lower-level updates in autonomous lateral control. Drag a circle or triangle
+    directly to change an event group's period, phase, or fixed propagation delay and observe how
+    the event ordering changes.
+  </figcaption>
+</FocusFigure>
+
+<FigureFocusDialog />
+
+### Instructions
+
+- Drag the current-decision circle to move the current decision instant. Drag another decision circle to adjust the decision-update period.
+- On the feedback-generation and command-execution rows, drag the leftmost circle to translate the entire event group; drag another circle to adjust that group's period.
+- Drag a feedback-available or command-available triangle to adjust the fixed propagation delay of the corresponding path.
+- **Synchronize feedback generation and command execution** forces the two event groups to share one period and phase. This represents a motor controller that executes commands and produces state feedback within the same command cycle.
+
+### Analysis
+
+For a motion-control path-tracking algorithm, the motor controller and its actuator can usually be treated as a single system, represented by an equivalent model from target front-wheel angle to actual front-wheel angle, without explicitly reproducing the internal processes of the motor controller and mechanical actuator in the upper-level algorithm. This abstraction does not make those processes irrelevant. Understanding how the lower-level controller processes commands, how the actuator produces the actual angle, and how feedback is formed helps represent these details more accurately in the equivalent model and clarify the model's domain of applicability.
+
+From the perspective of the upper-level motion controller, the closed-loop communication delay comprises the feedback delay and transmission delay shown in the diagram. Consequently, the information available to the controller at the current decision instant is feedback generated in the past, while the command computed at that instant cannot act on the lower-level system until a later time. The interval between the time represented by the latest feedback and the earliest time at which the new command can affect lower-level execution is a period of state evolution not yet covered by new feedback.
+
+System identification is used here to construct a dynamic response model from control command to actual steering angle from input-output data. During online operation, this model can be combined with the most recent feedback and the commands actually issued since that feedback to propagate the state evolution not yet covered by a newer observation. As decision cycles advance, new observations can correct the previous propagation result, after which propagation continues from the updated state estimate. Feedback here updates or constrains a state estimate; it does not directly confirm the system's true state.
+
+## Differences from a real system
+
+### Delays are treated as fixed constants
+
+Communication delays in a real system are affected by the physical transmission path and may exhibit jitter. Phase differences among the intrinsic cycles of different layers can also introduce additional time offsets. Repeated system-identification experiments may likewise produce differing results.
+
+### A motor controller processes control commands in more complex ways
+
+The diagram represents one “command execution” as a single discrete event. A real motor controller usually contains internal loops operating at different time scales, such as position, velocity, and current or torque loops. After an upper-level command arrives, it may first undergo timestamp checking, queueing, replacement, or validity checks. To decouple a slower upper-level command period from a faster internal servo period, the lower level may also interpolate or smooth adjacent targets. The triangle therefore indicates only that a command has arrived, while the circle indicates only a lower-level update boundary. Neither marker alone determines the trajectory by which a particular command enters the internal control loops.
+
+### Inherent properties of the physical actuator
+
+Even when command generation, transmission, and execution instants are fully determined, the actual front-wheel angle does not jump to the target value at an execution event. The motor, reduction mechanism, and steering mechanism may exhibit dead zones, zero offsets, friction, and hysteresis, and are subject to limits on steering range, steering rate, drive capability, and external load. These factors may also vary with operating conditions, giving the equivalent steering dynamics nonlinear or time-varying characteristics.

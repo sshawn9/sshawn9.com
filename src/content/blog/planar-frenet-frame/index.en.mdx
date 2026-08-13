@@ -1,0 +1,512 @@
+---
+title: Planar Frenet Frame
+description: Defines the unit tangent, left unit normal, and signed curvature of a planar reference path; derives the Frenet differential relations from both the orthonormal-frame and path-heading representations; and establishes consistent geometric and sign conventions for vehicle kinematics in Frenet coordinates.
+---
+
+import 'katex/dist/katex.min.css';
+
+import FigureFocusDialog from '../../../components/FigureFocusDialog.astro';
+
+import FocusFigure from '../../../components/FocusFigure.astro';
+
+import ResearchFigure from '../../../components/ResearchFigure.astro';
+
+import '../../../styles/research-figures.css';
+
+## Basic terminology and frame conventions
+
+A parameterized curve is called **regular** if its first derivative is nonzero throughout the parameter interval. This condition excludes parameter values at which the parameterization velocity vanishes and ensures a well-defined tangent direction at every parameter value. Even if the image of the curve intersects itself, the different parameter values corresponding to the same point retain their own tangent directions. A curve is of class $C^2$ if the curve itself and its first and second derivatives are continuous. The second derivative is needed here to define changes in the tangent and curvature.
+
+This article uses the **arc-length parameter** $s$ directly: an increment in the parameter equals the distance traveled along the curve. The reference path is therefore written as
+
+$$
+\mathbf r:I\longrightarrow\mathbb R^2,
+\qquad s\longmapsto\mathbf r(s).
+$$
+
+Here, $I$ is the interval of arc-length values and $\mathbf r$ is a $C^2$ curve. Arc-length parameterization satisfies
+
+$$
+\left\|\frac{d\mathbf r}{ds}\right\|=1,
+$$
+
+so the curve is automatically regular. Define the unit tangent by
+
+$$
+\mathbf T(s):=\frac{d\mathbf r}{ds},
+\qquad
+\|\mathbf T(s)\|=1.
+$$
+
+The plane is given its **standard orientation**: counterclockwise rotation from the positive $x$-axis to the positive $y$-axis is positive. Let
+
+$$
+J:=
+\begin{bmatrix}
+0 & -1\\
+1 & 0
+\end{bmatrix},
+$$
+
+the operator that rotates a vector counterclockwise by $90^\circ$. Define the left unit normal by
+
+$$
+\mathbf N(s):=J\mathbf T(s).
+$$
+
+For each fixed arc-length position $s$, the ordered basis $(\mathbf T(s),\mathbf N(s))$ is a frame at the path point $\mathbf r(s)$. As $s$ advances along the curve, these frames together form a moving frame along the curve. Because $\mathbf T$ and $\mathbf N$ are mutually orthogonal unit vectors, and because rotating $\mathbf T$ counterclockwise by $90^\circ$ gives $\mathbf N$, $(\mathbf T,\mathbf N)$ is a **positively oriented orthonormal frame**. This article calls the moving frame formed by the unit tangent and left unit normal the **signed Frenet frame**.
+
+A **frame** is standard terminology in differential geometry, but it is not the same as a coordinate system. A coordinate system assigns coordinates to points in a region; a frame selects an ordered basis at each specified position so that vectors at that position can be represented. The pair $(\mathbf T,\mathbf N)$ lies in the two-dimensional plane containing the curve: $\mathbf T$ is tangent to the curve, $\mathbf N$ is perpendicular to it, and together they form a basis of the plane. A coordinate system can induce a frame, but a frame does not itself assign coordinates to nearby points and need not arise from a coordinate system.
+
+## Signed curvature and its geometric meaning
+
+Define the curvature vector as the derivative of the unit tangent with respect to arc length:
+
+$$
+\mathbf K(s):=\frac{d\mathbf T}{ds}.
+$$
+
+The norm of the curvature vector is the unsigned curvature:
+
+$$
+\kappa(s):=\|\mathbf K(s)\|.
+$$
+
+Define the signed curvature as the component of the curvature vector in the left-normal direction:
+
+$$
+\begin{aligned}
+\kappa_r(s)
+&:=\mathbf K(s)\cdot\mathbf N(s)\\[0.45em]
+&=\frac{d\mathbf T}{ds}\cdot\mathbf N(s).
+\end{aligned}
+$$
+
+The unsigned curvature $\kappa$ measures only how strongly the path bends. The signed curvature $\kappa_r$ also records the turning direction: left turns are positive and right turns are negative. The orthogonal decomposition below will show that
+
+$$
+\kappa=|\kappa_r|.
+$$
+
+Figure 1 compares positive, zero, and negative signed curvature under the fixed left-normal convention and shows that the positively oriented orthonormal frame still exists at zero curvature.
+
+<FocusFigure number={1} variant="research">
+  <ResearchFigure kind="planar-curvature-signs" />
+  <figcaption slot="caption">
+    <strong>Figure 1.</strong> The planar signed Frenet frame and curvature signs under a fixed
+    left-normal convention. As the path is traversed, a left turn makes $\mathbf K$ and $\mathbf N$
+    point in the same direction, while a right turn makes them point in opposite directions. At
+    $\kappa_r=0$, $\mathbf K=\mathbf 0$, but $\mathbf N=J\mathbf T$ remains defined.
+  </figcaption>
+</FocusFigure>
+
+## The planar signed Frenet formulas
+
+### Derivation from the orthonormal frame
+
+#### Derivative of the tangent
+
+Since $\|\mathbf T\|=1$,
+
+$$
+\langle\mathbf T,\mathbf T\rangle=1.
+$$
+
+Differentiating this identity with respect to arc length $s$ gives
+
+$$
+\left\langle
+\frac{d\mathbf T}{ds},
+\mathbf T
+\right\rangle
+=0.
+$$
+
+Together with $\mathbf K=d\mathbf T/ds$, this yields
+
+$$
+\mathbf K\perp\mathbf T.
+$$
+
+Because $(\mathbf T,\mathbf N)$ is an orthonormal basis of the plane, $\mathbf K$ has the complete decomposition
+
+$$
+\mathbf K =
+(\mathbf K\cdot\mathbf T)\mathbf T
++
+(\mathbf K\cdot\mathbf N)\mathbf N =
+\kappa_r\mathbf N.
+$$
+
+The last equality uses both $\mathbf K\cdot\mathbf T=0$ and $\mathbf K\cdot\mathbf N=\kappa_r$. Since $\mathbf K=d\mathbf T/ds$, the first relation is
+
+$$
+\frac{d\mathbf T}{ds} =
+\kappa_r\mathbf N.
+$$
+
+It also gives the relationship between unsigned and signed curvature:
+
+$$
+\kappa =
+\left\|
+\frac{d\mathbf T}{ds}
+\right\| =
+\|\kappa_r\mathbf N\| =
+|\kappa_r|.
+$$
+
+#### Derivative of the normal
+
+To determine $d\mathbf N/ds$, use the other two orthonormal-frame identities:
+
+$$
+\langle\mathbf N,\mathbf N\rangle=1,
+\qquad
+\langle\mathbf T,\mathbf N\rangle=0.
+$$
+
+Differentiating them gives
+
+$$
+\left\langle
+\frac{d\mathbf N}{ds},
+\mathbf N
+\right\rangle
+=0,
+\qquad
+\left\langle
+\frac{d\mathbf T}{ds},
+\mathbf N
+\right\rangle
++
+\left\langle
+\mathbf T,
+\frac{d\mathbf N}{ds}
+\right\rangle
+=0.
+$$
+
+The first equation says that the component of $d\mathbf N/ds$ in the $\mathbf N$ direction is zero. Substitute $d\mathbf T/ds=\kappa_r\mathbf N$ into the second equation and use $\|\mathbf N\|=1$ to obtain
+
+$$
+\left\langle
+\mathbf T,
+\frac{d\mathbf N}{ds}
+\right\rangle =
+-\kappa_r.
+$$
+
+Thus, the component of $d\mathbf N/ds$ in the $\mathbf T$ direction is $-\kappa_r$, while its component in the $\mathbf N$ direction is zero. Decomposing once more in the orthonormal basis gives
+
+$$
+\frac{d\mathbf N}{ds} =
+-\kappa_r\mathbf T.
+$$
+
+The derivatives of both the tangent and left unit normal are now determined by the signed curvature. The standard orthogonality derivation appears in [[1, §6.A, pp. 54–55]](#ref-petrunin-zamora-2025).
+
+#### Direct verification using the rotation operator
+
+The second relation can also be obtained directly from $\mathbf N=J\mathbf T$. Since $J$ is a fixed linear operator independent of $s$, and two successive $90^\circ$ rotations equal a $180^\circ$ rotation,
+
+$$
+J^2=-I.
+$$
+
+Differentiate $\mathbf N=J\mathbf T$ and substitute $d\mathbf T/ds=\kappa_r\mathbf N$:
+
+$$
+\begin{aligned}
+\frac{d\mathbf N}{ds}
+&=
+J\frac{d\mathbf T}{ds}\\[0.55em]
+&=
+\kappa_rJ\mathbf N\\[0.55em]
+&=
+\kappa_rJ^2\mathbf T\\[0.55em]
+&=
+-\kappa_r\mathbf T.
+\end{aligned}
+$$
+
+This calculation only provides an alternative derivation of $d\mathbf N/ds$. The first relation, $d\mathbf T/ds=\kappa_r\mathbf N$, still follows from decomposing the curvature vector in the orthonormal frame.
+
+### Derivation from heading-angle coordinates
+
+The same relations can be written explicitly in Cartesian coordinates. Let
+
+$$
+\mathbf r(s) =
+\begin{bmatrix}
+x_r(s)\\
+y_r(s)
+\end{bmatrix},
+$$
+
+and choose a differentiable, continuously unwrapped reference-path heading $\theta_r(s)$ on the parameter interval under consideration. A geometric direction is normally defined only modulo $2\pi$, so the same direction can be represented by angles differing by $2k\pi$. **Continuous unwrapping** means choosing an angle that changes continuously as the path is traversed, avoiding an artificial jump when it crosses the boundary between $\pi$ and $-\pi$. The tangent and left unit normal can then be written as
+
+$$
+\mathbf T(s) =
+\begin{bmatrix}
+\cos\theta_r(s)\\
+\sin\theta_r(s)
+\end{bmatrix},
+\qquad
+\mathbf N(s) =
+\begin{bmatrix}
+-\sin\theta_r(s)\\
+\cos\theta_r(s)
+\end{bmatrix}.
+$$
+
+In this representation, the signed curvature and tangent angle satisfy
+
+$$
+\kappa_r(s) =
+\frac{d\theta_r}{ds}.
+$$
+
+Figure 2(a) shows the Cartesian components of the tangent and left unit normal. Figure 2(b) uses the turning angle between neighboring tangents to illustrate the local geometric meaning of $\kappa_r=d\theta_r/ds$.
+
+<FocusFigure number={2} variant="research">
+  <ResearchFigure kind="planar-heading" />
+  <figcaption slot="caption">
+    <strong>Figure 2.</strong> Coordinate representation of the heading angle and its change along
+    arc length. (a) Components of $\mathbf T$ and $\mathbf N=J\mathbf T$ in a fixed Cartesian
+    coordinate system. (b) The tangent rotation $\Delta\theta_r$ between neighboring arc-length
+    positions; in the limit, its ratio to $\Delta s$ gives the signed curvature.
+  </figcaption>
+</FocusFigure>
+
+To obtain this relation and the explicit frame derivatives, differentiate the coordinate representations of $\mathbf T$ and $\mathbf N$:
+
+$$
+\begin{aligned}
+\frac{d\mathbf T}{ds}
+&=
+\frac{d\theta_r}{ds}
+\begin{bmatrix}
+-\sin\theta_r\\
+\cos\theta_r
+\end{bmatrix} =
+\kappa_r\mathbf N,\\[0.8em]
+\frac{d\mathbf N}{ds}
+&=
+\frac{d\theta_r}{ds}
+\begin{bmatrix}
+-\cos\theta_r\\
+-\sin\theta_r
+\end{bmatrix} =
+-\kappa_r\mathbf T.
+\end{aligned}
+$$
+
+The first line shows that the rate of change of the tangent angle with respect to arc length is precisely the signed component of the curvature vector in the left-normal direction. The second line agrees with the normal derivative obtained from orthogonality. A standard coordinate derivation of the tangent-angle representation and $\kappa_r=d\theta_r/ds$ appears in [[2, Theorem 1.17, p. 8]](#ref-donaldson-2024).
+
+## Matrix form of the Frenet formulas
+
+Combining the orthonormal-frame derivation with the heading-angle representation gives the planar signed Frenet formulas:
+
+$$
+\begin{bmatrix}
+\dfrac{d\mathbf T}{ds}\\[0.8em]
+\dfrac{d\mathbf N}{ds}
+\end{bmatrix} =
+\begin{bmatrix}
+0 & \kappa_r\\
+-\kappa_r & 0
+\end{bmatrix}
+\begin{bmatrix}
+\mathbf T\\
+\mathbf N
+\end{bmatrix}.
+$$
+
+The orthonormal-frame derivation requires neither a choice of $x,y$ coordinates nor an expansion of trigonometric functions. The heading-angle representation additionally makes explicit the relation $\kappa_r=d\theta_r/ds$ used by the vehicle model that follows. Because a left unit normal and signed curvature are used consistently throughout, the same equations continuously describe left turns, right turns, and path points where $\kappa_r=0$.
+
+## Relationship to the classical principal normal
+
+The vector $\mathbf N=J\mathbf T$ in this article is the **left unit normal** under the standard orientation. It must be distinguished from the **principal normal** of the classical Frenet frame. The classical principal normal is defined by
+
+$$
+\mathbf N_{\mathrm p}:=
+\frac{\mathbf T'}{\|\mathbf T'\|},
+$$
+
+so it exists only where the unsigned curvature $\kappa=\|\mathbf T'\|>0$. When $\kappa=0$, $\mathbf T'=\mathbf 0$ and the normalization above becomes $\mathbf 0/0$. Geometrically, the curvature vector specifies no instantaneous bending direction at such a point. By contrast, $\mathbf N=J\mathbf T$ depends only on the unit tangent and the fixed rotation operator $J$. Whenever the curve is regular, $\mathbf T$ exists, and therefore the left unit normal and the frame $(\mathbf T,\mathbf N)$ remain defined on straight segments and at isolated zero-curvature points. Standard conventions for arc length, oriented planar frames, and signed curvature are given in [[1, §§2.D, 3.A–B, 6.A]](#ref-petrunin-zamora-2025); the failure of the classical Frenet frame at zero curvature is discussed in [[3, §2.1, p. 98]](#ref-carroll-kose-sterling-2013).
+
+This is not a contradiction within the classical definition, but an explicit condition on its applicability: the classical construction defines a principal normal only on curve segments where $\kappa>0$. A general regular curve can certainly contain straight segments, but it has no classical Frenet frame there. The frame can be used separately on each connected interval in $\{s\in I:\kappa(s)>0\}$ where curvature remains positive, or it can be replaced, as here, by a signed frame that does not divide by curvature.
+
+From $d\mathbf T/ds=\kappa_r\mathbf N$, at a point where $\kappa>0$ the principal normal and the left unit normal satisfy
+
+$$
+\begin{aligned}
+\mathbf N_{\mathrm p}
+&=
+\frac{\mathbf T'}{\|\mathbf T'\|}\\[0.55em]
+&=
+\frac{\kappa_r}{|\kappa_r|}\mathbf N\\[0.55em]
+&=
+\operatorname{sgn}(\kappa_r)\mathbf N.
+\end{aligned}
+$$
+
+Here, $\operatorname{sgn}$ is the sign function:
+
+$$
+\operatorname{sgn}(x)=
+\begin{cases}
+1, & x>0,\\
+0, & x=0,\\
+-1, & x<0.
+\end{cases}
+$$
+
+The equation concerns only points where $\kappa>0$, so only $\operatorname{sgn}(\kappa_r)=\pm1$ occurs here. At $\kappa_r=0$, the classical principal normal $\mathbf N_{\mathrm p}$ itself is undefined.
+
+Thus, the two normals point in the same direction only in a left-turn region where $\kappa_r>0$. In a right-turn region where $\kappa_r<0$, the principal normal is $-\mathbf N$. At $\kappa_r=0$, $\mathbf N_{\mathrm p}$ is no longer supplied by its defining equation, while $\mathbf N=J\mathbf T$ is unaffected.
+
+### Example of a curvature sign change
+
+The difficulty at zero curvature cannot always be removed by taking a limit. The following example necessarily makes the principal normal flip. Let the arc-length parameter of the path satisfy $s\in[0,L]$, and choose $s_{\ast}\in(0,L)$ in the interior. Define the unit tangent
+
+$$
+\mathbf T(s)=
+\begin{bmatrix}
+\cos\bigl((s-s_{\ast})^2/2\bigr)\\
+\sin\bigl((s-s_{\ast})^2/2\bigr)
+\end{bmatrix}.
+$$
+
+Its norm is always $1$, so it can serve as the tangent of a unit-speed curve. For example, define
+
+$$
+\mathbf r(s)
+:=
+\mathbf r(0)+
+\int_0^s \mathbf T(u)\,du.
+$$
+
+Then $\mathbf r'(s)=\mathbf T(s)$ and $\|\mathbf r'(s)\|=1$. In this example, the heading angle of the tangent is
+
+$$
+\theta_r(s)=\frac{(s-s_{\ast})^2}{2}.
+$$
+
+Therefore,
+
+$$
+\mathbf N(s)=J\mathbf T(s)=
+\begin{bmatrix}
+-\sin\bigl((s-s_{\ast})^2/2\bigr)\\
+\cos\bigl((s-s_{\ast})^2/2\bigr)
+\end{bmatrix},
+$$
+
+and
+
+$$
+\frac{d\mathbf T}{ds}
+=
+(s-s_{\ast})
+\begin{bmatrix}
+-\sin\bigl((s-s_{\ast})^2/2\bigr)\\
+\cos\bigl((s-s_{\ast})^2/2\bigr)
+\end{bmatrix}
+=
+(s-s_{\ast})\mathbf N(s).
+$$
+
+Comparison with $d\mathbf T/ds=\kappa_r\mathbf N$ gives
+
+$$
+\kappa_r(s)=s-s_{\ast},
+\qquad
+\kappa(s)=|s-s_{\ast}|.
+$$
+
+The curve therefore turns right for $s<s_{\ast}$, turns left for $s>s_{\ast}$, and passes through an inflection point of zero curvature at the interior path position $s=s_{\ast}$. For any $s\ne s_{\ast}$, the classical principal normal is
+
+$$
+\mathbf N_{\mathrm p}(s)
+=
+\frac{d\mathbf T/ds}{\|d\mathbf T/ds\|}
+=
+\frac{s-s_{\ast}}{|s-s_{\ast}|}\mathbf N(s)
+=
+\begin{cases}
+-\mathbf N(s), & s<s_{\ast},\\
+\mathbf N(s), & s>s_{\ast}.
+\end{cases}
+$$
+
+Since $\mathbf N(s_{\ast})=(0,1)^{\mathsf T}$, the one-sided limits of the principal normal at the inflection point are
+
+$$
+\lim_{s\to s_{\ast}^-}\mathbf N_{\mathrm p}(s)
+=
+\begin{bmatrix}0\\-1\end{bmatrix},
+\qquad
+\lim_{s\to s_{\ast}^+}\mathbf N_{\mathrm p}(s)
+=
+\begin{bmatrix}0\\1\end{bmatrix}.
+$$
+
+The two limiting directions are opposite. No value can be assigned to $\mathbf N_{\mathrm p}$ at $s=s_{\ast}$ that makes it continuous. By contrast, $\mathbf N=J\mathbf T$ is determined throughout by the continuous tangent and does not flip at the inflection point.
+
+The example does not say that every isolated zero-curvature point forces a flip. It shows that the classical definition does not guarantee that the principal normal can be extended continuously across such a point. If $\kappa_r$ does not change sign as it passes through zero, the two one-sided limits may happen to agree, but $\mathbf T'/\|\mathbf T'\|$ remains undefined at the zero itself. On an entire straight segment, $\mathbf T'=0$ everywhere, and the curvature vector cannot select a unique bending direction at all.
+
+## Geometric relations used by the subsequent model
+
+The vehicle kinematics in Frenet coordinates that follows will use these reference-path relations directly:
+
+$$
+\begin{aligned}
+\frac{d\mathbf r}{ds} &= \mathbf T,\\[0.5em]
+\mathbf N &= J\mathbf T,\\[0.5em]
+\frac{d\mathbf T}{ds} &= \kappa_r\mathbf N,\\[0.5em]
+\frac{d\mathbf N}{ds} &= -\kappa_r\mathbf T,\\[0.5em]
+\frac{d\theta_r}{ds} &= \kappa_r.
+\end{aligned}
+$$
+
+These relations consistently connect the reference path's position, tangent, left normal, heading, and signed curvature. The following model will use this frame to define the vehicle's longitudinal position, lateral deviation, and heading error relative to the reference path, then derive the vehicle kinematics in Frenet coordinates.
+
+## References
+
+<ol>
+  <li id="ref-petrunin-zamora-2025">
+    Anton Petrunin and Sergio Zamora Barrera,{' '}
+    <cite>
+      <a href="https://arxiv.org/abs/2012.11814" target="_blank" rel="noopener noreferrer">
+        What Is Differential Geometry? Curves and Surfaces
+      </a>
+    </cite>
+    , arXiv:2012.11814v7, 2025.
+  </li>
+  <li id="ref-donaldson-2024">
+    Neil Donaldson,{' '}
+    <cite>
+      <a
+        href="https://www.math.uci.edu/~ndonalds/math162a/notes.pdf"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Math 162A: Introduction to Differential Geometry
+      </a>
+    </cite>
+    , course notes, University of California, Irvine, Winter 2024.
+  </li>
+  <li id="ref-carroll-kose-sterling-2013">
+    Daniel Carroll, Emek Köse, and Ivan Sterling,{' '}
+    <cite>
+      <a href="https://doi.org/10.5539/jmr.v5n4p97" target="_blank" rel="noopener noreferrer">
+        Improving Frenet's Frame Using Bishop's Frame
+      </a>
+    </cite>
+    , <cite>Journal of Mathematics Research</cite>, vol. 5, no. 4, 2013, pp. 97–106.
+  </li>
+</ol>
+
+<FigureFocusDialog />

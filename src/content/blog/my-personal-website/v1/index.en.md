@@ -4,90 +4,89 @@ title: 'My GitHub Pages'
 
 ## Preface
 
-Here is a record of my GitHub Pages establishment technique based on [Jekyll](https://jekyllrb.com/) and the [minimal-mistakes](https://github.com/mmistakes/minimal-mistakes) theme.
-I decided to make this work years ago while nothing was accomplished for practical reasons, and I am glad to write this as my first post.
-Check my source code of this site at [here](https://github.com/sshawn9/sshawn9.github.io).
+This article records how I built a GitHub Pages site with [Jekyll](https://jekyllrb.com/) and the [Minimal Mistakes](https://github.com/mmistakes/minimal-mistakes) theme. I decided to do this several years ago, but practical considerations kept me from completing it. I am glad to publish the result as my first post.
+
+The site's source code is available [here](https://github.com/sshawn9/sshawn9.github.io).
 
 ## Technique details
 
 ### Jekyll
 
-As GitHub recommends, I use Jekyll which is a static site generator. For basic concepts learning, following the [step by step tutorial](https://jekyllrb.com/docs/step-by-step/01-setup/) would be a good choice. In later development, using [Jekyll docker image](https://hub.docker.com/r/jekyll/jekyll/) for building and local hosting.
+Following GitHub's recommendation, I chose Jekyll as the static-site generator. The [step-by-step tutorial](https://jekyllrb.com/docs/step-by-step/01-setup/) is a good place to learn the basic concepts. For subsequent development, the [Jekyll Docker image](https://hub.docker.com/r/jekyll/jekyll/) can be used to build and serve the site locally.
 
-```shell
-# start a container from Jekyll docker image
-# port/4000 for local hosting at http://localhost:4000
-# port/35729 is exposed by image
+```bash
+# Start a container from the Jekyll Docker image
+# Port 4000 serves the site at http://localhost:4000
+# The image also exposes port 35729
 docker run -itd -p 35729:35729 -p 4000:4000 -v $HOME/workspace/sshawn9.github.io:/jekyll --name jekyll jekyll/jekyll bash
 
-# enter the container
+# Enter the container
 docker exec -it jekyll bash
 
-# some commonly used commands in Jekyll container
-bundle init # create the default Gemfile
+# Some commonly used commands in the Jekyll container
+bundle init # Create the default Gemfile
 bundle
 bundle update
 jekyll serve
 ```
 
-### minimal-mistakes theme
+### Minimal Mistakes theme
 
-Instead of starting from scratch, choosing a theme is more convenient as you can focus on writing without concerning about the layouts, styles and so on.
-I have been seeking for an elegant theme while which satisfies me is not free. Here are some theme websites:
+Choosing a theme is more convenient than starting from scratch because it allows the author to focus on writing instead of spending as much time on layout and styling. I looked for an elegant theme, but many of the options that met my requirements were not free. Some useful theme directories are:
 
 - <http://jekyllthemes.org/>
 - <https://jekyllthemes.io/>
 
-Finally I back to [minimal-mistakes](https://github.com/mmistakes/minimal-mistakes) which is widely known and free under MIT license.
-You can start with the theme template [mm-github-pages-starter](https://github.com/mmistakes/mm-github-pages-starter) to create your own GitHub Pages repo.
-![](/assets/images/start-with-the-theme-template.png)
-Do not miss the [troubleshooting](https://github.com/mmistakes/mm-github-pages-starter#troubleshooting)
-When you try to host your website from this template locally, you may encounter following liquid exception:
-![](/assets/images/liquid-exception.png)
+I ultimately returned to [Minimal Mistakes](https://github.com/mmistakes/minimal-mistakes), a widely used theme released under the MIT license. The [mm-github-pages-starter](https://github.com/mmistakes/mm-github-pages-starter) template can be used to create a GitHub Pages repository.
+
+![Creating a GitHub Pages repository from the Minimal Mistakes template](./images/start-with-the-theme-template.png)
+
+Do not overlook the template's [troubleshooting guide](https://github.com/mmistakes/mm-github-pages-starter#troubleshooting). When serving a site created from the template locally, the following Liquid exception may appear:
+
+![Terminal output showing a Liquid exception while running the template locally](./images/liquid-exception.png)
+
 To fix it:
 
-1. Add following lines to your `_config.yml`.
+1. Add the following lines to `_config.yml`.
 
-```shell
-# host locally:
-# modify as your own setting
+```yaml
+# Local hosting:
+# Replace these values with your own settings
 PAGES_REPO_NWO: sshawn9/sshawn9.github.io
 repository: sshawn9/sshawn9.github.io
 ```
 
-2. Add following to your `Gemfile`.
+2. Add the following block to `Gemfile`.
 
-```shell
+```ruby
 group :jekyll_plugins do
   gem "kramdown-parser-gfm"
   gem "webrick"
 end
 ```
 
-Refer to [here](https://github.com/jekyll/github-metadata/blob/main/docs/configuration.md#configuration) for more information.
-And I prefer to ignore the warning of `No GitHub API authentication could be found. Some fields may be missing or have incorrect data.`
+See the [GitHub Metadata configuration documentation](https://github.com/jekyll/github-metadata/blob/main/docs/configuration.md#configuration) for more information. I chose to ignore the warning `No GitHub API authentication could be found. Some fields may be missing or have incorrect data.`
 
-### Deploy to Github
+### Deploying to GitHub
 
-There is ways to do this seeing [here](https://jekyllrb.com/docs/deployment/), and I select GitHub Actions.
-[My GitHub Action for deployment.](https://github.com/sshawn9/sshawn9.github.io/blob/main/.github/workflows/jekyll-gh-pages.yml)
+The [Jekyll deployment documentation](https://jekyllrb.com/docs/deployment/) lists several approaches; I chose GitHub Actions. Here is [my GitHub Actions deployment workflow](https://github.com/sshawn9/sshawn9.github.io/blob/main/.github/workflows/jekyll-gh-pages.yml).
 
-## More info
+## More information
 
-- [Minimal Mistakes GitHub Pages site starter demo site](https://mmistakes.github.io/mm-github-pages-starter/)
+- [Minimal Mistakes GitHub Pages starter-site demo](https://mmistakes.github.io/mm-github-pages-starter/)
 - [github-metadata](https://github.com/jekyll/github-metadata)
 - [WEBrick](https://jekyllrb.com/docs/configuration/webrick/)
 
-## favicon
+## Favicon
 
-Make your own `_includes/head/custom.html`. Refer to [here](https://github.com/mmistakes/minimal-mistakes/blob/master/_includes/head/custom.html)
+Create `_includes/head/custom.html`; see the [Minimal Mistakes example](https://github.com/mmistakes/minimal-mistakes/blob/master/_includes/head/custom.html) for details.
 
 ## TODO
 
-- [ ] remove footer with feed
-- [ ] try different default layouts
+- [ ] Remove the footer containing the feed
+- [ ] Try different default layouts
 - [ ] [Post with Table of Contents](https://mmistakes.github.io/minimal-mistakes/layout-table-of-contents-post/)
-- [ ] [header video](https://mmistakes.github.io/minimal-mistakes/layout/uncategorized/layout-header-video/), header image and so on
-- [ ] custimized sidebar like [this](https://mmistakes.github.io/minimal-mistakes/docs/quick-start-guide/)
-- [ ] check search engine optimization
-- [ ] more about frontmatter
+- [ ] Add a [header video](https://mmistakes.github.io/minimal-mistakes/layout/uncategorized/layout-header-video/), header image, or similar media
+- [ ] Try a customized sidebar like [this example](https://mmistakes.github.io/minimal-mistakes/docs/quick-start-guide/)
+- [ ] Check search engine optimization
+- [ ] Learn more about front matter
