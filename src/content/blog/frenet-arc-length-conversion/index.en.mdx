@@ -53,8 +53,8 @@ The single-value sliders under “Experimental conditions” fix variables that 
     <strong>Figure 2.</strong> With $(\varphi,\kappa_r)$ fixed, $\mathrm d\ell/\mathrm ds$ varies
     linearly with lateral deviation $d$. When $\kappa_r\ne0$ and the signed radius of curvature
     $\rho_r=1/\kappa_r$ lies within the horizontal range, the red dashed line marks $d=\rho_r$. At
-    this position, $1-d\kappa_r=0$ and the Frenet normal coordinate is degenerate; it must not be
-    interpreted as $\mathrm d\ell/\mathrm ds=0$ in a valid Frenet coordinate state.
+    this position, $1-d\kappa_r=0$ and the differential of the normal-coordinate map is degenerate;
+    it must not be interpreted as $\mathrm d\ell/\mathrm ds=0$ in a valid Frenet coordinate state.
   </figcaption>
   <FrenetExplorer axes={['d']} contentLocale="en" client:only="solid-js" />
 </FocusFigure>
@@ -65,7 +65,7 @@ The single-value sliders under “Experimental conditions” fix variables that 
   <figcaption slot="caption">
     <strong>Figure 3.</strong> With $(\varphi,d)$ fixed, $\mathrm d\ell/\mathrm ds$ varies linearly
     with reference curvature $\kappa_r$. When $d\ne0$ and $1/d$ lies within the horizontal range,
-    the red dashed line marks $\kappa_r=1/d$, the Frenet-coordinate degeneracy boundary
+    the red dashed line marks $\kappa_r=1/d$, the degeneracy boundary of the normal-coordinate map
     $1-d\kappa_r=0$.
   </figcaption>
   <FrenetExplorer axes={['kappa']} contentLocale="en" client:only="solid-js" />
@@ -81,7 +81,7 @@ The single-value sliders under “Experimental conditions” fix variables that 
     $\mathrm d\ell/\mathrm ds$; reference curvature $\kappa_r$ is set by the “Experimental
     conditions” slider. The translucent purple plane represents $\mathrm d\ell/\mathrm ds=1$. At
     $\varphi=\pm90^\circ$, the arc-length-domain parameterization fails. When $\kappa_r\ne0$,
-    $d=1/\kappa_r$ is the Frenet-coordinate degeneracy boundary.
+    $d=1/\kappa_r$ is the degeneracy boundary of the normal-coordinate map.
   </figcaption>
   <FrenetExplorer axes={['phi', 'd']} contentLocale="en" client:only="solid-js" />
 </FocusFigure>
@@ -93,7 +93,7 @@ The single-value sliders under “Experimental conditions” fix variables that 
     <strong>Figure 5.</strong> The independent variables are $(\varphi,\kappa_r)$ and the surface
     height is $\mathrm d\ell/\mathrm ds$; lateral deviation $d$ is set by the “Experimental
     conditions” slider. Heading error produces the nonlinear factor $1/\cos\varphi$. When $d\ne0$,
-    $\kappa_r=1/d$ is the Frenet-coordinate degeneracy boundary.
+    $\kappa_r=1/d$ is the degeneracy boundary of the normal-coordinate map.
   </figcaption>
   <FrenetExplorer axes={['phi', 'kappa']} contentLocale="en" client:only="solid-js" />
 </FocusFigure>
@@ -105,8 +105,8 @@ The single-value sliders under “Experimental conditions” fix variables that 
     <strong>Figure 6.</strong> The independent variables are $(d,\kappa_r)$ and the surface height
     is $\mathrm d\ell/\mathrm ds$; heading error $\varphi$ is set by the “Experimental conditions”
     slider. The intersection between the surface and the zero plane satisfies $d\kappa_r=1$. This
-    intersection is the degeneracy boundary of the Frenet normal coordinate and must not be
-    interpreted as $\mathrm d\ell/\mathrm ds=0$ in a valid Frenet coordinate state.
+    intersection is the degeneracy boundary of the normal-coordinate map and must not be interpreted
+    as $\mathrm d\ell/\mathrm ds=0$ in a valid Frenet coordinate state.
   </figcaption>
   <FrenetExplorer axes={['d', 'kappa']} contentLocale="en" client:only="solid-js" />
 </FocusFigure>

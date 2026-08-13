@@ -15,7 +15,7 @@ import '../../../styles/research-figures.css';
 
 ## Basic terminology and frame conventions
 
-A parameterized curve is called **regular** if its first derivative is nonzero throughout the parameter interval. This condition excludes a complete stop of the curve's parameterized motion and ensures a well-defined tangent direction at every point. A curve is of class $C^2$ if the curve itself and its first and second derivatives are continuous. The second derivative is needed here to define changes in the tangent and curvature.
+A parameterized curve is called **regular** if its first derivative is nonzero throughout the parameter interval. This condition excludes parameter values at which the parameterization velocity vanishes and ensures a well-defined tangent direction at every parameter value. Even if the image of the curve intersects itself, the different parameter values corresponding to the same point retain their own tangent directions. A curve is of class $C^2$ if the curve itself and its first and second derivatives are continuous. The second derivative is needed here to define changes in the tangent and curvature.
 
 This article uses the **arc-length parameter** $s$ directly: an increment in the parameter equals the distance traveled along the curve. The reference path is therefore written as
 
@@ -54,7 +54,7 @@ $$
 \mathbf N(s):=J\mathbf T(s).
 $$
 
-At every arc-length position $s$, the ordered pair $(\mathbf T(s),\mathbf N(s))$ is selected at the path point $\mathbf r(s)$. As $s$ advances along the curve, both the position and direction of these basis vectors change, making them a moving frame along the curve. Because $\mathbf T$ and $\mathbf N$ are mutually orthogonal unit vectors, and because rotating $\mathbf T$ counterclockwise by $90^\circ$ gives $\mathbf N$, $(\mathbf T,\mathbf N)$ is a **positively oriented orthonormal frame**—the signed Frenet frame used in this article.
+For each fixed arc-length position $s$, the ordered basis $(\mathbf T(s),\mathbf N(s))$ is a frame at the path point $\mathbf r(s)$. As $s$ advances along the curve, these frames together form a moving frame along the curve. Because $\mathbf T$ and $\mathbf N$ are mutually orthogonal unit vectors, and because rotating $\mathbf T$ counterclockwise by $90^\circ$ gives $\mathbf N$, $(\mathbf T,\mathbf N)$ is a **positively oriented orthonormal frame**. This article calls the moving frame formed by the unit tangent and left unit normal the **signed Frenet frame**.
 
 A **frame** is standard terminology in differential geometry, but it is not the same as a coordinate system. A coordinate system assigns coordinates to points in a region; a frame selects an ordered basis at each specified position so that vectors at that position can be represented. The pair $(\mathbf T,\mathbf N)$ lies in the two-dimensional plane containing the curve: $\mathbf T$ is tangent to the curve, $\mathbf N$ is perpendicular to it, and together they form a basis of the plane. A coordinate system can induce a frame, but a frame does not itself assign coordinates to nearby points and need not arise from a coordinate system.
 
@@ -88,7 +88,7 @@ $$
 \kappa=|\kappa_r|.
 $$
 
-Figure 1 compares the three curvature signs under the fixed left-normal convention and shows that the positively oriented orthonormal frame still exists at zero curvature.
+Figure 1 compares positive, zero, and negative signed curvature under the fixed left-normal convention and shows that the positively oriented orthonormal frame still exists at zero curvature.
 
 <FocusFigure number={1} variant="research">
   <ResearchFigure kind="planar-curvature-signs" />

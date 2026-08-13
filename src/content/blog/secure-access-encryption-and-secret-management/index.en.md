@@ -27,7 +27,7 @@ If the remote server permits password login, install the public key with `ssh-co
 ssh-copy-id -i ~/.ssh/id_ed25519.pub user@example.com
 ```
 
-`ssh-copy-id` usually registers the public key in the remote account's `~/.ssh/authorized_keys`. This does not grant login capability to the public key itself; it tells the server to trust a matching private key. The client signs authentication data for the current session with the private key, and the server verifies that signature with the public key. Producing a valid signature proves that the client holds the corresponding private key. The private key never needs to be transmitted.
+`ssh-copy-id` usually registers the public key in the remote account's `~/.ssh/authorized_keys`, thereby authorizing that key for login authentication. The client signs authentication data for the current session with the corresponding private key, and the server verifies the signature with the authorized public key. Producing a valid signature proves that the client holds the corresponding private key. The private key never needs to be transmitted.
 
 ### Inspecting and verifying keys
 
@@ -75,7 +75,7 @@ ssh-add -d ~/.ssh/id_ed25519
 
 When connecting to the same host frequently, save its hostname, username, and key path in `~/.ssh/config`:
 
-```sshconfig
+```text
 Host example
   HostName example.com
   User user
@@ -171,7 +171,7 @@ age -R ~/.ssh/id_ed25519.pub -o document.txt.age document.txt
 age --decrypt -i ~/.ssh/id_ed25519 -o document.txt document.txt.age
 ```
 
-GitHub publicly exposes the SSH keys added to a user account. Download the list and use it as a recipients file:
+GitHub publishes the SSH public keys added to a user account. The list can be downloaded and used as a recipients file; only RSA or Ed25519 keys supported by age can serve as SSH recipients:
 
 ```bash
 # -f fails on HTTP errors, -s suppresses normal output, -S still shows errors, -L follows redirects, and -o selects the output file
@@ -180,7 +180,7 @@ curl -fsSL https://github.com/<username>.keys -o recipients.txt
 age -R recipients.txt -o document.txt.age document.txt
 ```
 
-Inspect the returned keys and their fingerprints before use rather than feeding an unverified remote response directly into long-lived encryption. SSH keys associated with a GitHub account may also be replaced or removed later.
+Confirm that the list contains at least one supported key, then inspect the returned keys and their fingerprints before use rather than feeding an unverified remote response directly into long-lived encryption. SSH keys associated with a GitHub account may also be replaced or removed later.
 
 age defines SSH recipients as a convenient compatibility mechanism for existing SSH keys. When file-encryption keys can be managed independently, prefer a native age identity. See the [SSH keys](https://github.com/FiloSottile/age/blob/main/doc/age.1.ronn#ssh-keys) section of the age manual for supported SSH recipient types and limitations.
 
@@ -204,6 +204,8 @@ ssh-to-age \
   -i ~/.ssh/id_ed25519 \
   -o derived-age-identity.txt
 ```
+
+If the SSH private key is protected by a passphrase, `ssh-to-age` must receive it from standard input with `-stdinpass` or from the `SSH_TO_AGE_PASSPHRASE` environment variable. At the time of writing, the Go SSH library used by `ssh-to-age` can decrypt OpenSSH private keys encrypted only with `aes256-ctr` or `aes256-cbc`; other ciphers may cause parsing to fail. See the official documentation for the current limitations.
 
 Compare the recipients derived from the SSH public key and the age identity:
 
@@ -314,7 +316,7 @@ Write it to a file:
 sops decrypt secrets/application.sops.yaml > application.yaml
 ```
 
-The second form creates a plaintext file on disk. Handle it appropriately for the actual environment after use.
+The second form creates a plaintext file on disk. Restrict access to the file, ensure that it is not committed to version control, and determine whether it may enter any backup or synchronization system. After use, handle the plaintext file according to the storage medium and threat model.
 
 ### Selecting an age identity
 
@@ -360,7 +362,7 @@ If the removed recipient is compromised or no longer trusted, also make the curr
 sops rotate --in-place secrets/application.sops.yaml
 ```
 
-`rotate` makes SOPS generate a new data key and re-encrypt all current values with it. It does not replace age identities or change plaintext passwords, tokens, or other secrets. If an untrusted identity previously had permission to read the file, rotate those actual passwords and tokens as appropriate. See SOPS [Key management](https://getsops.io/docs/usage/key-management/) for the complete procedure.
+`rotate` makes SOPS generate a new data key and re-encrypt all current values with it. It does not replace age identities or change plaintext passwords, tokens, or other secrets, nor can it revoke copies of old ciphertext, data keys, or plaintext that someone has already obtained. If an untrusted identity previously had permission to read the file, rotate those actual passwords and tokens as appropriate, and inspect Git history, backups, and any other locations that may retain old copies. See SOPS [Key management](https://getsops.io/docs/usage/key-management/) for the complete procedure.
 
 ### Common problems
 

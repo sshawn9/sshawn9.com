@@ -1,6 +1,6 @@
 ---
 title: 'From Jekyll to Astro: Rebuilding My Personal Website'
-description: 'A record of the reasons, goals, technology choices, and process behind migrating my personal website from GitHub Pages and Jekyll to a new architecture.'
+description: 'A record of the technology upgrade from Jekyll to Astro, the principal technology choices, and the AI-assisted process of rebuilding my personal website.'
 revisionSummary: 'A record of the redesign and technology migration of my personal website, rebuilt with AI assistance.'
 ---
 
@@ -20,6 +20,6 @@ Articles, projects, and their assets follow explicit content conventions, with A
 
 Frontend development is not my strongest field, but I can clearly define the problems the site needs to solve and judge whether its architecture, interactions, and final result meet those needs. I made the design decisions throughout this rebuild; AI mainly carried out research, organized documentation, implemented code, diagnosed problems, and supplemented tests.
 
-The site was not produced correctly in a single generation. Many problems became visible only through actual use, including relationships among typographic hierarchy, interaction logic, responsive layout, and the content model. The rebuild therefore involved continuous review and correction: mature solutions took priority for common capabilities, while limited project-specific code was retained only where customization was genuinely necessary. No optimization was allowed to introduce a functional regression.
+The rebuild was not completed in a single pass. Many problems became visible only through actual use, including relationships among typographic hierarchy, interaction logic, responsive layout, and the content model. The rebuild therefore involved continuous review and correction: mature solutions took priority for common capabilities, while limited project-specific code was retained only where customization was genuinely necessary. No optimization was allowed to introduce a functional regression.
 
 AI made research and implementation faster, but the site's goals, tradeoffs, and acceptance criteria still came from my own judgment of the content and user experience.

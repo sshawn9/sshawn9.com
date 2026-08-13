@@ -27,7 +27,7 @@ ssh-keygen -t ed25519 -C "name@example.com"
 ssh-copy-id -i ~/.ssh/id_ed25519.pub user@example.com
 ```
 
-`ssh-copy-id` 通常把公钥登记到远程账户的 `~/.ssh/authorized_keys` 中。这并不是把登录能力交给公钥，而是让服务器认可与其匹配的私钥：客户端用私钥对当前会话的认证数据签名，服务器用公钥验证；能够产生有效签名，便证明客户端持有对应私钥。整个过程中，私钥无需传输。
+`ssh-copy-id` 通常把公钥登记到远程账户的 `~/.ssh/authorized_keys` 中。服务器由此授权该公钥用于登录认证：客户端用对应私钥对当前会话的认证数据签名，服务器再用已经授权的公钥验证签名；能够产生有效签名，便证明客户端持有对应私钥。整个过程中，私钥无需传输。
 
 ### 查看与验证密钥
 
@@ -75,7 +75,7 @@ ssh-add -d ~/.ssh/id_ed25519
 
 经常连接同一主机时，可以在 `~/.ssh/config` 中保存主机名、用户名和密钥路径：
 
-```sshconfig
+```text
 Host example
   HostName example.com
   User user
@@ -171,7 +171,7 @@ age -R ~/.ssh/id_ed25519.pub -o document.txt.age document.txt
 age --decrypt -i ~/.ssh/id_ed25519 -o document.txt document.txt.age
 ```
 
-GitHub 会公开用户添加到账号中的 SSH 公钥。可以下载公钥列表并作为 recipients 文件使用：
+GitHub 会公开用户添加到账号中的 SSH 公钥。可以下载公钥列表并作为 recipients 文件使用；其中只有 age 支持的 RSA 或 Ed25519 公钥能够作为 SSH recipient：
 
 ```bash
 # -f 在 HTTP 错误时失败，-s 静默输出，-S 仍显示错误，-L 跟随重定向，-o 指定输出文件
@@ -180,7 +180,7 @@ curl -fsSL https://github.com/<username>.keys -o recipients.txt
 age -R recipients.txt -o document.txt.age document.txt
 ```
 
-下载后应检查具体密钥与指纹，而不是未经确认就把远程返回结果直接用于长期加密。GitHub 账号中的 SSH 密钥也可能在以后被替换或删除。
+下载后应确认列表中至少包含一把受支持的密钥，并检查具体密钥与指纹，而不是未经确认就把远程返回结果直接用于长期加密。GitHub 账号中的 SSH 密钥也可能在以后被替换或删除。
 
 age 把 SSH recipient 定义为已有 SSH 密钥的便利兼容方式；能够单独管理文件加密密钥时，仍应优先使用原生 age identity。SSH recipient 支持的密钥类型和限制参见 age 手册的 [SSH keys](https://github.com/FiloSottile/age/blob/main/doc/age.1.ronn#ssh-keys) 章节。
 
@@ -204,6 +204,8 @@ ssh-to-age \
   -i ~/.ssh/id_ed25519 \
   -o derived-age-identity.txt
 ```
+
+如果 SSH 私钥受口令保护，`ssh-to-age` 需要通过 `-stdinpass` 从标准输入读取口令，或通过 `SSH_TO_AGE_PASSPHRASE` 环境变量提供口令。截至本文写作时，其使用的 Go SSH 库只能解密采用 `aes256-ctr` 或 `aes256-cbc` 加密的 OpenSSH 私钥；其他密码算法可能导致解析失败，具体限制参见官方文档。
 
 比较由 SSH 公钥和 age identity 分别导出的 recipient：
 
@@ -314,7 +316,7 @@ sops decrypt secrets/application.sops.yaml
 sops decrypt secrets/application.sops.yaml > application.yaml
 ```
 
-第二种方式会在磁盘上生成明文文件，使用完成后需要按实际环境妥善处理。
+第二种方式会在磁盘上生成明文文件。应限制该文件的访问权限，确保它不被提交到版本控制，并根据实际环境判断它是否会进入备份或同步系统；使用完成后，还应按照存储介质和威胁模型处理该明文文件。
 
 ### 指定 age identity
 
@@ -360,7 +362,7 @@ sops updatekeys secrets/application.sops.yaml
 sops rotate --in-place secrets/application.sops.yaml
 ```
 
-`rotate` 会让 SOPS 生成新的数据密钥，并用它重新加密当前文件中的所有值。它不会更换 age identity，也不会修改密码、令牌等明文内容。如果不可信的 identity 曾经能够读取文件，仍需根据实际情况更换其中的密码、令牌等机密。详细流程参见 SOPS 官方的 [Key management](https://getsops.io/docs/usage/key-management/)。
+`rotate` 会让 SOPS 生成新的数据密钥，并用它重新加密当前文件中的所有值。它不会更换 age identity，也不会修改密码、令牌等明文内容；同样无法收回他人此前已经取得的旧密文、数据密钥或明文副本。如果不可信的 identity 曾经能够读取文件，仍需根据实际情况更换其中的密码、令牌等机密，并检查 Git 历史、备份和其他可能保留旧副本的位置。详细流程参见 SOPS 官方的 [Key management](https://getsops.io/docs/usage/key-management/)。
 
 ### 常见问题
 

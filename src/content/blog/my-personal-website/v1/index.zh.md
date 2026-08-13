@@ -14,7 +14,7 @@ title: 我的 GitHub Pages
 
 按照 GitHub 的建议，我选择了静态站点生成器 Jekyll。学习基本概念时，可以从[分步教程](https://jekyllrb.com/docs/step-by-step/01-setup/)开始。后续开发则可以使用 [Jekyll Docker 镜像](https://hub.docker.com/r/jekyll/jekyll/)完成构建和本地托管。
 
-```shell
+```bash
 # 从 Jekyll Docker 镜像启动容器
 # 端口 4000 用于在 http://localhost:4000 本地托管
 # 镜像还公开了端口 35729
@@ -39,17 +39,17 @@ jekyll serve
 
 最终我回到了广为人知、以 MIT 许可证发布且可以免费使用的 [Minimal Mistakes](https://github.com/mmistakes/minimal-mistakes)。可以通过主题模板 [mm-github-pages-starter](https://github.com/mmistakes/mm-github-pages-starter) 创建自己的 GitHub Pages 仓库。
 
-![](/assets/images/start-with-the-theme-template.png)
+![通过 Minimal Mistakes 模板创建 GitHub Pages 仓库的页面](./images/start-with-the-theme-template.png)
 
 不要遗漏其[故障排查说明](https://github.com/mmistakes/mm-github-pages-starter#troubleshooting)。尝试在本地托管由该模板建立的网站时，可能遇到下面的 Liquid 异常：
 
-![](/assets/images/liquid-exception.png)
+![本地运行模板时出现 Liquid 异常的终端输出](./images/liquid-exception.png)
 
 修复方法如下：
 
 1. 在 `_config.yml` 中加入以下内容。
 
-```shell
+```yaml
 # 本地托管：
 # 修改为自己的设置
 PAGES_REPO_NWO: sshawn9/sshawn9.github.io
@@ -58,7 +58,7 @@ repository: sshawn9/sshawn9.github.io
 
 2. 在 `Gemfile` 中加入以下内容。
 
-```shell
+```ruby
 group :jekyll_plugins do
   gem "kramdown-parser-gfm"
   gem "webrick"

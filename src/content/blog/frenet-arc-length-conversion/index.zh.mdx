@@ -17,7 +17,7 @@ $$
 \frac{\mathrm d\ell}{\mathrm ds}=\frac{1-d\kappa_r}{\cos\varphi}
 $$
 
-后面由不同交互图分别改变航向误差 $\varphi$、横向偏差 $d$ 与参考曲率 $\kappa_r$，观察 $\mathrm d\ell/\mathrm ds$ 的变化趋势。
+下文通过不同交互图分别改变航向误差 $\varphi$、横向偏差 $d$ 与参考曲率 $\kappa_r$，观察 $\mathrm d\ell/\mathrm ds$ 的变化趋势。
 
 式中，$s$ 是车辆最近投影点在参考路径上的弧长坐标；$\ell$ 是车辆后轴中心轨迹的有向弧长坐标，沿车辆航向为正；$d$ 是从投影点沿参考路径左单位法向量测得的有符号横向偏差，左侧为正、右侧为负；$\varphi$ 是车辆航向与投影点处参考路径切向之间的航向误差，逆时针为正；$\kappa_r$ 是投影点处参考路径的有符号曲率，左转为正、右转为负。
 
@@ -52,7 +52,7 @@ $$
     <strong>图 2.</strong> 固定 $(\varphi,\kappa_r)$ 时，$\mathrm d\ell/\mathrm ds$ 关于横向偏差 $d$
     呈线性变化。当 $\kappa_r\ne0$ 且有符号曲率半径 $\rho_r=1/\kappa_r$
     位于横轴范围内时，红色虚线标出 $d=\rho_r$。该位置满足 $1-d\kappa_r=0$，表示 Frenet
-    法向坐标退化，不能解释为有效 Frenet 坐标状态下的 $\mathrm d\ell/\mathrm ds=0$。
+    法向坐标映射的微分在该点退化，不能解释为有效 Frenet 坐标状态下的 $\mathrm d\ell/\mathrm ds=0$。
   </figcaption>
   <FrenetExplorer axes={['d']} contentLocale="zh" client:only="solid-js" />
 </FocusFigure>
@@ -63,7 +63,7 @@ $$
   <figcaption slot="caption">
     <strong>图 3.</strong> 固定 $(\varphi,d)$ 时，$\mathrm d\ell/\mathrm ds$ 关于参考曲率 $\kappa_r$
     呈线性变化。当 $d\ne0$ 且 $1/d$ 位于横轴范围内时，红色虚线标出 $\kappa_r=1/d$，即
-    $1-d\kappa_r=0$ 对应的 Frenet 坐标退化边界。
+    $1-d\kappa_r=0$ 对应的法向坐标映射退化边界。
   </figcaption>
   <FrenetExplorer axes={['kappa']} contentLocale="zh" client:only="solid-js" />
 </FocusFigure>
@@ -77,7 +77,7 @@ $$
     <strong>图 4.</strong> 以 $(\varphi,d)$ 为自变量、$\mathrm d\ell/\mathrm ds$
     为曲面高度，参考曲率 $\kappa_r$ 由“实验条件”滑块给出。半透明紫色平面表示 $\mathrm d\ell/\mathrm
     ds=1$； $\varphi=\pm90^\circ$ 对应空间域参数化失效边界。当 $\kappa_r\ne0$ 时， $d=1/\kappa_r$
-    对应 Frenet 坐标退化边界。
+    对应法向坐标映射退化边界。
   </figcaption>
   <FrenetExplorer axes={['phi', 'd']} contentLocale="zh" client:only="solid-js" />
 </FocusFigure>
@@ -88,7 +88,7 @@ $$
   <figcaption slot="caption">
     <strong>图 5.</strong> 以 $(\varphi,\kappa_r)$ 为自变量、$\mathrm d\ell/\mathrm ds$
     为曲面高度，横向偏差 $d$ 由“实验条件”滑块给出。航向误差形成 $1/\cos\varphi$ 的非线性变化；当
-    $d\ne0$ 时， $\kappa_r=1/d$ 对应 Frenet 坐标退化边界。
+    $d\ne0$ 时， $\kappa_r=1/d$ 对应法向坐标映射退化边界。
   </figcaption>
   <FrenetExplorer axes={['phi', 'kappa']} contentLocale="zh" client:only="solid-js" />
 </FocusFigure>
@@ -99,7 +99,7 @@ $$
   <figcaption slot="caption">
     <strong>图 6.</strong> 以 $(d,\kappa_r)$ 为自变量、$\mathrm d\ell/\mathrm ds$
     为曲面高度，航向误差 $\varphi$ 由“实验条件”滑块给出。曲面与零平面的交线满足
-    $d\kappa_r=1$；这条交线表示 Frenet 法向坐标退化边界，不能解释为有效 Frenet 坐标状态下的 $\mathrm
+    $d\kappa_r=1$；这条交线表示法向坐标映射退化边界，不能解释为有效 Frenet 坐标状态下的 $\mathrm
     d\ell/\mathrm ds=0$。
   </figcaption>
   <FrenetExplorer axes={['d', 'kappa']} contentLocale="zh" client:only="solid-js" />
@@ -290,4 +290,4 @@ $$
 ## 来源与延伸阅读
 
 - [Frenet 坐标下的车辆运动学](../frenet-vehicle-kinematics/#参考路径弧长与车辆轨迹有向弧长的局部换算)：本文换算关系的完整推导、变量定义、最近点投影条件和参考文献来源。
-- [平面曲线的 Frenet 标架](../planar-frenet-frame/)：本文使用的单位切向量、左单位法向量与有符号曲率约定。
+- [平面曲线的有符号 Frenet 标架](../planar-frenet-frame/)：本文使用的单位切向量、左单位法向量与有符号曲率约定。
