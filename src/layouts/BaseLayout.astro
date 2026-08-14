@@ -3,6 +3,7 @@ import '../styles/global.css';
 import BaseHead from '../components/BaseHead.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import SiteHeader from '../components/SiteHeader.astro';
+import WallpaperBackground from '../components/WallpaperBackground.astro';
 import { BASE_LOCALE, toLanguageTag, type Locale } from '../i18n/config';
 import * as m from '../paraglide/messages.js';
 
@@ -48,6 +49,7 @@ const lang = toLanguageTag(locale);
     <slot name="head" />
   </head>
   <body class="flex min-h-screen flex-col">
+    <WallpaperBackground {locale} />
     <a
       class="fixed top-3 left-3 z-[100] -translate-y-20 rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white transition focus:translate-y-0 dark:bg-white dark:text-slate-950"
       href="#main-content"
@@ -67,6 +69,7 @@ const lang = toLanguageTag(locale);
     <script>
       import '../scripts/reveal';
       import '../scripts/theme';
+      import '../scripts/wallpaper';
     </script>
   </body>
 </html>

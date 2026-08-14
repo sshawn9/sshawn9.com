@@ -17,6 +17,7 @@ Shawn 的个人网站，用于展示项目、发布博客和进行个人介绍�
 - 浏览器原生 Popover API：菜单与展开面板
 - Motion：渐进增强且尊重“减少动态效果”偏好的动画
 - Cloudflare Workers Static Assets：生产环境托管
+- Cloudflare Cron Triggers 与 Workers KV：定时更新 Unsplash 背景照片池
 
 ## 本地开发
 
@@ -41,6 +42,16 @@ npm run build
 npm run test:e2e
 npm run preview
 ```
+
+普通的 Astro 开发服务器不执行 Cloudflare Worker，因此会显示原有网格回退背景。测试完整的动态背景前，将 Unsplash Access Key 写入本地密钥文件：
+
+```bash
+cp .dev.vars.example .dev.vars
+# 编辑 .dev.vars，填写 UNSPLASH_ACCESS_KEY
+npm run preview:worker
+```
+
+`preview:worker` 先构建静态网站，再由 Wrangler 同时运行静态资源、照片清单接口和本地 KV。
 
 本仓库使用 Node 24 作为经过测试的开发运行时，`.nvmrc` 记录了这一建议版本。`npm run build` 会生成静态网站及其 Pagefind 多语言全站索引。浏览器测试使用 4322 端口，因此不会干扰运行在 4321 端口的常规开发服务器。
 
@@ -174,6 +185,13 @@ Vitest 覆盖文章路径、版本、语言回退和标签计数约定。Playwri
 需要配置一个 GitHub Actions 仓库密钥：
 
 - `CLOUDFLARE_API_TOKEN`：使用 Cloudflare 的 **Edit Cloudflare Workers** 模板创建，并限制在目标账户内的令牌
+- `UNSPLASH_ACCESS_KEY`：Unsplash 应用的 Access Key，只作为 Worker 运行时密钥上传
+
+生产 Worker 每天 18:00 UTC 更新一次照片池。更新过程搜索最新的横向自然风景候选图片、报告 Unsplash 要求的下载事件，并且只有在得到足够多的有效结果后才替换现有清单。更新失败时继续使用上一份清单。浏览器在每次会话中随机选择一张图片，页面切换时保持不变，长时间停留时每十分钟淡入切换一次；减少动态效果的用户不会自动轮换。
+
+照片始终使用 Unsplash API 返回的 CDN 地址，不转存到本站。固定在页面右下角的摄影师与 Unsplash 链接用于满足 API 署名要求。搜索条件只能提高风景题材的命中率，不能提供严格的内容保证；需要绝对控制时，应将来源改为人工维护的 Unsplash Collection。
+
+`wrangler.jsonc` 中不填写 KV ID，由 Wrangler 在生产 Worker 和预览 Worker 首次部署时分别自动配置 KV。生产环境配置每日 Cron；预览环境不创建 Cron，首次访问照片清单接口时初始化其共享照片池。
 
 `wrangler.jsonc` 是两个隔离 Worker 环境的唯一配置来源。默认的 `sshawn9-com` Worker 通过 `sshawn9.com` 提供生产服务，不开放 `workers.dev` 或 Preview URL。`preview` 环境将包含草稿的 `main` 构建部署到 `sshawn9-com-preview`；其他分支上传带有稳定别名但不设为当前部署的版本。每次构建也会获得一个不可变版本 URL。稳定的生产自定义域映射由独立的长期 Terraform 基础设施管理。本方案不使用 Cloudflare Pages 项目，也不为每个分支创建 DNS 记录。
 

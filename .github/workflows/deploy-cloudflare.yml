@@ -14,6 +14,8 @@ on:
     secrets:
       cloudflare_api_token:
         required: true
+      unsplash_access_key:
+        required: true
 
 permissions:
   contents: read
@@ -41,6 +43,18 @@ jobs:
             preview|production) ;;
             *) echo "deployment_type must be preview or production"; exit 1 ;;
           esac
+      - name: Prepare Worker secrets
+        shell: bash
+        env:
+          UNSPLASH_ACCESS_KEY: ${{ secrets.unsplash_access_key }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$UNSPLASH_ACCESS_KEY" ]]; then
+            echo "UNSPLASH_ACCESS_KEY must not be empty." >&2
+            exit 1
+          fi
+          node --input-type=module -e \
+            'import { writeFileSync } from "node:fs"; writeFileSync(".wrangler-secrets.json", JSON.stringify({ UNSPLASH_ACCESS_KEY: process.env.UNSPLASH_ACCESS_KEY }));'
       - name: Create stable branch preview alias
         if: ${{ inputs.deployment_type == 'preview' && github.ref_name != 'main' }}
         id: preview
@@ -83,7 +97,7 @@ jobs:
         with:
           apiToken: ${{ secrets.cloudflare_api_token }}
           wranglerVersion: '4.120.0'
-          command: ${{ inputs.deployment_type == 'production' && 'deploy --env=""' || github.ref_name == 'main' && 'deploy --env preview' || format('versions upload --env preview --preview-alias {0}', steps.preview.outputs.alias) }}
+          command: ${{ inputs.deployment_type == 'production' && 'deploy --env="" --secrets-file .wrangler-secrets.json' || github.ref_name == 'main' && 'deploy --env preview --secrets-file .wrangler-secrets.json' || format('versions upload --env preview --preview-alias {0} --secrets-file .wrangler-secrets.json', steps.preview.outputs.alias) }}
       - name: Record deployment URLs
         id: urls
         shell: bash
