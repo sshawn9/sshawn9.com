@@ -33,6 +33,7 @@ jobs:
       deployment_type: preview
     secrets:
       cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      unsplash_access_key: ${{ secrets.UNSPLASH_ACCESS_KEY }}
 
   deploy-production:
     if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && !github.event.deleted }}
@@ -46,3 +47,4 @@ jobs:
       deployment_type: production
     secrets:
       cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      unsplash_access_key: ${{ secrets.UNSPLASH_ACCESS_KEY }}

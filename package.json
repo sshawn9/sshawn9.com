@@ -11,6 +11,7 @@
     "check": "astro check",
     "build": "astro build && pagefind --site dist",
     "preview": "astro preview",
+    "preview:worker": "npm run build && wrangler dev",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "format": "prettier --write .",
@@ -65,9 +66,11 @@
     "prettier-plugin-astro": "^0.14.1",
     "tailwindcss": "^4.3.2",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wrangler": "4.120.0"
   },
   "allowScripts": {
-    "esbuild@0.28.1": true
+    "esbuild@0.28.1": true,
+    "workerd@1.20260801.1": true
   }
 }

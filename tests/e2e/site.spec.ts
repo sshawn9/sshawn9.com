@@ -43,6 +43,43 @@ test('theme choice survives client-side navigation', async ({ page }) => {
     .toBe(!wasDark);
 });
 
+test('the wallpaper keeps one random photo for the browser session', async ({ page }) => {
+  const manifest = {
+    version: 1,
+    updatedAt: '2026-08-14T00:00:00.000Z',
+    photos: [1, 2].map((index) => ({
+      id: `photo-${index}`,
+      width: 3600,
+      height: 2400,
+      rawUrl: `https://images.unsplash.com/photo-${index}`,
+      photographerName: `Photographer ${index}`,
+      photographerUrl: `https://unsplash.com/@photographer-${index}`,
+      photoUrl: `https://unsplash.com/photos/photo-${index}`,
+    })),
+  };
+  const image = '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"></svg>';
+  await page.route('**/api/wallpapers', (route) =>
+    route.fulfill({ contentType: 'application/json', body: JSON.stringify(manifest) }),
+  );
+  await page.route('https://images.unsplash.com/**', (route) =>
+    route.fulfill({ contentType: 'image/svg+xml', body: image }),
+  );
+
+  await page.goto('/en/');
+  await expect(page.locator('[data-wallpaper-image].is-active')).toHaveCount(1);
+  await expect(page.locator('[data-wallpaper-credit]')).toBeVisible();
+  await expect(page.locator('[data-wallpaper-credit]')).toContainText('Photo by Photographer');
+  const selectedId = await page.evaluate(() => sessionStorage.getItem('wallpaper-photo-id'));
+  expect(selectedId).toMatch(/^photo-[12]$/);
+
+  await page.locator('header nav').first().locator('a[href="/en/blog/"]').click();
+  await expect(page).toHaveURL(/\/en\/blog\/$/);
+  await expect(page.locator('[data-wallpaper-image].is-active')).toHaveCount(1);
+  await expect
+    .poll(() => page.evaluate(() => sessionStorage.getItem('wallpaper-photo-id')))
+    .toBe(selectedId);
+});
+
 test('the motion-control project preview supports continuous two-dimensional dragging', async ({
   page,
 }) => {
