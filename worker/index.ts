@@ -1,4 +1,5 @@
 import {
+  WALLPAPER_DOWNLOAD_ENDPOINT,
   WALLPAPER_ENDPOINT,
   isWallpaperManifest,
   type WallpaperManifest,
@@ -45,7 +46,15 @@ type UnsplashSearchResponse = {
   results: UnsplashPhoto[];
 };
 
-let refreshInFlight: Promise<WallpaperManifest> | undefined;
+type StoredWallpaperPhoto = WallpaperPhoto & {
+  downloadLocation: string;
+};
+
+type StoredWallpaperManifest = Omit<WallpaperManifest, 'photos'> & {
+  photos: StoredWallpaperPhoto[];
+};
+
+let refreshInFlight: Promise<StoredWallpaperManifest> | undefined;
 
 function unsplashHeaders(accessKey: string) {
   return {
@@ -63,6 +72,15 @@ function addAttributionParameters(value: string, content: string) {
   return url.toString();
 }
 
+function isUnsplashApiUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.hostname === 'api.unsplash.com';
+  } catch {
+    return false;
+  }
+}
+
 function isSupportedPhoto(photo: UnsplashPhoto) {
   try {
     return (
@@ -72,27 +90,26 @@ function isSupportedPhoto(photo: UnsplashPhoto) {
       new URL(photo.urls.raw).hostname === 'images.unsplash.com' &&
       new URL(photo.links.html).hostname.endsWith('unsplash.com') &&
       new URL(photo.user.links.html).hostname.endsWith('unsplash.com') &&
-      new URL(photo.links.download_location).hostname === 'api.unsplash.com'
+      isUnsplashApiUrl(photo.links.download_location)
     );
   } catch {
     return false;
   }
 }
 
-function toWallpaperPhoto(photo: UnsplashPhoto): WallpaperPhoto {
+function toStoredWallpaperPhoto(photo: UnsplashPhoto): StoredWallpaperPhoto {
   return {
     id: photo.id,
-    width: photo.width,
-    height: photo.height,
     rawUrl: photo.urls.raw,
     photographerName: photo.user.name,
     photographerUrl: addAttributionParameters(photo.user.links.html, 'credit-photographer'),
     photoUrl: addAttributionParameters(photo.links.html, 'credit-photo'),
+    downloadLocation: photo.links.download_location,
   };
 }
 
-async function trackDownload(photo: UnsplashPhoto, accessKey: string) {
-  const response = await fetch(photo.links.download_location, {
+async function trackDownload(downloadLocation: string, accessKey: string) {
+  const response = await fetch(downloadLocation, {
     headers: unsplashHeaders(accessKey),
   });
   if (!response.ok) {
@@ -122,21 +139,13 @@ export async function refreshWallpaperManifest(
     ? payload.results.filter(isSupportedPhoto).slice(0, MAX_PHOTOS)
     : [];
 
-  const trackedPhotos = await Promise.allSettled(
-    candidates.map(async (photo) => {
-      await trackDownload(photo, env.UNSPLASH_ACCESS_KEY);
-      return toWallpaperPhoto(photo);
-    }),
-  );
-  const photos = trackedPhotos.flatMap((result) =>
-    result.status === 'fulfilled' ? [result.value] : [],
-  );
+  const photos = candidates.map(toStoredWallpaperPhoto);
 
   if (photos.length < MIN_PHOTOS) {
     throw new Error(`Unsplash returned only ${photos.length} usable wallpaper photos.`);
   }
 
-  const manifest: WallpaperManifest = {
+  const manifest: StoredWallpaperManifest = {
     version: 1,
     updatedAt: new Date().toISOString(),
     photos,
@@ -156,7 +165,15 @@ function refreshOnce(env: WorkerEnvironment) {
 
 async function readManifest(env: WorkerEnvironment) {
   const value = await env.WALLPAPER_MANIFEST.get(MANIFEST_KEY, 'json');
-  return isWallpaperManifest(value) ? value : undefined;
+  if (!isWallpaperManifest(value)) return undefined;
+
+  const photos = value.photos.filter(
+    (photo): photo is StoredWallpaperPhoto =>
+      'downloadLocation' in photo &&
+      typeof photo.downloadLocation === 'string' &&
+      isUnsplashApiUrl(photo.downloadLocation),
+  );
+  return photos.length === value.photos.length ? { ...value, photos } : undefined;
 }
 
 function isStale(manifest: WallpaperManifest) {
@@ -164,23 +181,47 @@ function isStale(manifest: WallpaperManifest) {
   return !Number.isFinite(updatedAt) || Date.now() - updatedAt > MAX_MANIFEST_AGE_MS;
 }
 
-function manifestResponse(manifest?: WallpaperManifest, request?: Request) {
-  const body = JSON.stringify(
-    manifest ?? { version: 1, updatedAt: new Date(0).toISOString(), photos: [] },
-  );
-  const etag = manifest ? `W/\"wallpapers-${manifest.updatedAt}\"` : undefined;
+function publicManifest(manifest: StoredWallpaperManifest): WallpaperManifest {
+  return {
+    version: manifest.version,
+    updatedAt: manifest.updatedAt,
+    photos: manifest.photos.map((photo) => ({
+      id: photo.id,
+      rawUrl: photo.rawUrl,
+      photographerName: photo.photographerName,
+      photographerUrl: photo.photographerUrl,
+      photoUrl: photo.photoUrl,
+    })),
+  };
+}
+
+function manifestResponse(manifest: StoredWallpaperManifest, request: Request) {
+  const body = JSON.stringify(publicManifest(manifest));
+  const etag = `W/\"wallpapers-${manifest.updatedAt}\"`;
   const headers = new Headers({
-    'Cache-Control': manifest ? 'public, max-age=900, stale-while-revalidate=86400' : 'no-store',
+    'Cache-Control': 'public, max-age=900, stale-while-revalidate=86400',
     'Content-Type': 'application/json; charset=utf-8',
     'X-Content-Type-Options': 'nosniff',
     'X-Robots-Tag': 'noindex',
   });
-  if (etag) headers.set('ETag', etag);
+  headers.set('ETag', etag);
 
-  if (etag && request?.headers.get('If-None-Match') === etag) {
+  if (request.headers.get('If-None-Match') === etag) {
     return new Response(null, { status: 304, headers });
   }
-  return new Response(request?.method === 'HEAD' ? null : body, { headers });
+  return new Response(request.method === 'HEAD' ? null : body, { headers });
+}
+
+function unavailableResponse(request: Request) {
+  const headers = new Headers({
+    'Cache-Control': 'no-store',
+    'Content-Type': 'application/json; charset=utf-8',
+    'Retry-After': '60',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Robots-Tag': 'noindex',
+  });
+  const body = JSON.stringify({ error: 'Wallpaper manifest unavailable.' });
+  return new Response(request.method === 'HEAD' ? null : body, { status: 503, headers });
 }
 
 export async function handleWallpaperRequest(
@@ -201,7 +242,7 @@ export async function handleWallpaperRequest(
       manifest = await refreshOnce(env);
     } catch (error) {
       console.error('Unable to initialize the wallpaper manifest.', error);
-      return manifestResponse(undefined, request);
+      return unavailableResponse(request);
     }
   } else if (isStale(manifest)) {
     context.waitUntil(
@@ -214,9 +255,60 @@ export async function handleWallpaperRequest(
   return manifestResponse(manifest, request);
 }
 
+export async function handleWallpaperDownloadRequest(
+  request: Request,
+  env: WorkerEnvironment,
+  context: WorkerContext,
+) {
+  if (request.method !== 'POST') {
+    return new Response('Method Not Allowed', {
+      status: 405,
+      headers: { Allow: 'POST' },
+    });
+  }
+
+  if (request.headers.get('Origin') !== new URL(request.url).origin) {
+    return new Response('Forbidden', { status: 403 });
+  }
+  if (!request.headers.get('Content-Type')?.startsWith('application/json')) {
+    return new Response('Unsupported Media Type', { status: 415 });
+  }
+
+  let value: unknown;
+  try {
+    value = await request.json();
+  } catch {
+    return new Response('Bad Request', { status: 400 });
+  }
+  const photoId =
+    typeof value === 'object' && value !== null && 'photoId' in value ? value.photoId : undefined;
+  if (typeof photoId !== 'string' || photoId.length === 0 || photoId.length > 128) {
+    return new Response('Bad Request', { status: 400 });
+  }
+
+  const manifest = await readManifest(env);
+  if (!manifest) return unavailableResponse(request);
+
+  const photo = manifest.photos.find((candidate) => candidate.id === photoId);
+  if (!photo) return new Response('Not Found', { status: 404 });
+
+  context.waitUntil(
+    trackDownload(photo.downloadLocation, env.UNSPLASH_ACCESS_KEY).catch((error) => {
+      console.error(`Unable to report the wallpaper download for ${photo.id}.`, error);
+    }),
+  );
+  return new Response(null, {
+    status: 202,
+    headers: { 'Cache-Control': 'no-store' },
+  });
+}
+
 export default {
   async fetch(request: Request, env: WorkerEnvironment, context: WorkerContext) {
     const url = new URL(request.url);
+    if (url.pathname === WALLPAPER_DOWNLOAD_ENDPOINT) {
+      return handleWallpaperDownloadRequest(request, env, context);
+    }
     if (url.pathname === WALLPAPER_ENDPOINT) {
       return handleWallpaperRequest(request, env, context);
     }

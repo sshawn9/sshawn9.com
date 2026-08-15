@@ -3,6 +3,9 @@ dist/
 # generated types
 .astro/
 
+# Cloudflare local state
+.wrangler/
+
 # test reports
 test-results/
 playwright-report/
