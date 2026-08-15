@@ -1,9 +1,8 @@
 export const WALLPAPER_ENDPOINT = '/api/wallpapers';
+export const WALLPAPER_DOWNLOAD_ENDPOINT = `${WALLPAPER_ENDPOINT}/download`;
 
 export type WallpaperPhoto = {
   id: string;
-  width: number;
-  height: number;
   rawUrl: string;
   photographerName: string;
   photographerUrl: string;
@@ -25,8 +24,6 @@ function isWallpaperPhoto(value: unknown): value is WallpaperPhoto {
 
   return (
     typeof value.id === 'string' &&
-    typeof value.width === 'number' &&
-    typeof value.height === 'number' &&
     typeof value.rawUrl === 'string' &&
     typeof value.photographerName === 'string' &&
     typeof value.photographerUrl === 'string' &&

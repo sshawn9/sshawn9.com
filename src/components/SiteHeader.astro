@@ -5,6 +5,7 @@ import { localePath, type Locale } from '../i18n/config';
 import * as m from '../paraglide/messages.js';
 import LocaleSwitcher from './LocaleSwitcher.astro';
 import ThemeToggle from './ThemeToggle.astro';
+import WallpaperControl from './WallpaperControl.astro';
 
 type Props = { locale: Locale };
 const { locale } = Astro.props;
@@ -74,6 +75,7 @@ const isActive = (href: string) => pathname === href || pathname.startsWith(href
       </a>
       <LocaleSwitcher {locale} />
       <ThemeToggle {locale} />
+      <WallpaperControl {locale} id="wallpaper-controls-desktop" />
       <a
         href={SITE.github}
         target="_blank"
@@ -134,13 +136,16 @@ const isActive = (href: string) => pathname === href || pathname.startsWith(href
         <div
           class="mt-2 flex items-center justify-between border-t border-slate-900/8 px-1 pt-3 dark:border-white/8"
         >
-          <a
-            href={SITE.github}
-            target="_blank"
-            rel="noreferrer"
-            class="px-3 text-xs font-bold text-slate-500 dark:text-slate-400"
-            aria-label={m.github_profile({}, { locale })}>GITHUB</a
-          >
+          <div class="flex items-center gap-2">
+            <WallpaperControl {locale} id="wallpaper-controls-mobile" />
+            <a
+              href={SITE.github}
+              target="_blank"
+              rel="noreferrer"
+              class="px-3 text-xs font-bold text-slate-500 dark:text-slate-400"
+              aria-label={m.github_profile({}, { locale })}>GITHUB</a
+            >
+          </div>
           <div class="flex items-center gap-2">
             <LocaleSwitcher {locale} />
             <ThemeToggle {locale} />
