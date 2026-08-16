@@ -152,7 +152,12 @@ test('theme and wallpaper mode change independently without replacing the curren
   await expect(html).toHaveClass(/dark/);
   await expect(html).toHaveAttribute('data-wallpaper-mode', 'default');
   await expect(activeImage).toHaveCount(1);
-  await expect.poll(() => media.evaluate((element) => getComputedStyle(element).opacity)).toBe('0');
+  await expect
+    .poll(() => media.evaluate((element) => getComputedStyle(element).visibility))
+    .toBe('hidden');
+  await expect
+    .poll(() => html.evaluate((element) => getComputedStyle(element, '::before').visibility))
+    .toBe('hidden');
 
   await page.locator('[data-theme-toggle]:visible').first().click();
   await expect(html).not.toHaveClass(/dark/);
@@ -163,7 +168,12 @@ test('theme and wallpaper mode change independently without replacing the curren
   await wallpaperControl.locator('[data-wallpaper-enabled-control]').click();
   await expect(html).not.toHaveClass(/dark/);
   await expect(html).toHaveAttribute('data-wallpaper-mode', 'scenic');
-  await expect.poll(() => media.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+  await expect
+    .poll(() => media.evaluate((element) => getComputedStyle(element).visibility))
+    .toBe('visible');
+  await expect
+    .poll(() => html.evaluate((element) => getComputedStyle(element, '::before').visibility))
+    .toBe('visible');
   await expect
     .poll(() =>
       activeImage.evaluate((image) => ({
@@ -230,6 +240,7 @@ test('a hard refresh keeps the same clear wallpaper without replacing its backgr
         JSON.stringify({
           backgroundImage: style.backgroundImage,
           opacity: Number.parseFloat(style.opacity),
+          visibility: style.visibility,
         }),
       );
     });
@@ -254,6 +265,7 @@ test('a hard refresh keeps the same clear wallpaper without replacing its backgr
       expect.objectContaining({
         backgroundImage: expect.stringContaining('data:image/'),
         opacity: expect.any(Number),
+        visibility: 'visible',
       }),
     );
   await expect

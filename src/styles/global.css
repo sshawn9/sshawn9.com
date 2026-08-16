@@ -388,12 +388,15 @@ html.theme-transitioning::view-transition-new(root) {
     pointer-events: none;
     transform: scale(var(--wallpaper-image-scale));
     transition: opacity 1.4s ease;
+    visibility: hidden;
   }
 
-  :root[data-wallpaper-mode='scenic'][data-wallpaper-background]:not(
-      :has(.wallpaper__images[data-wallpaper-ready])
-    )::before {
+  :root[data-wallpaper-background]:not(:has(.wallpaper__images[data-wallpaper-ready]))::before {
     opacity: var(--wallpaper-image-opacity);
+  }
+
+  :root[data-wallpaper-mode='scenic']::before {
+    visibility: visible;
   }
 
   .wallpaper__images {
@@ -401,13 +404,12 @@ html.theme-transitioning::view-transition-new(root) {
     inset: 0;
     z-index: 0;
     overflow: hidden;
-    opacity: 0;
     pointer-events: none;
-    transition: opacity 480ms ease;
+    visibility: hidden;
   }
 
   :root[data-wallpaper-mode='scenic'] .wallpaper__images {
-    opacity: 1;
+    visibility: visible;
   }
 
   .wallpaper__image {
@@ -454,7 +456,6 @@ html.theme-transitioning::view-transition-new(root) {
 
   @media (prefers-reduced-motion: reduce) {
     html::before,
-    .wallpaper__images,
     .wallpaper__image {
       transition: none;
     }
