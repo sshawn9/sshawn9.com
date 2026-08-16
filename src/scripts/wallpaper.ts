@@ -481,11 +481,44 @@ async function initializeWallpaper() {
   let loading = false;
   let downloading = false;
   let activationRevision = 0;
+  let bootstrapReleaseTimer: number | undefined;
+
+  const clearBootstrapReleaseTimer = () => {
+    if (bootstrapReleaseTimer !== undefined) window.clearTimeout(bootstrapReleaseTimer);
+    bootstrapReleaseTimer = undefined;
+  };
+
+  const adoptBootstrapBackground = (photoId: string) => {
+    clearBootstrapReleaseTimer();
+    media.removeAttribute('data-wallpaper-ready');
+    media.dataset.wallpaperBootstrap = photoId;
+    document.documentElement.dataset.wallpaperRuntime = 'true';
+    backgroundActive = true;
+  };
+
+  const releaseBootstrapBackground = () => {
+    backgroundActive = false;
+    clearBootstrapReleaseTimer();
+    bootstrapReleaseTimer = window.setTimeout(() => {
+      bootstrapReleaseTimer = undefined;
+      delete media.dataset.wallpaperBootstrap;
+    }, TRANSITION_MS);
+  };
+
+  const stageRuntimeBackground = (photo: WallpaperPhoto) => {
+    stageBlurBackground(photo);
+    adoptBootstrapBackground(photo.id);
+  };
 
   if (currentPhoto) {
     restoreBackground(currentPhoto);
     backgroundActive =
       activeIndex < 0 && document.documentElement.dataset.wallpaperBackground === currentPhoto.id;
+    if (backgroundActive) adoptBootstrapBackground(currentPhoto.id);
+    else if (activeIndex >= 0) {
+      delete media.dataset.wallpaperBootstrap;
+      document.documentElement.dataset.wallpaperRuntime = 'true';
+    }
     ready = enabled && backgroundActive;
     if (enabled) {
       root.dataset.wallpaperEnabled = 'true';
@@ -494,7 +527,9 @@ async function initializeWallpaper() {
   } else {
     delete document.documentElement.dataset.wallpaperBackground;
     delete document.documentElement.dataset.wallpaperBackgroundKind;
+    delete document.documentElement.dataset.wallpaperRuntime;
     document.documentElement.style.removeProperty('--wallpaper-current-image');
+    delete media.dataset.wallpaperBootstrap;
   }
 
   const controlState = (): ControlState => ({
@@ -546,7 +581,7 @@ async function initializeWallpaper() {
   };
 
   const activate = async (photo: WallpaperPhoto, revision: number) => {
-    if (activeIndex < 0 && !backgroundActive) stageBlurBackground(photo);
+    if (activeIndex < 0 && !backgroundActive) stageRuntimeBackground(photo);
     const nextIndex = activeIndex === 0 ? 1 : 0;
     const nextImage = images[nextIndex];
     if (!nextImage) return false;
@@ -563,9 +598,9 @@ async function initializeWallpaper() {
     nextImage.dataset.wallpaperPhotoId = photo.id;
     nextImage.classList.add('is-active');
     previousImage?.classList.remove('is-active');
+    if (backgroundActive) releaseBootstrapBackground();
     media.dataset.wallpaperReady = photo.id;
     activeIndex = nextIndex;
-    backgroundActive = false;
     currentPhoto = photo;
     ready = true;
     sessionStorage.setItem(PHOTO_STORAGE_KEY, photo.id);
@@ -709,7 +744,7 @@ async function initializeWallpaper() {
       return false;
     }
 
-    if (activeIndex < 0 && !backgroundActive) stageBlurBackground(initial);
+    if (activeIndex < 0 && !backgroundActive) stageRuntimeBackground(initial);
 
     const persistedIndex = images.findIndex(
       (image) =>
@@ -720,6 +755,8 @@ async function initializeWallpaper() {
     if (persistedImage && (await decodeImage(persistedImage, signal))) {
       if (revision !== activationRevision || !enabled) return false;
       activeIndex = persistedIndex;
+      if (backgroundActive) releaseBootstrapBackground();
+      document.documentElement.dataset.wallpaperRuntime = 'true';
       currentPhoto = initial;
       ready = true;
       media.dataset.wallpaperReady = initial.id;
@@ -809,7 +846,7 @@ async function initializeWallpaper() {
     if (currentPhoto) {
       if (activeIndex < 0) {
         restoreBackground(currentPhoto);
-        backgroundActive = true;
+        adoptBootstrapBackground(currentPhoto.id);
         ready = true;
       }
       setCredit(root, currentPhoto);
@@ -867,6 +904,11 @@ async function initializeWallpaper() {
 
   cleanupCurrentWallpaper = () => {
     abortController.abort();
+    if (bootstrapReleaseTimer !== undefined) {
+      window.clearTimeout(bootstrapReleaseTimer);
+      bootstrapReleaseTimer = undefined;
+      delete media.dataset.wallpaperBootstrap;
+    }
     clearRotationTimer();
     clearManifestRefreshTimer();
     document.removeEventListener('visibilitychange', handleVisibility);

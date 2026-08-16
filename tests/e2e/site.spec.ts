@@ -152,12 +152,7 @@ test('theme and wallpaper mode change independently without replacing the curren
   await expect(html).toHaveClass(/dark/);
   await expect(html).toHaveAttribute('data-wallpaper-mode', 'default');
   await expect(activeImage).toHaveCount(1);
-  await expect
-    .poll(() => media.evaluate((element) => getComputedStyle(element).visibility))
-    .toBe('hidden');
-  await expect
-    .poll(() => html.evaluate((element) => getComputedStyle(element, '::before').visibility))
-    .toBe('hidden');
+  await expect.poll(() => media.evaluate((element) => getComputedStyle(element).opacity)).toBe('0');
 
   await page.locator('[data-theme-toggle]:visible').first().click();
   await expect(html).not.toHaveClass(/dark/);
@@ -168,12 +163,7 @@ test('theme and wallpaper mode change independently without replacing the curren
   await wallpaperControl.locator('[data-wallpaper-enabled-control]').click();
   await expect(html).not.toHaveClass(/dark/);
   await expect(html).toHaveAttribute('data-wallpaper-mode', 'scenic');
-  await expect
-    .poll(() => media.evaluate((element) => getComputedStyle(element).visibility))
-    .toBe('visible');
-  await expect
-    .poll(() => html.evaluate((element) => getComputedStyle(element, '::before').visibility))
-    .toBe('visible');
+  await expect.poll(() => media.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
   await expect
     .poll(() =>
       activeImage.evaluate((image) => ({
@@ -238,9 +228,23 @@ test('a hard refresh keeps the same clear wallpaper without replacing its backgr
       sessionStorage.setItem(
         'wallpaper-first-frame-state',
         JSON.stringify({
-          backgroundImage: style.backgroundImage,
-          opacity: Number.parseFloat(style.opacity),
-          visibility: style.visibility,
+          root: {
+            backgroundImage: style.backgroundImage,
+            opacity: Number.parseFloat(style.opacity),
+            visibility: style.visibility,
+          },
+          runtime: (() => {
+            const media = document.querySelector<HTMLElement>('[data-wallpaper-media]');
+            if (!media) return null;
+            const mediaStyle = getComputedStyle(media);
+            const backgroundStyle = getComputedStyle(media, '::before');
+            return {
+              backgroundImage: backgroundStyle.backgroundImage,
+              opacity:
+                Number.parseFloat(mediaStyle.opacity) * Number.parseFloat(backgroundStyle.opacity),
+              visibility: backgroundStyle.visibility,
+            };
+          })(),
         }),
       );
     });
@@ -261,21 +265,18 @@ test('a hard refresh keeps the same clear wallpaper without replacing its backgr
         JSON.parse(sessionStorage.getItem('wallpaper-first-frame-state') ?? 'null'),
       ),
     )
-    .toEqual(
-      expect.objectContaining({
-        backgroundImage: expect.stringContaining('data:image/'),
-        opacity: expect.any(Number),
-        visibility: 'visible',
-      }),
-    );
+    .toEqual(expect.any(Object));
   await expect
     .poll(() =>
       page.evaluate(() => {
         const value = JSON.parse(sessionStorage.getItem('wallpaper-first-frame-state') ?? 'null');
-        return value?.opacity;
+        const visibleLayer = [value?.root, value?.runtime].find(
+          (layer) => layer?.visibility !== 'hidden' && layer?.opacity > 0,
+        );
+        return visibleLayer?.backgroundImage;
       }),
     )
-    .toBeGreaterThan(0);
+    .toContain('data:image/');
   await expect
     .poll(() => page.evaluate(() => sessionStorage.getItem('wallpaper-current-background')))
     .toBe(storedPoster);

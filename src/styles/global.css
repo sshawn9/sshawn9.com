@@ -56,12 +56,10 @@
   --wallpaper-image-opacity: 1;
   --wallpaper-image-filter: saturate(0.92) contrast(0.94) brightness(1);
   --wallpaper-image-scale: 1;
-  --wallpaper-scrim: linear-gradient(
-    to bottom,
-    rgb(247 248 251 / 0.62),
-    rgb(247 248 251 / 0.7) 30%,
-    rgb(247 248 251 / 0.78)
-  );
+  --wallpaper-scrim: linear-gradient(to bottom,
+      rgb(247 248 251 / 0.62),
+      rgb(247 248 251 / 0.7) 30%,
+      rgb(247 248 251 / 0.78));
   --page-background:
     linear-gradient(to bottom, transparent 0%, var(--page) 54rem),
     radial-gradient(circle at 14% 4%, rgb(34 211 238 / 0.1), transparent 25rem),
@@ -101,12 +99,10 @@
   --wallpaper-image-opacity: 0.56;
   --wallpaper-image-filter: saturate(0.94) contrast(1) brightness(0.96);
   --wallpaper-image-scale: 1;
-  --wallpaper-scrim: linear-gradient(
-    to bottom,
-    rgb(7 9 13 / 0.48),
-    rgb(7 9 13 / 0.66) 60%,
-    rgb(7 9 13 / 0.76)
-  );
+  --wallpaper-scrim: linear-gradient(to bottom,
+      rgb(7 9 13 / 0.48),
+      rgb(7 9 13 / 0.66) 60%,
+      rgb(7 9 13 / 0.76));
   --page-background:
     linear-gradient(to bottom, transparent 0%, var(--page) 54rem),
     radial-gradient(circle at 14% 4%, rgb(34 211 238 / 0.11), transparent 25rem),
@@ -388,15 +384,14 @@ html.theme-transitioning::view-transition-new(root) {
     pointer-events: none;
     transform: scale(var(--wallpaper-image-scale));
     transition: opacity 1.4s ease;
-    visibility: hidden;
   }
 
-  :root[data-wallpaper-background]:not(:has(.wallpaper__images[data-wallpaper-ready]))::before {
+  :root[data-wallpaper-mode='scenic'][data-wallpaper-background]:not( :has(.wallpaper__images[data-wallpaper-ready]))::before {
     opacity: var(--wallpaper-image-opacity);
   }
 
-  :root[data-wallpaper-mode='scenic']::before {
-    visibility: visible;
+  :root[data-wallpaper-runtime]::before {
+    visibility: hidden;
   }
 
   .wallpaper__images {
@@ -404,12 +399,34 @@ html.theme-transitioning::view-transition-new(root) {
     inset: 0;
     z-index: 0;
     overflow: hidden;
+    opacity: 0;
     pointer-events: none;
-    visibility: hidden;
+    transition: opacity 720ms ease;
   }
 
   :root[data-wallpaper-mode='scenic'] .wallpaper__images {
-    visibility: visible;
+    opacity: 1;
+  }
+
+  .wallpaper__images::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--wallpaper-current-image, none);
+    background-position: center;
+    background-size: cover;
+    filter: var(--wallpaper-image-filter);
+    opacity: 0;
+    transform: scale(var(--wallpaper-image-scale));
+  }
+
+  .wallpaper__images[data-wallpaper-bootstrap]::before {
+    opacity: var(--wallpaper-image-opacity);
+  }
+
+  .wallpaper__images[data-wallpaper-bootstrap][data-wallpaper-ready]::before {
+    opacity: 0;
+    transition: opacity 1.4s ease;
   }
 
   .wallpaper__image {
@@ -455,7 +472,10 @@ html.theme-transitioning::view-transition-new(root) {
   }
 
   @media (prefers-reduced-motion: reduce) {
+
     html::before,
+    .wallpaper__images,
+    .wallpaper__images::before,
     .wallpaper__image {
       transition: none;
     }
@@ -550,11 +570,9 @@ html.theme-transitioning::view-transition-new(root) {
     position: absolute;
     z-index: -1;
     inset: 0;
-    background: radial-gradient(
-      32rem circle at var(--spotlight-x, 50%) var(--spotlight-y, 50%),
-      rgb(34 211 238 / 0.12),
-      transparent 52%
-    );
+    background: radial-gradient(32rem circle at var(--spotlight-x, 50%) var(--spotlight-y, 50%),
+        rgb(34 211 238 / 0.12),
+        transparent 52%);
     opacity: 0;
     content: '';
     transition: opacity 240ms ease;
@@ -804,6 +822,7 @@ html.theme-transitioning::view-transition-new(root) {
 }
 
 @keyframes signal-pulse {
+
   0%,
   100% {
     opacity: 0.45;
