@@ -15,7 +15,8 @@ const ENABLED_STORAGE_KEY = 'wallpaper-enabled';
 const AUTO_ROTATION_STORAGE_KEY = 'wallpaper-auto-rotation';
 const LEGACY_ROTATION_STORAGE_KEY = 'wallpaper-rotation-mode';
 const FIXED_PHOTO_STORAGE_KEY = 'wallpaper-fixed-photo-id';
-const ROTATION_INTERVAL_MS = 7 * 60 * 1000;
+const MIN_ROTATION_INTERVAL_MS = 5 * 60 * 1000;
+const MAX_ROTATION_INTERVAL_MS = 9 * 60 * 1000;
 const MANIFEST_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 const IMAGE_WIDTHS = [960, 1600, 2400] as const;
 const DOWNLOAD_WIDTH = 2400;
@@ -56,6 +57,12 @@ let cleanupCurrentWallpaper: (() => void) | undefined;
 let activeWallpaperController: WallpaperController | undefined;
 let activeWallpaperMenuTrigger: HTMLButtonElement | undefined;
 const posterTasks = new Map<string, Promise<void>>();
+
+function nextRotationDelay() {
+  return (
+    MIN_ROTATION_INTERVAL_MS + Math.random() * (MAX_ROTATION_INTERVAL_MS - MIN_ROTATION_INTERVAL_MS)
+  );
+}
 
 function getWallpaperMenu(trigger: HTMLButtonElement) {
   const id = trigger.getAttribute('popovertarget');
@@ -604,7 +611,7 @@ async function initializeWallpaper() {
     rotationTimer = window.setTimeout(() => {
       rotationTimer = undefined;
       void advance();
-    }, ROTATION_INTERVAL_MS);
+    }, nextRotationDelay());
   };
 
   const reconcileManifest = (nextManifest: WallpaperManifest) => {
