@@ -33,6 +33,7 @@
     "astro-expressive-code": "^0.44.0",
     "astro-seo": "^1.1.0",
     "astro-seo-schema": "^7.0.0",
+    "blurhash": "^2.0.5",
     "d3-drag": "^3.0.0",
     "d3-selection": "^3.0.0",
     "diff": "^8.0.4",

@@ -132,6 +132,42 @@ const openGraph = socialImage
       (stored !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('dark', dark);
     document.documentElement.dataset.theme = dark ? 'github-dark' : 'github-light';
+    document.documentElement.dataset.wallpaperMode =
+      localStorage.getItem('wallpaper-enabled') === 'false' ? 'default' : 'scenic';
+    try {
+      const photo = JSON.parse(sessionStorage.getItem('wallpaper-current-photo') ?? 'null');
+      const storedBackground = JSON.parse(
+        sessionStorage.getItem('wallpaper-current-background') ?? 'null',
+      );
+      let background;
+      if (
+        typeof photo?.id === 'string' &&
+        storedBackground?.photoId === photo.id &&
+        ['remote', 'poster', 'blur'].includes(storedBackground?.kind) &&
+        typeof storedBackground?.url === 'string' &&
+        (storedBackground.url.startsWith('https://') ||
+          storedBackground.url.startsWith('data:image/'))
+      ) {
+        background = storedBackground;
+      } else if (typeof photo?.id === 'string' && typeof photo?.rawUrl === 'string') {
+        const url = new URL(photo.rawUrl);
+        url.searchParams.set('auto', 'format');
+        url.searchParams.set('fit', 'max');
+        url.searchParams.set('q', '80');
+        url.searchParams.set('w', '1600');
+        background = { photoId: photo.id, kind: 'remote', url: url.toString() };
+      }
+      if (background) {
+        document.documentElement.dataset.wallpaperBackground = background.photoId;
+        document.documentElement.dataset.wallpaperBackgroundKind = background.kind;
+        document.documentElement.style.setProperty(
+          '--wallpaper-current-image',
+          `url(${JSON.stringify(background.url)})`,
+        );
+      }
+    } catch {
+      // The wallpaper controller will rebuild invalid session state.
+    }
     document
       .querySelector('meta[name="theme-color"]')
       ?.setAttribute('content', dark ? '#070a12' : '#f7f8fb');

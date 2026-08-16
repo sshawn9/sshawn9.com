@@ -17,9 +17,7 @@ const { items, locale } = Astro.props;
 ---
 
 <nav aria-label={m.breadcrumbs({}, { locale })} data-pagefind-ignore>
-  <ol
-    class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-slate-500 dark:text-slate-400"
-  >
+  <ol class="text-supporting flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold">
     {
       items.map((item, index) => {
         const current = index === items.length - 1;
@@ -28,18 +26,14 @@ const { items, locale } = Astro.props;
           <li class="contents">
             {index > 0 && <span aria-hidden="true">/</span>}
             {item.href && !current ? (
-              <a
-                href={item.href}
-                lang={item.lang}
-                class="transition-colors hover:text-cyan-700 dark:hover:text-cyan-300"
-              >
+              <a href={item.href} lang={item.lang} class="interactive-supporting">
                 {item.label}
               </a>
             ) : (
               <span
                 aria-current={current ? 'page' : undefined}
                 lang={item.lang}
-                class={current ? 'text-slate-900 dark:text-white' : undefined}
+                class={current ? 'text-strong' : undefined}
               >
                 {item.label}
               </span>

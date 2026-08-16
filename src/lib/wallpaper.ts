@@ -3,6 +3,8 @@ export const WALLPAPER_DOWNLOAD_ENDPOINT = `${WALLPAPER_ENDPOINT}/download`;
 
 export type WallpaperPhoto = {
   id: string;
+  createdAt: string;
+  blurHash: string;
   rawUrl: string;
   photographerName: string;
   photographerUrl: string;
@@ -10,7 +12,7 @@ export type WallpaperPhoto = {
 };
 
 export type WallpaperManifest = {
-  version: 1;
+  version: 2;
   updatedAt: string;
   photos: WallpaperPhoto[];
 };
@@ -24,6 +26,10 @@ function isWallpaperPhoto(value: unknown): value is WallpaperPhoto {
 
   return (
     typeof value.id === 'string' &&
+    typeof value.createdAt === 'string' &&
+    Number.isFinite(Date.parse(value.createdAt)) &&
+    typeof value.blurHash === 'string' &&
+    value.blurHash.length > 0 &&
     typeof value.rawUrl === 'string' &&
     typeof value.photographerName === 'string' &&
     typeof value.photographerUrl === 'string' &&
@@ -35,7 +41,7 @@ export function isWallpaperManifest(value: unknown): value is WallpaperManifest 
   if (!isRecord(value)) return false;
 
   return (
-    value.version === 1 &&
+    value.version === 2 &&
     typeof value.updatedAt === 'string' &&
     Array.isArray(value.photos) &&
     value.photos.length > 0 &&

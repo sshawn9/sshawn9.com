@@ -118,7 +118,7 @@ export default function VersionComparison(props: Props) {
             data-diff-mode="unified"
             aria-pressed={displayMode() === 'unified'}
             onClick={() => setDisplayMode('unified')}
-            class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-slate-600 transition-colors aria-pressed:bg-white aria-pressed:text-slate-950 aria-pressed:shadow-sm dark:text-slate-300 dark:aria-pressed:bg-white/10 dark:aria-pressed:text-white"
+            class="segmented-option inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold"
           >
             <List class="size-3.5" aria-hidden="true" />
             {props.labels.unified}
@@ -128,7 +128,7 @@ export default function VersionComparison(props: Props) {
             data-diff-mode="split"
             aria-pressed={displayMode() === 'split'}
             onClick={() => setDisplayMode('split')}
-            class="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold text-slate-600 transition-colors aria-pressed:bg-white aria-pressed:text-slate-950 aria-pressed:shadow-sm dark:text-slate-300 dark:aria-pressed:bg-white/10 dark:aria-pressed:text-white"
+            class="segmented-option inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold"
           >
             <Columns2 class="size-3.5" aria-hidden="true" />
             {props.labels.split}
@@ -138,14 +138,14 @@ export default function VersionComparison(props: Props) {
 
       <section class="mt-7 border-t border-slate-900/10 pt-6 dark:border-white/10">
         <h2 class="sidebar-heading">{props.labels.compareHeading}</h2>
-        <p class="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400">
+        <p class="text-supporting mt-3 text-xs leading-5">
           {props.labels.baseBefore}
-          <strong class="text-slate-900 dark:text-white">v{base.number}</strong>
+          <strong class="text-strong">v{base.number}</strong>
           {props.labels.baseAfter}
         </p>
 
         <details class="group mt-2">
-          <summary class="flex min-h-9 cursor-pointer list-none items-center gap-2 text-xs font-bold text-slate-600 transition-colors hover:text-violet-700 dark:text-slate-300 dark:hover:text-violet-300">
+          <summary class="interactive-supporting flex min-h-9 cursor-pointer list-none items-center gap-2 text-xs font-bold">
             <GitCompareArrows class="size-4" aria-hidden="true" />
             {props.labels.chooseOther}
             <span
@@ -164,7 +164,7 @@ export default function VersionComparison(props: Props) {
                       when={!isBase}
                       fallback={
                         <span
-                          class="flex min-h-9 cursor-not-allowed items-center gap-3 rounded-lg px-2 text-xs text-slate-400 dark:text-slate-600"
+                          class="text-disabled flex min-h-9 cursor-not-allowed items-center gap-3 rounded-lg px-2 text-xs"
                           aria-disabled="true"
                         >
                           <span class="font-bold">v{version.number}</span>
@@ -177,11 +177,11 @@ export default function VersionComparison(props: Props) {
                       <a
                         href={comparisonHref(version.number)}
                         aria-current={isCompared ? 'page' : undefined}
-                        class="flex min-h-9 items-center gap-3 rounded-lg px-2 text-xs text-slate-600 transition-colors hover:bg-violet-500/8 hover:text-violet-700 aria-[current=page]:font-extrabold aria-[current=page]:text-slate-950 dark:text-slate-300 dark:hover:text-violet-300 dark:aria-[current=page]:text-white"
+                        class="version-option flex min-h-9 items-center gap-3 rounded-lg px-2 text-xs"
                       >
                         <span>v{version.number}</span>
                         <time
-                          class="ml-auto font-mono text-[0.6rem] font-normal text-slate-400 dark:text-slate-500"
+                          class="text-supporting ml-auto font-mono text-[0.6rem] font-normal"
                           dateTime={version.dateTime}
                         >
                           {version.dateLabel}
@@ -205,7 +205,7 @@ export default function VersionComparison(props: Props) {
     >
       <main class="min-w-0">
         <header>
-          <p class="font-mono text-[0.68rem] font-bold tracking-[0.14em] text-cyan-700 dark:text-cyan-300">
+          <p class="text-supporting font-mono text-[0.68rem] font-bold tracking-[0.14em]">
             {props.labels.eyebrow}
           </p>
           <h1 class="mt-4 text-4xl font-extrabold tracking-[-0.045em] text-balance sm:text-5xl">
@@ -217,17 +217,17 @@ export default function VersionComparison(props: Props) {
               {(version, index) => (
                 <>
                   <Show when={index() > 0}>
-                    <span class="self-center text-slate-400" aria-hidden="true">
+                    <span class="text-supporting self-center" aria-hidden="true">
                       →
                     </span>
                   </Show>
                   <a
-                    class="group min-w-36 flex-1 text-sm transition-colors hover:text-cyan-700 last:text-right dark:hover:text-cyan-300"
+                    class="interactive-heading group min-w-36 flex-1 text-sm last:text-right"
                     href={version.href}
                   >
                     <span class="font-extrabold">v{version.number}</span>
                     <time
-                      class="mt-1 block font-mono text-[0.65rem] text-slate-500 group-hover:text-current dark:text-slate-400"
+                      class="text-supporting mt-1 block font-mono text-[0.65rem] group-hover:text-current"
                       dateTime={version.dateTime}
                     >
                       {version.dateLabel}
@@ -243,18 +243,15 @@ export default function VersionComparison(props: Props) {
           <Controls variant="mobile" />
         </div>
 
-        <div class="mt-8 flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+        <div class="text-supporting mt-8 flex flex-wrap items-center gap-4 text-xs">
           <span class="inline-flex items-center gap-1.5">
-            <span class="font-mono font-bold text-rose-700 dark:text-rose-300" aria-hidden="true">
+            <span class="text-danger font-mono font-bold" aria-hidden="true">
               −
             </span>
             {props.labels.removed}
           </span>
           <span class="inline-flex items-center gap-1.5">
-            <span
-              class="font-mono font-bold text-emerald-700 dark:text-emerald-300"
-              aria-hidden="true"
-            >
+            <span class="text-success font-mono font-bold" aria-hidden="true">
               +
             </span>
             {props.labels.added}
@@ -268,14 +265,12 @@ export default function VersionComparison(props: Props) {
           >
             <Show
               when={!sources.error}
-              fallback={
-                <p class="py-8 text-sm text-rose-700 dark:text-rose-300">{props.labels.error}</p>
-              }
+              fallback={<p class="text-danger py-8 text-sm">{props.labels.error}</p>}
             >
               <Show
                 when={renderedDiff()}
                 fallback={
-                  <p class="rounded-2xl border border-slate-900/10 p-6 text-sm text-slate-600 dark:border-white/10 dark:text-slate-400">
+                  <p class="text-default rounded-2xl border border-slate-900/10 p-6 text-sm dark:border-white/10">
                     {props.labels.noChanges}
                   </p>
                 }

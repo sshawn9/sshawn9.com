@@ -14,7 +14,7 @@
     },
   ],
   "triggers": {
-    "crons": ["0 18 * * *"],
+    "crons": ["0 */3 * * *"],
   },
   "assets": {
     "directory": "./dist",

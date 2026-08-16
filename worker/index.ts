@@ -7,9 +7,8 @@ import {
 } from '../src/lib/wallpaper';
 
 const MANIFEST_KEY = 'wallpaper-manifest-v1';
-const MAX_PHOTOS = 10;
+const MAX_POOL_PHOTOS = 250;
 const MIN_PHOTOS = 4;
-const MAX_MANIFEST_AGE_MS = 36 * 60 * 60 * 1000;
 const UNSPLASH_SEARCH_URL = 'https://api.unsplash.com/search/photos';
 const UNSPLASH_QUERY = 'scenic natural landscape';
 const UTM_SOURCE = 'sshawn9.com';
@@ -35,6 +34,8 @@ type WorkerContext = {
 
 type UnsplashPhoto = {
   id: string;
+  created_at: string;
+  blur_hash: string | null;
   width: number;
   height: number;
   urls: { raw: string };
@@ -45,6 +46,8 @@ type UnsplashPhoto = {
 type UnsplashSearchResponse = {
   results: UnsplashPhoto[];
 };
+
+type SupportedUnsplashPhoto = UnsplashPhoto & { blur_hash: string };
 
 type StoredWallpaperPhoto = WallpaperPhoto & {
   downloadLocation: string;
@@ -81,9 +84,17 @@ function isUnsplashApiUrl(value: string) {
   }
 }
 
-function isSupportedPhoto(photo: UnsplashPhoto) {
+function isSupportedPhoto(photo: UnsplashPhoto): photo is SupportedUnsplashPhoto {
   try {
     return (
+      typeof photo.id === 'string' &&
+      photo.id.length > 0 &&
+      typeof photo.created_at === 'string' &&
+      Number.isFinite(Date.parse(photo.created_at)) &&
+      typeof photo.blur_hash === 'string' &&
+      photo.blur_hash.length > 0 &&
+      typeof photo.user.name === 'string' &&
+      photo.user.name.length > 0 &&
       photo.width >= 2400 &&
       photo.height >= 1350 &&
       photo.width / photo.height >= 1.4 &&
@@ -97,15 +108,33 @@ function isSupportedPhoto(photo: UnsplashPhoto) {
   }
 }
 
-function toStoredWallpaperPhoto(photo: UnsplashPhoto): StoredWallpaperPhoto {
+function toStoredWallpaperPhoto(photo: SupportedUnsplashPhoto): StoredWallpaperPhoto {
   return {
     id: photo.id,
+    createdAt: photo.created_at,
+    blurHash: photo.blur_hash,
     rawUrl: photo.urls.raw,
     photographerName: photo.user.name,
     photographerUrl: addAttributionParameters(photo.user.links.html, 'credit-photographer'),
     photoUrl: addAttributionParameters(photo.links.html, 'credit-photo'),
     downloadLocation: photo.links.download_location,
   };
+}
+
+function mergeWallpaperPhotos(
+  existingPhotos: StoredWallpaperPhoto[],
+  candidates: StoredWallpaperPhoto[],
+) {
+  const photosById = new Map(existingPhotos.map((photo) => [photo.id, photo]));
+  candidates.forEach((photo) => photosById.set(photo.id, photo));
+
+  return [...photosById.values()]
+    .sort((left, right) => {
+      const timeDifference = Date.parse(left.createdAt) - Date.parse(right.createdAt);
+      if (timeDifference !== 0) return timeDifference;
+      return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
+    })
+    .slice(-MAX_POOL_PHOTOS);
 }
 
 async function trackDownload(downloadLocation: string, accessKey: string) {
@@ -120,6 +149,7 @@ async function trackDownload(downloadLocation: string, accessKey: string) {
 export async function refreshWallpaperManifest(
   env: Pick<WorkerEnvironment, 'WALLPAPER_MANIFEST' | 'UNSPLASH_ACCESS_KEY'>,
 ) {
+  const existingManifest = await readManifest(env);
   const searchUrl = new URL(UNSPLASH_SEARCH_URL);
   searchUrl.searchParams.set('query', UNSPLASH_QUERY);
   searchUrl.searchParams.set('orientation', 'landscape');
@@ -136,17 +166,21 @@ export async function refreshWallpaperManifest(
 
   const payload = (await response.json()) as UnsplashSearchResponse;
   const candidates = Array.isArray(payload.results)
-    ? payload.results.filter(isSupportedPhoto).slice(0, MAX_PHOTOS)
+    ? payload.results.filter(isSupportedPhoto).map(toStoredWallpaperPhoto)
     : [];
-
-  const photos = candidates.map(toStoredWallpaperPhoto);
+  const existingPhotos = existingManifest?.photos ?? [];
+  const photos = mergeWallpaperPhotos(existingPhotos, candidates);
 
   if (photos.length < MIN_PHOTOS) {
     throw new Error(`Unsplash returned only ${photos.length} usable wallpaper photos.`);
   }
 
+  if (existingManifest && JSON.stringify(existingPhotos) === JSON.stringify(photos)) {
+    return existingManifest;
+  }
+
   const manifest: StoredWallpaperManifest = {
-    version: 1,
+    version: 2,
     updatedAt: new Date().toISOString(),
     photos,
   };
@@ -163,7 +197,7 @@ function refreshOnce(env: WorkerEnvironment) {
   return refreshInFlight;
 }
 
-async function readManifest(env: WorkerEnvironment) {
+async function readManifest(env: Pick<WorkerEnvironment, 'WALLPAPER_MANIFEST'>) {
   const value = await env.WALLPAPER_MANIFEST.get(MANIFEST_KEY, 'json');
   if (!isWallpaperManifest(value)) return undefined;
 
@@ -176,17 +210,14 @@ async function readManifest(env: WorkerEnvironment) {
   return photos.length === value.photos.length ? { ...value, photos } : undefined;
 }
 
-function isStale(manifest: WallpaperManifest) {
-  const updatedAt = Date.parse(manifest.updatedAt);
-  return !Number.isFinite(updatedAt) || Date.now() - updatedAt > MAX_MANIFEST_AGE_MS;
-}
-
 function publicManifest(manifest: StoredWallpaperManifest): WallpaperManifest {
   return {
     version: manifest.version,
     updatedAt: manifest.updatedAt,
     photos: manifest.photos.map((photo) => ({
       id: photo.id,
+      createdAt: photo.createdAt,
+      blurHash: photo.blurHash,
       rawUrl: photo.rawUrl,
       photographerName: photo.photographerName,
       photographerUrl: photo.photographerUrl,
@@ -199,7 +230,7 @@ function manifestResponse(manifest: StoredWallpaperManifest, request: Request) {
   const body = JSON.stringify(publicManifest(manifest));
   const etag = `W/\"wallpapers-${manifest.updatedAt}\"`;
   const headers = new Headers({
-    'Cache-Control': 'public, max-age=900, stale-while-revalidate=86400',
+    'Cache-Control': 'public, max-age=900',
     'Content-Type': 'application/json; charset=utf-8',
     'X-Content-Type-Options': 'nosniff',
     'X-Robots-Tag': 'noindex',
@@ -227,7 +258,7 @@ function unavailableResponse(request: Request) {
 export async function handleWallpaperRequest(
   request: Request,
   env: WorkerEnvironment,
-  context: WorkerContext,
+  _context: WorkerContext,
 ) {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return new Response('Method Not Allowed', {
@@ -244,12 +275,6 @@ export async function handleWallpaperRequest(
       console.error('Unable to initialize the wallpaper manifest.', error);
       return unavailableResponse(request);
     }
-  } else if (isStale(manifest)) {
-    context.waitUntil(
-      refreshOnce(env).catch((error) => {
-        console.error('Unable to refresh the stale wallpaper manifest.', error);
-      }),
-    );
   }
 
   return manifestResponse(manifest, request);

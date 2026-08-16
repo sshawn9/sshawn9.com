@@ -8,6 +8,7 @@ import type { WallpaperManifest } from '../../src/lib/wallpaper';
 
 class MemoryKv {
   values = new Map<string, string>();
+  putCalls = 0;
 
   async get(key: string, type: 'json') {
     const value = this.values.get(key);
@@ -16,6 +17,7 @@ class MemoryKv {
   }
 
   async put(key: string, value: string) {
+    this.putCalls += 1;
     this.values.set(key, value);
   }
 }
@@ -23,6 +25,8 @@ class MemoryKv {
 function unsplashPhoto(index: number) {
   return {
     id: `photo-${index}`,
+    created_at: new Date(Date.UTC(2026, 0, 1) + index * 60_000).toISOString(),
+    blur_hash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
     width: 3600,
     height: 2400,
     urls: { raw: `https://images.unsplash.com/photo-${index}` },
@@ -37,13 +41,37 @@ function unsplashPhoto(index: number) {
   };
 }
 
+function storedWallpaperPhoto(index: number) {
+  const photographerUrl = new URL(`https://unsplash.com/@photographer-${index}`);
+  photographerUrl.searchParams.set('utm_source', 'sshawn9.com');
+  photographerUrl.searchParams.set('utm_medium', 'referral');
+  photographerUrl.searchParams.set('utm_content', 'credit-photographer');
+  const photoUrl = new URL(`https://unsplash.com/photos/photo-${index}`);
+  photoUrl.searchParams.set('utm_source', 'sshawn9.com');
+  photoUrl.searchParams.set('utm_medium', 'referral');
+  photoUrl.searchParams.set('utm_content', 'credit-photo');
+
+  return {
+    id: `photo-${index}`,
+    createdAt: new Date(Date.UTC(2026, 0, 1) + index * 60_000).toISOString(),
+    blurHash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+    rawUrl: `https://images.unsplash.com/photo-${index}`,
+    photographerName: `Photographer ${index}`,
+    photographerUrl: photographerUrl.toString(),
+    photoUrl: photoUrl.toString(),
+    downloadLocation: `https://api.unsplash.com/photos/photo-${index}/download`,
+  };
+}
+
 function storedManifest(updatedAt = new Date().toISOString()) {
   return {
-    version: 1 as const,
+    version: 2 as const,
     updatedAt,
     photos: [
       {
         id: 'cached',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        blurHash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
         rawUrl: 'https://images.unsplash.com/cached',
         photographerName: 'Cached Photographer',
         photographerUrl: 'https://unsplash.com/@cached',
@@ -71,6 +99,7 @@ describe('wallpaper Worker', () => {
               ...unsplashPhoto(7),
               urls: { raw: 'https://example.com/not-an-unsplash-image' },
             },
+            { ...unsplashPhoto(8), blur_hash: null },
           ],
         });
       }
@@ -92,14 +121,121 @@ describe('wallpaper Worker', () => {
     expect(JSON.parse(kv.values.get('wallpaper-manifest-v1') ?? '{}')).toEqual(manifest);
   });
 
+  it('rebuilds a pre-BlurHash manifest in the existing v1 key', async () => {
+    const kv = new MemoryKv();
+    await kv.put(
+      'wallpaper-manifest-v1',
+      JSON.stringify({
+        version: 2,
+        updatedAt: '2026-08-13T00:00:00.000Z',
+        photos: [
+          {
+            id: 'legacy-photo',
+            createdAt: '2026-08-12T00:00:00.000Z',
+            rawUrl: 'https://images.unsplash.com/legacy-photo',
+            photographerName: 'Legacy Photographer',
+            photographerUrl: 'https://unsplash.com/@legacy',
+            photoUrl: 'https://unsplash.com/photos/legacy-photo',
+            downloadLocation: 'https://api.unsplash.com/photos/legacy-photo/download',
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({
+          results: Array.from({ length: 4 }, (_, index) => unsplashPhoto(index)),
+        }),
+      ),
+    );
+
+    const manifest = await refreshWallpaperManifest({
+      WALLPAPER_MANIFEST: kv,
+      UNSPLASH_ACCESS_KEY: 'test-access-key',
+    });
+
+    expect(manifest.version).toBe(2);
+    expect(JSON.parse(kv.values.get('wallpaper-manifest-v1') ?? '{}')).toEqual(manifest);
+    expect(kv.values.has('wallpaper-manifest-v2')).toBe(false);
+  });
+
+  it('orders the pool by Unsplash creation time and evicts the oldest entries above 250', async () => {
+    const kv = new MemoryKv();
+    const existing = {
+      version: 2 as const,
+      updatedAt: '2026-08-13T00:00:00.000Z',
+      photos: Array.from({ length: 248 }, (_, index) => storedWallpaperPhoto(index)).reverse(),
+    };
+    await kv.put('wallpaper-manifest-v1', JSON.stringify(existing));
+    const updatedDuplicate = {
+      ...unsplashPhoto(247),
+      user: {
+        ...unsplashPhoto(247).user,
+        name: 'Updated Photographer',
+      },
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({
+          results: [unsplashPhoto(250), updatedDuplicate, unsplashPhoto(248), unsplashPhoto(249)],
+        }),
+      ),
+    );
+
+    const manifest = await refreshWallpaperManifest({
+      WALLPAPER_MANIFEST: kv,
+      UNSPLASH_ACCESS_KEY: 'test-access-key',
+    });
+
+    expect(manifest.photos).toHaveLength(250);
+    expect(manifest.photos[0]?.id).toBe('photo-1');
+    expect(manifest.photos.slice(-3).map((photo) => photo.id)).toEqual([
+      'photo-248',
+      'photo-249',
+      'photo-250',
+    ]);
+    expect(manifest.photos.find((photo) => photo.id === 'photo-247')?.photographerName).toBe(
+      'Updated Photographer',
+    );
+  });
+
+  it('does not rewrite the pool when the fetched candidates contain no changes', async () => {
+    const kv = new MemoryKv();
+    const existing = {
+      version: 2 as const,
+      updatedAt: '2026-08-13T00:00:00.000Z',
+      photos: Array.from({ length: 4 }, (_, index) => storedWallpaperPhoto(index)),
+    };
+    await kv.put('wallpaper-manifest-v1', JSON.stringify(existing));
+    kv.putCalls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({ results: Array.from({ length: 4 }, (_, index) => unsplashPhoto(index)) }),
+      ),
+    );
+
+    const manifest = await refreshWallpaperManifest({
+      WALLPAPER_MANIFEST: kv,
+      UNSPLASH_ACCESS_KEY: 'test-access-key',
+    });
+
+    expect(manifest).toEqual(existing);
+    expect(kv.putCalls).toBe(0);
+  });
+
   it('does not replace the stored manifest when a refresh fails', async () => {
     const kv = new MemoryKv();
     const existing: WallpaperManifest = {
-      version: 1,
+      version: 2,
       updatedAt: '2026-08-13T00:00:00.000Z',
       photos: [
         {
           id: 'existing',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          blurHash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
           rawUrl: 'https://images.unsplash.com/existing',
           photographerName: 'Existing Photographer',
           photographerUrl: 'https://unsplash.com/@existing',
@@ -140,9 +276,12 @@ describe('wallpaper Worker', () => {
     );
 
     expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe('public, max-age=900');
     const body = (await response.json()) as WallpaperManifest;
     expect(body.photos[0]).toEqual({
       id: 'cached',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      blurHash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
       rawUrl: 'https://images.unsplash.com/cached',
       photographerName: 'Cached Photographer',
       photographerUrl: 'https://unsplash.com/@cached',
@@ -238,17 +377,13 @@ describe('wallpaper Worker', () => {
     expect(response.headers.get('Cache-Control')).toBe('no-store');
   });
 
-  it('serves a stale manifest while refreshing it in the background', async () => {
+  it('does not refresh an existing manifest during a user request', async () => {
     const kv = new MemoryKv();
     const existing = storedManifest('2026-08-01T00:00:00.000Z');
     await kv.put('wallpaper-manifest-v1', JSON.stringify(existing));
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () =>
-        Response.json({ results: Array.from({ length: 4 }, (_, index) => unsplashPhoto(index)) }),
-      ),
-    );
-    let backgroundTask: Promise<unknown> | undefined;
+    const fetchMock = vi.fn();
+    const waitUntil = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleWallpaperRequest(
       new Request('https://sshawn9.com/api/wallpapers'),
@@ -257,18 +392,12 @@ describe('wallpaper Worker', () => {
         WALLPAPER_MANIFEST: kv,
         UNSPLASH_ACCESS_KEY: 'test-access-key',
       },
-      {
-        waitUntil(task) {
-          backgroundTask = task;
-        },
-      },
+      { waitUntil },
     );
 
     expect(response.status).toBe(200);
     expect(((await response.json()) as WallpaperManifest).updatedAt).toBe(existing.updatedAt);
-    await backgroundTask;
-    expect(
-      (JSON.parse(kv.values.get('wallpaper-manifest-v1') ?? '{}') as WallpaperManifest).updatedAt,
-    ).not.toBe(existing.updatedAt);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(waitUntil).not.toHaveBeenCalled();
   });
 });
