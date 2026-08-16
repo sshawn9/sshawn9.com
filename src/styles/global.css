@@ -260,9 +260,11 @@ html.theme-transitioning::view-transition-new(root) {
 
   .filter-option {
     border-left-color: transparent;
+    background: transparent;
     color: var(--text-default);
     transition:
       border-color 160ms ease,
+      background-color 160ms ease,
       color 160ms ease;
   }
 
@@ -277,7 +279,8 @@ html.theme-transitioning::view-transition-new(root) {
 
   .filter-option[data-pressed] {
     border-left-color: var(--text-accent);
-    color: var(--text-strong);
+    background: color-mix(in srgb, var(--text-accent) 14%, transparent);
+    color: var(--text-accent-hover);
     font-weight: 700;
   }
 
