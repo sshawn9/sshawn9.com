@@ -172,7 +172,7 @@ export default function BlogBrowser(props: Props) {
                         class="filter-option grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-left text-sm"
                       >
                         <span class="min-w-0 truncate">{tag.name}</span>
-                        <span class="text-supporting font-mono text-[0.68rem]">{tag.count}</span>
+                        <span class="font-mono text-[0.68rem] opacity-65">{tag.count}</span>
                       </ToggleGroup.Item>
                     )}
                   </For>
