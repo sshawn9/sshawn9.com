@@ -134,47 +134,52 @@ export default function BlogBrowser(props: Props) {
     <div
       class={
         filterable() && props.tags.length > 0
-          ? 'grid gap-10 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start'
+          ? 'grid gap-10 [--blog-filter-top:7rem] lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start'
           : undefined
       }
     >
       <Show when={filterable() && props.tags.length > 0}>
-        <aside class="lg:sticky lg:top-28 lg:max-h-[min(42rem,calc(100dvh-9rem))] lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
-          <Collapsible defaultOpen>
-            <Collapsible.Trigger class="text-strong group flex w-full items-center justify-between gap-4 py-2 text-left text-sm font-bold">
-              <span>{m.article_tags({}, { locale: props.locale })}</span>
-              <span
-                class="size-2.5 rotate-45 border-r-2 border-b-2 border-slate-400 transition-transform group-data-[expanded]:rotate-[225deg] dark:border-slate-500"
-                aria-hidden="true"
-              />
-            </Collapsible.Trigger>
+        <aside class="lg:min-h-[calc(100dvh-var(--blog-filter-top))] lg:self-stretch">
+          <div
+            data-tag-filter-panel
+            class="lg:sticky lg:top-[var(--blog-filter-top)] lg:max-h-[min(42rem,calc(100dvh-9rem))] lg:overflow-y-auto lg:overscroll-contain lg:pr-2"
+          >
+            <Collapsible defaultOpen>
+              <Collapsible.Trigger class="text-strong group flex w-full items-center justify-between gap-4 py-2 text-left text-sm font-bold">
+                <span>{m.article_tags({}, { locale: props.locale })}</span>
+                <span
+                  class="size-2.5 rotate-45 border-r-2 border-b-2 border-slate-400 transition-transform group-data-[expanded]:rotate-[225deg] dark:border-slate-500"
+                  aria-hidden="true"
+                />
+              </Collapsible.Trigger>
 
-            <Collapsible.Content class="mt-2">
-              <ToggleGroup
-                multiple
-                orientation="vertical"
-                value={selectedTags()}
-                onChange={(values) => setTags(values)}
-                aria-label={m.article_tags({}, { locale: props.locale })}
-                class="flex flex-col gap-1"
-              >
-                <For each={props.tags}>
-                  {(tag) => (
-                    <ToggleGroup.Item
-                      value={tag.name}
-                      data-tag-filter={tag.name}
-                      data-tag-slug={tag.slug}
-                      data-tag-count={tag.count}
-                      class="filter-option grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-left text-sm"
-                    >
-                      <span class="min-w-0 truncate">{tag.name}</span>
-                      <span class="text-supporting font-mono text-[0.68rem]">{tag.count}</span>
-                    </ToggleGroup.Item>
-                  )}
-                </For>
-              </ToggleGroup>
-            </Collapsible.Content>
-          </Collapsible>
+              <Collapsible.Content class="mt-2">
+                <ToggleGroup
+                  multiple
+                  orientation="vertical"
+                  value={selectedTags()}
+                  onChange={(values) => setTags(values)}
+                  aria-label={m.article_tags({}, { locale: props.locale })}
+                  class="flex flex-col gap-1"
+                >
+                  <For each={props.tags}>
+                    {(tag) => (
+                      <ToggleGroup.Item
+                        value={tag.name}
+                        data-tag-filter={tag.name}
+                        data-tag-slug={tag.slug}
+                        data-tag-count={tag.count}
+                        class="filter-option grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-left text-sm"
+                      >
+                        <span class="min-w-0 truncate">{tag.name}</span>
+                        <span class="text-supporting font-mono text-[0.68rem]">{tag.count}</span>
+                      </ToggleGroup.Item>
+                    )}
+                  </For>
+                </ToggleGroup>
+              </Collapsible.Content>
+            </Collapsible>
+          </div>
         </aside>
       </Show>
 
