@@ -221,6 +221,20 @@ test('a hard refresh keeps the same clear wallpaper without replacing its backgr
   );
   expect(storedPoster).toContain('data:image/');
 
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('wallpaper-current-background')) return;
+    window.requestAnimationFrame(() => {
+      const style = getComputedStyle(document.documentElement, '::before');
+      sessionStorage.setItem(
+        'wallpaper-first-frame-state',
+        JSON.stringify({
+          backgroundImage: style.backgroundImage,
+          opacity: Number.parseFloat(style.opacity),
+        }),
+      );
+    });
+  });
+
   imageRequests = 0;
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('html')).toHaveAttribute('data-wallpaper-background', photo.id);
@@ -232,9 +246,22 @@ test('a hard refresh keeps the same clear wallpaper without replacing its backgr
   await expect(page.locator('[data-wallpaper-image].is-active')).toHaveCount(0);
   await expect
     .poll(() =>
-      page
-        .locator('.wallpaper__current')
-        .evaluate((element) => Number.parseFloat(getComputedStyle(element).opacity)),
+      page.evaluate(() =>
+        JSON.parse(sessionStorage.getItem('wallpaper-first-frame-state') ?? 'null'),
+      ),
+    )
+    .toEqual(
+      expect.objectContaining({
+        backgroundImage: expect.stringContaining('data:image/'),
+        opacity: expect.any(Number),
+      }),
+    );
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const value = JSON.parse(sessionStorage.getItem('wallpaper-first-frame-state') ?? 'null');
+        return value?.opacity;
+      }),
     )
     .toBeGreaterThan(0);
   await expect
@@ -411,9 +438,9 @@ test('the wallpaper recovers from failure and cycles without repeats', async ({ 
   await expect(page.locator('[data-wallpaper-image].is-active')).toHaveCount(0);
   await expect
     .poll(() =>
-      page
-        .locator('.wallpaper__current')
-        .evaluate((element) => Number.parseFloat(getComputedStyle(element).opacity)),
+      page.evaluate(() =>
+        Number.parseFloat(getComputedStyle(document.documentElement, '::before').opacity),
+      ),
     )
     .toBeGreaterThan(0);
   await expect
@@ -642,6 +669,29 @@ test('tag filtering keeps the complete facet list and fixed global counts', asyn
     );
   expect(visibleArticleTags.every((tags: string[]) => tags.includes(candidate.name!))).toBe(true);
   expect(new URL(page.url()).searchParams.getAll('tag')).toContain(candidate.slug);
+});
+
+test('tag filter panel remains stable while result height changes', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/en/blog/');
+
+  const filters = page.locator('[data-tag-filter]');
+  const panel = page.locator('[data-tag-filter-panel]');
+  expect(await filters.count()).toBeGreaterThanOrEqual(3);
+
+  const panelTop = () =>
+    panel.evaluate((element) => Math.round(element.getBoundingClientRect().top * 100) / 100);
+  const initialTop = await panelTop();
+
+  for (let index = 0; index < 3; index += 1) {
+    await filters.nth(index).click();
+    await expect(filters.nth(index)).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(panelTop).toBe(initialTop);
+  }
+
+  await filters.nth(2).click();
+  await expect(filters.nth(2)).toHaveAttribute('aria-pressed', 'false');
+  await expect.poll(panelTop).toBe(initialTop);
 });
 
 test('version comparison loads on demand and supports both layouts', async ({ page }) => {

@@ -369,11 +369,31 @@ html.theme-transitioning::view-transition-new(root) {
     display: contents;
   }
 
-  .wallpaper__current,
   .wallpaper__image,
   .wallpaper__scrim {
     position: absolute;
     inset: 0;
+  }
+
+  html::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background-image: var(--wallpaper-current-image, none);
+    background-position: center;
+    background-size: cover;
+    filter: var(--wallpaper-image-filter);
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(var(--wallpaper-image-scale));
+    transition: opacity 1.4s ease;
+  }
+
+  :root[data-wallpaper-mode='scenic'][data-wallpaper-background]:not(
+      :has(.wallpaper__images[data-wallpaper-ready])
+    )::before {
+    opacity: var(--wallpaper-image-opacity);
   }
 
   .wallpaper__images {
@@ -388,22 +408,6 @@ html.theme-transitioning::view-transition-new(root) {
 
   :root[data-wallpaper-mode='scenic'] .wallpaper__images {
     opacity: 1;
-  }
-
-  .wallpaper__current {
-    background-image: var(--wallpaper-current-image, none);
-    background-position: center;
-    background-size: cover;
-    filter: var(--wallpaper-image-filter);
-    opacity: 0;
-    transform: scale(var(--wallpaper-image-scale));
-    transition: opacity 1.4s ease;
-  }
-
-  :root[data-wallpaper-background]
-    .wallpaper__images:not([data-wallpaper-ready])
-    .wallpaper__current {
-    opacity: var(--wallpaper-image-opacity);
   }
 
   .wallpaper__image {
@@ -449,8 +453,8 @@ html.theme-transitioning::view-transition-new(root) {
   }
 
   @media (prefers-reduced-motion: reduce) {
+    html::before,
     .wallpaper__images,
-    .wallpaper__current,
     .wallpaper__image {
       transition: none;
     }
