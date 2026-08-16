@@ -1,5 +1,47 @@
 import { expect, test } from '@playwright/test';
 
+test('the site header exposes desktop navigation and a mobile disclosure menu', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/en/blog/');
+
+  const header = page.locator('.site-header');
+  const identity = header.locator('.site-header__identity');
+  const desktopNavigation = header.locator('.site-header__primary-nav');
+  const menuButton = header.locator('[popovertarget="site-navigation"]');
+
+  await expect(identity).toHaveAttribute('href', '/en/');
+  await expect(desktopNavigation).toBeVisible();
+  await expect(desktopNavigation.locator('a')).toHaveCount(3);
+  expect(
+    await desktopNavigation
+      .locator('a')
+      .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
+  ).toEqual(['/en/projects/', '/en/blog/', '/en/about/']);
+  await expect(desktopNavigation.locator('a[href="/en/blog/"]')).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await expect(menuButton).toBeHidden();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(desktopNavigation).toBeHidden();
+  await expect(menuButton).toBeVisible();
+
+  await menuButton.click();
+  const mobilePanel = page.locator('#site-navigation');
+  await expect(mobilePanel).toBeVisible();
+  await expect(menuButton).toHaveAccessibleName('Close navigation');
+  await expect(mobilePanel.locator('a[href="/en/blog/"]')).toHaveAttribute('aria-current', 'page');
+  await expect(mobilePanel.locator('[data-theme-toggle]')).toBeVisible();
+  await expect(mobilePanel.locator('[data-wallpaper-menu-trigger]')).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(mobilePanel).toBeHidden();
+  await expect(menuButton).toHaveAccessibleName('Open navigation');
+});
+
 test('language switching keeps the route and stores the preference', async ({ page }) => {
   await page.goto('/en/blog/');
   await page.locator('a[data-locale-switch="zh"]').first().click();
@@ -43,14 +85,172 @@ test('theme choice survives client-side navigation', async ({ page }) => {
     .toBe(!wasDark);
 });
 
-test('the wallpaper recovers from a transient failure and keeps one photo per session', async ({
+test('theme and wallpaper mode change independently without replacing the current photo', async ({
   page,
 }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('theme', 'light');
+    localStorage.setItem('wallpaper-enabled', 'true');
+    localStorage.setItem('wallpaper-auto-rotation', 'false');
+  });
+
+  const photo = {
+    id: 'four-mode-photo',
+    createdAt: '2026-08-15T00:00:00.000Z',
+    blurHash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+    rawUrl: 'https://images.unsplash.com/four-mode-photo',
+    photographerName: 'Photographer',
+    photographerUrl: 'https://unsplash.com/@photographer',
+    photoUrl: 'https://unsplash.com/photos/four-mode-photo',
+  };
+  let manifestRequests = 0;
+  let imageRequests = 0;
+  await page.route('**/api/wallpapers', (route) => {
+    manifestRequests += 1;
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ version: 2, updatedAt: photo.createdAt, photos: [photo] }),
+    });
+  });
+  await page.route('https://images.unsplash.com/**', (route) => {
+    imageRequests += 1;
+    return route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"/>',
+    });
+  });
+
+  await page.goto('/en/');
+  const html = page.locator('html');
+  const media = page.locator('[data-wallpaper-media]');
+  const activeImage = page.locator('[data-wallpaper-image].is-active');
+  await expect(html).not.toHaveClass(/dark/);
+  await expect(html).toHaveAttribute('data-wallpaper-mode', 'scenic');
+  await expect(activeImage).toHaveCount(1);
+  const initialImageState = await activeImage.evaluate((image) => ({
+    id: (image as HTMLElement).dataset.wallpaperPhotoId,
+    src: (image as HTMLImageElement).currentSrc,
+  }));
+  const initialManifestRequests = manifestRequests;
+  const initialImageRequests = imageRequests;
+
+  await page.locator('[data-theme-toggle]:visible').first().click();
+  await expect(html).toHaveClass(/dark/);
+  await expect(html).toHaveAttribute('data-wallpaper-mode', 'scenic');
+  await expect
+    .poll(() =>
+      activeImage.evaluate((image) => ({
+        id: (image as HTMLElement).dataset.wallpaperPhotoId,
+        src: (image as HTMLImageElement).currentSrc,
+      })),
+    )
+    .toEqual(initialImageState);
+
+  const wallpaperControl = page.locator('[data-wallpaper-control]:visible').first();
+  await wallpaperControl.locator('[data-wallpaper-menu-trigger]').click();
+  await wallpaperControl.locator('[data-wallpaper-enabled-control]').click();
+  await expect(html).toHaveClass(/dark/);
+  await expect(html).toHaveAttribute('data-wallpaper-mode', 'default');
+  await expect(activeImage).toHaveCount(1);
+  await expect.poll(() => media.evaluate((element) => getComputedStyle(element).opacity)).toBe('0');
+
+  await page.locator('[data-theme-toggle]:visible').first().click();
+  await expect(html).not.toHaveClass(/dark/);
+  await expect(html).toHaveAttribute('data-wallpaper-mode', 'default');
+  await expect(activeImage).toHaveCount(1);
+
+  await wallpaperControl.locator('[data-wallpaper-menu-trigger]').click();
+  await wallpaperControl.locator('[data-wallpaper-enabled-control]').click();
+  await expect(html).not.toHaveClass(/dark/);
+  await expect(html).toHaveAttribute('data-wallpaper-mode', 'scenic');
+  await expect.poll(() => media.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+  await expect
+    .poll(() =>
+      activeImage.evaluate((image) => ({
+        id: (image as HTMLElement).dataset.wallpaperPhotoId,
+        src: (image as HTMLImageElement).currentSrc,
+      })),
+    )
+    .toEqual(initialImageState);
+  expect(manifestRequests).toBe(initialManifestRequests);
+  expect(imageRequests).toBe(initialImageRequests);
+});
+
+test('a hard refresh keeps the same clear wallpaper without replacing its background layer', async ({
+  page,
+}) => {
+  const photo = {
+    id: 'stored-photo',
+    createdAt: '2026-08-15T00:00:00.000Z',
+    blurHash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+    rawUrl: 'https://images.unsplash.com/stored-photo',
+    photographerName: 'Photographer',
+    photographerUrl: 'https://unsplash.com/@photographer',
+    photoUrl: 'https://unsplash.com/photos/stored-photo',
+  };
+  await page.addInitScript(() => localStorage.setItem('wallpaper-enabled', 'true'));
+
+  await page.route('**/api/wallpapers', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ version: 2, updatedAt: photo.createdAt, photos: [photo] }),
+    }),
+  );
+  let imageRequests = 0;
+  await page.route('https://images.unsplash.com/**', (route) => {
+    imageRequests += 1;
+    return route.fulfill({
+      contentType: 'image/svg+xml',
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"><path fill="#5b7088" d="M0 0h1600v900H0z"/></svg>',
+    });
+  });
+
+  await page.goto('/en/');
+  await expect(page.locator('[data-wallpaper-image].is-active')).toHaveCount(1);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const value = JSON.parse(sessionStorage.getItem('wallpaper-current-background') ?? 'null');
+        return value?.kind;
+      }),
+    )
+    .toBe('poster');
+  const storedPoster = await page.evaluate(() =>
+    sessionStorage.getItem('wallpaper-current-background'),
+  );
+  expect(storedPoster).toContain('data:image/');
+
+  imageRequests = 0;
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.locator('html')).toHaveAttribute('data-wallpaper-background', photo.id);
+  await expect(page.locator('html')).toHaveAttribute('data-wallpaper-background-kind', 'poster');
+  await expect(page.locator('[data-wallpaper-media]')).not.toHaveAttribute(
+    'data-wallpaper-ready',
+    photo.id,
+  );
+  await expect(page.locator('[data-wallpaper-image].is-active')).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page
+        .locator('.wallpaper__current')
+        .evaluate((element) => Number.parseFloat(getComputedStyle(element).opacity)),
+    )
+    .toBeGreaterThan(0);
+  await expect
+    .poll(() => page.evaluate(() => sessionStorage.getItem('wallpaper-current-background')))
+    .toBe(storedPoster);
+  await expect.poll(() => imageRequests).toBe(0);
+});
+
+test('the wallpaper recovers from failure and cycles without repeats', async ({ page }) => {
   const manifest = {
-    version: 1,
+    version: 2,
     updatedAt: '2026-08-14T00:00:00.000Z',
-    photos: [1, 2].map((index) => ({
+    photos: [1, 2, 3].map((index) => ({
       id: `photo-${index}`,
+      createdAt: `2026-08-1${index}T00:00:00.000Z`,
+      blurHash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
       rawUrl: `https://images.unsplash.com/photo-${index}`,
       photographerName: `Photographer ${index}`,
       photographerUrl: `https://unsplash.com/@photographer-${index}`,
@@ -78,6 +278,7 @@ test('the wallpaper recovers from a transient failure and keeps one photo per se
   });
 
   await page.goto('/en/');
+  await expect(page.locator('html')).toHaveAttribute('data-wallpaper-mode', 'scenic');
   await expect.poll(() => manifestRequests).toBe(1);
   await expect(page.locator('[data-wallpaper-image].is-active')).toHaveCount(0);
 
@@ -88,8 +289,16 @@ test('the wallpaper recovers from a transient failure and keeps one photo per se
   await expect(page.locator('[data-wallpaper-credit]')).toBeVisible();
   await expect(page.locator('[data-wallpaper-credit]')).toContainText('Photo by Photographer');
   const selectedId = await page.evaluate(() => sessionStorage.getItem('wallpaper-photo-id'));
-  expect(selectedId).toMatch(/^photo-[12]$/);
-  await expect.poll(() => downloadReports).toBe(1);
+  expect(selectedId).toMatch(/^photo-[123]$/);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const value = JSON.parse(sessionStorage.getItem('wallpaper-current-background') ?? 'null');
+        return value?.photoId;
+      }),
+    )
+    .toBe(selectedId);
+  expect(downloadReports).toBe(0);
   await page.locator('.wallpaper__images').evaluate((element) => {
     (element as HTMLElement).dataset.persistenceMarker = 'original';
   });
@@ -104,14 +313,14 @@ test('the wallpaper recovers from a transient failure and keeps one photo per se
   await expect
     .poll(() => page.evaluate(() => sessionStorage.getItem('wallpaper-photo-id')))
     .toBe(selectedId);
-  expect(downloadReports).toBe(1);
+  expect(downloadReports).toBe(0);
 
   const wallpaperControl = page.locator('[data-wallpaper-control]:visible').first();
   const wallpaperTrigger = wallpaperControl.locator('[data-wallpaper-menu-trigger]');
   const wallpaperPanel = wallpaperControl.locator('[popover]');
   await wallpaperTrigger.click();
   await expect(wallpaperControl.locator('[data-wallpaper-enabled]')).toBeChecked();
-  await expect(wallpaperControl.locator('[data-wallpaper-mode="auto"]')).toBeChecked();
+  await expect(wallpaperControl.locator('[data-wallpaper-auto-rotation]')).toBeChecked();
 
   const triggerBox = await wallpaperTrigger.boundingBox();
   const panelBox = await wallpaperPanel.boundingBox();
@@ -122,32 +331,43 @@ test('the wallpaper recovers from a transient failure and keeps one photo per se
   ).toBeLessThan(2);
   expect(panelBox!.y).toBeGreaterThanOrEqual(triggerBox!.y + triggerBox!.height);
 
-  const rotationControl = wallpaperControl.locator('[data-wallpaper-rotation]');
-  const nextButton = wallpaperControl.locator('[data-wallpaper-next]');
-  const rotationOpacity = await rotationControl.evaluate(
+  const autoRotationControl = wallpaperControl.locator('[data-wallpaper-auto-rotation]');
+  const autoRotationRow = wallpaperControl.locator('[data-wallpaper-auto-rotation-control]');
+  const refreshButton = wallpaperControl.locator('[data-wallpaper-refresh]');
+  const downloadButton = wallpaperControl.locator('[data-wallpaper-download]');
+  const autoRotationOpacity = await autoRotationRow.evaluate(
     (element) => getComputedStyle(element).opacity,
   );
   imageGate = new Promise((resolve) => {
     releaseImageGate = resolve;
   });
-  await nextButton.click();
-  await expect(nextButton).toHaveAttribute('aria-busy', 'true');
-  await expect(rotationControl).not.toHaveAttribute('disabled', '');
+  await refreshButton.click();
+  await expect(refreshButton).toHaveAttribute('aria-busy', 'true');
+  await expect(autoRotationControl).not.toBeDisabled();
   await expect
-    .poll(() => rotationControl.evaluate((element) => getComputedStyle(element).opacity))
-    .toBe(rotationOpacity);
+    .poll(() => autoRotationRow.evaluate((element) => getComputedStyle(element).opacity))
+    .toBe(autoRotationOpacity);
   releaseImageGate?.();
   imageGate = undefined;
   await expect
     .poll(() => page.evaluate(() => sessionStorage.getItem('wallpaper-photo-id')))
     .not.toBe(selectedId);
-  await expect.poll(() => downloadReports).toBe(2);
+  expect(downloadReports).toBe(0);
+
+  const secondId = await page.evaluate(() => sessionStorage.getItem('wallpaper-photo-id'));
+  await refreshButton.click();
+  await expect
+    .poll(() => page.evaluate(() => sessionStorage.getItem('wallpaper-photo-id')))
+    .not.toBe(secondId);
+  const thirdId = await page.evaluate(() => sessionStorage.getItem('wallpaper-photo-id'));
+  expect(new Set([selectedId, secondId, thirdId]).size).toBe(3);
+  expect(downloadReports).toBe(0);
 
   const fixedId = await page.evaluate(() => sessionStorage.getItem('wallpaper-photo-id'));
-  await wallpaperControl.locator('[data-wallpaper-mode-option="fixed"]').click();
+  await autoRotationRow.click();
   await expect
-    .poll(() => page.evaluate(() => localStorage.getItem('wallpaper-rotation-mode')))
-    .toBe('fixed');
+    .poll(() => page.evaluate(() => localStorage.getItem('wallpaper-auto-rotation')))
+    .toBe('false');
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('wallpaper-fixed-photo-id')))
     .toBe(fixedId);
@@ -158,44 +378,159 @@ test('the wallpaper recovers from a transient failure and keeps one photo per se
     .poll(() => page.evaluate(() => sessionStorage.getItem('wallpaper-photo-id')))
     .toBe(fixedId);
   await wallpaperControl.locator('[data-wallpaper-menu-trigger]').click();
-  await expect(wallpaperControl.locator('[data-wallpaper-mode="fixed"]')).toBeChecked();
+  await expect(autoRotationControl).not.toBeChecked();
 
   await wallpaperControl.locator('[data-wallpaper-enabled-control]').click();
-  await expect(page.locator('[data-wallpaper-image].is-active')).toHaveCount(0);
+  await expect(page.locator('[data-wallpaper-image].is-active')).toHaveCount(1);
   await expect(page.locator('[data-wallpaper-credit]')).toBeHidden();
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('wallpaper-enabled')))
     .toBe('false');
-  await expect(wallpaperControl.locator('[data-wallpaper-rotation]')).toHaveAttribute(
-    'disabled',
-    '',
-  );
-  await expect(wallpaperControl.locator('[data-wallpaper-next]')).toBeDisabled();
+  await expect(page.locator('html')).toHaveAttribute('data-wallpaper-mode', 'default');
+  await expect(autoRotationControl).toBeDisabled();
+  await expect
+    .poll(() => autoRotationRow.evaluate((element) => getComputedStyle(element).opacity))
+    .toBe('0.4');
+  await expect(refreshButton).toBeDisabled();
+  await expect(downloadButton).toBeDisabled();
+  await expect
+    .poll(() => page.evaluate(() => sessionStorage.getItem('wallpaper-photo-id')))
+    .toBe(fixedId);
 
   await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-wallpaper-mode', 'default');
   await expect.poll(() => manifestRequests).toBe(2);
   await expect(page.locator('[data-wallpaper-image].is-active')).toHaveCount(0);
   await wallpaperControl.locator('[data-wallpaper-menu-trigger]').click();
   await expect(wallpaperControl.locator('[data-wallpaper-enabled]')).not.toBeChecked();
-  await expect(wallpaperControl.locator('[data-wallpaper-mode="fixed"]')).toBeChecked();
+  await expect(autoRotationControl).not.toBeChecked();
 
   await wallpaperControl.locator('[data-wallpaper-enabled-control]').click();
+  await expect(page.locator('html')).toHaveAttribute('data-wallpaper-mode', 'scenic');
   await expect.poll(() => manifestRequests).toBe(3);
-  await expect(page.locator('[data-wallpaper-image].is-active')).toHaveCount(1);
+  await expect(page.locator('[data-wallpaper-image].is-active')).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page
+        .locator('.wallpaper__current')
+        .evaluate((element) => Number.parseFloat(getComputedStyle(element).opacity)),
+    )
+    .toBeGreaterThan(0);
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('wallpaper-enabled')))
     .toBe('true');
   await expect
     .poll(() => page.evaluate(() => sessionStorage.getItem('wallpaper-photo-id')))
     .toBe(fixedId);
-
-  await wallpaperControl.locator('[data-wallpaper-mode-option="auto"]').click();
   await expect
-    .poll(() => page.evaluate(() => localStorage.getItem('wallpaper-rotation-mode')))
-    .toBe('auto');
+    .poll(() => autoRotationRow.evaluate((element) => getComputedStyle(element).opacity))
+    .toBe(autoRotationOpacity);
+
+  const downloadStarted = page.waitForEvent('download');
+  await downloadButton.click();
+  const downloadedWallpaper = await downloadStarted;
+  expect(downloadedWallpaper.suggestedFilename()).toBe(`unsplash-${fixedId}.jpg`);
+  await expect.poll(() => downloadReports).toBe(1);
+
+  await autoRotationRow.click();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('wallpaper-auto-rotation')))
+    .toBe('true');
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('wallpaper-fixed-photo-id')))
     .toBeNull();
+});
+
+test('wallpaper manifest refresh preserves the current photo and reconciles the queue', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    let now = Date.now();
+    Date.now = () => now;
+    Object.defineProperty(window, '__advanceWallpaperClock', {
+      value: (milliseconds: number) => {
+        now += milliseconds;
+      },
+    });
+    localStorage.setItem('wallpaper-auto-rotation', 'false');
+  });
+
+  const photo = (index: number) => ({
+    id: `photo-${index}`,
+    createdAt: `2026-08-1${index}T00:00:00.000Z`,
+    blurHash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+    rawUrl: `https://images.unsplash.com/photo-${index}`,
+    photographerName: `Photographer ${index}`,
+    photographerUrl: `https://unsplash.com/@photographer-${index}`,
+    photoUrl: `https://unsplash.com/photos/photo-${index}`,
+  });
+  const initialManifest = {
+    version: 2 as const,
+    updatedAt: '2026-08-14T00:00:00.000Z',
+    photos: [1, 2, 3, 4].map(photo),
+  };
+  let servedManifest = initialManifest;
+  let manifestRequests = 0;
+  const imageRequests: string[] = [];
+  const image = '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"></svg>';
+
+  await page.route('**/api/wallpapers', (route) => {
+    manifestRequests += 1;
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(servedManifest),
+    });
+  });
+  await page.route('https://images.unsplash.com/**', (route) => {
+    imageRequests.push(route.request().url());
+    return route.fulfill({ contentType: 'image/svg+xml', body: image });
+  });
+
+  await page.goto('/en/');
+  await expect.poll(() => manifestRequests).toBe(1);
+  await expect(page.locator('[data-wallpaper-image].is-active')).toHaveCount(1);
+
+  const currentId = await page.evaluate(() => sessionStorage.getItem('wallpaper-photo-id'));
+  const queueBefore = await page.evaluate<string[]>(() =>
+    JSON.parse(sessionStorage.getItem('wallpaper-photo-queue') ?? '[]'),
+  );
+  expect(currentId).toMatch(/^photo-[1-4]$/);
+  expect(queueBefore).toHaveLength(3);
+
+  const removedId = queueBefore[0]!;
+  const retainedIds = queueBefore.slice(1);
+  servedManifest = {
+    version: 2,
+    updatedAt: '2026-08-15T00:00:00.000Z',
+    photos: [...initialManifest.photos.filter((entry) => entry.id !== removedId), photo(5)],
+  };
+
+  await page.evaluate(() => {
+    const controlledWindow = window as typeof window & {
+      __advanceWallpaperClock: (milliseconds: number) => void;
+    };
+    controlledWindow.__advanceWallpaperClock(30 * 60 * 1000);
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+
+  await expect.poll(() => manifestRequests).toBe(2);
+  await expect
+    .poll(() => page.evaluate(() => sessionStorage.getItem('wallpaper-photo-id')))
+    .toBe(currentId);
+  await expect
+    .poll(() =>
+      page.evaluate<string[]>(() =>
+        JSON.parse(sessionStorage.getItem('wallpaper-photo-queue') ?? '[]'),
+      ),
+    )
+    .toEqual(expect.arrayContaining([...retainedIds, 'photo-5']));
+
+  const queueAfter = await page.evaluate<string[]>(() =>
+    JSON.parse(sessionStorage.getItem('wallpaper-photo-queue') ?? '[]'),
+  );
+  expect(queueAfter).toHaveLength(retainedIds.length + 1);
+  expect(queueAfter).not.toContain(removedId);
+  expect(imageRequests.some((url) => url.includes('photo-5'))).toBe(false);
 });
 
 test('the motion-control project preview supports continuous two-dimensional dragging', async ({

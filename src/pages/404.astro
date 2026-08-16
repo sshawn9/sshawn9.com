@@ -35,18 +35,25 @@ const text = {
   </head>
   <body class="flex min-h-screen flex-col">
     <div class="page-background" aria-hidden="true"></div>
-    <header class="relative z-10 px-4 pt-3">
-      <div
-        class="surface-strong mx-auto flex h-16 max-w-7xl items-center rounded-2xl px-4 shadow-sm sm:px-5"
-      >
-        <a data-localized-path="/" class="text-sm font-extrabold tracking-tight">SHAWN</a>
+    <header
+      class="relative z-10 border-b border-slate-900/10 bg-[color:rgb(247_248_251/0.96)] backdrop-blur-xl dark:border-white/10 dark:bg-[color:rgb(7_10_18/0.96)]"
+    >
+      <div class="content-shell flex h-17 items-center">
+        <a
+          data-localized-path="/"
+          class="inline-flex items-center gap-3 text-[0.8rem] font-extrabold tracking-[0.055em]"
+        >
+          <span
+            class="grid size-8 place-items-center rounded-[0.55rem] bg-slate-950 text-xs tracking-normal text-white dark:bg-white dark:text-slate-950"
+            aria-hidden="true">S</span
+          >
+          <span>SHAWN</span>
+        </a>
       </div>
     </header>
     <main class="relative z-10 grid flex-1 place-items-center px-5 py-20 text-center">
       <div data-reveal>
-        <p class="font-mono text-sm font-bold tracking-[0.2em] text-cyan-600 dark:text-cyan-300">
-          ERROR / 404
-        </p>
+        <p class="text-accent font-mono text-sm font-bold tracking-[0.2em]">ERROR / 404</p>
         <h1
           class="mt-6 text-6xl font-extrabold tracking-[-0.06em] sm:text-8xl"
           data-en={text.heading[0]}
@@ -55,7 +62,7 @@ const text = {
           {text.heading[0]}
         </h1>
         <p
-          class="mx-auto mt-6 max-w-xl text-base leading-7 text-slate-600 dark:text-slate-400"
+          class="text-default mx-auto mt-6 max-w-xl text-base leading-7"
           data-en={text.body[0]}
           data-zh={text.body[1]}
         >

@@ -7,7 +7,13 @@ const { locale } = Astro.props;
 ---
 
 <div class="wallpaper" data-wallpaper>
-  <div class="wallpaper__images" aria-hidden="true" transition:persist="wallpaper-images">
+  <div
+    class="wallpaper__images"
+    data-wallpaper-media
+    aria-hidden="true"
+    transition:persist="wallpaper-images"
+  >
+    <div class="wallpaper__current" data-wallpaper-current></div>
     <img
       class="wallpaper__image"
       data-wallpaper-image

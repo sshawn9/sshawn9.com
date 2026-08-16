@@ -47,13 +47,13 @@ const contentLanguage = toLanguageTag(project.contentLocale);
           {project.title}
         </h1>
         <p
-          class="mt-5 max-w-3xl text-base leading-8 text-slate-600 sm:text-lg dark:text-slate-400"
+          class="text-default mt-5 max-w-3xl text-base leading-8 sm:text-lg"
           lang={contentLanguage}
         >
           {project.description}
         </p>
         <ul
-          class="mt-6 flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-slate-500 dark:text-slate-400"
+          class="text-supporting mt-6 flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs"
           aria-label={m.project_tags({}, { locale })}
         >
           {project.tags.map((tag) => <li lang={contentLanguage}>#{tag}</li>)}
@@ -91,13 +91,13 @@ const contentLanguage = toLanguageTag(project.contentLocale);
                         <h3 class="text-lg font-extrabold tracking-tight sm:text-xl">
                           <a
                             href={getArticleHref(article)}
-                            class="after:absolute after:inset-0 transition-colors group-hover:text-cyan-700 dark:group-hover:text-cyan-300"
+                            class="interactive-heading after:absolute after:inset-0"
                           >
                             {entry.data.title}
                           </a>
                         </h3>
                         {entry.data.description && (
-                          <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+                          <p class="text-default mt-2 max-w-3xl text-sm leading-6">
                             {entry.data.description}
                           </p>
                         )}

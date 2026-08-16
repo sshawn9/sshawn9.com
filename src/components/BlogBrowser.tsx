@@ -141,7 +141,7 @@ export default function BlogBrowser(props: Props) {
       <Show when={filterable() && props.tags.length > 0}>
         <aside class="lg:sticky lg:top-28 lg:max-h-[min(42rem,calc(100dvh-9rem))] lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
           <Collapsible defaultOpen>
-            <Collapsible.Trigger class="group flex w-full items-center justify-between gap-4 py-2 text-left text-sm font-bold text-slate-700 dark:text-slate-200">
+            <Collapsible.Trigger class="text-strong group flex w-full items-center justify-between gap-4 py-2 text-left text-sm font-bold">
               <span>{m.article_tags({}, { locale: props.locale })}</span>
               <span
                 class="size-2.5 rotate-45 border-r-2 border-b-2 border-slate-400 transition-transform group-data-[expanded]:rotate-[225deg] dark:border-slate-500"
@@ -165,10 +165,10 @@ export default function BlogBrowser(props: Props) {
                       data-tag-filter={tag.name}
                       data-tag-slug={tag.slug}
                       data-tag-count={tag.count}
-                      class="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border-l-2 border-transparent px-3 py-2 text-left text-sm text-slate-600 transition-colors hover:bg-cyan-500/7 hover:text-slate-950 data-[pressed]:border-cyan-500 data-[pressed]:bg-cyan-500/10 data-[pressed]:font-bold data-[pressed]:text-cyan-800 dark:text-slate-400 dark:hover:text-white dark:data-[pressed]:text-cyan-300"
+                      class="filter-option grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-left text-sm"
                     >
                       <span class="min-w-0 truncate">{tag.name}</span>
-                      <span class="font-mono text-[0.68rem] opacity-65">{tag.count}</span>
+                      <span class="text-supporting font-mono text-[0.68rem]">{tag.count}</span>
                     </ToggleGroup.Item>
                   )}
                 </For>
@@ -179,17 +179,14 @@ export default function BlogBrowser(props: Props) {
       </Show>
 
       <div class="min-w-0 scroll-mt-28" data-blog-results>
-        <p
-          class="text-right font-mono text-xs text-slate-500 dark:text-slate-400"
-          aria-live="polite"
-        >
+        <p class="text-supporting text-right font-mono text-xs" aria-live="polite">
           {m.blog_article_count({ count: filteredCount() }, { locale: props.locale })}
         </p>
 
         <Show
           when={filteredCount() > 0}
           fallback={
-            <p class="py-16 text-sm text-slate-500 dark:text-slate-400">
+            <p class="text-supporting py-16 text-sm">
               {m.blog_empty({}, { locale: props.locale })}
             </p>
           }
@@ -206,16 +203,13 @@ export default function BlogBrowser(props: Props) {
                     <article class="group grid gap-4 border-b border-slate-900/10 py-7 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,18rem)] lg:items-start lg:gap-7 dark:border-white/10">
                       <div class="min-w-0" lang={article.contentLanguage}>
                         <h2 class="text-xl font-extrabold tracking-tight sm:text-2xl">
-                          <a
-                            href={article.href}
-                            class="transition-colors group-hover:text-cyan-700 dark:group-hover:text-cyan-300"
-                          >
+                          <a href={article.href} class="interactive-heading">
                             {article.title}
                           </a>
                         </h2>
                         <Show when={article.description}>
                           {(description) => (
-                            <p class="mt-2 max-w-4xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+                            <p class="text-default mt-2 max-w-4xl text-sm leading-6">
                               {description()}
                             </p>
                           )}
@@ -225,7 +219,7 @@ export default function BlogBrowser(props: Props) {
                       <footer class="min-w-0">
                         <time
                           datetime={article.publishedDateTime}
-                          class="mb-3 ml-2.5 block font-mono text-xs font-bold text-slate-600 dark:text-slate-300"
+                          class="text-supporting mb-3 ml-2.5 block font-mono text-xs font-bold"
                         >
                           {article.publishedLabel}
                         </time>
@@ -242,7 +236,7 @@ export default function BlogBrowser(props: Props) {
                                     <a
                                       href={article.tagHrefs[tag]}
                                       data-article-tag-link={tag}
-                                      class="block rounded-full bg-cyan-500/8 px-2.5 py-1 font-mono text-[0.62rem] text-cyan-700 transition-colors hover:bg-cyan-500/15 dark:text-cyan-300"
+                                      class="tag-chip block rounded-full px-2.5 py-1 font-mono text-[0.62rem]"
                                     >
                                       #{tag}
                                     </a>
@@ -252,7 +246,7 @@ export default function BlogBrowser(props: Props) {
                                     pressed={selectedTags().includes(tag)}
                                     onChange={(pressed) => setTagPressed(tag, pressed)}
                                     data-article-tag={tag}
-                                    class="rounded-full bg-cyan-500/8 px-2.5 py-1 font-mono text-[0.62rem] text-cyan-700 transition-colors hover:bg-cyan-500/15 data-[pressed]:bg-cyan-600 data-[pressed]:text-white dark:text-cyan-300 dark:data-[pressed]:bg-cyan-300 dark:data-[pressed]:text-slate-950"
+                                    class="tag-chip rounded-full px-2.5 py-1 font-mono text-[0.62rem]"
                                   >
                                     #{tag}
                                   </ToggleButton>
@@ -279,13 +273,13 @@ export default function BlogBrowser(props: Props) {
               type="button"
               onClick={() => changePage(pageIndex() - 1)}
               disabled={pageIndex() === 0}
-              class="inline-flex items-center gap-2 text-sm font-bold text-slate-600 transition-colors hover:text-cyan-700 disabled:pointer-events-none disabled:invisible dark:text-slate-300 dark:hover:text-cyan-300"
+              class="interactive-supporting inline-flex items-center gap-2 text-sm font-bold disabled:pointer-events-none disabled:invisible"
             >
               <span aria-hidden="true">←</span>
               {m.pagination_previous({}, { locale: props.locale })}
             </button>
 
-            <span class="font-mono text-xs text-slate-500 dark:text-slate-400">
+            <span class="text-supporting font-mono text-xs">
               {m.blog_page_count(
                 {
                   count: filteredCount(),
@@ -300,7 +294,7 @@ export default function BlogBrowser(props: Props) {
               type="button"
               onClick={() => changePage(pageIndex() + 1)}
               disabled={pageIndex() >= pageCount() - 1}
-              class="inline-flex items-center gap-2 text-sm font-bold text-slate-600 transition-colors hover:text-cyan-700 disabled:pointer-events-none disabled:invisible dark:text-slate-300 dark:hover:text-cyan-300"
+              class="interactive-supporting inline-flex items-center gap-2 text-sm font-bold disabled:pointer-events-none disabled:invisible"
             >
               {m.pagination_next({}, { locale: props.locale })}
               <span aria-hidden="true">→</span>

@@ -41,21 +41,14 @@ const comparisonId = `article-version-comparison-${variant}`;
               href={href}
               aria-current={isSelected ? 'page' : undefined}
               class:list={[
-                '-ml-px block border-l py-1.5 pl-4 text-xs leading-5 transition-colors hover:border-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300',
-                isSelected
-                  ? 'border-cyan-400 text-cyan-700 dark:text-cyan-300'
-                  : 'border-transparent text-slate-500 dark:text-slate-400',
+                'toc-entry -ml-px block border-l py-1.5 pl-4 text-xs leading-5',
+                isSelected ? 'text-strong' : undefined,
               ]}
             >
               <span class="flex items-baseline gap-3">
                 <span class={isLatest ? 'font-extrabold' : 'font-medium'}>v{version.number}</span>
                 <time
-                  class:list={[
-                    'ml-auto font-mono text-[0.6rem] font-normal',
-                    isSelected
-                      ? 'text-cyan-700/70 dark:text-cyan-300/70'
-                      : 'text-slate-400 dark:text-slate-500',
-                  ]}
+                  class:list={['text-supporting ml-auto font-mono text-[0.6rem] font-normal']}
                   datetime={getVersionDate(version).toISOString()}
                 >
                   {formatDate(getVersionDate(version), locale)}
@@ -64,10 +57,7 @@ const comparisonId = `article-version-comparison-${variant}`;
               <span
                 lang={toLanguageTag(version.contentLocale)}
                 class:list={[
-                  'mt-0.5 line-clamp-2 block text-[0.68rem] leading-5 font-normal',
-                  isSelected
-                    ? 'text-cyan-700/80 dark:text-cyan-300/80'
-                    : 'text-slate-500 dark:text-slate-400',
+                  'text-supporting mt-0.5 line-clamp-2 block text-[0.68rem] leading-5 font-normal',
                 ]}
               >
                 {version.entry.data.revisionSummary ?? m.version_first_release({}, { locale })}
@@ -83,7 +73,7 @@ const comparisonId = `article-version-comparison-${variant}`;
     <button
       type="button"
       popovertarget={comparisonId}
-      class="sidebar-heading group flex w-full items-center transition-colors hover:text-cyan-700 dark:hover:text-cyan-300"
+      class="sidebar-heading interactive-supporting group flex w-full items-center"
     >
       {m.version_compare_heading({}, { locale })}
       <ChevronDown
@@ -110,7 +100,7 @@ const comparisonId = `article-version-comparison-${variant}`;
               <li>
                 {isSelected ? (
                   <span
-                    class="-ml-px flex items-center gap-3 border-l border-transparent py-2 pl-4 text-xs leading-5 text-slate-400 dark:text-slate-600"
+                    class="text-disabled -ml-px flex items-center gap-3 border-l border-transparent py-2 pl-4 text-xs leading-5"
                     aria-disabled="true"
                   >
                     <span class="font-bold">v{version.number}</span>
@@ -121,11 +111,11 @@ const comparisonId = `article-version-comparison-${variant}`;
                 ) : (
                   <a
                     data-version-compare-link
-                    class="-ml-px flex items-center gap-3 border-l border-transparent py-2 pl-4 text-xs leading-5 font-semibold text-slate-500 transition-colors hover:border-cyan-400 hover:text-cyan-700 dark:text-slate-400 dark:hover:text-cyan-300"
+                    class="toc-entry -ml-px flex items-center gap-3 border-l py-2 pl-4 text-xs leading-5 font-semibold"
                     href={getArticleCompareHref(article, selected, version)}
                   >
                     <span>v{version.number}</span>
-                    <time class="ml-auto font-mono text-[0.6rem] font-normal text-slate-400 dark:text-slate-500">
+                    <time class="text-supporting ml-auto font-mono text-[0.6rem] font-normal">
                       {formatDate(getVersionDate(version), locale)}
                     </time>
                   </a>

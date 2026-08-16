@@ -84,7 +84,7 @@ const articleTags = getArticleTags(article);
 >
   <Schema slot="head" item={articleSchema} />
 
-  <article class="content-shell pt-12 sm:pt-16">
+  <article class="content-shell pt-12 pb-24 sm:pt-16">
     <div class="mx-auto grid max-w-6xl gap-x-12 lg:grid-cols-[minmax(0,1fr)_13rem] lg:items-start">
       <div class="min-w-0" data-article-main>
         <header data-reveal>
@@ -101,7 +101,7 @@ const articleTags = getArticleTags(article);
             post.data.description && (
               <p
                 lang={contentLanguageTag}
-                class="mt-5 max-w-4xl text-lg leading-8 text-slate-600 sm:text-xl dark:text-slate-400"
+                class="text-default mt-5 max-w-4xl text-lg leading-8 sm:text-xl"
                 data-pagefind-meta="description"
               >
                 {post.data.description}
@@ -129,7 +129,7 @@ const articleTags = getArticleTags(article);
                   <a
                     href={getTagHref(tag, locale)}
                     data-article-tag-link={tag}
-                    class="rounded-full bg-cyan-500/8 px-3 py-1 font-mono text-[0.68rem] text-cyan-700 transition-colors hover:bg-cyan-500/15 dark:text-cyan-300"
+                    class="tag-chip rounded-full px-3 py-1 font-mono text-[0.68rem]"
                   >
                     #{tag}
                   </a>
@@ -140,10 +140,7 @@ const articleTags = getArticleTags(article);
 
           {
             !version.hasRequestedLocale && (
-              <p
-                class="mt-5 text-xs leading-5 text-slate-500 dark:text-slate-400"
-                data-pagefind-ignore
-              >
+              <p class="text-supporting mt-5 text-xs leading-5" data-pagefind-ignore>
                 {m.article_fallback_notice(
                   { language: fallbackLanguage, requestedLanguage },
                   { locale },
@@ -157,7 +154,7 @@ const articleTags = getArticleTags(article);
             data-pagefind-ignore
           >
             <div>
-              <dt class="text-slate-500 dark:text-slate-400">
+              <dt class="text-supporting">
                 {m.article_first_published({}, { locale })}
               </dt>
               <dd class="mt-1 font-medium">
@@ -169,9 +166,7 @@ const articleTags = getArticleTags(article);
             {
               updatedAt && (
                 <div>
-                  <dt class="text-slate-500 dark:text-slate-400">
-                    {m.article_last_updated({}, { locale })}
-                  </dt>
+                  <dt class="text-supporting">{m.article_last_updated({}, { locale })}</dt>
                   <dd class="mt-1 font-medium">
                     <time datetime={updatedAt.toISOString()}>{formatDate(updatedAt, locale)}</time>
                   </dd>
@@ -211,7 +206,7 @@ const articleTags = getArticleTags(article);
                       <a
                         href={`#${heading.slug}`}
                         class:list={[
-                          'block border-l border-transparent py-1.5 text-xs leading-5 text-slate-500 transition hover:border-cyan-400 hover:text-cyan-700 dark:text-slate-400 dark:hover:text-cyan-300',
+                          'toc-entry block border-l py-1.5 text-xs leading-5',
                           heading.depth === 3 ? 'pl-6' : 'pl-4 font-semibold',
                         ]}
                       >
@@ -245,10 +240,7 @@ const articleTags = getArticleTags(article);
           data-pagefind-ignore
           data-article-footer
         >
-          <a
-            href="#main-content"
-            class="inline-flex items-center gap-2 text-slate-600 transition-colors hover:text-cyan-700 dark:text-slate-300 dark:hover:text-cyan-300"
-          >
+          <a href="#main-content" class="interactive-supporting inline-flex items-center gap-2">
             {m.article_back_to_top({}, { locale })}
             <ArrowUp class="size-4" aria-hidden="true" />
           </a>
@@ -273,10 +265,10 @@ const articleTags = getArticleTags(article);
               <div
                 class="-ml-px flex items-baseline gap-3 border-l border-transparent py-1.5 pl-4 text-xs leading-5"
               >
-                <dt class="text-slate-500 dark:text-slate-400">
+                <dt class="text-supporting">
                   {m.article_first_published({}, { locale })}
                 </dt>
-                <dd class="ml-auto font-mono text-[0.62rem] text-slate-400 dark:text-slate-500">
+                <dd class="text-supporting ml-auto font-mono text-[0.62rem]">
                   <time datetime={firstPublished.toISOString()}
                     >{formatDate(firstPublished, locale)}</time
                   >
@@ -285,10 +277,8 @@ const articleTags = getArticleTags(article);
               {
                 updatedAt && (
                   <div class="-ml-px flex items-baseline gap-3 border-l border-transparent py-1.5 pl-4 text-xs leading-5">
-                    <dt class="text-slate-500 dark:text-slate-400">
-                      {m.article_last_updated({}, { locale })}
-                    </dt>
-                    <dd class="ml-auto font-mono text-[0.62rem] text-slate-400 dark:text-slate-500">
+                    <dt class="text-supporting">{m.article_last_updated({}, { locale })}</dt>
+                    <dd class="text-supporting ml-auto font-mono text-[0.62rem]">
                       <time datetime={updatedAt.toISOString()}>
                         {formatDate(updatedAt, locale)}
                       </time>
