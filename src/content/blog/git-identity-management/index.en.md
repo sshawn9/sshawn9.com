@@ -13,12 +13,12 @@ When creating a commit, Git writes the name and email into the commit; when acce
 
 A typical GitHub workflow involves four types of identity information:
 
-| Operation | Actual Identity Information Used | Primary Source |
-| --- | --- | --- |
-| Creating commits | Author and committer's name, email | `user.name`, `user.email`, and related environment variables |
-| `git fetch`, `push`, `clone` | Account credentials recognized by remote service | SSH key or HTTPS credential helper |
-| `gh pr`, `repo`, `api` | GitHub CLI active account | `gh auth login`, `gh auth switch`, or environment variables |
-| Signing commits or tags | Key used to generate digital signatures | `user.signingKey`, signature format, and signing program |
+| Operation                    | Actual Identity Information Used                 | Primary Source                                               |
+| ---------------------------- | ------------------------------------------------ | ------------------------------------------------------------ |
+| Creating commits             | Author and committer's name, email               | `user.name`, `user.email`, and related environment variables |
+| `git fetch`, `push`, `clone` | Account credentials recognized by remote service | SSH key or HTTPS credential helper                           |
+| `gh pr`, `repo`, `api`       | GitHub CLI active account                        | `gh auth login`, `gh auth switch`, or environment variables  |
+| Signing commits or tags      | Key used to generate digital signatures          | `user.signingKey`, signature format, and signing program     |
 
 `user.name` and `user.email` are merely commit metadata, not login credentials for platforms like GitHub or GitLab. Modifying these two configurations does not switch the SSH key, nor does it replace HTTPS credentials; successfully pushing to a repository accessible by a certain account does not prove that the name and email recorded in the commit are correct.
 
@@ -34,11 +34,11 @@ Git reads configurations from scopes such as system, global, local, worktree, an
 
 Multi-identity configurations commonly use three selection criteria:
 
-| Selection Criteria | Applicable Scenarios | Boundaries |
-| --- | --- | --- |
-| `gitdir:` | Repositories can be categorized by directories (e.g., personal, work) | Repositories must be located under agreed-upon directories |
+| Selection Criteria        | Applicable Scenarios                                                         | Boundaries                                                                          |
+| ------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `gitdir:`                 | Repositories can be categorized by directories (e.g., personal, work)        | Repositories must be located under agreed-upon directories                          |
 | `hasconfig:remote.*.url:` | Repositories are scattered, but remote addresses have stable characteristics | Cannot match before adding a remote address; loaded files cannot define remote URLs |
-| Repository local config | A few exceptional repositories | Needs to be maintained repository by repository |
+| Repository local config   | A few exceptional repositories                                               | Needs to be maintained repository by repository                                     |
 
 `onbranch:` changes with the current branch and is suitable for branch-related configurations, but not for representing a long-term identity used by a repository.
 
@@ -48,13 +48,13 @@ For repositories that can be uniformly organized into directories, the `gitdir:`
 
 Commit identity can always be selected by directory using `includeIf`; what truly needs to be decided based on usage scenarios is remote authentication and `gh`'s account selection method.
 
-| Usage Scenario | Suggested Solution | Account Selection Method |
-| --- | --- | --- |
-| Using only one GitHub account | `gh` manages HTTPS credentials | Used continuously after logging in once |
-| Using both GitHub and Gitee | Organize directories by host using `ghq`; authenticate separately | `gh` for GitHub, specific SSH or HTTPS for Gitee |
-| Occasionally switching accounts on the same GitHub host | `gh` manages HTTPS credentials | Use `gh auth switch` before operating to switch active account |
-| Multiple GitHub accounts needed long-term in parallel | Git uses SSH host aliases, `gh` manages API accounts separately | Fixed SSH key per remote URL; `gh` still works by active account |
-| Must use HTTPS and fix accounts per repository | Use multi-account credential helpers like Git Credential Manager | Explicitly write the account in the remote URL |
+| Usage Scenario                                          | Suggested Solution                                                | Account Selection Method                                         |
+| ------------------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Using only one GitHub account                           | `gh` manages HTTPS credentials                                    | Used continuously after logging in once                          |
+| Using both GitHub and Gitee                             | Organize directories by host using `ghq`; authenticate separately | `gh` for GitHub, specific SSH or HTTPS for Gitee                 |
+| Occasionally switching accounts on the same GitHub host | `gh` manages HTTPS credentials                                    | Use `gh auth switch` before operating to switch active account   |
+| Multiple GitHub accounts needed long-term in parallel   | Git uses SSH host aliases, `gh` manages API accounts separately   | Fixed SSH key per remote URL; `gh` still works by active account |
+| Must use HTTPS and fix accounts per repository          | Use multi-account credential helpers like Git Credential Manager  | Explicitly write the account in the remote URL                   |
 
 `gh + HTTPS` is the most concise path for a single GitHub account and is also one of the official HTTPS credential solutions recommended by GitHub. It can also save multiple accounts on the same host, but currently adopts a "one active account per host" model, rather than "automatically binding one account per repository". Therefore, when frequently using multiple GitHub accounts in parallel, SSH host aliases still have a clear and stable repository-level selection capability and have not become obsolete due to the emergence of `gh`.
 
@@ -461,29 +461,29 @@ Identity configuration only affects subsequently created commits. Moving reposit
 
 Correct content in configuration files does not mean the value ultimately used by the current repository is correct. Repository local configurations, command-line `-c` parameters, or environment variables might all alter the result. The following commands check each layer respectively:
 
-| Content to Verify | Command |
-| --- | --- |
-| Final value, source, and scope of all configurations | `git config --list --show-origin --show-scope` |
-| Identity Git will write to new commits | `git var GIT_AUTHOR_IDENT`, `git var GIT_COMMITTER_IDENT` |
-| Current remote address | `git remote get-url origin` |
-| Accounts saved by `gh` and current active account | `gh auth status --hostname github.com` |
-| `gh`'s currently preferred Git transport protocol | `gh config get git_protocol --host github.com` |
-| GitHub HTTPS credential helper and its config source | `git config --show-origin --get-all credential.https://github.com.helper` |
-| Connection configuration ultimately used by SSH alias | `ssh -G github-work` |
-| SSH account actually recognized by GitHub | `ssh -T github-work` |
-| Identity and signature recorded in existing commits | `git show --no-patch --format=fuller --show-signature HEAD` |
+| Content to Verify                                     | Command                                                                   |
+| ----------------------------------------------------- | ------------------------------------------------------------------------- |
+| Final value, source, and scope of all configurations  | `git config --list --show-origin --show-scope`                            |
+| Identity Git will write to new commits                | `git var GIT_AUTHOR_IDENT`, `git var GIT_COMMITTER_IDENT`                 |
+| Current remote address                                | `git remote get-url origin`                                               |
+| Accounts saved by `gh` and current active account     | `gh auth status --hostname github.com`                                    |
+| `gh`'s currently preferred Git transport protocol     | `gh config get git_protocol --host github.com`                            |
+| GitHub HTTPS credential helper and its config source  | `git config --show-origin --get-all credential.https://github.com.helper` |
+| Connection configuration ultimately used by SSH alias | `ssh -G github-work`                                                      |
+| SSH account actually recognized by GitHub             | `ssh -T github-work`                                                      |
+| Identity and signature recorded in existing commits   | `git show --no-patch --format=fuller --show-signature HEAD`               |
 
 Common mismatches should be pinpointed by the specific chain where the problem actually occurs:
 
-| Phenomenon | Check Location |
-| --- | --- |
-| Commit email wrong, but push account correct | Does `includeIf` match, and does local config override identity file? |
-| Commit email correct, but push account wrong | Remote URL, SSH host alias, `gh` active account, or HTTPS credential record |
-| `gh` command uses wrong account, but SSH push account is correct | `gh auth status`; SSH keys won't choose API accounts for `gh` |
-| After `gh auth switch`, Git HTTPS still uses old account | Is `gh` actually the credential helper for `github.com`? |
-| SSH alias test correct, but Git uses another key | Does `origin` actually use the corresponding alias instead of `github.com`? |
-| Cannot create commit in new repository | Does the repository match an identity file? Did `user.useConfigOnly` block identity guessing? |
-| Signed successfully, but platform doesn't show as verified | Account signing public key is registered to, commit email, and platform verification rules |
+| Phenomenon                                                       | Check Location                                                                                |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Commit email wrong, but push account correct                     | Does `includeIf` match, and does local config override identity file?                         |
+| Commit email correct, but push account wrong                     | Remote URL, SSH host alias, `gh` active account, or HTTPS credential record                   |
+| `gh` command uses wrong account, but SSH push account is correct | `gh auth status`; SSH keys won't choose API accounts for `gh`                                 |
+| After `gh auth switch`, Git HTTPS still uses old account         | Is `gh` actually the credential helper for `github.com`?                                      |
+| SSH alias test correct, but Git uses another key                 | Does `origin` actually use the corresponding alias instead of `github.com`?                   |
+| Cannot create commit in new repository                           | Does the repository match an identity file? Did `user.useConfigOnly` block identity guessing? |
+| Signed successfully, but platform doesn't show as verified       | Account signing public key is registered to, commit email, and platform verification rules    |
 
 A set of multi-identity configurations that can be maintained long-term does not rely on a vague "current account": repository configurations dictate who is recorded in the commit, remote URLs and credential mechanisms dictate whose privileges `git push` executes with, `gh`'s active account dictates who the GitHub CLI calls the API on behalf of, and signature configurations dictate which key is used to sign the commit. The four chains can be queried separately, so that expected results can continue to be obtained after adding accounts, platforms, or signature strategies.
 

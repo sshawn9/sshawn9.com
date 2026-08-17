@@ -7,12 +7,12 @@ description: A practical Git operations quick reference for real-world scenarios
 
 ### Notations in Command Formats
 
-| Notation | Meaning |
-| --- | --- |
-| `<name>` | Placeholder to be replaced with the actual value; angle brackets themselves are not entered |
-| `[<name>]` | Optional placeholder; square brackets themselves are not entered |
-| `<name>...` | One or more values of the same kind can be provided; ellipsis itself is not entered |
-| `A \| B` | Choose one from `A` and `B`; the vertical bar itself is not entered |
+| Notation    | Meaning                                                                                     |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| `<name>`    | Placeholder to be replaced with the actual value; angle brackets themselves are not entered |
+| `[<name>]`  | Optional placeholder; square brackets themselves are not entered                            |
+| `<name>...` | One or more values of the same kind can be provided; ellipsis itself is not entered         |
+| `A \| B`    | Choose one from `A` and `B`; the vertical bar itself is not entered                         |
 
 ### `-ish`
 
@@ -215,13 +215,13 @@ The **index** (also known as the staging area) stores the file snapshot informat
 
 The `HEAD` introduced earlier provides the file snapshot of the current commit. Based on the official Git [`git-status`](https://git-scm.com/docs/git-status) documentation, common statuses can be categorized into the following groups:
 
-| Common Status | Working Tree | Index | `git status` Official Category |
-| --- | --- | --- | --- |
-| `clean` | Matches index for tracked files; no untracked files (except ignored ones) | Matches `HEAD` | `working tree clean` |
-| Staged modifications | May match index, or might be modified again after staging | Saves modifications to be included in next commit, differs from `HEAD` | `Changes to be committed` |
-| Unstaged modifications | Tracked files contain modifications not yet written to index | Hasn't saved latest working tree content, may also save earlier staged content | `Changes not staged for commit` |
-| Untracked files | New paths not yet tracked by Git exist | No record of the path | `Untracked files` |
-| Unmerged paths | Conflict resolution not yet complete | May hold multiple pending versions of the same path | `Unmerged paths` |
+| Common Status          | Working Tree                                                              | Index                                                                          | `git status` Official Category  |
+| ---------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------- |
+| `clean`                | Matches index for tracked files; no untracked files (except ignored ones) | Matches `HEAD`                                                                 | `working tree clean`            |
+| Staged modifications   | May match index, or might be modified again after staging                 | Saves modifications to be included in next commit, differs from `HEAD`         | `Changes to be committed`       |
+| Unstaged modifications | Tracked files contain modifications not yet written to index              | Hasn't saved latest working tree content, may also save earlier staged content | `Changes not staged for commit` |
+| Untracked files        | New paths not yet tracked by Git exist                                    | No record of the path                                                          | `Untracked files`               |
+| Unmerged paths         | Conflict resolution not yet complete                                      | May hold multiple pending versions of the same path                            | `Unmerged paths`                |
 
 Except for `clean`, other statuses can appear simultaneously. For example, if a file is modified again after being staged, it will have both staged modifications and unstaged modifications simultaneously.
 
@@ -287,8 +287,8 @@ Except for `clean`, other statuses can appear simultaneously. For example, if a 
 
 Command-line parameters used in this section:
 
-| Parameter | Meaning |
-| --- | --- |
+| Parameter        | Meaning                                  |
+| ---------------- | ---------------------------------------- |
 | `-S`, `--staged` | Sets the restoration target to the index |
 
 ```bash
@@ -380,15 +380,15 @@ git restore --staged README.md
 
 Command-line parameters used in this section:
 
-| Parameter | Meaning |
-| --- | --- |
-| `--onto <new-base>` | Changes the starting point of the rebuilt commits to `<new-base>` |
-| `-i`, `--interactive` | Edit commit order and handling methods before rebuilding |
-| `--autostash` | Temporarily saves local modifications before rebasing, then reapplies them afterward |
-| `-r`, `--rebase-merges` | Attempts to recreate original merge structure on the new base |
-| `--continue` | Continues the rebase after resolving conflicts or finishing edits |
-| `--skip` | Skips the commit currently being applied |
-| `--abort` | Aborts the rebase and restores the branch, index, and tracked working directory content to before the start |
+| Parameter               | Meaning                                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `--onto <new-base>`     | Changes the starting point of the rebuilt commits to `<new-base>`                                           |
+| `-i`, `--interactive`   | Edit commit order and handling methods before rebuilding                                                    |
+| `--autostash`           | Temporarily saves local modifications before rebasing, then reapplies them afterward                        |
+| `-r`, `--rebase-merges` | Attempts to recreate original merge structure on the new base                                               |
+| `--continue`            | Continues the rebase after resolving conflicts or finishing edits                                           |
+| `--skip`                | Skips the commit currently being applied                                                                    |
+| `--abort`               | Aborts the rebase and restores the branch, index, and tracked working directory content to before the start |
 
 ```bash
 # Purpose: Reapply commits unique to the current branch onto a new base
@@ -448,14 +448,14 @@ git rebase --abort
 
 Command-line parameters used in this section:
 
-| Parameter | Meaning |
-| --- | --- |
-| `-m <message>`, `--message <message>` | Use `<message>` as the stash description |
-| `-u`, `--include-untracked` | Save untracked files as well, but exclude ignored files |
-| `-p`, `--patch` | When used with `push`, interactively choose modifications to save |
-| `-p`, `--patch` | When used with `show`, show the full patch |
-| `--stat` | Show diff statistics |
-| `--` | End option parsing |
+| Parameter                             | Meaning                                                           |
+| ------------------------------------- | ----------------------------------------------------------------- |
+| `-m <message>`, `--message <message>` | Use `<message>` as the stash description                          |
+| `-u`, `--include-untracked`           | Save untracked files as well, but exclude ignored files           |
+| `-p`, `--patch`                       | When used with `push`, interactively choose modifications to save |
+| `-p`, `--patch`                       | When used with `show`, show the full patch                        |
+| `--stat`                              | Show diff statistics                                              |
+| `--`                                  | End option parsing                                                |
 
 ```bash
 # Purpose: View the list of stashes in the current repository
@@ -553,11 +553,11 @@ worktree B/
 
 Command-line parameters used in this section:
 
-| Parameter | Meaning |
-| --- | --- |
-| `-b <new-branch>` | Create `<new-branch>`, and have new worktree use this branch |
-| `-d`, `--detach` | Have new worktree's `HEAD` point directly to a commit, not using a local branch |
-| `-n`, `--dry-run` | Only show records that `prune` would clean up |
+| Parameter         | Meaning                                                                         |
+| ----------------- | ------------------------------------------------------------------------------- |
+| `-b <new-branch>` | Create `<new-branch>`, and have new worktree use this branch                    |
+| `-d`, `--detach`  | Have new worktree's `HEAD` point directly to a commit, not using a local branch |
+| `-n`, `--dry-run` | Only show records that `prune` would clean up                                   |
 
 ```bash
 # Purpose: View all worktrees associated with the repository
@@ -621,8 +621,8 @@ git worktree repair ../project-hotfix
 
 Command-line parameters used in this section:
 
-| Parameter | Meaning |
-| --- | --- |
+| Parameter           | Meaning                              |
+| ------------------- | ------------------------------------ |
 | `-n`, `--no-commit` | Do not automatically create a commit |
 
 ```bash
@@ -647,11 +647,11 @@ git cherry-pick --no-commit 9f3a2c1
 
 Command-line parameters used in this section:
 
-| Parameter | Meaning |
-| --- | --- |
+| Parameter                                          | Meaning                                                              |
+| -------------------------------------------------- | -------------------------------------------------------------------- |
 | `-m <parent-number>`, `--mainline <parent-number>` | Specify the parent commit numbered `<parent-number>` as the mainline |
-| `--no-patch` | When used with `git show`, do not display file patches |
-| `--pretty=raw` | When used with `git show`, display commit metadata in raw format |
+| `--no-patch`                                       | When used with `git show`, do not display file patches               |
+| `--pretty=raw`                                     | When used with `git show`, display commit metadata in raw format     |
 
 ```bash
 # Purpose: Revert modifications introduced by an ordinary commit
@@ -677,11 +677,11 @@ git revert -m 1 6d8f2a1
 
 The meanings of three common command-line parameters are as follows:
 
-| Parameter | Current Branch or `HEAD` | Index | Working Directory |
-| --- | --- | --- | --- |
-| `--soft` | Moved to target commit | Remains unchanged | Remains unchanged |
-| `--mixed` | Moved to target commit | Reset to target commit content | Remains unchanged |
-| `--hard` | Moved to target commit | Reset to target commit content | Reset to target commit content |
+| Parameter | Current Branch or `HEAD` | Index                          | Working Directory              |
+| --------- | ------------------------ | ------------------------------ | ------------------------------ |
+| `--soft`  | Moved to target commit   | Remains unchanged              | Remains unchanged              |
+| `--mixed` | Moved to target commit   | Reset to target commit content | Remains unchanged              |
+| `--hard`  | Moved to target commit   | Reset to target commit content | Reset to target commit content |
 
 ```bash
 # Purpose: Move current branch, while keeping contents in index and working directory
@@ -716,20 +716,20 @@ Reflogs only exist locally and are not synchronized between repositories via `fe
 
 Reflog positions are expressed using `<ref>@{<specifier>}`:
 
-| Notation | Meaning |
-| --- | --- |
-| `<ref>@{0}` | The value of `<ref>` after the most recent recorded move, usually its current value |
-| `<ref>@{<n>}` | The position `<ref>` was in `<n>` moves ago; numbering starts from `0` |
-| `<ref>@{<date>}` | The position `<ref>` was in at a specified time; based on reference update time, not commit creation time |
-| `HEAD@{2}` | The position `HEAD` was in two moves ago |
-| `main@{yesterday}`| The position local `main` was in yesterday |
-| `main@{one.week.ago}` | The position local `main` was in a week ago |
+| Notation              | Meaning                                                                                                   |
+| --------------------- | --------------------------------------------------------------------------------------------------------- |
+| `<ref>@{0}`           | The value of `<ref>` after the most recent recorded move, usually its current value                       |
+| `<ref>@{<n>}`         | The position `<ref>` was in `<n>` moves ago; numbering starts from `0`                                    |
+| `<ref>@{<date>}`      | The position `<ref>` was in at a specified time; based on reference update time, not commit creation time |
+| `HEAD@{2}`            | The position `HEAD` was in two moves ago                                                                  |
+| `main@{yesterday}`    | The position local `main` was in yesterday                                                                |
+| `main@{one.week.ago}` | The position local `main` was in a week ago                                                               |
 
 Command-line parameters used in this section:
 
-| Parameter | Meaning |
-| --- | --- |
-| `-n <count>` | Show at most `<count>` records |
+| Parameter         | Meaning                                   |
+| ----------------- | ----------------------------------------- |
+| `-n <count>`      | Show at most `<count>` records            |
 | `--date=<format>` | Show record times according to `<format>` |
 
 ```bash
@@ -774,9 +774,9 @@ Reflog is not a permanent backup. By default, records reachable from current ref
 
 Command-line parameters used in this section:
 
-| Parameter | Meaning |
-| --- | --- |
-| `--all` | Pack all references |
+| Parameter | Meaning             |
+| --------- | ------------------- |
+| `--all`   | Pack all references |
 
 ```bash
 # Purpose: Create a self-contained bundle
@@ -829,11 +829,11 @@ git fetch project.bundle refs/heads/main:refs/remotes/bundle/main
 
 Command-line parameters used in this section:
 
-| Parameter | Meaning |
-| --- | --- |
-| `--format=<format>` | Set archive format to `<format>` |
-| `--prefix=<prefix>/` | Prepend `<prefix>/` to paths inside the archive |
-| `-o <output>`, `--output=<output>` | Write archive to `<output>` |
+| Parameter                          | Meaning                                         |
+| ---------------------------------- | ----------------------------------------------- |
+| `--format=<format>`                | Set archive format to `<format>`                |
+| `--prefix=<prefix>/`               | Prepend `<prefix>/` to paths inside the archive |
+| `-o <output>`, `--output=<output>` | Write archive to `<output>`                     |
 
 ```bash
 # Purpose: Export specified version as a source package
@@ -888,12 +888,12 @@ git bisect reset
 
 When state can be stably judged using a command or script, `git bisect run` can automatically test each candidate commit:
 
-| Test Command Exit Status | Judgment |
-| --- | --- |
-| `0` | `good` |
-| `1`–`127`, excluding `125` | `bad` |
-| `125` | `skip` |
-| Other values | Abort bisect |
+| Test Command Exit Status   | Judgment     |
+| -------------------------- | ------------ |
+| `0`                        | `good`       |
+| `1`–`127`, excluding `125` | `bad`        |
+| `125`                      | `skip`       |
+| Other values               | Abort bisect |
 
 ```bash
 # Purpose: Automatically test candidate commits with specified command
@@ -931,24 +931,24 @@ git bisect replay ../bisect.log
 
 When maintaining large or frequently updated repositories long-term, you usually don't need to choose maintenance tasks individually. The most direct entry point is `git maintenance start`: it adds the current repository to the user-level maintenance list, and establishes a background scheduler shared by all registered repositories. If no maintenance strategy was configured before, Git adopts the `incremental` strategy, whose actual scheduling is as follows:
 
-| Frequency | Automatically Executed Tasks | Actual Effect |
-| --- | --- | --- |
-| Hourly | `commit-graph`, `prefetch` | Updates commit graph; prefetches remote objects to `refs/prefetch/`, but doesn't move ordinary remote-tracking branches |
-| Daily | `loose-objects`, `incremental-repack` | Batches and packs loose objects, gradually merges smaller pack files |
-| Weekly | `pack-refs` | Tidies loose references, speeds up traversal of large numbers of references |
+| Frequency | Automatically Executed Tasks          | Actual Effect                                                                                                           |
+| --------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Hourly    | `commit-graph`, `prefetch`            | Updates commit graph; prefetches remote objects to `refs/prefetch/`, but doesn't move ordinary remote-tracking branches |
+| Daily     | `loose-objects`, `incremental-repack` | Batches and packs loose objects, gradually merges smaller pack files                                                    |
+| Weekly    | `pack-refs`                           | Tidies loose references, speeds up traversal of large numbers of references                                             |
 
 This strategy does not schedule comprehensive `gc`. `prefetch` will access the remote repository, but will not update ordinary remote-tracking branches or tags; when executing a routine `fetch` later, the objects needing transmission will usually be fewer.
 
 Command-line parameters used in this section:
 
-| Parameter | Meaning |
-| --- | --- |
-| `--task=<task>` | Only run specified task; can be reused, and executes in given order |
-| `--auto` | Only run when repository state reaches corresponding task's trigger threshold |
+| Parameter                 | Meaning                                                                            |
+| ------------------------- | ---------------------------------------------------------------------------------- |
+| `--task=<task>`           | Only run specified task; can be reused, and executes in given order                |
+| `--auto`                  | Only run when repository state reaches corresponding task's trigger threshold      |
 | `--scheduler=<scheduler>` | Specify `auto`, `crontab`, `systemd-timer`, `launchctl`, or `schtasks` for `start` |
-| `--global` | When used with `git config`, read current user's global configuration |
-| `--get-all <name>` | Output all values for configuration item `<name>` |
-| `--unset <name>` | Delete configuration item `<name>` |
+| `--global`                | When used with `git config`, read current user's global configuration              |
+| `--get-all <name>`        | Output all values for configuration item `<name>`                                  |
+| `--unset <name>`          | Delete configuration item `<name>`                                                 |
 
 ```bash
 # Purpose: Start scheduled maintenance for current repository
