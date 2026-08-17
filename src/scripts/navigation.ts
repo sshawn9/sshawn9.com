@@ -2,6 +2,7 @@ import type {
   TransitionBeforePreparationEvent,
   TransitionBeforeSwapEvent,
 } from 'astro:transitions/client';
+import { claimClientRuntime } from './client-runtime';
 
 const SHOW_DELAY_MS = 120;
 const MIN_VISIBLE_MS = 240;
@@ -13,6 +14,7 @@ let pendingSource: HTMLElement | null = null;
 let shownAt = 0;
 let showTimer: number | undefined;
 let finishTimer: number | undefined;
+const runtime = claimClientRuntime('navigation');
 
 function clearTimers() {
   window.clearTimeout(showTimer);
@@ -148,18 +150,20 @@ function navigationHref(event: MouseEvent) {
   return url.origin === location.origin ? url.href : null;
 }
 
-document.addEventListener(
+runtime.listen(
+  document,
   'click',
   (event) => {
-    const href = navigationHref(event);
+    const href = navigationHref(event as MouseEvent);
     if (href !== null && href === pendingHref) event.preventDefault();
   },
   { capture: true },
 );
-document.addEventListener('astro:before-preparation', (event) => {
+runtime.listen(document, 'astro:before-preparation', (event) => {
   beginNavigation(event as TransitionBeforePreparationEvent);
 });
-document.addEventListener('astro:before-swap', (event) => {
+runtime.listen(document, 'astro:before-swap', (event) => {
   carryNavigationState(event as TransitionBeforeSwapEvent);
 });
-document.addEventListener('astro:page-load', finishNavigation);
+runtime.listen(document, 'astro:page-load', finishNavigation);
+runtime.onDispose(() => resetNavigation(revision));

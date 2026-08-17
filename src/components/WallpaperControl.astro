@@ -12,6 +12,7 @@ const { locale, id } = Astro.props;
   <button
     type="button"
     popovertarget={id}
+    aria-expanded="false"
     class="icon-control"
     aria-label={m.wallpaper_controls({}, { locale })}
     title={m.wallpaper_controls({}, { locale })}

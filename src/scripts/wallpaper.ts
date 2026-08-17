@@ -6,6 +6,7 @@ import {
   type WallpaperManifest,
   type WallpaperPhoto,
 } from '../lib/wallpaper';
+import { claimClientRuntime } from './client-runtime';
 
 const PHOTO_STORAGE_KEY = 'wallpaper-photo-id';
 const CURRENT_PHOTO_STORAGE_KEY = 'wallpaper-current-photo';
@@ -57,6 +58,7 @@ let cleanupCurrentWallpaper: (() => void) | undefined;
 let activeWallpaperController: WallpaperController | undefined;
 let activeWallpaperMenuTrigger: HTMLButtonElement | undefined;
 const posterTasks = new Map<string, Promise<void>>();
+const runtime = claimClientRuntime('wallpaper');
 
 function nextRotationDelay() {
   return (
@@ -937,7 +939,7 @@ async function initializeWallpaper() {
   }
 }
 
-document.addEventListener('click', (event) => {
+runtime.listen(document, 'click', (event) => {
   const target = event.target;
   if (!(target instanceof Element)) return;
 
@@ -959,7 +961,8 @@ document.addEventListener('click', (event) => {
   if (downloadButton) void activeWallpaperController?.download();
 });
 
-document.addEventListener(
+runtime.listen(
+  document,
   'toggle',
   (event) => {
     const menu = event.target;
@@ -989,7 +992,7 @@ document.addEventListener(
   true,
 );
 
-window.addEventListener('resize', () => {
+runtime.listen(window, 'resize', () => {
   if (!activeWallpaperMenuTrigger) return;
   const menu = getWallpaperMenu(activeWallpaperMenuTrigger);
   if (menu?.matches(':popover-open')) {
@@ -1002,7 +1005,7 @@ window.addEventListener('resize', () => {
   }
 });
 
-document.addEventListener('change', (event) => {
+runtime.listen(document, 'change', (event) => {
   const target = event.target;
   if (!(target instanceof HTMLInputElement)) return;
 
@@ -1025,8 +1028,13 @@ document.addEventListener('change', (event) => {
   }
 });
 
-document.addEventListener('astro:before-swap', () => {
+runtime.listen(document, 'astro:before-swap', () => {
   activeWallpaperMenuTrigger = undefined;
   cleanupCurrentWallpaper?.();
 });
-document.addEventListener('astro:page-load', initializeWallpaper);
+runtime.listen(document, 'astro:page-load', initializeWallpaper);
+
+runtime.onDispose(() => {
+  activeWallpaperMenuTrigger = undefined;
+  cleanupCurrentWallpaper?.();
+});

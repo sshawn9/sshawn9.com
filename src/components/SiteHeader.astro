@@ -88,7 +88,12 @@ const isActive = (href: string) => pathname === href || pathname.startsWith(href
       </div>
     </div>
 
-    <button type="button" popovertarget="site-navigation" class="site-header__menu-button">
+    <button
+      type="button"
+      popovertarget="site-navigation"
+      aria-expanded="false"
+      class="site-header__menu-button"
+    >
       <Menu class="site-header__menu-open size-5" aria-hidden="true" />
       <X class="site-header__menu-close size-5" aria-hidden="true" />
       <span class="site-header__menu-open sr-only">{m.open_navigation({}, { locale })}</span>
@@ -301,12 +306,11 @@ const isActive = (href: string) => pathname === href || pathname.startsWith(href
     display: none;
   }
 
-  .site-header__menu-button:has(+ .site-header__mobile-panel:popover-open) .site-header__menu-open {
+  .site-header__menu-button[aria-expanded='true'] .site-header__menu-open {
     display: none;
   }
 
-  .site-header__menu-button:has(+ .site-header__mobile-panel:popover-open)
-    .site-header__menu-close {
+  .site-header__menu-button[aria-expanded='true'] .site-header__menu-close {
     display: block;
   }
 
