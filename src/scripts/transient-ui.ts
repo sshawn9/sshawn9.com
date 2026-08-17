@@ -1,3 +1,6 @@
+import '@oddbird/popover-polyfill';
+import { claimClientRuntime } from './client-runtime';
+
 const TRANSIENT_OVERLAY_SELECTOR = '[data-transient-overlay]';
 
 type PopoverToggleEvent = Event & {
@@ -6,6 +9,7 @@ type PopoverToggleEvent = Event & {
 
 let activeOverlay: HTMLElement | undefined;
 let validationFrame: number | undefined;
+const runtime = claimClientRuntime('transient-ui');
 
 function getTransientOverlays() {
   return [...document.querySelectorAll<HTMLElement>(TRANSIENT_OVERLAY_SELECTOR)];
@@ -26,8 +30,19 @@ function findVisibleInvoker(overlay: HTMLElement) {
   );
 }
 
+function syncInvokers(overlay: HTMLElement, open: boolean) {
+  if (!overlay.id) return;
+
+  document.querySelectorAll<HTMLElement>('[popovertarget]').forEach((candidate) => {
+    if (candidate.getAttribute('popovertarget') === overlay.id) {
+      candidate.setAttribute('aria-expanded', String(open));
+    }
+  });
+}
+
 function closeOverlay(overlay: HTMLElement) {
   if (overlay.matches(':popover-open')) overlay.hidePopover();
+  syncInvokers(overlay, false);
   if (activeOverlay === overlay) activeOverlay = undefined;
 }
 
@@ -54,7 +69,8 @@ function scheduleValidation() {
   validationFrame = window.requestAnimationFrame(validateTransientOverlays);
 }
 
-document.addEventListener(
+runtime.listen(
+  document,
   'beforetoggle',
   (event) => {
     const overlay = event.target;
@@ -71,7 +87,8 @@ document.addEventListener(
   true,
 );
 
-document.addEventListener(
+runtime.listen(
+  document,
   'toggle',
   (event) => {
     const overlay = event.target;
@@ -79,27 +96,38 @@ document.addEventListener(
 
     if (overlay.matches(':popover-open')) {
       activeOverlay = overlay;
+      syncInvokers(overlay, true);
       scheduleValidation();
     } else if (activeOverlay === overlay) {
+      syncInvokers(overlay, false);
       activeOverlay = undefined;
+    } else {
+      syncInvokers(overlay, false);
     }
   },
   true,
 );
 
-window.addEventListener('resize', scheduleValidation);
-window.addEventListener('orientationchange', scheduleValidation);
+runtime.listen(window, 'resize', scheduleValidation);
+runtime.listen(window, 'orientationchange', scheduleValidation);
 
-document.addEventListener('astro:before-preparation', () => {
+runtime.listen(document, 'astro:before-preparation', () => {
   closeTransientOverlays();
 });
 
-document.addEventListener('astro:before-swap', () => {
+runtime.listen(document, 'astro:before-swap', () => {
   closeTransientOverlays();
   activeOverlay = undefined;
 });
 
-document.addEventListener('astro:page-load', () => {
+runtime.listen(document, 'astro:page-load', () => {
   activeOverlay = undefined;
   closeTransientOverlays();
+});
+
+runtime.onDispose(() => {
+  if (validationFrame !== undefined) window.cancelAnimationFrame(validationFrame);
+  validationFrame = undefined;
+  closeTransientOverlays();
+  activeOverlay = undefined;
 });

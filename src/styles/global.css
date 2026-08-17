@@ -3,6 +3,13 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 
+/* Popovers must be closed on first paint even when the browser needs the compatibility layer. */
+@supports not selector(:popover-open) {
+  [popover]:not(.\:popover-open) {
+    display: none;
+  }
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {

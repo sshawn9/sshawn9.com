@@ -1,8 +1,10 @@
 import type { TransitionBeforeSwapEvent } from 'astro:transitions/client';
+import { claimClientRuntime } from './client-runtime';
 
 const media = window.matchMedia('(prefers-color-scheme: dark)');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 let themeTransitionRevision = 0;
+const runtime = claimClientRuntime('theme');
 
 function getStoredTheme(): 'light' | 'dark' | null {
   const theme = localStorage.getItem('theme');
@@ -52,22 +54,28 @@ function transitionTheme(dark: boolean, persist = true) {
   });
 }
 
-document.addEventListener('click', (event) => {
+runtime.listen(document, 'click', (event) => {
   const target = event.target;
   const button = target instanceof Element ? target.closest('[data-theme-toggle]') : null;
   if (button) transitionTheme(!document.documentElement.classList.contains('dark'));
 });
 
-document.addEventListener('astro:before-swap', (event) => {
+runtime.listen(document, 'astro:before-swap', (event) => {
   setDocumentTheme((event as TransitionBeforeSwapEvent).newDocument, isDarkTheme());
 });
 
-document.addEventListener('astro:page-load', () => {
+runtime.listen(document, 'astro:page-load', () => {
   applyTheme(isDarkTheme(), false);
 });
 
-media.addEventListener('change', ({ matches }) => {
+runtime.listen(media, 'change', (event) => {
+  const { matches } = event as MediaQueryListEvent;
   if (getStoredTheme() === null) transitionTheme(matches, false);
+});
+
+runtime.onDispose(() => {
+  themeTransitionRevision += 1;
+  document.documentElement.classList.remove('theme-transitioning');
 });
 
 applyTheme(isDarkTheme(), false);

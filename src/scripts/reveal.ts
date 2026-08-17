@@ -1,7 +1,9 @@
 import { animate } from 'motion/mini';
 import { inView } from 'motion';
+import { claimClientRuntime } from './client-runtime';
 
 let stopObservers: Array<() => void> = [];
+const runtime = claimClientRuntime('reveal');
 
 function cleanupReveal() {
   stopObservers.forEach((stop) => stop());
@@ -36,5 +38,6 @@ function setupReveal() {
   });
 }
 
-document.addEventListener('astro:before-swap', cleanupReveal);
-document.addEventListener('astro:page-load', setupReveal);
+runtime.listen(document, 'astro:before-swap', cleanupReveal);
+runtime.listen(document, 'astro:page-load', setupReveal);
+runtime.onDispose(cleanupReveal);
