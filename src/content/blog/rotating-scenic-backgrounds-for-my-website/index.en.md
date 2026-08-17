@@ -1,11 +1,11 @@
 ---
 title: 'Rotating Scenic Backgrounds for My Website'
-description: 'Documents the complete implementation of rotating scenic backgrounds for my personal website, from technology choices, the wallpaper pool, and client-side rotation to refresh continuity and site-wide visual refinements.'
+description: 'Documents the complete implementation of rotating scenic backgrounds for my personal website, from technology choices, the wallpaper pool, and client-side rotation to continuity across refreshes and mode changes, site-wide visual refinements, and navigation feedback.'
 ---
 
 I wanted to replace the website's original grid background with a continuously updated collection of scenic photographs, so that visitors would see different backgrounds and the image could rotate as they browsed. This led me to build a complete path from content acquisition to presentation, covering photo retrieval and updates, client-side state, page navigation and refreshes, and the adaptation of the existing interface to dynamic imagery.
 
-The work went through three main iterations. The first established the complete path from Unsplash to the browser. The second refined user controls, state persistence, and failure handling. The third used observations from actual use to improve the wallpaper pool, initial rendering, and the site-wide visual system. This article records the technical decisions and problem-solving process worth retaining rather than recounting every code change.
+The work first established the content path from Unsplash to the browser, then refined user controls, state persistence, the dynamic wallpaper pool, first-frame restoration, and the site-wide visual system. Testing the completed feature exposed finer boundaries: the restored first frame could still be replaced briefly during the handoff to runtime layers, the image and its overlay could leave scenic mode at different times, changes in filtered results could disturb adjacent layout, and slow page navigation provided no clear feedback. This article records the technical decisions and problem-solving process worth retaining rather than recounting every code change.
 
 ## More than replacing a background image
 
@@ -16,7 +16,7 @@ The feature ultimately needed to satisfy all of the following requirements:
 - users should be able to disable scenic backgrounds, disable automatic rotation, advance immediately, or download the current photo;
 - the API key must never reach the browser, and ordinary page visits should not directly consume search API quota;
 - new images should load on demand rather than downloading the entire wallpaper pool at once;
-- client-side navigation, browser refreshes, and light–dark theme changes must not produce abrupt flashes;
+- client-side navigation, browser refreshes, background-mode changes, and light–dark theme changes must not produce abrupt flashes;
 - the website must continue to work with its original background when an image or endpoint is unavailable;
 - scenic photographs must not compromise the readability of body text, navigation, tags, or interaction states.
 
@@ -145,12 +145,33 @@ Saving only the photo ID cannot solve the first-frame problem because the HTML p
 
 The eventual solution was to redefine the responsibilities of the layers:
 
-- the **current background layer** retains the stable image that has already finished displaying;
+- the **document-root background layer** restores the stable image before the runtime code starts;
+- the **runtime background layer** takes ownership of that same restored photograph and participates in mode changes together with the overlay;
 - the **two image layers** handle loading and crossfading only when the site genuinely moves to another photograph.
 
-After a photograph is displayed successfully, the client records its current URLs and, when conditions permit, produces a size-limited clear poster. On the next hard refresh, an inline script in `<head>` synchronously restores the theme, background mode, and current background layer before the first paint. When the wallpaper controller starts, it treats that image as the already completed current state instead of loading it into a transition layer again.
+After a photograph is displayed successfully, the client records its current URLs and, when conditions permit, produces a size-limited clear poster. On the next hard refresh, an inline script in `<head>` synchronously restores the theme, background mode, and document-root background layer before the first paint. Because this restoration layer belongs to the root element rather than to a wallpaper component parsed later, the page does not first pass through the default background.
+
+The runtime controller must not hide the restoration layer as soon as it starts. It first establishes a bootstrap layer inside the wallpaper container from the same source, then transfers ownership of the background from the document root to the runtime container. The bootstrap layer leaves only after a later image layer is genuinely ready. Restoration, handoff, and subsequent activation therefore use the same photograph without an empty intermediate frame or a redundant reload of an image that was already clear.
 
 A newly encountered photograph can therefore still use a BlurHash transition, while a photograph that has already appeared clearly is restored directly in its clear state after a refresh. These are different situations and should not share the same placeholder strategy.
+
+### Switching background modes is not rotating photographs
+
+Disabling scenic backgrounds once produced a different flash: the photograph disappeared first and the overlay left afterward, briefly exposing only a light or dark veil. Giving both changes the same duration does not make them atomic when they belong to separate layers; the browser can still render an intermediate frame. Replacing `opacity` with `visibility` avoids the fade only by turning the problem into an abrupt jump.
+
+The photograph, bootstrap background, and overlay now belong to one runtime media container. Switching between scenic and default backgrounds changes the visibility of that complete container. Automatic rotation and manual advancement, by contrast, crossfade only between the two image layers. A mode change therefore operates on one complete scene, while photo rotation operates on two photographs; the two interactions no longer share incompatible animation semantics.
+
+This also makes activation and deactivation symmetrical. If a runtime image already exists, the complete media layer returns directly. Otherwise, the bootstrap background restores the previous photograph until the next image takes over. Disabling scenic mode fades out the same complete unit, keeping control state, layer ownership, and the animated object aligned.
+
+## Page continuity also requires visible waiting states
+
+Once the background stopped flashing, page navigation exposed another continuity problem. On a slow response, clicking a blog, project, or article link left the old page unchanged while the request was pending. Prefetching can shorten some waits, but it cannot cover a first tap on mobile, a cache miss, or a weak connection. Without feedback, a visitor can reasonably assume that the click failed and try again.
+
+The site already uses Astro's client-side router, so navigation feedback attaches directly to `astro:before-preparation`, `astro:before-swap`, and `astro:page-load` rather than introducing a second interception mechanism. Navigation start records the destination and triggering element, the state is carried into the incoming document during the swap, and completion, cancellation, and failure share one cleanup path. Repeated clicks on the same destination do not issue another request, while a different destination can still replace the pending navigation.
+
+The visible indicator is a thin indeterminate line overlaid on the top edge of the navigation bar. It consumes no layout height and therefore cannot move the page. A short display delay avoids noise on fast navigations, while a minimum visible duration prevents the line from appearing and vanishing as a flash once shown. Primary navigation destinations use more eager prefetching; `aria-busy`, localized status text, and `prefers-reduced-motion` cover assistive technology and reduced-motion preferences.
+
+Hard browser refreshes do not reuse this indicator. Site scripts cannot run in the new document until its HTML has arrived, so an in-page line could represent only the latter part of a full reload and might introduce another flash. The browser's own reload feedback remains responsible for that lifecycle.
 
 ## One photograph forced a redesign of the site's visual system
 
@@ -171,6 +192,10 @@ In dark scenic mode, body text no longer uses a gray-white far dimmer than the h
 
 The navigation bar, project card, and wallpaper settings popover use consistent translucent surfaces and borders, avoiding gradients that make one side lighter than the other. Interaction states are simplified as well: hover and keyboard focus use an underline, while the current item uses a marker on the left. Selecting an item in the table of contents does not change its font weight because that would change wrapping and layout. Photo attribution remains at the edge of the page and uses the weakest text treatment across the site.
 
+The blog filter exposed a further distinction between correct state and a stable interface. When filtering sharply reduces the result count, the height of the results column changes. If the sticky filter panel is itself the corresponding grid item, that change can also move the panel. A stable outer sidebar now provides the vertical layout boundary, while an inner panel alone owns sticky positioning, so the filter area no longer shifts with the number of results.
+
+A selected filter cannot rely on text color alone either. Changes to the global text palette had weakened the original emphasis, and the count could override the parent state with its own subdued color. The selected item therefore combines an accent line on the left, a restrained translucent surface, and textual emphasis; the count inherits that state before reducing only its opacity. This differs deliberately from the table of contents: filter labels have a controlled width and can use weight as an additional signal, whereas changing the weight of wrapping table-of-contents text would disturb its layout.
+
 This work demonstrates that a dynamic background is not an isolated decorative layer. Once the background becomes part of the reading environment, the site's text hierarchy, surface system, navigation structure, and interaction feedback all need to be reconsidered.
 
 ## Failure handling and test boundaries
@@ -187,7 +212,9 @@ Wallpapers are an enhancement, and no failure should prevent the main website fr
 
 The tests cover more than whether an image is visible. Worker unit tests cover search-result filtering, deduplication and merging in the wallpaper pool, capacity-based eviction, unchanged updates, manifest initialization, and the download endpoint. Browser tests cover control state, automatic rotation, manual advancement, page navigation, light and dark themes, the mobile menu, and failure recovery.
 
-The hard-refresh problem also requires more specific assertions: the first frame after a refresh should retain the clear background, the same photograph must not re-enter an active image layer, and controller initialization must not issue another image request for it. Turning the continuity visible to the user into observable state is what prevents later changes from reintroducing the flash.
+The hard-refresh problem also requires more specific assertions: the first rendered frame after a refresh should already contain the saved clear background, the same photograph must not re-enter an active image layer, and controller initialization must not issue another image request for it. Mode-switching tests separately verify the visibility of the complete media layer and retention of the active image, preventing the return of an intermediate state in which the photograph is gone but the overlay remains.
+
+Other parts of the page gained corresponding invariants as well. The top of the filter panel must remain fixed as result height changes. A slow client-side navigation must produce only one request for its destination, expose a busy state on the main content, and leave the navigation bar at exactly the same height before and after the progress line appears. Translating visible continuity and stability into observable state is what prevents later changes from reintroducing the same regressions in another form.
 
 ## Conclusion
 
@@ -197,6 +224,6 @@ The rotating scenic backgrounds ultimately consist of three layers that are inde
 - the client maintains the randomized queue and display state for the current tab;
 - the visual system handles the four combinations of light and dark themes with default and scenic backgrounds.
 
-The most important lessons from this implementation are not tied to a particular API or animation parameter, but to separating problems that look similar: API updates are not client-side rotation, browser caching is not visual-state restoration, page navigation is not a hard refresh, and a BlurHash placeholder for first display is not refresh restoration. Only by modeling these lifecycles separately can the background avoid returning with a different kind of flash after every fix.
+The most important lessons from this implementation are not tied to a particular API or animation parameter, but to separating problems that look similar: API updates are not client-side rotation, browser caching is not visual-state restoration, page navigation is not a hard refresh, a BlurHash placeholder for first display is not refresh restoration, and switching background modes is not rotating photographs. Only by modeling these lifecycles separately can the background avoid returning with a different kind of flash after every fix.
 
-Likewise, a global visual element cannot be integrated by continually patching individual components. Defining the responsibilities of each background layer, representing display modes as global state, and rebuilding typography and surface hierarchy through shared variables are what make the code and the experience stable together.
+Likewise, a global visual element cannot be integrated by continually patching individual components. Defining the responsibilities of each background layer, representing display modes as global state, and rebuilding typography and surface hierarchy through shared variables are only the foundation; adjacent experiences such as waiting feedback, filter layout, and interaction states must be checked as well. The result becomes stable only when the boundaries in the code match the visual boundaries experienced by the visitor.
