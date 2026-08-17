@@ -57,6 +57,13 @@ const lang = toLanguageTag(locale);
       {m.skip_to_content({}, { locale })}
     </a>
     <SiteHeader {locale} />
+    <span
+      class="sr-only"
+      role="status"
+      aria-atomic="true"
+      data-navigation-status
+      data-loading-label={m.navigation_loading({}, { locale })}
+      data-pagefind-ignore></span>
     <main
       id="main-content"
       class="relative z-10 flex-1"
@@ -68,6 +75,7 @@ const lang = toLanguageTag(locale);
     <SiteFooter {locale} />
     <script>
       import '../scripts/reveal';
+      import '../scripts/navigation';
       import '../scripts/theme';
       import '../scripts/wallpaper';
     </script>
