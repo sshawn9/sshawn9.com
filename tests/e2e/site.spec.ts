@@ -40,10 +40,15 @@ test('the site header exposes desktop navigation and a mobile disclosure menu', 
   await expect(menuButton).toHaveAccessibleName('Close navigation');
   await expect(mobilePanel.locator('a[href="/en/blog/"]')).toHaveAttribute('aria-current', 'page');
   await expect(mobilePanel.locator('[data-theme-toggle]')).toBeVisible();
-  await expect(mobilePanel.locator('[data-wallpaper-menu-trigger]')).toBeVisible();
+  await expect(mobilePanel.locator('[data-wallpaper-menu-trigger]')).toHaveCount(0);
+  await expect(mobilePanel.locator('[data-wallpaper-enabled]')).toBeVisible();
+  await expect(mobilePanel.locator('[data-wallpaper-auto-rotation]')).toBeVisible();
 
-  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 820, height: 844 });
   await expect(mobilePanel).toBeHidden();
+  await expect(page.locator('[data-transient-overlay]:popover-open')).toHaveCount(0);
+
+  await page.setViewportSize({ width: 390, height: 844 });
   await expect(menuButton).toHaveAccessibleName('Open navigation');
 });
 
@@ -64,6 +69,8 @@ test('slow client navigation reports progress without changing the header height
   await page.goto('/en/');
   const header = page.locator('.site-header');
   const initialHeight = await header.evaluate((element) => element.getBoundingClientRect().height);
+  await header.locator('[data-wallpaper-menu-trigger]').click();
+  await expect(page.locator('[data-wallpaper-menu]:popover-open')).toBeVisible();
 
   await page.evaluate(() => {
     const link = document.createElement('a');
@@ -75,6 +82,7 @@ test('slow client navigation reports progress without changing the header height
     link.click();
   });
 
+  await expect(page.locator('[data-transient-overlay]:popover-open')).toHaveCount(0);
   await expect(page.locator('html')).toHaveAttribute('data-navigation-progress', 'active');
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'true');
   await expect(page.locator('[data-navigation-feedback-test]')).toHaveAttribute(

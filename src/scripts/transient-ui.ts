@@ -1,0 +1,105 @@
+const TRANSIENT_OVERLAY_SELECTOR = '[data-transient-overlay]';
+
+type PopoverToggleEvent = Event & {
+  newState?: 'open' | 'closed';
+};
+
+let activeOverlay: HTMLElement | undefined;
+let validationFrame: number | undefined;
+
+function getTransientOverlays() {
+  return [...document.querySelectorAll<HTMLElement>(TRANSIENT_OVERLAY_SELECTOR)];
+}
+
+function isRendered(element: HTMLElement) {
+  if (!element.isConnected || element.getClientRects().length === 0) return false;
+
+  const style = getComputedStyle(element);
+  return style.display !== 'none' && style.visibility !== 'hidden';
+}
+
+function findVisibleInvoker(overlay: HTMLElement) {
+  if (!overlay.id) return undefined;
+
+  return [...document.querySelectorAll<HTMLElement>('[popovertarget]')].find(
+    (candidate) => candidate.getAttribute('popovertarget') === overlay.id && isRendered(candidate),
+  );
+}
+
+function closeOverlay(overlay: HTMLElement) {
+  if (overlay.matches(':popover-open')) overlay.hidePopover();
+  if (activeOverlay === overlay) activeOverlay = undefined;
+}
+
+function closeTransientOverlays(except?: HTMLElement) {
+  getTransientOverlays().forEach((overlay) => {
+    if (overlay !== except) closeOverlay(overlay);
+  });
+}
+
+function validateTransientOverlays() {
+  validationFrame = undefined;
+
+  getTransientOverlays().forEach((overlay) => {
+    if (!overlay.matches(':popover-open')) return;
+
+    if (overlay !== activeOverlay || !findVisibleInvoker(overlay)) {
+      closeOverlay(overlay);
+    }
+  });
+}
+
+function scheduleValidation() {
+  if (validationFrame !== undefined) return;
+  validationFrame = window.requestAnimationFrame(validateTransientOverlays);
+}
+
+document.addEventListener(
+  'beforetoggle',
+  (event) => {
+    const overlay = event.target;
+    if (!(overlay instanceof HTMLElement) || !overlay.matches(TRANSIENT_OVERLAY_SELECTOR)) return;
+
+    const state = (event as PopoverToggleEvent).newState;
+    const isOpening =
+      state === 'open' || (state === undefined && !overlay.matches(':popover-open'));
+    if (!isOpening) return;
+
+    closeTransientOverlays(overlay);
+    activeOverlay = overlay;
+  },
+  true,
+);
+
+document.addEventListener(
+  'toggle',
+  (event) => {
+    const overlay = event.target;
+    if (!(overlay instanceof HTMLElement) || !overlay.matches(TRANSIENT_OVERLAY_SELECTOR)) return;
+
+    if (overlay.matches(':popover-open')) {
+      activeOverlay = overlay;
+      scheduleValidation();
+    } else if (activeOverlay === overlay) {
+      activeOverlay = undefined;
+    }
+  },
+  true,
+);
+
+window.addEventListener('resize', scheduleValidation);
+window.addEventListener('orientationchange', scheduleValidation);
+
+document.addEventListener('astro:before-preparation', () => {
+  closeTransientOverlays();
+});
+
+document.addEventListener('astro:before-swap', () => {
+  closeTransientOverlays();
+  activeOverlay = undefined;
+});
+
+document.addEventListener('astro:page-load', () => {
+  activeOverlay = undefined;
+  closeTransientOverlays();
+});

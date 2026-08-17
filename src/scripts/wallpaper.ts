@@ -70,7 +70,16 @@ function getWallpaperMenu(trigger: HTMLButtonElement) {
   return menu instanceof HTMLElement && menu.matches('[data-wallpaper-menu]') ? menu : undefined;
 }
 
+function isVisibleWallpaperMenuTrigger(trigger: HTMLButtonElement) {
+  if (!trigger.isConnected || trigger.getClientRects().length === 0) return false;
+
+  const style = getComputedStyle(trigger);
+  return style.display !== 'none' && style.visibility !== 'hidden';
+}
+
 function positionWallpaperMenu(trigger: HTMLButtonElement, menu: HTMLElement) {
+  if (!isVisibleWallpaperMenuTrigger(trigger)) return false;
+
   const triggerRect = trigger.getBoundingClientRect();
   const menuRect = menu.getBoundingClientRect();
   const computedWidth = Number.parseFloat(getComputedStyle(menu).width);
@@ -92,12 +101,14 @@ function positionWallpaperMenu(trigger: HTMLButtonElement, menu: HTMLElement) {
 
   menu.style.setProperty('--wallpaper-menu-left', `${left}px`);
   menu.style.setProperty('--wallpaper-menu-top', `${top}px`);
+  return true;
 }
 
 function queueWallpaperMenuPosition(trigger: HTMLButtonElement, menu: HTMLElement) {
-  positionWallpaperMenu(trigger, menu);
+  if (!positionWallpaperMenu(trigger, menu)) return;
   window.requestAnimationFrame(() => {
-    if (menu.matches(':popover-open')) positionWallpaperMenu(trigger, menu);
+    if (!menu.matches(':popover-open')) return;
+    if (!positionWallpaperMenu(trigger, menu)) menu.hidePopover();
   });
 }
 
@@ -961,8 +972,12 @@ document.addEventListener(
           .closest('[data-wallpaper-control]')
           ?.querySelector<HTMLButtonElement>('[data-wallpaper-menu-trigger]');
       if (trigger) {
-        activeWallpaperMenuTrigger = trigger;
-        positionWallpaperMenu(trigger, menu);
+        if (positionWallpaperMenu(trigger, menu)) {
+          activeWallpaperMenuTrigger = trigger;
+        } else {
+          activeWallpaperMenuTrigger = undefined;
+          menu.hidePopover();
+        }
       }
     } else if (
       activeWallpaperMenuTrigger &&
@@ -978,7 +993,10 @@ window.addEventListener('resize', () => {
   if (!activeWallpaperMenuTrigger) return;
   const menu = getWallpaperMenu(activeWallpaperMenuTrigger);
   if (menu?.matches(':popover-open')) {
-    positionWallpaperMenu(activeWallpaperMenuTrigger, menu);
+    if (!positionWallpaperMenu(activeWallpaperMenuTrigger, menu)) {
+      activeWallpaperMenuTrigger = undefined;
+      menu.hidePopover();
+    }
   } else {
     activeWallpaperMenuTrigger = undefined;
   }
