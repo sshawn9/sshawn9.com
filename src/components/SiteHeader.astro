@@ -6,6 +6,7 @@ import * as m from '../paraglide/messages.js';
 import LocaleSwitcher from './LocaleSwitcher.astro';
 import ThemeToggle from './ThemeToggle.astro';
 import WallpaperControl from './WallpaperControl.astro';
+import WallpaperSettings from './WallpaperSettings.astro';
 
 type Props = { locale: Locale };
 const { locale } = Astro.props;
@@ -94,7 +95,7 @@ const isActive = (href: string) => pathname === href || pathname.startsWith(href
       <span class="site-header__menu-close sr-only">{m.close_navigation({}, { locale })}</span>
     </button>
 
-    <div id="site-navigation" popover class="site-header__mobile-panel">
+    <div id="site-navigation" popover class="site-header__mobile-panel" data-transient-overlay>
       <nav class="site-header__mobile-nav" aria-label={m.nav_mobile({}, { locale })}>
         {
           navItems.map((item) => (
@@ -119,10 +120,13 @@ const isActive = (href: string) => pathname === href || pathname.startsWith(href
         </a>
       </nav>
 
+      <div class="site-header__mobile-wallpaper" data-wallpaper-control>
+        <WallpaperSettings {locale} />
+      </div>
+
       <div class="site-header__mobile-utilities">
         <LocaleSwitcher {locale} />
         <ThemeToggle {locale} />
-        <WallpaperControl {locale} id="wallpaper-controls-mobile" />
         <a
           href={SITE.github}
           target="_blank"
@@ -366,6 +370,11 @@ const isActive = (href: string) => pathname === href || pathname.startsWith(href
     align-items: center;
     gap: 0.25rem;
     padding: 0.65rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .site-header__mobile-wallpaper {
+    padding: 0.5rem 0.65rem;
     border-top: 1px solid var(--line);
   }
 
