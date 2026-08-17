@@ -17,6 +17,11 @@ test('the site header exposes desktop navigation and a mobile disclosure menu', 
   expect(
     await desktopNavigation
       .locator('a')
+      .evaluateAll((links) => links.map((link) => link.getAttribute('data-astro-prefetch'))),
+  ).toEqual(['load', 'load', 'load']);
+  expect(
+    await desktopNavigation
+      .locator('a')
       .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
   ).toEqual(['/en/projects/', '/en/blog/', '/en/about/']);
   await expect(desktopNavigation.locator('a[href="/en/blog/"]')).toHaveAttribute(
@@ -40,6 +45,54 @@ test('the site header exposes desktop navigation and a mobile disclosure menu', 
   await page.keyboard.press('Escape');
   await expect(mobilePanel).toBeHidden();
   await expect(menuButton).toHaveAccessibleName('Open navigation');
+});
+
+test('slow client navigation reports progress without changing the header height', async ({
+  page,
+}) => {
+  let releaseRequest: (() => void) | undefined;
+  let requestCount = 0;
+  const requestReleased = new Promise<void>((resolve) => {
+    releaseRequest = resolve;
+  });
+
+  await page.route(/\/en\/about\/\?navigation-feedback-test=1$/, async (route) => {
+    requestCount += 1;
+    await requestReleased;
+    await route.continue();
+  });
+  await page.goto('/en/');
+  const header = page.locator('.site-header');
+  const initialHeight = await header.evaluate((element) => element.getBoundingClientRect().height);
+
+  await page.evaluate(() => {
+    const link = document.createElement('a');
+    link.href = '/en/about/?navigation-feedback-test=1';
+    link.dataset.astroPrefetch = 'false';
+    link.dataset.navigationFeedbackTest = '';
+    link.textContent = 'Delayed navigation';
+    document.body.append(link);
+    link.click();
+  });
+
+  await expect(page.locator('html')).toHaveAttribute('data-navigation-progress', 'active');
+  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'true');
+  await expect(page.locator('[data-navigation-feedback-test]')).toHaveAttribute(
+    'aria-busy',
+    'true',
+  );
+  expect(await header.evaluate((element) => element.getBoundingClientRect().height)).toBe(
+    initialHeight,
+  );
+
+  await page.locator('[data-navigation-feedback-test]').dispatchEvent('click');
+  await page.waitForTimeout(50);
+  expect(requestCount).toBe(1);
+
+  releaseRequest?.();
+  await expect(page).toHaveURL(/\/en\/about\/\?navigation-feedback-test=1$/);
+  await expect(page.locator('html')).not.toHaveAttribute('data-navigation-pending', '');
+  await expect(page.locator('main')).not.toHaveAttribute('aria-busy', 'true');
 });
 
 test('language switching keeps the route and stores the preference', async ({ page }) => {
