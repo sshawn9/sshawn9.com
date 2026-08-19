@@ -1,7 +1,7 @@
 import { SITE_STORAGE_KEYS } from '../lib/site-preferences';
 import { $theme, type ThemeMode } from '../stores/site-state';
+import { claimClientRuntime } from './client-runtime';
 
-let activeCleanup: (() => void) | undefined;
 let transitionRevision = 0;
 
 function clearThemeTransitionState() {
@@ -55,7 +55,12 @@ export function toggleTheme() {
 }
 
 export function startThemeController() {
-  activeCleanup?.();
+  const runtime = claimClientRuntime('theme');
+
+  runtime.onDispose(() => {
+    transitionRevision += 1;
+    clearThemeTransitionState();
+  });
 
   const media = window.matchMedia('(prefers-color-scheme: dark)');
   const initialTheme: ThemeMode = $theme.get();
@@ -68,16 +73,11 @@ export function startThemeController() {
   };
   const syncTheme = () => applyThemeToDocument(document, $theme.get());
 
+  // MediaQueryList's typed 'change' listener isn't assignable to the generic
+  // EventListener signature `listen()` expects, so this pair stays manual.
   media.addEventListener('change', handleSystemTheme);
-  document.addEventListener('site:after-swap', syncTheme);
+  runtime.onDispose(() => media.removeEventListener('change', handleSystemTheme));
+  runtime.listen(document, 'site:after-swap', syncTheme);
 
-  const cleanup = () => {
-    transitionRevision += 1;
-    clearThemeTransitionState();
-    media.removeEventListener('change', handleSystemTheme);
-    document.removeEventListener('site:after-swap', syncTheme);
-    if (activeCleanup === cleanup) activeCleanup = undefined;
-  };
-  activeCleanup = cleanup;
-  return cleanup;
+  return runtime.dispose;
 }

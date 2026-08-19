@@ -11,6 +11,7 @@ import {
   type WallpaperPhoto,
 } from '../lib/wallpaper';
 import { $wallpaper } from '../stores/site-state';
+import { claimClientRuntime } from './client-runtime';
 
 const MIN_ROTATION_INTERVAL_MS = 5 * 60 * 1000;
 const MAX_ROTATION_INTERVAL_MS = 9 * 60 * 1000;
@@ -326,7 +327,7 @@ function clearImage(image: HTMLImageElement) {
 }
 
 export function startWallpaperController({ media, images }: WallpaperElements) {
-  activeController?.dispose();
+  const runtime = claimClientRuntime('wallpaper');
 
   const abortController = new AbortController();
   const { signal } = abortController;
@@ -673,28 +674,25 @@ export function startWallpaperController({ media, images }: WallpaperElements) {
   const handlePageLoad = () => {
     if (enabled && !manifest && !loading) void ensurePhotoBackground();
   };
-  document.addEventListener('visibilitychange', handleVisibility);
-  document.addEventListener('site:page-load', handlePageLoad);
-  window.addEventListener('online', handleOnline);
-  reducedMotion.addEventListener('change', schedule);
+  runtime.listen(document, 'visibilitychange', handleVisibility);
+  runtime.listen(document, 'site:page-load', handlePageLoad);
+  runtime.listen(window, 'online', handleOnline);
+  runtime.listen(reducedMotion, 'change', schedule);
 
   const controller: WallpaperController = {
     refresh: advance,
     download,
     setEnabled,
     setAutoRotation,
-    dispose: () => {
-      abortController.abort();
-      clearRotationTimer();
-      clearManifestRefreshTimer();
-      document.removeEventListener('visibilitychange', handleVisibility);
-      document.removeEventListener('site:page-load', handlePageLoad);
-      window.removeEventListener('online', handleOnline);
-      reducedMotion.removeEventListener('change', schedule);
-      if (activeController === controller) activeController = undefined;
-    },
+    dispose: runtime.dispose,
   };
   activeController = controller;
+  runtime.onDispose(() => {
+    abortController.abort();
+    clearRotationTimer();
+    clearManifestRefreshTimer();
+    if (activeController === controller) activeController = undefined;
+  });
 
   publish();
   if (enabled) void ensurePhotoBackground();
