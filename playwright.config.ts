@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const executablePath = process.env.PLAYWRIGHT_CHROME_PATH;
+const port = Number(process.env.PLAYWRIGHT_PORT ?? 4322);
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -9,7 +10,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: 'list',
   use: {
-    baseURL: 'http://127.0.0.1:4322',
+    baseURL: `http://127.0.0.1:${port}`,
     trace: 'retain-on-failure',
   },
   projects: [
@@ -22,8 +23,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run preview -- --host 127.0.0.1 --port 4322',
-    url: 'http://127.0.0.1:4322/en/',
+    command: `npm run preview -- --host 127.0.0.1 --port ${port}`,
+    url: `http://127.0.0.1:${port}/en/`,
     reuseExistingServer: false,
     timeout: 30_000,
   },

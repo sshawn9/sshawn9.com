@@ -1,7 +1,7 @@
 // @ts-check
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { defineConfig, envField } from 'astro/config';
+import { defineConfig, envField, fontProviders } from 'astro/config';
 import { unified } from '@astrojs/markdown-remark';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
@@ -16,6 +16,7 @@ import remarkMath from 'remark-math';
 const site = 'https://sshawn9.com';
 const isPreviewBuild = process.env.SITE_MODE === 'preview';
 const outDirUrl = new URL('./dist/', import.meta.url);
+const localFonts = fontProviders.local();
 /** @type {Map<string, Promise<boolean>>} */
 const indexability = new Map();
 
@@ -54,6 +55,53 @@ export default defineConfig({
   site,
   outDir: fileURLToPath(outDirUrl),
   trailingSlash: 'always',
+  fonts: [
+    {
+      provider: localFonts,
+      name: 'Manrope Variable',
+      cssVariable: '--font-manrope',
+      display: 'block',
+      options: {
+        variants: [
+          {
+            src: ['@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2'],
+            weight: '200 800',
+            style: 'normal',
+          },
+        ],
+      },
+      weights: ['200 800'],
+      styles: ['normal'],
+      subsets: ['latin'],
+      fallbacks: ['Noto Sans SC Variable', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
+      optimizedFallbacks: false,
+    },
+    {
+      provider: localFonts,
+      name: 'Source Sans 3 Variable',
+      cssVariable: '--font-source-sans-3',
+      display: 'block',
+      options: {
+        variants: [
+          {
+            src: ['@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2'],
+            weight: '200 900',
+            style: 'normal',
+          },
+          {
+            src: ['@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-italic.woff2'],
+            weight: '200 900',
+            style: 'italic',
+          },
+        ],
+      },
+      weights: ['200 900'],
+      styles: ['normal', 'italic'],
+      subsets: ['latin'],
+      fallbacks: ['Noto Sans SC Variable', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
+      optimizedFallbacks: false,
+    },
+  ],
   env: {
     schema: {
       SITE_MODE: envField.enum({
@@ -70,10 +118,6 @@ export default defineConfig({
   },
   markdown: {
     processor: createMarkdownProcessor(),
-  },
-  prefetch: {
-    prefetchAll: true,
-    defaultStrategy: 'hover',
   },
   i18n: {
     defaultLocale: 'en',
@@ -96,6 +140,7 @@ export default defineConfig({
       defaultProps: { wrap: true },
       styleOverrides: {
         borderRadius: '0.9rem',
+        codeFontFamily: 'var(--font-code)',
       },
     }),
     mdx({ processor: createMarkdownProcessor() }),

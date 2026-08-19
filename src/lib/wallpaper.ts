@@ -21,7 +21,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function isWallpaperPhoto(value: unknown): value is WallpaperPhoto {
+export function isWallpaperPhoto(value: unknown): value is WallpaperPhoto {
   if (!isRecord(value)) return false;
 
   return (

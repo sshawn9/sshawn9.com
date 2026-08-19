@@ -1,6 +1,7 @@
 import { createEffect, onCleanup, onMount, type Component } from 'solid-js';
 import type { Config, Data, Layout, PlotlyHTMLElement } from 'plotly.js';
 import { loadPlotly } from '../lib/plotly-client';
+import { whenTypographyReady } from '../scripts/typography-controller';
 
 export type ResearchFigureKind =
   'planar-curvature-signs' | 'planar-heading' | 'vehicle-state' | 'vehicle-velocity';
@@ -14,6 +15,7 @@ type Theme = {
   muted: string;
   line: string;
   surface: string;
+  fontFamily: string;
   blue: string;
   orange: string;
   green: string;
@@ -41,11 +43,13 @@ function css(root: HTMLElement, name: string, fallback: string): string {
 }
 
 function readTheme(root: HTMLElement): Theme {
+  const style = getComputedStyle(root);
   return {
     ink: css(root, '--ink', '#0f172a'),
     muted: css(root, '--muted', '#64748b'),
     line: css(root, '--line', '#d8dee9'),
     surface: css(root, '--surface-strong', '#ffffff'),
+    fontFamily: style.fontFamily,
     blue: '#4c78a8',
     orange: '#f58518',
     green: '#54a24b',
@@ -178,7 +182,10 @@ function baseLayout(theme: Theme): Partial<Layout> {
     margin: { l: 28, r: 28, t: 46, b: 30 },
     paper_bgcolor: theme.surface,
     plot_bgcolor: theme.surface,
-    font: { color: theme.ink, family: 'Manrope Variable, ui-sans-serif, system-ui, sans-serif' },
+    font: {
+      color: theme.ink,
+      family: theme.fontFamily,
+    },
     showlegend: false,
     hovermode: false,
     uirevision: 'research-figure',
@@ -693,7 +700,7 @@ const ResearchFigure: Component<Props> = (props) => {
   let disposed = false;
 
   const render = async () => {
-    const plotly = await loadPlotly();
+    const [plotly] = await Promise.all([loadPlotly(), whenTypographyReady()]);
     if (disposed) return;
     const figure = buildFigure(props.kind, readTheme(root));
     plot = (await plotly.react(graph, figure.data, figure.layout, CONFIG)) as PlotlyHTMLElement;

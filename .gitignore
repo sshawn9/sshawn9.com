@@ -13,6 +13,7 @@ blob-report/
 
 # dependencies
 node_modules/
+.cache/
 
 # logs
 npm-debug.log*

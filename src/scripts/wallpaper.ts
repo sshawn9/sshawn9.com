@@ -1,4 +1,8 @@
-import { decode } from 'blurhash';
+import {
+  SITE_STORAGE_KEYS,
+  isStoredWallpaperBackground,
+  type StoredWallpaperBackground,
+} from '../lib/site-preferences';
 import {
   WALLPAPER_DOWNLOAD_ENDPOINT,
   WALLPAPER_ENDPOINT,
@@ -6,112 +10,48 @@ import {
   type WallpaperManifest,
   type WallpaperPhoto,
 } from '../lib/wallpaper';
-import { claimClientRuntime } from './client-runtime';
+import { $wallpaper } from '../stores/site-state';
 
-const PHOTO_STORAGE_KEY = 'wallpaper-photo-id';
-const CURRENT_PHOTO_STORAGE_KEY = 'wallpaper-current-photo';
-const CURRENT_BACKGROUND_STORAGE_KEY = 'wallpaper-current-background';
-const PHOTO_QUEUE_STORAGE_KEY = 'wallpaper-photo-queue';
-const ENABLED_STORAGE_KEY = 'wallpaper-enabled';
-const AUTO_ROTATION_STORAGE_KEY = 'wallpaper-auto-rotation';
-const LEGACY_ROTATION_STORAGE_KEY = 'wallpaper-rotation-mode';
-const FIXED_PHOTO_STORAGE_KEY = 'wallpaper-fixed-photo-id';
 const MIN_ROTATION_INTERVAL_MS = 5 * 60 * 1000;
 const MAX_ROTATION_INTERVAL_MS = 9 * 60 * 1000;
 const MANIFEST_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
+const MANIFEST_RETRY_INTERVAL_MS = 30 * 1000;
 const IMAGE_WIDTHS = [960, 1600, 2400] as const;
 const DOWNLOAD_WIDTH = 2400;
-const PLACEHOLDER_WIDTH = 32;
-const PLACEHOLDER_HEIGHT = 20;
 const POSTER_WIDTH = 1600;
 const MAX_POSTER_BYTES = 2_500_000;
 const TRANSITION_MS = 1400;
-const MENU_GAP_PX = 8;
-const MENU_VIEWPORT_GAP_PX = 16;
+
+export type WallpaperElements = {
+  media: HTMLElement;
+  images: [HTMLImageElement, HTMLImageElement];
+};
 
 type WallpaperController = {
   refresh: () => Promise<void>;
   download: () => Promise<void>;
   setEnabled: (enabled: boolean) => Promise<void>;
   setAutoRotation: (enabled: boolean) => void;
-};
-
-type ControlState = {
-  enabled: boolean;
-  autoRotation: boolean;
-  ready: boolean;
-  canAdvance: boolean;
-  loading: boolean;
-  downloading: boolean;
-};
-
-type StoredWallpaperBackground = {
-  photoId: string;
-  kind: 'remote' | 'poster' | 'blur';
-  url: string;
+  dispose: () => void;
 };
 
 let cachedManifest: WallpaperManifest | undefined;
 let manifestPromise: Promise<WallpaperManifest | undefined> | undefined;
 let manifestLastRequestedAt = 0;
-let cleanupCurrentWallpaper: (() => void) | undefined;
-let activeWallpaperController: WallpaperController | undefined;
-let activeWallpaperMenuTrigger: HTMLButtonElement | undefined;
+let activeController: WallpaperController | undefined;
 const posterTasks = new Map<string, Promise<void>>();
-const runtime = claimClientRuntime('wallpaper');
+
+export const wallpaperActions = {
+  refresh: () => activeController?.refresh() ?? Promise.resolve(),
+  download: () => activeController?.download() ?? Promise.resolve(),
+  setEnabled: (enabled: boolean) => activeController?.setEnabled(enabled) ?? Promise.resolve(),
+  setAutoRotation: (enabled: boolean) => activeController?.setAutoRotation(enabled),
+};
 
 function nextRotationDelay() {
   return (
     MIN_ROTATION_INTERVAL_MS + Math.random() * (MAX_ROTATION_INTERVAL_MS - MIN_ROTATION_INTERVAL_MS)
   );
-}
-
-function getWallpaperMenu(trigger: HTMLButtonElement) {
-  const id = trigger.getAttribute('popovertarget');
-  const menu = id ? document.getElementById(id) : null;
-  return menu instanceof HTMLElement && menu.matches('[data-wallpaper-menu]') ? menu : undefined;
-}
-
-function isVisibleWallpaperMenuTrigger(trigger: HTMLButtonElement) {
-  if (!trigger.isConnected || trigger.getClientRects().length === 0) return false;
-
-  const style = getComputedStyle(trigger);
-  return style.display !== 'none' && style.visibility !== 'hidden';
-}
-
-function positionWallpaperMenu(trigger: HTMLButtonElement, menu: HTMLElement) {
-  if (!isVisibleWallpaperMenuTrigger(trigger)) return false;
-
-  const triggerRect = trigger.getBoundingClientRect();
-  const menuRect = menu.getBoundingClientRect();
-  const computedWidth = Number.parseFloat(getComputedStyle(menu).width);
-  const width = menuRect.width || (Number.isFinite(computedWidth) ? computedWidth : 288);
-  const height = menuRect.height;
-  const maximumLeft = Math.max(
-    MENU_VIEWPORT_GAP_PX,
-    window.innerWidth - width - MENU_VIEWPORT_GAP_PX,
-  );
-  const left = Math.min(Math.max(triggerRect.right - width, MENU_VIEWPORT_GAP_PX), maximumLeft);
-  const below = triggerRect.bottom + MENU_GAP_PX;
-  const above = triggerRect.top - height - MENU_GAP_PX;
-  const top =
-    height > 0 && below + height > window.innerHeight - MENU_VIEWPORT_GAP_PX
-      ? above >= MENU_VIEWPORT_GAP_PX
-        ? above
-        : Math.max(MENU_VIEWPORT_GAP_PX, window.innerHeight - height - MENU_VIEWPORT_GAP_PX)
-      : below;
-
-  menu.style.setProperty('--wallpaper-menu-left', `${left}px`);
-  menu.style.setProperty('--wallpaper-menu-top', `${top}px`);
-  return true;
-}
-
-function queueWallpaperMenuPosition(trigger: HTMLButtonElement, menu: HTMLElement) {
-  if (!positionWallpaperMenu(trigger, menu)) return;
-  window.requestAnimationFrame(() => {
-    if (!menu.matches(':popover-open')) return;
-    if (!positionWallpaperMenu(trigger, menu)) menu.hidePopover();
-  });
 }
 
 function imageUrl(rawUrl: string, width: number) {
@@ -142,6 +82,8 @@ function configureImage(image: HTMLImageElement, photo: WallpaperPhoto) {
 }
 
 async function decodeImage(image: HTMLImageElement, signal: AbortSignal) {
+  if (image.complete && image.naturalWidth > 0) return !signal.aborted;
+
   try {
     await image.decode();
   } catch {
@@ -184,38 +126,28 @@ async function loadManifest(revalidate = false) {
   return manifestPromise;
 }
 
-function getStoredEnabled() {
-  return localStorage.getItem(ENABLED_STORAGE_KEY) !== 'false';
-}
-
-function setWallpaperMode(enabled: boolean) {
-  document.documentElement.dataset.wallpaperMode = enabled ? 'scenic' : 'default';
-}
-
-function getStoredAutoRotation() {
-  const storedValue = localStorage.getItem(AUTO_ROTATION_STORAGE_KEY);
-  if (storedValue !== null) return storedValue !== 'false';
-  return localStorage.getItem(LEGACY_ROTATION_STORAGE_KEY) !== 'fixed';
+function setWallpaperMode(target: Document, enabled: boolean) {
+  target.documentElement.dataset.wallpaperMode = enabled ? 'scenic' : 'default';
 }
 
 function storeAutoRotation(enabled: boolean) {
-  localStorage.setItem(AUTO_ROTATION_STORAGE_KEY, String(enabled));
-  localStorage.removeItem(LEGACY_ROTATION_STORAGE_KEY);
+  localStorage.setItem(SITE_STORAGE_KEYS.wallpaperAutoRotation, String(enabled));
+  localStorage.removeItem(SITE_STORAGE_KEYS.wallpaperLegacyRotation);
 }
 
 function findStoredPhoto(photos: WallpaperPhoto[], autoRotation: boolean) {
   if (!autoRotation) {
-    const fixedId = localStorage.getItem(FIXED_PHOTO_STORAGE_KEY);
+    const fixedId = localStorage.getItem(SITE_STORAGE_KEYS.wallpaperFixedPhoto);
     const fixedPhoto = photos.find((photo) => photo.id === fixedId);
     if (fixedPhoto) return fixedPhoto;
   }
 
-  const storedId = sessionStorage.getItem(PHOTO_STORAGE_KEY);
+  const storedId = sessionStorage.getItem(SITE_STORAGE_KEYS.wallpaperPhotoId);
   return photos.find((photo) => photo.id === storedId);
 }
 
 function readStoredCurrentPhoto() {
-  const storedValue = sessionStorage.getItem(CURRENT_PHOTO_STORAGE_KEY);
+  const storedValue = sessionStorage.getItem(SITE_STORAGE_KEYS.wallpaperCurrentPhoto);
   if (!storedValue) return undefined;
 
   try {
@@ -231,21 +163,16 @@ function readStoredCurrentPhoto() {
 }
 
 function storeCurrentPhoto(photo: WallpaperPhoto) {
-  sessionStorage.setItem(CURRENT_PHOTO_STORAGE_KEY, JSON.stringify(photo));
+  sessionStorage.setItem(SITE_STORAGE_KEYS.wallpaperCurrentPhoto, JSON.stringify(photo));
 }
 
 function readStoredBackground(photoId: string) {
-  const storedValue = sessionStorage.getItem(CURRENT_BACKGROUND_STORAGE_KEY);
+  const storedValue = sessionStorage.getItem(SITE_STORAGE_KEYS.wallpaperCurrentBackground);
   if (!storedValue) return undefined;
 
   try {
-    const value = JSON.parse(storedValue) as Partial<StoredWallpaperBackground>;
-    return value.photoId === photoId &&
-      (value.kind === 'remote' || value.kind === 'poster' || value.kind === 'blur') &&
-      typeof value.url === 'string' &&
-      (value.url.startsWith('https://') || value.url.startsWith('data:image/'))
-      ? (value as StoredWallpaperBackground)
-      : undefined;
+    const value: unknown = JSON.parse(storedValue);
+    return isStoredWallpaperBackground(value) && value.photoId === photoId ? value : undefined;
   } catch {
     return undefined;
   }
@@ -253,65 +180,35 @@ function readStoredBackground(photoId: string) {
 
 function storeBackground(background: StoredWallpaperBackground) {
   try {
-    sessionStorage.setItem(CURRENT_BACKGROUND_STORAGE_KEY, JSON.stringify(background));
+    sessionStorage.setItem(
+      SITE_STORAGE_KEYS.wallpaperCurrentBackground,
+      JSON.stringify(background),
+    );
     return true;
   } catch {
     return false;
   }
 }
 
-function applyBackground(background: StoredWallpaperBackground) {
-  document.documentElement.dataset.wallpaperBackground = background.photoId;
-  document.documentElement.dataset.wallpaperBackgroundKind = background.kind;
-  document.documentElement.style.setProperty(
-    '--wallpaper-current-image',
-    `url(${JSON.stringify(background.url)})`,
-  );
+function applyBackground(target: Document, background: StoredWallpaperBackground) {
+  const root = target.documentElement;
+  root.dataset.wallpaperBackground = background.photoId;
+  root.dataset.wallpaperBackgroundKind = background.kind;
+  root.style.setProperty('--wallpaper-boot-image', `url(${JSON.stringify(background.url)})`);
 }
 
 function createRemoteBackground(
   photo: WallpaperPhoto,
   url = imageUrl(photo.rawUrl, POSTER_WIDTH),
 ): StoredWallpaperBackground {
-  return {
-    photoId: photo.id,
-    kind: 'remote',
-    url,
-  };
-}
-
-function createBlurBackground(photo: WallpaperPhoto): StoredWallpaperBackground | undefined {
-  try {
-    const pixels = decode(photo.blurHash, PLACEHOLDER_WIDTH, PLACEHOLDER_HEIGHT);
-    const canvas = document.createElement('canvas');
-    canvas.width = PLACEHOLDER_WIDTH;
-    canvas.height = PLACEHOLDER_HEIGHT;
-    const context = canvas.getContext('2d');
-    if (!context) return undefined;
-
-    const imageData = context.createImageData(PLACEHOLDER_WIDTH, PLACEHOLDER_HEIGHT);
-    imageData.data.set(pixels);
-    context.putImageData(imageData, 0, 0);
-    return {
-      photoId: photo.id,
-      kind: 'blur',
-      url: canvas.toDataURL('image/webp', 0.65),
-    };
-  } catch {
-    return undefined;
-  }
+  return { photoId: photo.id, kind: 'remote', url };
 }
 
 function restoreBackground(photo: WallpaperPhoto) {
   const background = readStoredBackground(photo.id) ?? createRemoteBackground(photo);
   storeBackground(background);
-  applyBackground(background);
+  applyBackground(document, background);
   return background;
-}
-
-function stageBlurBackground(photo: WallpaperPhoto) {
-  const background = createBlurBackground(photo);
-  if (background) applyBackground(background);
 }
 
 function blobToDataUrl(blob: Blob) {
@@ -348,7 +245,8 @@ function cacheBackgroundPoster(
     if (readStoredCurrentPhoto()?.id !== photo.id) return;
     const url = await blobToDataUrl(blob);
     if (readStoredCurrentPhoto()?.id !== photo.id) return;
-    storeBackground({ photoId: photo.id, kind: 'poster', url });
+    const background: StoredWallpaperBackground = { photoId: photo.id, kind: 'poster', url };
+    if (storeBackground(background)) applyBackground(document, background);
   })()
     .catch(() => undefined)
     .finally(() => posterTasks.delete(photo.id));
@@ -365,7 +263,7 @@ function shufflePhotos(photos: WallpaperPhoto[]) {
 }
 
 function readStoredPhotoQueue(photos: WallpaperPhoto[], excludedId?: string) {
-  const storedValue = sessionStorage.getItem(PHOTO_QUEUE_STORAGE_KEY);
+  const storedValue = sessionStorage.getItem(SITE_STORAGE_KEYS.wallpaperPhotoQueue);
   if (!storedValue) return [];
 
   try {
@@ -387,48 +285,10 @@ function readStoredPhotoQueue(photos: WallpaperPhoto[], excludedId?: string) {
 }
 
 function storePhotoQueue(photos: WallpaperPhoto[]) {
-  sessionStorage.setItem(PHOTO_QUEUE_STORAGE_KEY, JSON.stringify(photos.map((photo) => photo.id)));
-}
-
-function setCredit(root: HTMLElement, photo: WallpaperPhoto) {
-  const credit = root.querySelector<HTMLElement>('[data-wallpaper-credit]');
-  const photographer = root.querySelector<HTMLAnchorElement>('[data-wallpaper-photographer]');
-  const source = root.querySelector<HTMLAnchorElement>('[data-wallpaper-source]');
-  if (!credit || !photographer || !source) return;
-
-  photographer.textContent = photo.photographerName;
-  photographer.href = photo.photographerUrl;
-  source.href = photo.photoUrl;
-  credit.hidden = false;
-}
-
-function hideCredit(root: HTMLElement) {
-  const credit = root.querySelector<HTMLElement>('[data-wallpaper-credit]');
-  if (credit) credit.hidden = true;
-}
-
-function syncWallpaperControls(state: ControlState) {
-  document.querySelectorAll<HTMLInputElement>('[data-wallpaper-enabled]').forEach((input) => {
-    input.checked = state.enabled;
-    input.disabled = state.loading;
-  });
-  document.querySelectorAll<HTMLInputElement>('[data-wallpaper-auto-rotation]').forEach((input) => {
-    input.checked = state.autoRotation;
-    input.disabled = !state.enabled || !state.ready;
-  });
-  document.querySelectorAll<HTMLButtonElement>('[data-wallpaper-refresh]').forEach((button) => {
-    button.disabled = !state.enabled || !state.ready || !state.canAdvance || state.loading;
-    button.setAttribute('aria-busy', String(state.loading));
-    button.toggleAttribute('data-loading', state.loading);
-  });
-  document.querySelectorAll<SVGElement>('[data-wallpaper-refresh-icon]').forEach((icon) => {
-    icon.classList.toggle('animate-spin', state.loading);
-  });
-  document.querySelectorAll<HTMLButtonElement>('[data-wallpaper-download]').forEach((button) => {
-    button.disabled = !state.enabled || !state.ready || state.downloading;
-    button.setAttribute('aria-busy', String(state.downloading));
-    button.toggleAttribute('data-loading', state.downloading);
-  });
+  sessionStorage.setItem(
+    SITE_STORAGE_KEYS.wallpaperPhotoQueue,
+    JSON.stringify(photos.map((photo) => photo.id)),
+  );
 }
 
 function reportDownload(photoId: string) {
@@ -437,11 +297,7 @@ function reportDownload(photoId: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ photoId }),
     keepalive: true,
-  })
-    .then((response) => {
-      if (!response.ok) throw new Error(`Wallpaper download report failed: ${response.status}`);
-    })
-    .catch(() => undefined);
+  }).catch(() => undefined);
 }
 
 async function saveWallpaperPhoto(photo: WallpaperPhoto, signal: AbortSignal) {
@@ -469,92 +325,47 @@ function clearImage(image: HTMLImageElement) {
   delete image.dataset.wallpaperPhotoId;
 }
 
-async function initializeWallpaper() {
-  cleanupCurrentWallpaper?.();
-
-  const root = document.querySelector<HTMLElement>('[data-wallpaper]');
-  const media = root?.querySelector<HTMLElement>('[data-wallpaper-media]');
-  const images = root ? [...root.querySelectorAll<HTMLImageElement>('[data-wallpaper-image]')] : [];
-  if (!root || !media || images.length !== 2) return;
+export function startWallpaperController({ media, images }: WallpaperElements) {
+  activeController?.dispose();
 
   const abortController = new AbortController();
   const { signal } = abortController;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  let enabled = getStoredEnabled();
-  setWallpaperMode(enabled);
-  let autoRotation = getStoredAutoRotation();
+  const initialState = $wallpaper.get();
+  let enabled = initialState.enabled;
+  let autoRotation = initialState.autoRotation;
   let manifest: WallpaperManifest | undefined;
   let rotationTimer: number | undefined;
   let manifestRefreshTimer: number | undefined;
   let activeIndex = images.findIndex((image) => image.classList.contains('is-active'));
-  let currentPhoto = readStoredCurrentPhoto();
-  let backgroundActive = false;
+  let currentPhoto = initialState.currentPhoto ?? readStoredCurrentPhoto();
   let photoQueue: WallpaperPhoto[] = [];
   let ready = false;
   let loading = false;
   let downloading = false;
   let activationRevision = 0;
-  let bootstrapReleaseTimer: number | undefined;
 
-  const clearBootstrapReleaseTimer = () => {
-    if (bootstrapReleaseTimer !== undefined) window.clearTimeout(bootstrapReleaseTimer);
-    bootstrapReleaseTimer = undefined;
-  };
-
-  const adoptBootstrapBackground = (photoId: string) => {
-    clearBootstrapReleaseTimer();
-    media.removeAttribute('data-wallpaper-ready');
-    media.dataset.wallpaperBootstrap = photoId;
-    document.documentElement.dataset.wallpaperRuntime = 'true';
-    backgroundActive = true;
-  };
-
-  const releaseBootstrapBackground = () => {
-    backgroundActive = false;
-    clearBootstrapReleaseTimer();
-    bootstrapReleaseTimer = window.setTimeout(() => {
-      bootstrapReleaseTimer = undefined;
-      delete media.dataset.wallpaperBootstrap;
-    }, TRANSITION_MS);
-  };
-
-  const stageRuntimeBackground = (photo: WallpaperPhoto) => {
-    stageBlurBackground(photo);
-    adoptBootstrapBackground(photo.id);
-  };
-
+  setWallpaperMode(document, enabled);
   if (currentPhoto) {
     restoreBackground(currentPhoto);
-    backgroundActive =
-      activeIndex < 0 && document.documentElement.dataset.wallpaperBackground === currentPhoto.id;
-    if (backgroundActive) adoptBootstrapBackground(currentPhoto.id);
-    else if (activeIndex >= 0) {
-      delete media.dataset.wallpaperBootstrap;
-      document.documentElement.dataset.wallpaperRuntime = 'true';
-    }
-    ready = enabled && backgroundActive;
-    if (enabled) {
-      root.dataset.wallpaperEnabled = 'true';
-      setCredit(root, currentPhoto);
-    }
+    ready = true;
   } else {
-    delete document.documentElement.dataset.wallpaperBackground;
-    delete document.documentElement.dataset.wallpaperBackgroundKind;
-    delete document.documentElement.dataset.wallpaperRuntime;
-    document.documentElement.style.removeProperty('--wallpaper-current-image');
-    delete media.dataset.wallpaperBootstrap;
+    document.documentElement.removeAttribute('data-wallpaper-background');
+    document.documentElement.removeAttribute('data-wallpaper-background-kind');
+    document.documentElement.style.removeProperty('--wallpaper-boot-image');
   }
 
-  const controlState = (): ControlState => ({
-    enabled,
-    autoRotation,
-    ready,
-    canAdvance: manifest?.photos.some((photo) => photo.id !== currentPhoto?.id) ?? false,
-    loading,
-    downloading,
-  });
-
-  const syncControls = () => syncWallpaperControls(controlState());
+  const publish = () => {
+    $wallpaper.set({
+      enabled,
+      autoRotation,
+      ready,
+      canAdvance: manifest?.photos.some((photo) => photo.id !== currentPhoto?.id) ?? false,
+      loading,
+      downloading,
+      currentPhoto,
+    });
+  };
 
   const resetPhotoQueue = (excludedIds: ReadonlySet<string>) => {
     photoQueue = shufflePhotos(
@@ -586,18 +397,9 @@ async function initializeWallpaper() {
     manifestRefreshTimer = undefined;
   };
 
-  const showDefaultBackground = () => {
-    clearRotationTimer();
-    clearManifestRefreshTimer();
-    root.dataset.wallpaperEnabled = 'false';
-    hideCredit(root);
-  };
-
   const activate = async (photo: WallpaperPhoto, revision: number) => {
-    if (activeIndex < 0 && !backgroundActive) stageRuntimeBackground(photo);
     const nextIndex = activeIndex === 0 ? 1 : 0;
     const nextImage = images[nextIndex];
-    if (!nextImage) return false;
     if (!(await loadImage(nextImage, photo, signal))) {
       clearImage(nextImage);
       return false;
@@ -611,19 +413,20 @@ async function initializeWallpaper() {
     nextImage.dataset.wallpaperPhotoId = photo.id;
     nextImage.classList.add('is-active');
     previousImage?.classList.remove('is-active');
-    if (backgroundActive) releaseBootstrapBackground();
     media.dataset.wallpaperReady = photo.id;
+    document.documentElement.dataset.wallpaperCompositor = 'ready';
     activeIndex = nextIndex;
     currentPhoto = photo;
     ready = true;
-    sessionStorage.setItem(PHOTO_STORAGE_KEY, photo.id);
+    sessionStorage.setItem(SITE_STORAGE_KEYS.wallpaperPhotoId, photo.id);
     storeCurrentPhoto(photo);
     const currentImageUrl = nextImage.currentSrc || imageUrl(photo.rawUrl, POSTER_WIDTH);
-    storeBackground(createRemoteBackground(photo, currentImageUrl));
+    const background = createRemoteBackground(photo, currentImageUrl);
+    storeBackground(background);
+    applyBackground(document, background);
     cacheBackgroundPoster(photo, currentImageUrl);
-    if (!autoRotation) localStorage.setItem(FIXED_PHOTO_STORAGE_KEY, photo.id);
-    root.dataset.wallpaperEnabled = 'true';
-    setCredit(root, photo);
+    if (!autoRotation) localStorage.setItem(SITE_STORAGE_KEYS.wallpaperFixedPhoto, photo.id);
+    publish();
 
     if (previousImage) {
       window.setTimeout(() => {
@@ -672,11 +475,10 @@ async function initializeWallpaper() {
     if (updatedCurrentPhoto) {
       currentPhoto = updatedCurrentPhoto;
       storeCurrentPhoto(updatedCurrentPhoto);
-      setCredit(root, updatedCurrentPhoto);
     }
 
     if (!previousManifest || previousManifest.updatedAt === nextManifest.updatedAt) {
-      syncControls();
+      publish();
       if (rotationTimer === undefined) schedule();
       return;
     }
@@ -698,8 +500,21 @@ async function initializeWallpaper() {
 
     photoQueue = shufflePhotos([...retainedPhotos, ...addedPhotos]);
     storePhotoQueue(photoQueue);
-    syncControls();
+    publish();
     if (rotationTimer === undefined) schedule();
+  };
+
+  const scheduleManifestRefresh = () => {
+    clearManifestRefreshTimer();
+    if (signal.aborted || !enabled || document.hidden) return;
+
+    const interval = manifest ? MANIFEST_REFRESH_INTERVAL_MS : MANIFEST_RETRY_INTERVAL_MS;
+    const elapsed = Date.now() - manifestLastRequestedAt;
+    const delay = Math.max(0, interval - elapsed);
+    manifestRefreshTimer = window.setTimeout(() => {
+      manifestRefreshTimer = undefined;
+      void refreshManifest();
+    }, delay);
   };
 
   const refreshManifest = async () => {
@@ -711,33 +526,16 @@ async function initializeWallpaper() {
     scheduleManifestRefresh();
   };
 
-  const scheduleManifestRefresh = () => {
-    clearManifestRefreshTimer();
-    if (signal.aborted || !enabled || document.hidden) return;
-
-    const elapsed = Date.now() - manifestLastRequestedAt;
-    const delay = Math.max(0, MANIFEST_REFRESH_INTERVAL_MS - elapsed);
-    if (delay === 0) {
-      void refreshManifest();
-      return;
-    }
-
-    manifestRefreshTimer = window.setTimeout(() => {
-      manifestRefreshTimer = undefined;
-      void refreshManifest();
-    }, delay);
-  };
-
   const ensurePhotoBackground = async () => {
     const revision = activationRevision;
     loading = !ready;
-    syncControls();
+    publish();
 
     manifest ??= await loadManifest();
     if (signal.aborted || revision !== activationRevision || !enabled || !manifest) {
       if (revision === activationRevision) {
         loading = false;
-        syncControls();
+        publish();
         scheduleManifestRefresh();
       }
       return false;
@@ -753,65 +551,34 @@ async function initializeWallpaper() {
     }
     if (!initial) {
       loading = false;
-      syncControls();
+      publish();
       return false;
     }
 
-    if (activeIndex < 0 && !backgroundActive) stageRuntimeBackground(initial);
-
-    const persistedIndex = images.findIndex(
-      (image) =>
-        image.classList.contains('is-active') && image.dataset.wallpaperPhotoId === initial.id,
-    );
-    let activated = false;
-    const persistedImage = persistedIndex >= 0 ? images[persistedIndex] : undefined;
-    if (persistedImage && (await decodeImage(persistedImage, signal))) {
-      if (revision !== activationRevision || !enabled) return false;
-      activeIndex = persistedIndex;
-      if (backgroundActive) releaseBootstrapBackground();
-      document.documentElement.dataset.wallpaperRuntime = 'true';
+    let activated = true;
+    if (currentPhoto?.id === initial.id && document.documentElement.dataset.wallpaperBackground) {
       currentPhoto = initial;
       ready = true;
-      media.dataset.wallpaperReady = initial.id;
-      root.dataset.wallpaperEnabled = 'true';
+      sessionStorage.setItem(SITE_STORAGE_KEYS.wallpaperPhotoId, initial.id);
       storeCurrentPhoto(initial);
-      cacheBackgroundPoster(
-        initial,
-        persistedImage.currentSrc || imageUrl(initial.rawUrl, POSTER_WIDTH),
-      );
-      if (!autoRotation) localStorage.setItem(FIXED_PHOTO_STORAGE_KEY, initial.id);
-      setCredit(root, initial);
-      activated = true;
-    } else if (
-      backgroundActive &&
-      currentPhoto?.id === initial.id &&
-      document.documentElement.dataset.wallpaperBackground === initial.id
-    ) {
-      ready = true;
-      root.dataset.wallpaperEnabled = 'true';
-      sessionStorage.setItem(PHOTO_STORAGE_KEY, initial.id);
-      storeCurrentPhoto(initial);
-      if (!autoRotation) localStorage.setItem(FIXED_PHOTO_STORAGE_KEY, initial.id);
-      setCredit(root, initial);
+      if (!autoRotation) localStorage.setItem(SITE_STORAGE_KEYS.wallpaperFixedPhoto, initial.id);
       cacheBackgroundPoster(initial, readStoredBackground(initial.id)?.url);
-      activated = true;
+    } else if (findStoredPhoto([initial], autoRotation)?.id === initial.id) {
+      currentPhoto = initial;
+      ready = true;
+      sessionStorage.setItem(SITE_STORAGE_KEYS.wallpaperPhotoId, initial.id);
+      storeCurrentPhoto(initial);
+      restoreBackground(initial);
+      if (!autoRotation) localStorage.setItem(SITE_STORAGE_KEYS.wallpaperFixedPhoto, initial.id);
+      cacheBackgroundPoster(initial, readStoredBackground(initial.id)?.url);
     } else {
-      if (persistedImage) {
-        persistedImage.classList.remove('is-active');
-        clearImage(persistedImage);
-        if (!images.some((image) => image.classList.contains('is-active'))) {
-          media.removeAttribute('data-wallpaper-ready');
-          activeIndex = -1;
-        }
-      }
-      const attemptedIds = new Set([initial.id]);
       activated = await activate(initial, revision);
-      if (!activated) activated = await activateNextAvailable(revision, attemptedIds);
+      if (!activated) activated = await activateNextAvailable(revision, new Set([initial.id]));
     }
 
     if (revision === activationRevision) {
       loading = false;
-      syncControls();
+      publish();
       schedule();
       scheduleManifestRefresh();
     }
@@ -829,13 +596,12 @@ async function initializeWallpaper() {
       return;
 
     const revision = activationRevision;
-    const attemptedIds = new Set([currentPhoto.id]);
     loading = true;
-    syncControls();
-    await activateNextAvailable(revision, attemptedIds);
+    publish();
+    await activateNextAvailable(revision, new Set([currentPhoto.id]));
     if (revision === activationRevision) {
       loading = false;
-      syncControls();
+      publish();
       schedule();
     }
   };
@@ -846,24 +612,21 @@ async function initializeWallpaper() {
     activationRevision += 1;
     enabled = nextEnabled;
     loading = false;
-    localStorage.setItem(ENABLED_STORAGE_KEY, String(enabled));
-    setWallpaperMode(enabled);
+    localStorage.setItem(SITE_STORAGE_KEYS.wallpaperEnabled, String(enabled));
+    setWallpaperMode(document, enabled);
 
     if (!enabled) {
-      showDefaultBackground();
-      syncControls();
+      clearRotationTimer();
+      clearManifestRefreshTimer();
+      publish();
       return;
     }
 
-    root.dataset.wallpaperEnabled = 'true';
     if (currentPhoto) {
-      if (activeIndex < 0) {
-        restoreBackground(currentPhoto);
-        adoptBootstrapBackground(currentPhoto.id);
-        ready = true;
-      }
-      setCredit(root, currentPhoto);
+      restoreBackground(currentPhoto);
+      ready = true;
     }
+    publish();
     await ensurePhotoBackground();
   };
 
@@ -873,11 +636,11 @@ async function initializeWallpaper() {
     autoRotation = nextEnabled;
     storeAutoRotation(autoRotation);
     if (!autoRotation && currentPhoto) {
-      localStorage.setItem(FIXED_PHOTO_STORAGE_KEY, currentPhoto.id);
+      localStorage.setItem(SITE_STORAGE_KEYS.wallpaperFixedPhoto, currentPhoto.id);
     } else {
-      localStorage.removeItem(FIXED_PHOTO_STORAGE_KEY);
+      localStorage.removeItem(SITE_STORAGE_KEYS.wallpaperFixedPhoto);
     }
-    syncControls();
+    publish();
     schedule();
   };
 
@@ -886,155 +649,54 @@ async function initializeWallpaper() {
 
     const photo = currentPhoto;
     downloading = true;
-    syncControls();
+    publish();
     try {
       if (await saveWallpaperPhoto(photo, signal)) reportDownload(photo.id);
     } catch {
-      // Keep the wallpaper controls usable when the image download fails.
+      // A failed download does not disable the wallpaper controls.
     } finally {
       if (!signal.aborted) {
         downloading = false;
-        syncControls();
+        publish();
       }
     }
   };
 
-  const wallpaperController: WallpaperController = {
+  const handleVisibility = () => {
+    if (!document.hidden && enabled && !manifest) void ensurePhotoBackground();
+    schedule();
+    scheduleManifestRefresh();
+  };
+  const handleOnline = () => {
+    if (enabled && !manifest) void ensurePhotoBackground();
+  };
+  const handlePageLoad = () => {
+    if (enabled && !manifest && !loading) void ensurePhotoBackground();
+  };
+  document.addEventListener('visibilitychange', handleVisibility);
+  document.addEventListener('site:page-load', handlePageLoad);
+  window.addEventListener('online', handleOnline);
+  reducedMotion.addEventListener('change', schedule);
+
+  const controller: WallpaperController = {
     refresh: advance,
     download,
     setEnabled,
     setAutoRotation,
+    dispose: () => {
+      abortController.abort();
+      clearRotationTimer();
+      clearManifestRefreshTimer();
+      document.removeEventListener('visibilitychange', handleVisibility);
+      document.removeEventListener('site:page-load', handlePageLoad);
+      window.removeEventListener('online', handleOnline);
+      reducedMotion.removeEventListener('change', schedule);
+      if (activeController === controller) activeController = undefined;
+    },
   };
-  activeWallpaperController = wallpaperController;
+  activeController = controller;
 
-  const handleVisibility = () => {
-    schedule();
-    scheduleManifestRefresh();
-  };
-  const handleMotionPreference = () => schedule();
-  document.addEventListener('visibilitychange', handleVisibility);
-  reducedMotion.addEventListener('change', handleMotionPreference);
-
-  cleanupCurrentWallpaper = () => {
-    abortController.abort();
-    if (bootstrapReleaseTimer !== undefined) {
-      window.clearTimeout(bootstrapReleaseTimer);
-      bootstrapReleaseTimer = undefined;
-      delete media.dataset.wallpaperBootstrap;
-    }
-    clearRotationTimer();
-    clearManifestRefreshTimer();
-    document.removeEventListener('visibilitychange', handleVisibility);
-    reducedMotion.removeEventListener('change', handleMotionPreference);
-    if (activeWallpaperController === wallpaperController) activeWallpaperController = undefined;
-    cleanupCurrentWallpaper = undefined;
-  };
-
-  syncControls();
-  if (enabled) {
-    void ensurePhotoBackground();
-  } else {
-    showDefaultBackground();
-    syncControls();
-  }
+  publish();
+  if (enabled) void ensurePhotoBackground();
+  return controller.dispose;
 }
-
-runtime.listen(document, 'click', (event) => {
-  const target = event.target;
-  if (!(target instanceof Element)) return;
-
-  const menuTrigger = target.closest<HTMLButtonElement>('[data-wallpaper-menu-trigger]');
-  if (menuTrigger) {
-    const menu = getWallpaperMenu(menuTrigger);
-    if (menu && !menu.matches(':popover-open')) {
-      activeWallpaperMenuTrigger = menuTrigger;
-      queueWallpaperMenuPosition(menuTrigger, menu);
-    } else if (menu?.matches(':popover-open')) {
-      activeWallpaperMenuTrigger = undefined;
-    }
-  }
-
-  const refreshButton = target.closest<HTMLButtonElement>('[data-wallpaper-refresh]');
-  if (refreshButton) void activeWallpaperController?.refresh();
-
-  const downloadButton = target.closest<HTMLButtonElement>('[data-wallpaper-download]');
-  if (downloadButton) void activeWallpaperController?.download();
-});
-
-runtime.listen(
-  document,
-  'toggle',
-  (event) => {
-    const menu = event.target;
-    if (!(menu instanceof HTMLElement) || !menu.matches('[data-wallpaper-menu]')) return;
-
-    if (menu.matches(':popover-open')) {
-      const trigger =
-        activeWallpaperMenuTrigger ??
-        menu
-          .closest('[data-wallpaper-control]')
-          ?.querySelector<HTMLButtonElement>('[data-wallpaper-menu-trigger]');
-      if (trigger) {
-        if (positionWallpaperMenu(trigger, menu)) {
-          activeWallpaperMenuTrigger = trigger;
-        } else {
-          activeWallpaperMenuTrigger = undefined;
-          menu.hidePopover();
-        }
-      }
-    } else if (
-      activeWallpaperMenuTrigger &&
-      getWallpaperMenu(activeWallpaperMenuTrigger) === menu
-    ) {
-      activeWallpaperMenuTrigger = undefined;
-    }
-  },
-  true,
-);
-
-runtime.listen(window, 'resize', () => {
-  if (!activeWallpaperMenuTrigger) return;
-  const menu = getWallpaperMenu(activeWallpaperMenuTrigger);
-  if (menu?.matches(':popover-open')) {
-    if (!positionWallpaperMenu(activeWallpaperMenuTrigger, menu)) {
-      activeWallpaperMenuTrigger = undefined;
-      menu.hidePopover();
-    }
-  } else {
-    activeWallpaperMenuTrigger = undefined;
-  }
-});
-
-runtime.listen(document, 'change', (event) => {
-  const target = event.target;
-  if (!(target instanceof HTMLInputElement)) return;
-
-  if (target.matches('[data-wallpaper-enabled]')) {
-    if (activeWallpaperController) {
-      void activeWallpaperController.setEnabled(target.checked);
-    } else {
-      localStorage.setItem(ENABLED_STORAGE_KEY, String(target.checked));
-      setWallpaperMode(target.checked);
-    }
-    return;
-  }
-
-  if (target.matches('[data-wallpaper-auto-rotation]')) {
-    if (activeWallpaperController) {
-      activeWallpaperController.setAutoRotation(target.checked);
-    } else {
-      storeAutoRotation(target.checked);
-    }
-  }
-});
-
-runtime.listen(document, 'astro:before-swap', () => {
-  activeWallpaperMenuTrigger = undefined;
-  cleanupCurrentWallpaper?.();
-});
-runtime.listen(document, 'astro:page-load', initializeWallpaper);
-
-runtime.onDispose(() => {
-  activeWallpaperMenuTrigger = undefined;
-  cleanupCurrentWallpaper?.();
-});

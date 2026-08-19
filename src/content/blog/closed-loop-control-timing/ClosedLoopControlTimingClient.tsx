@@ -4,6 +4,7 @@ import { createSignal, onCleanup, onMount, type Component } from 'solid-js';
 import type { View } from 'vega';
 import { BASE_LOCALE, toLanguageTag, type Locale } from '../../../i18n/config';
 import * as m from '../../../paraglide/messages.js';
+import { whenTypographyReady } from '../../../scripts/typography-controller';
 import {
   createClosedLoopControlTimingSpec,
   INITIAL_TIMING_SIGNALS,
@@ -163,7 +164,7 @@ const ClosedLoopControlTimingClient: Component<Props> = (props) => {
   };
 
   onMount(() => {
-    void import('vega').then(async (vega) => {
+    void Promise.all([import('vega'), whenTypographyReady()]).then(async ([vega]) => {
       if (disposed) return;
       view = new vega.View(
         vega.parse(createClosedLoopControlTimingSpec(copy, measureTimingLayout(copy))),

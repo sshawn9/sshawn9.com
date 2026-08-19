@@ -1,9 +1,9 @@
 ---
 import '../styles/global.css';
 import BaseHead from '../components/BaseHead.astro';
+import RestoreScrollPosition from '../components/RestoreScrollPosition.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import SiteHeader from '../components/SiteHeader.astro';
-import WallpaperBackground from '../components/WallpaperBackground.astro';
 import { BASE_LOCALE, toLanguageTag, type Locale } from '../i18n/config';
 import * as m from '../paraglide/messages.js';
 
@@ -49,36 +49,29 @@ const lang = toLanguageTag(locale);
     <slot name="head" />
   </head>
   <body class="flex min-h-screen flex-col">
-    <WallpaperBackground {locale} />
-    <a
-      class="fixed top-3 left-3 z-[100] -translate-y-20 rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white transition focus:translate-y-0 dark:bg-white dark:text-slate-950"
-      href="#main-content"
-    >
-      {m.skip_to_content({}, { locale })}
-    </a>
     <SiteHeader {locale} />
-    <span
-      class="sr-only"
-      role="status"
-      aria-atomic="true"
-      data-navigation-status
-      data-loading-label={m.navigation_loading({}, { locale })}
-      data-pagefind-ignore></span>
-    <main
-      id="main-content"
-      class="relative z-10 flex-1"
-      data-pagefind-body={searchable ? '' : undefined}
-      data-pagefind-ignore={searchable ? undefined : 'all'}
-    >
-      <slot />
-    </main>
-    <SiteFooter {locale} />
+    <div id="swup" class="swup-transition-main relative z-10 flex min-h-0 flex-1 flex-col">
+      <main
+        id="main-content"
+        class="flex-1"
+        data-pagefind-body={searchable ? '' : undefined}
+        data-pagefind-ignore={searchable ? undefined : 'all'}
+      >
+        <slot />
+      </main>
+      <SiteFooter {locale} />
+    </div>
+    <RestoreScrollPosition />
     <script>
+      import { startNavigationController } from '../scripts/navigation-controller';
+      import { startPageRouter } from '../scripts/page-router';
       import '../scripts/reveal';
-      import '../scripts/navigation';
-      import '../scripts/theme';
       import '../scripts/transient-ui';
-      import '../scripts/wallpaper';
+      import { startTypographyController } from '../scripts/typography-controller';
+
+      startPageRouter();
+      void startTypographyController();
+      startNavigationController();
     </script>
   </body>
 </html>
