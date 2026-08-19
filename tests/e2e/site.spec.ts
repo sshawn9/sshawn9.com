@@ -6,10 +6,12 @@ test('the site header exposes desktop navigation and a mobile disclosure menu', 
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/en/blog/');
 
+  await expect(page.locator('link[rel="preload"][as="font"]')).toHaveCount(2);
+
   const header = page.locator('.site-header');
   const identity = header.locator('.site-header__identity');
   const desktopNavigation = header.locator('.site-header__primary-nav');
-  const menuButton = header.locator('[popovertarget="site-navigation"]');
+  const menuButton = header.locator('[data-site-menu-trigger]');
 
   await expect(identity).toHaveAttribute('href', '/en/');
   await expect(desktopNavigation).toBeVisible();
@@ -17,8 +19,8 @@ test('the site header exposes desktop navigation and a mobile disclosure menu', 
   expect(
     await desktopNavigation
       .locator('a')
-      .evaluateAll((links) => links.map((link) => link.getAttribute('data-astro-prefetch'))),
-  ).toEqual(['load', 'load', 'load']);
+      .evaluateAll((links) => links.map((link) => link.getAttribute('data-swup-preload'))),
+  ).toEqual(['', '', '']);
   expect(
     await desktopNavigation
       .locator('a')
@@ -46,10 +48,37 @@ test('the site header exposes desktop navigation and a mobile disclosure menu', 
 
   await page.setViewportSize({ width: 820, height: 844 });
   await expect(mobilePanel).toBeHidden();
-  await expect(page.locator('[data-transient-overlay]:popover-open')).toHaveCount(0);
+  await expect(mobilePanel).not.toHaveAttribute('open', '');
+  await expect(page.locator('[data-wallpaper-menu]')).toBeHidden();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(menuButton).toHaveAccessibleName('Open navigation');
+});
+
+test('the mobile site navigation remains usable without client JavaScript', async ({ browser }) => {
+  const context = await browser.newContext({
+    javaScriptEnabled: false,
+    viewport: { width: 390, height: 844 },
+  });
+  const page = await context.newPage();
+
+  await page.goto('/en/');
+  await expect(page.locator('html')).not.toHaveAttribute('data-site-chrome-ready');
+  await expect(page.locator('[data-site-menu-trigger]')).toBeHidden();
+  const fallback = page.locator('[data-site-menu-fallback]');
+  await expect(fallback).toBeVisible();
+  const fallbackTrigger = fallback.locator('summary');
+  await expect(fallbackTrigger).toHaveAccessibleName('Open navigation');
+  await fallbackTrigger.click();
+  await expect(fallbackTrigger).toHaveAccessibleName('Close navigation');
+  await expect(fallback.locator('.site-header__mobile-fallback-panel')).toBeVisible();
+  await expect(fallback.locator('nav a')).toHaveCount(4);
+
+  await fallback.locator('a[href="/en/about/"]').click();
+  await expect(page).toHaveURL(/\/en\/about\/$/);
+  await expect(page.locator('#main-content')).toContainText('This page is still taking shape.');
+
+  await context.close();
 });
 
 test('slow client navigation reports progress without changing the header height', async ({
@@ -70,46 +99,537 @@ test('slow client navigation reports progress without changing the header height
   const header = page.locator('.site-header');
   const initialHeight = await header.evaluate((element) => element.getBoundingClientRect().height);
   await header.locator('[data-wallpaper-menu-trigger]').click();
-  await expect(page.locator('[data-wallpaper-menu]:popover-open')).toBeVisible();
+  await expect(page.locator('[data-wallpaper-menu]')).toBeVisible();
+  await expect(page.locator('[data-wallpaper-menu]')).toHaveAttribute('role', 'dialog');
 
-  await page.evaluate(() => {
-    const link = document.createElement('a');
+  const navigationPoint = await page.evaluate(() => {
+    const link = document.querySelector<HTMLAnchorElement>(
+      '[data-site-header-sync="desktop-about"]',
+    );
+    if (!link) throw new Error('The test navigation link is missing.');
     link.href = '/en/about/?navigation-feedback-test=1';
-    link.dataset.astroPrefetch = 'false';
-    link.dataset.navigationFeedbackTest = '';
-    link.textContent = 'Delayed navigation';
-    document.body.append(link);
-    link.click();
+    link.removeAttribute('data-swup-preload');
+    Object.defineProperty(window, '__navigationSource', {
+      configurable: true,
+      value: link,
+    });
+    Object.defineProperty(window, '__siteChromeContext', {
+      configurable: true,
+      value: document.querySelector('#site-chrome-context'),
+    });
+    const bounds = link.getBoundingClientRect();
+    const point = {
+      x: bounds.left + bounds.width / 2,
+      y: bounds.top + bounds.height / 2,
+    };
+    const hitTests: Array<{
+      sameTarget: boolean;
+      cursor: string | undefined;
+      hitTag: string | undefined;
+      hitClass: string | undefined;
+    }> = [];
+    let finished = false;
+    document.addEventListener('site:page-load', () => (finished = true), { once: true });
+    const recordHitTarget = () => {
+      const target = document.elementFromPoint(point.x, point.y);
+      const interactive = target?.closest<HTMLAnchorElement>(
+        '[data-site-header-sync="desktop-about"]',
+      );
+      hitTests.push({
+        sameTarget: interactive === link,
+        cursor: interactive ? getComputedStyle(interactive).cursor : undefined,
+        hitTag: target?.tagName,
+        hitClass:
+          target instanceof Element ? (target.getAttribute('class') ?? undefined) : undefined,
+      });
+    };
+    const sampleHitTarget = () => {
+      recordHitTarget();
+      if (!finished) requestAnimationFrame(sampleHitTarget);
+    };
+    ['swup:visit:start', 'site:before-swap', 'site:chrome-context', 'site:after-swap'].forEach(
+      (eventName) => document.addEventListener(eventName, recordHitTarget, { once: true }),
+    );
+    Object.defineProperty(window, '__navigationHitTests', {
+      configurable: true,
+      value: hitTests,
+    });
+    sampleHitTarget();
+    return point;
   });
+  await page.mouse.click(navigationPoint.x, navigationPoint.y);
 
-  await expect(page.locator('[data-transient-overlay]:popover-open')).toHaveCount(0);
+  await expect(page.locator('[data-wallpaper-menu]')).toBeHidden();
   await expect(page.locator('html')).toHaveAttribute('data-navigation-progress', 'active');
+  await expect(page.locator('#swup')).toHaveClass(/is-changing/);
+  expect(
+    await page
+      .locator('html')
+      .evaluate((element) =>
+        ['is-changing', 'is-animating', 'is-leaving', 'is-rendering'].some((className) =>
+          element.classList.contains(className),
+        ),
+      ),
+  ).toBe(false);
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'true');
-  await expect(page.locator('[data-navigation-feedback-test]')).toHaveAttribute(
-    'aria-busy',
-    'true',
-  );
+  const pendingLink = page.locator('[data-site-header-sync="desktop-about"]');
+  await expect(pendingLink).not.toHaveAttribute('aria-busy', 'true');
+  await expect
+    .poll(() => pendingLink.evaluate((element) => getComputedStyle(element).cursor))
+    .toBe('pointer');
   expect(await header.evaluate((element) => element.getBoundingClientRect().height)).toBe(
     initialHeight,
   );
 
-  await page.locator('[data-navigation-feedback-test]').dispatchEvent('click');
+  const requestCountBeforeDuplicateClick = requestCount;
+  expect(requestCountBeforeDuplicateClick).toBeGreaterThan(0);
+  await pendingLink.dispatchEvent('click');
   await page.waitForTimeout(50);
-  expect(requestCount).toBe(1);
+  expect(requestCount).toBe(requestCountBeforeDuplicateClick);
 
   releaseRequest?.();
   await expect(page).toHaveURL(/\/en\/about\/\?navigation-feedback-test=1$/);
+  await expect(pendingLink).toBeFocused();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as typeof window & { __navigationSource?: HTMLAnchorElement })
+            .__navigationSource ===
+          document.querySelector('[data-site-header-sync="desktop-about"]'),
+      ),
+    )
+    .toBe(true);
+  expect(
+    await page.evaluate(
+      () =>
+        (window as typeof window & { __siteChromeContext?: Element }).__siteChromeContext ===
+        document.querySelector('#site-chrome-context'),
+    ),
+  ).toBe(true);
+  const navigationHitTests = await page.evaluate(
+    () =>
+      (
+        window as typeof window & {
+          __navigationHitTests?: Array<{ sameTarget: boolean; cursor?: string }>;
+        }
+      ).__navigationHitTests ?? [],
+  );
+  expect(
+    navigationHitTests.filter(({ sameTarget, cursor }) => !sameTarget || cursor !== 'pointer'),
+  ).toEqual([]);
   await expect(page.locator('html')).not.toHaveAttribute('data-navigation-pending', '');
   await expect(page.locator('main')).not.toHaveAttribute('aria-busy', 'true');
 });
 
 test('language switching keeps the route and stores the preference', async ({ page }) => {
   await page.goto('/en/blog/');
+  await page.evaluate(() => {
+    Object.defineProperty(window, '__siteHeader', {
+      configurable: true,
+      value: document.querySelector('[data-site-header]'),
+    });
+  });
   await page.locator('a[data-locale-switch="zh"]').first().click();
 
   await expect(page).toHaveURL(/\/zh\/blog\/$/);
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
+  await expect(page.locator('[data-site-header-sync="home"]')).toHaveAttribute('href', '/zh/');
+  await expect(page.locator('[data-site-header-sync="desktop-projects"]')).toHaveText('项目');
+  await expect(page.locator('[data-site-header-sync="desktop-blog"]')).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await expect(page.locator('[data-site-header-sync="desktop-locale"]')).toHaveAttribute(
+    'data-locale-switch',
+    'en',
+  );
+  await expect(page.locator('[data-site-skip-link]')).toHaveText('跳到主要内容');
+  await expect(page.locator('#swup-announcer')).toContainText(/^已导航至：/);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as typeof window & { __siteHeader?: HTMLElement }).__siteHeader ===
+          document.querySelector('[data-site-header]'),
+      ),
+    )
+    .toBe(true);
   await expect.poll(() => page.evaluate(() => localStorage.getItem('PARAGLIDE_LOCALE'))).toBe('zh');
+});
+
+test('SiteChrome replays the latest page context when hydration finishes after navigation', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  let releaseSiteChrome: (() => void) | undefined;
+  let reportSiteChromeRequest: (() => void) | undefined;
+  const siteChromeReleased = new Promise<void>((resolve) => {
+    releaseSiteChrome = resolve;
+  });
+  const siteChromeRequested = new Promise<void>((resolve) => {
+    reportSiteChromeRequest = resolve;
+  });
+
+  await page.route(/\/_astro\/SiteChrome\.[^/]+\.js(?:\?.*)?$/, async (route) => {
+    reportSiteChromeRequest?.();
+    await siteChromeReleased;
+    await route.continue();
+  });
+
+  const initialNavigation = page.goto('/en/');
+  await siteChromeRequested;
+  const fallback = page.locator('[data-site-menu-fallback]');
+  await expect(page.locator('html')).not.toHaveAttribute('data-site-chrome-ready');
+  await expect(page.locator('[data-site-menu-trigger]')).toBeHidden();
+  await expect(fallback).toBeVisible();
+  const fallbackTriggerBox = await fallback.locator('summary').boundingBox();
+  const fallbackHeaderHeight = await page
+    .locator('.site-header')
+    .evaluate((element) => element.getBoundingClientRect().height);
+  expect(fallbackTriggerBox).not.toBeNull();
+  await expect.poll(() => page.evaluate(() => Boolean(window.swup))).toBe(true);
+
+  await fallback.locator('summary').click();
+  await fallback.locator('a[href="/en/about/"]').click();
+  await expect(page).toHaveURL(/\/en\/about\/$/);
+  await expect
+    .poll(() => page.locator('#site-chrome-context').evaluate((element) => element.textContent))
+    .toContain('"pathname":"/en/about/"');
+  await expect(page.locator('[data-site-header-sync="home"]')).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+
+  releaseSiteChrome?.();
+  await initialNavigation;
+  await expect(page.locator('html')).toHaveAttribute('data-site-chrome-ready', 'true');
+  await expect(fallback).toBeHidden();
+  const enhancedTrigger = page.locator('[data-site-menu-trigger]');
+  await expect(enhancedTrigger).toBeVisible();
+  const enhancedTriggerBox = await enhancedTrigger.boundingBox();
+  const enhancedHeaderHeight = await page
+    .locator('.site-header')
+    .evaluate((element) => element.getBoundingClientRect().height);
+  expect(enhancedTriggerBox).not.toBeNull();
+  for (const key of ['x', 'y', 'width', 'height'] as const) {
+    expect(Math.abs(enhancedTriggerBox![key] - fallbackTriggerBox![key])).toBeLessThan(0.5);
+  }
+  expect(Math.abs(enhancedHeaderHeight - fallbackHeaderHeight)).toBeLessThan(0.5);
+  await expect(page.locator('[data-site-header-sync="mobile-about"]')).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await expect(page.locator('[data-site-header-sync="home"]')).not.toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+});
+
+test('keyboard navigation moves focus to main content and announces in the page language', async ({
+  page,
+}) => {
+  await page.goto('/zh/');
+  const aboutLink = page.locator('[data-site-header-sync="desktop-about"]');
+  await aboutLink.focus();
+  await page.keyboard.press('Enter');
+
+  await expect(page).toHaveURL(/\/zh\/about\/$/);
+  await expect(page.locator('#main-content')).toBeFocused();
+  await expect(page.locator('#swup-announcer')).toContainText(/^已导航至：/);
+});
+
+test('a hard refresh does not replay below-fold reveal animations', async ({ page }) => {
+  await page.goto('/en/');
+  await expect
+    .poll(() => page.locator('[data-reveal][style*="opacity"]').count())
+    .toBeGreaterThan(0);
+
+  await page.reload();
+  await expect(page.locator('[data-reveal][style*="opacity"]')).toHaveCount(0);
+});
+
+test('a reveal setup canceled at the swap boundary cannot resume after fonts load', async ({
+  page,
+}) => {
+  let releaseFonts: (() => void) | undefined;
+  let reportFontRequest: (() => void) | undefined;
+  const fontsReleased = new Promise<void>((resolve) => {
+    releaseFonts = resolve;
+  });
+  const fontRequested = new Promise<void>((resolve) => {
+    reportFontRequest = resolve;
+  });
+  await page.route(/\.woff2(?:\?.*)?$/, async (route) => {
+    reportFontRequest?.();
+    await fontsReleased;
+    await route.continue();
+  });
+
+  await page.goto('/en/', { waitUntil: 'domcontentloaded' });
+  await fontRequested;
+  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'cold');
+  await expect(page.locator('body')).toHaveCSS('pointer-events', 'none');
+  await expect(page.locator('body')).toHaveCSS('opacity', '0.12');
+
+  await page.evaluate(() => document.dispatchEvent(new Event('site:before-swap')));
+  releaseFonts?.();
+  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
+  await expect(page.locator('body')).toHaveCSS('pointer-events', 'auto');
+  await page.waitForTimeout(100);
+  await expect(page.locator('[data-reveal][style*="opacity"]')).toHaveCount(0);
+});
+
+test('the first document frame keeps content geometry stable with the site typefaces', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('wallpaper-enabled', 'false');
+    Object.defineProperty(window, '__cumulativeLayoutShift', {
+      configurable: true,
+      value: 0,
+      writable: true,
+    });
+
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        const shift = entry as PerformanceEntry & { hadRecentInput?: boolean; value?: number };
+        if (!shift.hadRecentInput) {
+          (window as typeof window & { __cumulativeLayoutShift: number }).__cumulativeLayoutShift +=
+            shift.value ?? 0;
+        }
+      }
+    }).observe({ type: 'layout-shift', buffered: true });
+  });
+
+  await page.goto('/en/blog/closed-loop-control-timing/');
+  const heading = page.getByRole('heading', { level: 1 });
+  await expect(heading).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
+  const initialBox = await heading.boundingBox();
+  expect(initialBox).not.toBeNull();
+
+  await page.waitForTimeout(300);
+  expect(
+    await page.evaluate(
+      () => (window as typeof window & { __cumulativeLayoutShift: number }).__cumulativeLayoutShift,
+    ),
+  ).toBeLessThan(0.01);
+  await expect(page.locator('body')).toHaveCSS('font-family', /Source Sans 3 Variable/);
+  await expect(heading).toHaveCSS('font-family', /Manrope Variable/);
+
+  await page.reload();
+  await expect(heading).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
+  const reloadedBox = await heading.boundingBox();
+  expect(reloadedBox).not.toBeNull();
+  expect(Math.abs(reloadedBox!.x - initialBox!.x)).toBeLessThan(0.5);
+  expect(Math.abs(reloadedBox!.y - initialBox!.y)).toBeLessThan(0.5);
+  expect(Math.abs(reloadedBox!.width - initialBox!.width)).toBeLessThan(0.5);
+  expect(Math.abs(reloadedBox!.height - initialBox!.height)).toBeLessThan(0.5);
+
+  await page.waitForTimeout(300);
+  expect(
+    await page.evaluate(
+      () => (window as typeof window & { __cumulativeLayoutShift: number }).__cumulativeLayoutShift,
+    ),
+  ).toBeLessThan(0.01);
+});
+
+test('code blocks use the Latin and Chinese code typefaces from the shared font contract', async ({
+  page,
+}) => {
+  await page.goto('/zh/blog/git-operations-reference/');
+  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
+
+  const code = page.locator('.expressive-code code').first();
+  await expect(code).toBeVisible();
+  await expect(code).toHaveCSS('font-family', /JetBrains Mono Variable.*Noto Sans SC Variable/);
+
+  expect(
+    await page.evaluate(() => {
+      const statuses = [...document.fonts].map(({ family, status }) => ({ family, status }));
+      return {
+        latin: statuses.some(
+          ({ family, status }) => family === 'JetBrains Mono Variable' && status === 'loaded',
+        ),
+        cjk: statuses.some(
+          ({ family, status }) => family === 'Noto Sans SC Variable' && status === 'loaded',
+        ),
+      };
+    }),
+  ).toEqual({ latin: true, cjk: true });
+});
+
+test('article information and both tables of contents are present without client JavaScript', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    javaScriptEnabled: false,
+    viewport: { width: 1440, height: 900 },
+  });
+  const page = await context.newPage();
+
+  await page.goto('/en/blog/closed-loop-control-timing/');
+
+  const sidebar = page.locator('[data-article-sidebar-column]');
+  const articleInformation = sidebar.locator('[aria-labelledby="article-info-heading"]');
+  await expect(articleInformation).toContainText('Article information');
+  await expect(articleInformation).toContainText('First published');
+  await expect(articleInformation).toContainText('Last updated');
+  await expect(sidebar.locator('.js-toc a')).toHaveCount(7);
+  await expect(sidebar.locator('.js-toc a').first()).toHaveText('Interactive timing diagram');
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('#article-toc-mobile a')).toHaveCount(7);
+
+  await context.close();
+});
+
+test('the article table of contents restores its active section without rebuilding SSR links', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const probe = new MutationObserver(() => {
+      const link = document.querySelector<HTMLAnchorElement>(
+        '[data-article-sidebar-column] [data-article-toc] a[href="#analysis"]',
+      );
+      if (!link) return;
+
+      (
+        window as typeof window & {
+          __initialArticleTocLink?: HTMLAnchorElement;
+        }
+      ).__initialArticleTocLink = link;
+      probe.disconnect();
+
+      if (sessionStorage.getItem('capture-article-toc-first-frame') !== 'true') return;
+      requestAnimationFrame(() => {
+        const active = document.querySelector<HTMLAnchorElement>(
+          '[data-article-sidebar-column] [data-article-toc] a.is-active-link',
+        );
+        sessionStorage.setItem('article-toc-first-frame-href', active?.getAttribute('href') ?? '');
+      });
+    });
+    probe.observe(document, { childList: true, subtree: true });
+  });
+
+  await page.goto('/en/blog/closed-loop-control-timing/');
+  const analysisLink = page.locator(
+    '[data-article-sidebar-column] [data-article-toc] a[href="#analysis"]',
+  );
+  await analysisLink.click();
+  await expect(analysisLink).toHaveClass(/is-active-link/);
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        sessionStorage.getItem('article-section:/en/blog/closed-loop-control-timing/'),
+      ),
+    )
+    .toBe('analysis');
+  expect(
+    await page.evaluate(
+      () =>
+        (
+          window as typeof window & {
+            __initialArticleTocLink?: HTMLAnchorElement;
+          }
+        ).__initialArticleTocLink ===
+        document.querySelector(
+          '[data-article-sidebar-column] [data-article-toc] a[href="#analysis"]',
+        ),
+    ),
+  ).toBe(true);
+
+  await page.evaluate(() => {
+    sessionStorage.setItem('capture-article-toc-first-frame', 'true');
+    sessionStorage.removeItem('article-toc-first-frame-href');
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+
+  await expect
+    .poll(() => page.evaluate(() => sessionStorage.getItem('article-toc-first-frame-href')))
+    .toBe('#analysis');
+  await expect(analysisLink).toHaveClass(/is-active-link/);
+  expect(
+    await page.evaluate(
+      () =>
+        (
+          window as typeof window & {
+            __initialArticleTocLink?: HTMLAnchorElement;
+          }
+        ).__initialArticleTocLink ===
+        document.querySelector(
+          '[data-article-sidebar-column] [data-article-toc] a[href="#analysis"]',
+        ),
+    ),
+  ).toBe(true);
+  await page.evaluate(() => {
+    sessionStorage.removeItem('capture-article-toc-first-frame');
+    sessionStorage.removeItem('article-toc-first-frame-href');
+  });
+});
+
+test('article table-of-contents clicks keep their target and selected section stable', async ({
+  page,
+}) => {
+  await page.goto('/zh/blog/frenet-vehicle-kinematics/');
+  const link = page.locator(
+    '[data-article-sidebar-column] [data-article-toc] a[href="#时间域模型中的倒车"]',
+  );
+  await expect(link).toBeVisible();
+
+  await link.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    const point = { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 };
+    const samples: Array<{ sameTarget: boolean; cursor: string | undefined }> = [];
+    Object.defineProperty(window, '__articleTocHitTests', {
+      configurable: true,
+      value: samples,
+    });
+    const sample = () => {
+      const target = document.elementFromPoint(point.x, point.y);
+      const interactive = target?.closest<HTMLAnchorElement>(
+        '[data-article-sidebar-column] [data-article-toc] a[href="#时间域模型中的倒车"]',
+      );
+      samples.push({
+        sameTarget: interactive === element,
+        cursor: interactive ? getComputedStyle(interactive).cursor : undefined,
+      });
+      if (samples.length < 20) requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  });
+  await link.click();
+
+  await expect(page).toHaveURL(
+    /#%E6%97%B6%E9%97%B4%E5%9F%9F%E6%A8%A1%E5%9E%8B%E4%B8%AD%E7%9A%84%E5%80%92%E8%BD%A6$/,
+  );
+  await expect(link).toHaveClass(/is-active-link/);
+  await expect(link).toBeFocused();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            window as typeof window & {
+              __articleTocHitTests?: Array<{ sameTarget: boolean; cursor?: string }>;
+            }
+          ).__articleTocHitTests?.length ?? 0,
+      ),
+    )
+    .toBe(20);
+  const hitTests = await page.evaluate(
+    () =>
+      (
+        window as typeof window & {
+          __articleTocHitTests?: Array<{ sameTarget: boolean; cursor?: string }>;
+        }
+      ).__articleTocHitTests ?? [],
+  );
+  expect(hitTests.filter(({ sameTarget, cursor }) => !sameTarget || cursor !== 'pointer')).toEqual(
+    [],
+  );
 });
 
 test('the neutral entry honors saved preference before system language', async ({ browser }) => {
@@ -130,20 +650,80 @@ test('the neutral entry honors saved preference before system language', async (
 });
 
 test('theme choice survives client-side navigation', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('theme', 'dark');
+    localStorage.setItem('wallpaper-enabled', 'false');
+  });
   await page.goto('/en/');
   const root = page.locator('html');
-  const wasDark = await root.evaluate((element) => element.classList.contains('dark'));
+  await expect(root).toHaveClass(/dark/);
+  const themeButton = page.locator('[data-theme-toggle]:visible').first();
+  await expect(themeButton).toHaveAccessibleName('Switch to light mode');
 
-  await page.locator('[data-theme-toggle]').first().click();
-  await expect
-    .poll(() => root.evaluate((element) => element.classList.contains('dark')))
-    .toBe(!wasDark);
+  const { transitionProbe, hitTests } = await page.evaluate(async () => {
+    const button = document.querySelector<HTMLButtonElement>('[data-theme-toggle]');
+    if (!button) throw new Error('The theme button is missing.');
+    const bounds = button.getBoundingClientRect();
+    const x = bounds.left + bounds.width / 2;
+    const y = bounds.top + bounds.height / 2;
+    const hitTests: Array<{
+      sameTarget: boolean;
+      cursor: string | undefined;
+      hitTag: string | undefined;
+      hitClass: string | undefined;
+      transitioning: boolean;
+    }> = [];
+    button.click();
+    const transitionProbe = {
+      documentTransition: document.documentElement.classList.contains('theme-transitioning'),
+      outletTransition: document.querySelector('#swup')?.classList.contains('theme-transitioning'),
+      oldAnimation: getComputedStyle(document.documentElement, '::view-transition-old(root)')
+        .animationName,
+      newAnimation: getComputedStyle(document.documentElement, '::view-transition-new(root)')
+        .animationName,
+    };
+    for (let frame = 0; frame < 45; frame += 1) {
+      await new Promise(requestAnimationFrame);
+      const target = document.elementFromPoint(x, y);
+      const interactive = target?.closest<HTMLButtonElement>('[data-theme-toggle]');
+      hitTests.push({
+        sameTarget: interactive === button,
+        cursor: interactive ? getComputedStyle(interactive).cursor : undefined,
+        hitTag: target?.tagName,
+        hitClass:
+          target instanceof Element ? (target.getAttribute('class') ?? undefined) : undefined,
+        transitioning: document.documentElement.classList.contains('theme-transitioning'),
+      });
+    }
+    return {
+      transitionProbe,
+      hitTests,
+    };
+  });
+  expect(transitionProbe).toEqual({
+    documentTransition: true,
+    outletTransition: false,
+    oldAnimation: 'none',
+    newAnimation: 'theme-reveal',
+  });
+  expect(
+    hitTests.filter(({ sameTarget, cursor, hitTag, transitioning }) => {
+      if (sameTarget) return cursor !== 'pointer';
+      return hitTag !== 'HTML' || !transitioning;
+    }),
+  ).toEqual([]);
+  expect(hitTests.at(-1)).toMatchObject({
+    sameTarget: true,
+    cursor: 'pointer',
+    transitioning: false,
+  });
+  await expect(root).not.toHaveClass(/dark/);
+  await expect(root).not.toHaveClass(/theme-transitioning/);
+  await expect(themeButton).toHaveAccessibleName('Switch to dark mode');
 
   await page.locator('header nav').first().locator('a[href="/en/blog/"]').click();
   await expect(page).toHaveURL(/\/en\/blog\/$/);
-  await expect
-    .poll(() => root.evaluate((element) => element.classList.contains('dark')))
-    .toBe(!wasDark);
+  await expect(root).not.toHaveClass(/dark/);
 });
 
 test('theme and wallpaper mode change independently without replacing the current photo', async ({
@@ -233,6 +813,17 @@ test('theme and wallpaper mode change independently without replacing the curren
       })),
     )
     .toEqual(initialImageState);
+
+  await page.locator('[data-site-header-sync="desktop-blog"]').click();
+  await expect(page).toHaveURL(/\/en\/blog\/$/);
+  await expect
+    .poll(() =>
+      activeImage.evaluate((image) => ({
+        id: (image as HTMLElement).dataset.wallpaperPhotoId,
+        src: (image as HTMLImageElement).currentSrc,
+      })),
+    )
+    .toEqual(initialImageState);
   expect(manifestRequests).toBe(initialManifestRequests);
   expect(imageRequests).toBe(initialImageRequests);
 });
@@ -284,31 +875,38 @@ test('a hard refresh keeps the same clear wallpaper without replacing its backgr
 
   await page.addInitScript(() => {
     if (!sessionStorage.getItem('wallpaper-current-background')) return;
-    window.requestAnimationFrame(() => {
-      const style = getComputedStyle(document.documentElement, '::before');
-      sessionStorage.setItem(
-        'wallpaper-first-frame-state',
-        JSON.stringify({
-          root: {
-            backgroundImage: style.backgroundImage,
+    sessionStorage.removeItem('wallpaper-first-frame-state');
+
+    const captureFirstFrame = () => {
+      const boot = document.querySelector<HTMLElement>('.wallpaper__boot');
+      const bootImage = document.querySelector<HTMLElement>('.wallpaper__boot-image');
+      const credit = document.querySelector<HTMLElement>('[data-wallpaper-credit]');
+      if (!boot || !bootImage || !credit) return false;
+
+      window.requestAnimationFrame(() => {
+        const style = getComputedStyle(boot);
+        const photographer = credit.querySelector<HTMLAnchorElement>(
+          '[data-wallpaper-credit-photographer]',
+        );
+        sessionStorage.setItem(
+          'wallpaper-first-frame-state',
+          JSON.stringify({
+            backgroundImage: getComputedStyle(bootImage).backgroundImage,
             opacity: Number.parseFloat(style.opacity),
             visibility: style.visibility,
-          },
-          runtime: (() => {
-            const media = document.querySelector<HTMLElement>('[data-wallpaper-media]');
-            if (!media) return null;
-            const mediaStyle = getComputedStyle(media);
-            const backgroundStyle = getComputedStyle(media, '::before');
-            return {
-              backgroundImage: backgroundStyle.backgroundImage,
-              opacity:
-                Number.parseFloat(mediaStyle.opacity) * Number.parseFloat(backgroundStyle.opacity),
-              visibility: backgroundStyle.visibility,
-            };
-          })(),
-        }),
-      );
+            creditHidden: credit.hidden,
+            creditText: credit.textContent?.replace(/\s+/g, ' ').trim(),
+            photographerHref: photographer?.href,
+          }),
+        );
+      });
+      return true;
+    };
+
+    const observer = new MutationObserver(() => {
+      if (captureFirstFrame()) observer.disconnect();
     });
+    if (!captureFirstFrame()) observer.observe(document, { childList: true, subtree: true });
   });
 
   imageRequests = 0;
@@ -331,13 +929,28 @@ test('a hard refresh keeps the same clear wallpaper without replacing its backgr
     .poll(() =>
       page.evaluate(() => {
         const value = JSON.parse(sessionStorage.getItem('wallpaper-first-frame-state') ?? 'null');
-        const visibleLayer = [value?.root, value?.runtime].find(
-          (layer) => layer?.visibility !== 'hidden' && layer?.opacity > 0,
-        );
-        return visibleLayer?.backgroundImage;
+        return value?.visibility !== 'hidden' && value?.opacity > 0
+          ? value.backgroundImage
+          : undefined;
       }),
     )
     .toContain('data:image/');
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const value = JSON.parse(sessionStorage.getItem('wallpaper-first-frame-state') ?? 'null');
+        return {
+          hidden: value?.creditHidden,
+          text: value?.creditText,
+          photographerHref: value?.photographerHref,
+        };
+      }),
+    )
+    .toEqual({
+      hidden: false,
+      text: 'Photo by Photographer on Unsplash',
+      photographerHref: photo.photographerUrl,
+    });
   await expect
     .poll(() => page.evaluate(() => sessionStorage.getItem('wallpaper-current-background')))
     .toBe(storedPoster);
@@ -418,7 +1031,7 @@ test('the wallpaper recovers from failure and cycles without repeats', async ({ 
 
   const wallpaperControl = page.locator('[data-wallpaper-control]:visible').first();
   const wallpaperTrigger = wallpaperControl.locator('[data-wallpaper-menu-trigger]');
-  const wallpaperPanel = wallpaperControl.locator('[popover]');
+  const wallpaperPanel = wallpaperControl.locator('[data-wallpaper-menu]');
   await wallpaperTrigger.click();
   await expect(wallpaperControl.locator('[data-wallpaper-enabled]')).toBeChecked();
   await expect(wallpaperControl.locator('[data-wallpaper-auto-rotation]')).toBeChecked();
@@ -444,6 +1057,10 @@ test('the wallpaper recovers from failure and cycles without repeats', async ({ 
   });
   await refreshButton.click();
   await expect(refreshButton).toHaveAttribute('aria-busy', 'true');
+  await expect(refreshButton).toBeEnabled();
+  await expect
+    .poll(() => refreshButton.evaluate((element) => getComputedStyle(element).cursor))
+    .toBe('pointer');
   await expect(autoRotationControl).not.toBeDisabled();
   await expect
     .poll(() => autoRotationRow.evaluate((element) => getComputedStyle(element).opacity))
@@ -481,7 +1098,35 @@ test('the wallpaper recovers from failure and cycles without repeats', async ({ 
   await wallpaperControl.locator('[data-wallpaper-menu-trigger]').click();
   await expect(autoRotationControl).not.toBeChecked();
 
-  await wallpaperControl.locator('[data-wallpaper-enabled-control]').click();
+  const fadeOut = await wallpaperControl
+    .locator('[data-wallpaper-enabled-control]')
+    .evaluate(async (control) => {
+      const media = document.querySelector<HTMLElement>('[data-wallpaper-media]');
+      if (!media) throw new Error('The wallpaper media layer is missing.');
+      const start = Number.parseFloat(getComputedStyle(media).opacity);
+      (control as HTMLElement).click();
+      let middle = start;
+      for (let frame = 0; frame < 12 && middle === start; frame += 1) {
+        await new Promise(requestAnimationFrame);
+        middle = Number.parseFloat(getComputedStyle(media).opacity);
+      }
+      return {
+        start,
+        middle,
+        hasOpacityTransition: media
+          .getAnimations()
+          .some(
+            (animation) =>
+              animation instanceof CSSTransition &&
+              animation.transitionProperty === 'opacity' &&
+              animation.playState === 'running',
+          ),
+      };
+    });
+  expect(fadeOut.start).toBeGreaterThan(0.9);
+  expect(fadeOut.middle).toBeGreaterThan(0);
+  expect(fadeOut.middle).toBeLessThan(fadeOut.start);
+  expect(fadeOut.hasOpacityTransition).toBe(true);
   await expect(page.locator('[data-wallpaper-image].is-active')).toHaveCount(1);
   await expect(page.locator('[data-wallpaper-credit]')).toBeHidden();
   await expect
@@ -506,14 +1151,44 @@ test('the wallpaper recovers from failure and cycles without repeats', async ({ 
   await expect(wallpaperControl.locator('[data-wallpaper-enabled]')).not.toBeChecked();
   await expect(autoRotationControl).not.toBeChecked();
 
-  await wallpaperControl.locator('[data-wallpaper-enabled-control]').click();
+  const fadeIn = await wallpaperControl
+    .locator('[data-wallpaper-enabled-control]')
+    .evaluate(async (control) => {
+      const boot = document.querySelector<HTMLElement>('.wallpaper__boot');
+      if (!boot) throw new Error('The wallpaper boot layer is missing.');
+      const start = Number.parseFloat(getComputedStyle(boot).opacity);
+      (control as HTMLElement).click();
+      let middle = start;
+      for (let frame = 0; frame < 12 && middle === start; frame += 1) {
+        await new Promise(requestAnimationFrame);
+        middle = Number.parseFloat(getComputedStyle(boot).opacity);
+      }
+      return {
+        start,
+        middle,
+        hasOpacityTransition: boot
+          .getAnimations()
+          .some(
+            (animation) =>
+              animation instanceof CSSTransition &&
+              animation.transitionProperty === 'opacity' &&
+              animation.playState === 'running',
+          ),
+      };
+    });
+  expect(fadeIn.start).toBe(0);
+  expect(fadeIn.middle).toBeGreaterThan(fadeIn.start);
+  expect(fadeIn.middle).toBeLessThan(1);
+  expect(fadeIn.hasOpacityTransition).toBe(true);
   await expect(page.locator('html')).toHaveAttribute('data-wallpaper-mode', 'scenic');
   await expect.poll(() => manifestRequests).toBe(3);
   await expect(page.locator('[data-wallpaper-image].is-active')).toHaveCount(0);
   await expect
     .poll(() =>
       page.evaluate(() =>
-        Number.parseFloat(getComputedStyle(document.documentElement, '::before').opacity),
+        Number.parseFloat(
+          getComputedStyle(document.querySelector<HTMLElement>('.wallpaper__boot')!).opacity,
+        ),
       ),
     )
     .toBeGreaterThan(0);
@@ -769,14 +1444,26 @@ test('tag filter panel remains stable while result height changes', async ({ pag
 });
 
 test('version comparison loads on demand and supports both layouts', async ({ page }) => {
-  await page.goto('/en/blog/my-personal-website/');
+  await page.goto('/zh/blog/my-personal-website/');
   const comparisonLink = page.locator('[data-version-compare-link]').first();
   await expect(comparisonLink).toHaveAttribute('href', /\/compare\//);
   const comparisonHref = await comparisonLink.getAttribute('href');
   await page.goto(comparisonHref!);
 
   await expect(page.locator('[data-version-comparison]')).toBeVisible();
-  await expect(page.locator('[data-diff-panel="unified"]')).toBeVisible();
+  const unifiedDiff = page.locator('[data-diff-panel="unified"]');
+  await expect(unifiedDiff).toBeVisible();
+  await expect(unifiedDiff.locator('.d2h-diff-table')).toHaveCSS(
+    'font-family',
+    /JetBrains Mono Variable.*Noto Sans SC Variable/,
+  );
+  expect(
+    await page.evaluate(() =>
+      [...document.fonts].some(
+        ({ family, status }) => family === 'Noto Sans SC Variable' && status === 'loaded',
+      ),
+    ),
+  ).toBe(true);
   await page.locator('[data-diff-mode="split"]:visible').click();
   await expect(page.locator('[data-diff-panel="split"]')).toBeVisible();
 });

@@ -1,0 +1,13 @@
+<script is:inline data-swup-ignore-script>
+  (() => {
+    const position = window.__SSHawn9SiteBootstrap?.scrollPosition;
+    if (position) {
+      // The complete server-rendered body now exists, but the browser has not painted it yet.
+      window.scrollTo(position.x, position.y);
+    }
+    history.scrollRestoration = 'auto';
+
+    document.documentElement.removeAttribute('data-document-state');
+    dispatchEvent(new Event('site:document-ready'));
+  })();
+</script>

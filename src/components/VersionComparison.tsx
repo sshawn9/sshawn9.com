@@ -3,6 +3,7 @@ import { createMemo, createResource, createSignal, For, Show } from 'solid-js';
 import { createTwoFilesPatch } from 'diff';
 import { html } from 'diff2html';
 import 'diff2html/bundles/css/diff2html.min.css';
+import { prepareCodeTypography } from '../scripts/typography-controller';
 
 export type ComparisonVersion = {
   number: number;
@@ -71,6 +72,7 @@ export default function VersionComparison(props: Props) {
     const [fromSource, toSource] = (await Promise.all(
       responses.map((response) => response.json()),
     )) as [Source, Source];
+    await prepareCodeTypography(`${fromSource.body}\n${toSource.body}`);
     return { from, to, fromSource, toSource };
   });
 

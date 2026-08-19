@@ -18,6 +18,8 @@ const languageTag = toLanguageTag(locale);
 </dialog>
 
 <script>
+  import { claimClientRuntime } from '../scripts/client-runtime';
+
   type FocusState = {
     figure: HTMLElement;
     parent: Node;
@@ -29,6 +31,7 @@ const languageTag = toLanguageTag(locale);
 
   const states = new WeakMap<HTMLDialogElement, FocusState>();
   const initializedDialogs = new WeakSet<HTMLDialogElement>();
+  const runtime = claimClientRuntime('figure-focus-dialog');
 
   function updateToggle(figure: HTMLElement, expanded: boolean): HTMLButtonElement | null {
     const toggle = figure.querySelector<HTMLButtonElement>('[data-figure-focus-toggle]');
@@ -114,7 +117,7 @@ const languageTag = toLanguageTag(locale);
       .forEach(initializeDialog);
   }
 
-  document.addEventListener('click', (event) => {
+  runtime.listen(document, 'click', (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
     const toggle = target.closest<HTMLButtonElement>('[data-figure-focus-toggle]');
@@ -126,10 +129,14 @@ const languageTag = toLanguageTag(locale);
     else openFigure(dialog, figure);
   });
 
-  document.addEventListener('astro:before-swap', () => {
+  runtime.listen(document, 'site:before-swap', () => {
     const dialog = document.querySelector<HTMLDialogElement>('[data-figure-focus-dialog]');
     if (dialog) restoreFigure(dialog, false);
   });
-  document.addEventListener('astro:page-load', initializeDialogs);
+  runtime.listen(document, 'site:page-load', initializeDialogs);
+  runtime.onDispose(() => {
+    const dialog = document.querySelector<HTMLDialogElement>('[data-figure-focus-dialog]');
+    if (dialog) restoreFigure(dialog, false);
+  });
   initializeDialogs();
 </script>

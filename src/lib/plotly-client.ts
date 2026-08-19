@@ -1,12 +1,9 @@
-import type { TransitionBeforeSwapEvent } from 'astro:transitions/client';
-
 type PlotlyApi = typeof import('plotly.js');
 
 const PLOTLY_STYLE_ID = 'plotly.js-style-global';
 
 let plotlyPromise: Promise<PlotlyApi> | undefined;
 let plotlyStyleText = '';
-let lifecycleInstalled = false;
 
 function rememberStyle(): void {
   const current = document.getElementById(PLOTLY_STYLE_ID);
@@ -34,16 +31,7 @@ function installStyle(target: Document): void {
   target.head.append(style);
 }
 
-function installLifecycle(): void {
-  if (lifecycleInstalled) return;
-  lifecycleInstalled = true;
-  document.addEventListener('astro:before-swap', (event) => {
-    installStyle((event as TransitionBeforeSwapEvent).newDocument);
-  });
-}
-
 export async function loadPlotly(): Promise<PlotlyApi> {
-  installLifecycle();
   plotlyPromise ??= import('plotly.js-gl3d-dist-min').then((module) => module.default);
   const plotly = await plotlyPromise;
   rememberStyle();

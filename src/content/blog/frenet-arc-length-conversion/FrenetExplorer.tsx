@@ -18,6 +18,7 @@ import type { Data, PlotlyHTMLElement, PlotMouseEvent } from 'plotly.js';
 import { loadPlotly } from '../../../lib/plotly-client';
 import * as m from '../../../paraglide/messages.js';
 import { getLocale } from '../../../paraglide/runtime.js';
+import { whenTypographyReady } from '../../../scripts/typography-controller';
 import {
   clamp,
   createInitialState,
@@ -509,6 +510,7 @@ const FrenetExplorer: Component<Props> = (props) => {
   onMount(async () => {
     try {
       await waitUntilNearViewport();
+      await whenTypographyReady();
       if (destroyed) return;
       plotly = await loadPlotly();
       if (destroyed) return;

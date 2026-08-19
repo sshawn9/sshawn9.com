@@ -1,0 +1,146 @@
+---
+import { SITE_STORAGE_KEYS } from '../lib/site-preferences';
+
+const storageKeys = SITE_STORAGE_KEYS;
+const { fontRevision, fontFailsafeMs } = Astro.props as {
+  fontRevision: string;
+  fontFailsafeMs: number;
+};
+---
+
+<script
+  is:inline
+  data-swup-ignore-script
+  define:vars={{ storageKeys, fontRevision, fontFailsafeMs }}
+>
+  (() => {
+    const root = document.documentElement;
+    if (document.readyState === 'loading') root.dataset.documentState = 'parsing';
+    addEventListener(
+      'DOMContentLoaded',
+      () => {
+        if (root.dataset.documentState !== 'parsing') return;
+        root.removeAttribute('data-document-state');
+        dispatchEvent(new Event('site:document-ready'));
+      },
+      { once: true },
+    );
+    root.dataset.fontRevision = fontRevision;
+    root.dataset.fontState = 'cold';
+    setTimeout(() => {
+      if (root.dataset.fontState === 'cold') root.dataset.fontState = 'degraded';
+    }, fontFailsafeMs);
+
+    let theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    let enabled = true;
+    let autoRotation = true;
+    let photo;
+    let background;
+    let articleSlug;
+    let scrollPosition;
+    let navigationType;
+    const readSessionJson = (key) => {
+      try {
+        return JSON.parse(sessionStorage.getItem(key) ?? 'null');
+      } catch {
+        return null;
+      }
+    };
+
+    try {
+      const navigation = performance.getEntriesByType('navigation')[0];
+      navigationType = navigation?.type;
+      const savedX = Number(history.state?.scrollX);
+      const savedY = Number(history.state?.scrollY);
+      if (
+        (navigationType === 'reload' || navigationType === 'back_forward') &&
+        Number.isFinite(savedX) &&
+        Number.isFinite(savedY) &&
+        savedX >= 0 &&
+        savedY >= 0
+      ) {
+        scrollPosition = { x: savedX, y: savedY };
+        history.scrollRestoration = 'manual';
+      } else {
+        history.scrollRestoration = 'auto';
+      }
+    } catch {
+      history.scrollRestoration = 'auto';
+    }
+    addEventListener('pagehide', () => (history.scrollRestoration = 'auto'));
+
+    try {
+      if (localStorage.getItem(`${storageKeys.fontReadyPrefix}${fontRevision}`) === 'ready') {
+        root.dataset.fontState = 'warm';
+      }
+      const storedTheme = localStorage.getItem(storageKeys.theme);
+      theme =
+        storedTheme === 'dark' ||
+        (storedTheme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+          ? 'dark'
+          : 'light';
+      enabled = localStorage.getItem(storageKeys.wallpaperEnabled) !== 'false';
+      const storedAutoRotation = localStorage.getItem(storageKeys.wallpaperAutoRotation);
+      autoRotation =
+        storedAutoRotation === null
+          ? localStorage.getItem(storageKeys.wallpaperLegacyRotation) !== 'fixed'
+          : storedAutoRotation !== 'false';
+
+      photo = readSessionJson(storageKeys.wallpaperCurrentPhoto);
+      const candidate = readSessionJson(storageKeys.wallpaperCurrentBackground);
+
+      if (
+        typeof photo?.id === 'string' &&
+        candidate?.photoId === photo.id &&
+        (candidate?.kind === 'remote' || candidate?.kind === 'poster') &&
+        typeof candidate?.url === 'string' &&
+        (candidate.url.startsWith('https://') || candidate.url.startsWith('data:image/'))
+      ) {
+        background = candidate;
+      } else if (typeof photo?.id === 'string' && typeof photo?.rawUrl === 'string') {
+        const url = new URL(photo.rawUrl);
+        url.searchParams.set('auto', 'format');
+        url.searchParams.set('fit', 'max');
+        url.searchParams.set('q', '80');
+        url.searchParams.set('w', '1600');
+        background = { photoId: photo.id, kind: 'remote', url: url.toString() };
+      }
+
+      const hashSlug = location.hash ? decodeURIComponent(location.hash.slice(1)) : '';
+      const restoredSlug =
+        navigationType === 'reload' || navigationType === 'back_forward'
+          ? sessionStorage.getItem(`${storageKeys.articleSectionPrefix}${location.pathname}`)
+          : null;
+      articleSlug = hashSlug || restoredSlug || undefined;
+    } catch {
+      // Storage may be unavailable or stale; the safe defaults still produce a complete snapshot.
+    }
+
+    const dark = theme === 'dark';
+    root.classList.toggle('dark', dark);
+    root.dataset.theme = dark ? 'github-dark' : 'github-light';
+    root.style.colorScheme = theme;
+    root.dataset.wallpaperMode = enabled ? 'scenic' : 'default';
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', dark ? '#070a12' : '#f7f8fb');
+
+    if (enabled && background) {
+      root.dataset.wallpaperBackground = background.photoId;
+      root.dataset.wallpaperBackgroundKind = background.kind;
+      root.style.setProperty('--wallpaper-boot-image', `url(${JSON.stringify(background.url)})`);
+    }
+
+    window.__SSHawn9SiteBootstrap = {
+      theme,
+      scrollPosition,
+      wallpaper: {
+        enabled,
+        autoRotation,
+        currentPhoto: photo ?? undefined,
+        background,
+      },
+      articleSection: articleSlug ? { pathname: location.pathname, slug: articleSlug } : undefined,
+    };
+  })();
+</script>

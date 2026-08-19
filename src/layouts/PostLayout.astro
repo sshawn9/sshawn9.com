@@ -48,6 +48,18 @@ const articleSchema: WithContext<BlogPosting> = {
   author: { '@type': 'Person', name: SITE.author, url: SITE.url },
 };
 const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+const tocGroups = toc.reduce<Array<{ heading: MarkdownHeading; children: MarkdownHeading[] }>>(
+  (groups, heading) => {
+    if (heading.depth === 2 || groups.length === 0) {
+      groups.push({ heading, children: [] });
+    } else {
+      groups.at(-1)?.children.push(heading);
+    }
+
+    return groups;
+  },
+  [],
+);
 const pageTitle = currentRoute
   ? post.data.title
   : m.article_version_title({ title: post.data.title, version: version.number }, { locale });
@@ -203,14 +215,17 @@ const articleTags = getArticleTags(article);
                     lang={contentLanguageTag}
                     aria-labelledby="article-toc-mobile-heading"
                     class="mt-4 border-l border-slate-900/10 dark:border-white/10"
+                    data-article-toc
                   >
-                    {toc.map((heading) => (
+                    {toc.map((heading, index) => (
                       <a
                         href={`#${heading.slug}`}
                         class:list={[
                           'toc-entry block border-l py-1.5 text-xs leading-5',
                           heading.depth === 3 ? 'pl-6' : 'pl-4 font-semibold',
+                          index === 0 && 'is-active-link',
                         ]}
+                        aria-current={index === 0 ? 'location' : undefined}
                       >
                         {heading.text}
                       </a>
@@ -304,7 +319,39 @@ const articleTags = getArticleTags(article);
                   class="js-toc mt-4"
                   lang={contentLanguageTag}
                   aria-labelledby="article-toc-heading"
-                />
+                  data-article-toc
+                >
+                  <ul class="toc-list">
+                    {tocGroups.map(({ heading, children }, index) => (
+                      <li class="toc-list-item">
+                        <a
+                          href={`#${heading.slug}`}
+                          class:list={[
+                            `toc-link node-name--H${heading.depth}`,
+                            index === 0 && 'is-active-link',
+                          ]}
+                          aria-current={index === 0 ? 'location' : undefined}
+                        >
+                          {heading.text}
+                        </a>
+                        {children.length > 0 && (
+                          <ul class="toc-list">
+                            {children.map((child) => (
+                              <li class="toc-list-item">
+                                <a
+                                  href={`#${child.slug}`}
+                                  class={`toc-link node-name--H${child.depth}`}
+                                >
+                                  {child.text}
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </nav>
               </section>
             )
           }
@@ -321,40 +368,33 @@ const articleTags = getArticleTags(article);
     </div>
   </article>
 
+  <script is:inline>
+    (() => {
+      const section = window.__SSHawn9SiteBootstrap?.articleSection;
+      if (!section || section.pathname !== location.pathname) return;
+
+      document.querySelectorAll('[data-article-toc] a[href^="#"]').forEach((candidate) => {
+        if (!(candidate instanceof HTMLAnchorElement)) return;
+        let slug = '';
+        try {
+          slug = decodeURIComponent(new URL(candidate.href, location.href).hash.slice(1));
+        } catch {
+          return;
+        }
+        const active = slug === section.slug;
+        candidate.classList.toggle('is-active-link', active);
+        if (active) candidate.setAttribute('aria-current', 'location');
+        else candidate.removeAttribute('aria-current');
+      });
+    })();
+  </script>
+
   <script>
     import PhotoSwipeLightbox from 'photoswipe/lightbox';
     import 'photoswipe/style.css';
-    import tocbot from 'tocbot';
+    import '../scripts/article-toc';
 
     let articleLightbox: PhotoSwipeLightbox | undefined;
-
-    function destroyToc() {
-      tocbot.destroy();
-    }
-
-    function setupToc() {
-      destroyToc();
-
-      const tocElement = document.querySelector<HTMLElement>('.js-toc');
-      const contentElement = document.querySelector<HTMLElement>('.js-toc-content');
-      const mobileToc = document.querySelector<HTMLElement>('#article-toc-mobile');
-      mobileToc?.querySelectorAll('a').forEach((link) => {
-        link.addEventListener('click', () => mobileToc.hidePopover());
-      });
-
-      if (tocElement && contentElement) {
-        tocbot.init({
-          tocElement,
-          contentElement,
-          headingSelector: 'h2, h3',
-          orderedList: false,
-          collapseDepth: 6,
-          scrollSmooth: false,
-          headingsOffset: 112,
-          enableUrlHashUpdateOnScroll: false,
-        });
-      }
-    }
 
     function setupImageLightbox() {
       articleLightbox?.destroy();
@@ -373,15 +413,14 @@ const articleTags = getArticleTags(article);
     }
 
     function teardownArticleEnhancements() {
-      destroyToc();
       articleLightbox?.destroy();
       articleLightbox = undefined;
     }
 
-    document.addEventListener('astro:before-swap', teardownArticleEnhancements);
-    document.addEventListener('astro:page-load', () => {
-      setupToc();
+    document.addEventListener('site:before-swap', teardownArticleEnhancements);
+    document.addEventListener('site:page-load', () => {
       setupImageLightbox();
     });
+    setupImageLightbox();
   </script>
 </BaseLayout>

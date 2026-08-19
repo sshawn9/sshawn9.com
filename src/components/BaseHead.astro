@@ -1,7 +1,7 @@
 ---
 import { SEO } from 'astro-seo';
 import { Schema } from 'astro-seo-schema';
-import { ClientRouter } from 'astro:transitions';
+import { Font } from 'astro:assets';
 import { SITE_MODE } from 'astro:env/server';
 import type { Person, WithContext } from 'schema-dts';
 import { SITE } from '../config';
@@ -13,6 +13,9 @@ import {
   type Locale,
 } from '../i18n/config';
 import * as m from '../paraglide/messages.js';
+import { FONT_REVISION } from '../lib/font-revision.server';
+import { TYPOGRAPHY_TIMEOUT_MS } from '../lib/typography-contract';
+import PrepaintState from './PrepaintState.astro';
 
 type Props = {
   title?: string;
@@ -118,58 +121,10 @@ const openGraph = socialImage
 />
 <meta name="viewport" content="width=device-width" />
 <meta name="generator" content={Astro.generator} />
-<ClientRouter />
 <meta name="theme-color" content="#f7f8fb" />
+<Font cssVariable="--font-manrope" preload={[{ weight: '200 800', style: 'normal' }]} />
+<Font cssVariable="--font-source-sans-3" preload={[{ weight: '200 900', style: 'normal' }]} />
+<PrepaintState fontRevision={FONT_REVISION} fontFailsafeMs={TYPOGRAPHY_TIMEOUT_MS + 1_000} />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <link rel="manifest" href={`/site.${locale}.webmanifest`} />
 <Schema item={person} />
-
-<script is:inline data-astro-rerun>
-  (() => {
-    const stored = localStorage.getItem('theme');
-    const dark =
-      stored === 'dark' ||
-      (stored !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    document.documentElement.classList.toggle('dark', dark);
-    document.documentElement.dataset.theme = dark ? 'github-dark' : 'github-light';
-    document.documentElement.dataset.wallpaperMode =
-      localStorage.getItem('wallpaper-enabled') === 'false' ? 'default' : 'scenic';
-    try {
-      const photo = JSON.parse(sessionStorage.getItem('wallpaper-current-photo') ?? 'null');
-      const storedBackground = JSON.parse(
-        sessionStorage.getItem('wallpaper-current-background') ?? 'null',
-      );
-      let background;
-      if (
-        typeof photo?.id === 'string' &&
-        storedBackground?.photoId === photo.id &&
-        ['remote', 'poster', 'blur'].includes(storedBackground?.kind) &&
-        typeof storedBackground?.url === 'string' &&
-        (storedBackground.url.startsWith('https://') ||
-          storedBackground.url.startsWith('data:image/'))
-      ) {
-        background = storedBackground;
-      } else if (typeof photo?.id === 'string' && typeof photo?.rawUrl === 'string') {
-        const url = new URL(photo.rawUrl);
-        url.searchParams.set('auto', 'format');
-        url.searchParams.set('fit', 'max');
-        url.searchParams.set('q', '80');
-        url.searchParams.set('w', '1600');
-        background = { photoId: photo.id, kind: 'remote', url: url.toString() };
-      }
-      if (background) {
-        document.documentElement.dataset.wallpaperBackground = background.photoId;
-        document.documentElement.dataset.wallpaperBackgroundKind = background.kind;
-        document.documentElement.style.setProperty(
-          '--wallpaper-current-image',
-          `url(${JSON.stringify(background.url)})`,
-        );
-      }
-    } catch {
-      // The wallpaper controller will rebuild invalid session state.
-    }
-    document
-      .querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', dark ? '#070a12' : '#f7f8fb');
-  })();
-</script>

@@ -111,17 +111,7 @@ runtime.listen(
 runtime.listen(window, 'resize', scheduleValidation);
 runtime.listen(window, 'orientationchange', scheduleValidation);
 
-runtime.listen(document, 'astro:before-preparation', () => {
-  closeTransientOverlays();
-});
-
-runtime.listen(document, 'astro:before-swap', () => {
-  closeTransientOverlays();
-  activeOverlay = undefined;
-});
-
-runtime.listen(document, 'astro:page-load', () => {
-  activeOverlay = undefined;
+runtime.listen(document, 'swup:visit:start', () => {
   closeTransientOverlays();
 });
 

@@ -531,6 +531,19 @@ test('the plot splitter preserves the geometry scale while resizing both plots l
 });
 
 test('reloading an article restores its scroll position without an animation', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('capture-reload-first-frame') !== 'true') return;
+    addEventListener(
+      'site:document-ready',
+      () => {
+        requestAnimationFrame(() => {
+          sessionStorage.setItem('reload-first-frame-scroll-y', String(window.scrollY));
+        });
+      },
+      { once: true },
+    );
+  });
+
   for (const viewport of [
     { width: 1280, height: 720 },
     { width: 700, height: 1000 },
@@ -546,7 +559,19 @@ test('reloading an article restores its scroll position without an animation', a
       .poll(() => page.evaluate(() => history.state?.scrollY), { timeout: 5_000 })
       .toBe(initialScroll);
 
+    await page.evaluate(() => {
+      sessionStorage.setItem('capture-reload-first-frame', 'true');
+      sessionStorage.removeItem('reload-first-frame-scroll-y');
+    });
+
     await page.reload();
+    await expect
+      .poll(() => page.evaluate(() => sessionStorage.getItem('reload-first-frame-scroll-y')))
+      .not.toBeNull();
+    const firstFrameScroll = Number(
+      await page.evaluate(() => sessionStorage.getItem('reload-first-frame-scroll-y')),
+    );
+    expect(Math.abs(firstFrameScroll - initialScroll)).toBeLessThanOrEqual(64);
     const reloadScrollSamples = await page.evaluate(async () => {
       const samples: number[] = [];
       for (let index = 0; index < 12; index += 1) {
@@ -555,7 +580,9 @@ test('reloading an article restores its scroll position without an animation', a
       }
       return samples;
     });
-    expect(reloadScrollSamples).toEqual(Array.from({ length: 12 }, () => initialScroll));
+    expect(new Set(reloadScrollSamples).size).toBe(1);
+    expect(Math.abs(reloadScrollSamples[0]! - initialScroll)).toBeLessThanOrEqual(1);
+    await page.evaluate(() => sessionStorage.removeItem('capture-reload-first-frame'));
   }
 });
 

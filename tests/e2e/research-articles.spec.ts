@@ -33,6 +33,23 @@ test('the planar Frenet article renders its complete native figures', async ({ p
   await expect(page.locator('.katex').first()).toBeVisible();
   await expect(page.locator('.research-plot')).toHaveCount(2);
   await expect(page.locator('.research-plot .js-plotly-plot')).toHaveCount(2, { timeout: 20_000 });
+  const expectedFontFamily = await page
+    .locator('.research-plot')
+    .first()
+    .evaluate((element) => getComputedStyle(element).fontFamily);
+  await expect
+    .poll(() =>
+      page
+        .locator('.research-plot .js-plotly-plot')
+        .first()
+        .evaluate((element) => {
+          const plot = element as HTMLElement & {
+            _fullLayout?: { font?: { family?: string } };
+          };
+          return plot._fullLayout?.font?.family;
+        }),
+    )
+    .toBe(expectedFontFamily);
   await expect(page.locator('figcaption').first()).toContainText('图 1.');
   for (const plot of await page.locator('.research-plot .js-plotly-plot').all()) {
     await expectAnnotationsNotToOverlap(plot);
@@ -78,7 +95,7 @@ test('Plotly remains fully styled across native navigation between research arti
 
   await page.evaluate(() => {
     document.addEventListener(
-      'astro:after-swap',
+      'site:after-swap',
       () => {
         document.documentElement.dataset.plotlyStyleReadyAtSwap = String(
           Boolean(document.getElementById('plotly.js-style-global')),

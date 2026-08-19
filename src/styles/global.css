@@ -1,6 +1,8 @@
-@import '@fontsource-variable/jetbrains-mono';
-@import '@fontsource-variable/manrope';
 @import 'tailwindcss';
+@import '@fontsource-variable/noto-sans-sc/wght.css';
+@import '@fontsource-variable/jetbrains-mono/wght.css';
+@import '@fontsource-variable/jetbrains-mono/wght-italic.css';
+@import 'katex/dist/katex.min.css';
 @plugin '@tailwindcss/typography';
 
 /* Popovers must be closed on first paint even when the browser needs the compatibility layer. */
@@ -12,16 +14,24 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Do not paint a partially parsed document before its first-frame state is restored. */
+:root[data-document-state='parsing'] body {
+  visibility: hidden;
+}
+
 @theme {
-  --font-sans:
-    'Manrope Variable', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', ui-sans-serif, system-ui,
-    sans-serif;
-  --font-mono: 'JetBrains Mono Variable', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  --font-display: var(--font-manrope);
+  --font-sans: var(--font-source-sans-3);
+  --font-mono:
+    'JetBrains Mono Variable', 'Noto Sans SC Variable', 'PingFang SC', 'Microsoft YaHei', monospace;
+  --font-code:
+    'JetBrains Mono Variable', 'Noto Sans SC Variable', 'PingFang SC', 'Microsoft YaHei', monospace;
   --breakpoint-xs: 30rem;
 }
 
 :root {
   color-scheme: light;
+  --swup-fade-theme-duration: 180ms;
   --scenic-text-strong: #090d14;
   --scenic-text-default: #0b1017;
   --scenic-text-supporting: #111720;
@@ -141,8 +151,17 @@ html.theme-transitioning::view-transition-old(root) {
 }
 
 html.theme-transitioning::view-transition-new(root) {
-  animation: theme-reveal 420ms ease-in-out both;
+  animation: theme-reveal 600ms ease-in-out both;
   mix-blend-mode: normal;
+}
+
+.swup-transition-main.is-changing {
+  opacity: 1;
+  transition: opacity var(--swup-fade-theme-duration);
+}
+
+.swup-transition-main.is-animating {
+  opacity: 0;
 }
 
 @layer base {
@@ -171,7 +190,13 @@ html.theme-transitioning::view-transition-new(root) {
     background: transparent;
     color: var(--text-default);
     font-family: var(--font-sans);
+    font-synthesis: none;
     -webkit-font-smoothing: antialiased;
+  }
+
+  :where(h1, h2, h3, h4, h5, h6) {
+    font-family: var(--font-display);
+    font-synthesis: none;
   }
 
   ::selection {
@@ -186,6 +211,23 @@ html.theme-transitioning::view-transition-new(root) {
   :focus-visible {
     outline: 2px solid #22d3ee;
     outline-offset: 3px;
+  }
+
+  :where(
+    a[href],
+    button:not(:disabled),
+    summary,
+    select:not(:disabled),
+    label,
+    [role='button']:not([aria-disabled='true']),
+    [role='link']:not([aria-disabled='true'])
+  ) {
+    cursor: pointer;
+  }
+
+  :is(button, input, select):disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
   }
 }
 
@@ -379,70 +421,41 @@ html.theme-transitioning::view-transition-new(root) {
     display: contents;
   }
 
-  .wallpaper__image,
-  .wallpaper__scrim {
-    position: absolute;
-    inset: 0;
-  }
-
-  html::before {
-    content: '';
+  .wallpaper__boot,
+  .wallpaper__media {
     position: fixed;
-    inset: 0;
     z-index: 0;
-    background-image: var(--wallpaper-current-image, none);
-    background-position: center;
-    background-size: cover;
-    filter: var(--wallpaper-image-filter);
-    opacity: 0;
-    pointer-events: none;
-    transform: scale(var(--wallpaper-image-scale));
-    transition: opacity 1.4s ease;
-  }
-
-  :root[data-wallpaper-mode='scenic'][data-wallpaper-background]:not(
-      :has(.wallpaper__images[data-wallpaper-ready])
-    )::before {
-    opacity: var(--wallpaper-image-opacity);
-  }
-
-  :root[data-wallpaper-runtime]::before {
-    visibility: hidden;
-  }
-
-  .wallpaper__images {
-    position: fixed;
     inset: 0;
-    z-index: 0;
     overflow: hidden;
     opacity: 0;
     pointer-events: none;
     transition: opacity 720ms ease;
   }
 
-  :root[data-wallpaper-mode='scenic'] .wallpaper__images {
+  :root[data-wallpaper-mode='scenic'][data-wallpaper-background]:not(
+      [data-wallpaper-compositor='ready']
+    )
+    .wallpaper__boot,
+  :root[data-wallpaper-mode='scenic'] .wallpaper__media[data-wallpaper-ready] {
     opacity: 1;
   }
 
-  .wallpaper__images::before {
-    content: '';
+  .wallpaper__boot-image,
+  .wallpaper__boot .wallpaper__scrim,
+  .wallpaper__images,
+  .wallpaper__image,
+  .wallpaper__scrim {
     position: absolute;
     inset: 0;
-    background-image: var(--wallpaper-current-image, none);
+  }
+
+  .wallpaper__boot-image {
+    background-image: var(--wallpaper-boot-image, none);
     background-position: center;
     background-size: cover;
     filter: var(--wallpaper-image-filter);
-    opacity: 0;
-    transform: scale(var(--wallpaper-image-scale));
-  }
-
-  .wallpaper__images[data-wallpaper-bootstrap]::before {
     opacity: var(--wallpaper-image-opacity);
-  }
-
-  .wallpaper__images[data-wallpaper-bootstrap][data-wallpaper-ready]::before {
-    opacity: 0;
-    transition: opacity 1.4s ease;
+    transform: scale(var(--wallpaper-image-scale));
   }
 
   .wallpaper__image {
@@ -488,9 +501,8 @@ html.theme-transitioning::view-transition-new(root) {
   }
 
   @media (prefers-reduced-motion: reduce) {
-    html::before,
-    .wallpaper__images,
-    .wallpaper__images::before,
+    .wallpaper__boot,
+    .wallpaper__media,
     .wallpaper__image {
       transition: none;
     }
@@ -694,6 +706,23 @@ html.theme-transitioning::view-transition-new(root) {
   content: none;
 }
 
+.article-prose :where(code),
+.expressive-code :where(code),
+.version-diff-panel .d2h-diff-table {
+  font-family: var(--font-code);
+  font-synthesis: none;
+}
+
+:root[data-font-state='cold'] body {
+  pointer-events: none;
+  opacity: 0.12;
+  filter: blur(4px);
+}
+
+:root[data-font-state='revealing'] body {
+  animation: typography-reveal 240ms ease-out both;
+}
+
 .article-prose :where(.expressive-code) {
   margin-block: 2rem;
 }
@@ -754,6 +783,12 @@ html.theme-transitioning::view-transition-new(root) {
   color: var(--text-strong);
 }
 
+[data-article-toc] :where(.toc-entry.is-active-link) {
+  border-left-width: 2px;
+  border-left-color: var(--text-accent);
+  color: var(--text-strong);
+}
+
 .version-diff-panel .d2h-file-wrapper {
   margin: 0;
   overflow: hidden;
@@ -761,7 +796,7 @@ html.theme-transitioning::view-transition-new(root) {
 }
 
 .version-diff-panel .d2h-diff-table {
-  font-family: var(--font-mono);
+  font-family: var(--font-code);
   font-size: 0.75rem;
 }
 
@@ -829,6 +864,13 @@ html.theme-transitioning::view-transition-new(root) {
 @keyframes theme-reveal {
   from {
     opacity: 0;
+  }
+}
+
+@keyframes typography-reveal {
+  from {
+    opacity: 0.12;
+    filter: blur(4px);
   }
 }
 
