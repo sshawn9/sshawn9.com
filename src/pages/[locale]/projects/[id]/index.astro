@@ -28,7 +28,12 @@ const relatedArticles = await getProjectArticles(project.id, locale);
 const contentLanguage = toLanguageTag(project.contentLocale);
 ---
 
-<BaseLayout title={project.title} description={project.description} {locale}>
+<BaseLayout
+  title={project.title}
+  description={project.description}
+  searchResultType="project"
+  {locale}
+>
   <section class="content-shell py-12 sm:py-16">
     <div class="mx-auto max-w-4xl">
       <Breadcrumbs
@@ -43,12 +48,14 @@ const contentLanguage = toLanguageTag(project.contentLocale);
         <h1
           class="text-4xl font-extrabold tracking-[-0.045em] text-balance sm:text-5xl"
           lang={contentLanguage}
+          data-pagefind-meta="title"
         >
           {project.title}
         </h1>
         <p
           class="text-default mt-5 max-w-3xl text-base leading-8 sm:text-lg"
           lang={contentLanguage}
+          data-pagefind-meta="description"
         >
           {project.description}
         </p>

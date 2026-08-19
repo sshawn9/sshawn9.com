@@ -1,4 +1,4 @@
-import Swup from 'swup';
+import Swup, { Location, updateHistoryRecord } from 'swup';
 import type { Visit } from 'swup';
 import SwupA11yPlugin from '@swup/a11y-plugin';
 import SwupHeadPlugin from '@swup/head-plugin';
@@ -12,6 +12,11 @@ export const SITE_PAGE_EVENTS = {
 } as const;
 
 let activeRouter: Swup | undefined;
+
+export function replaceCurrentHistoryUrl(url: string) {
+  updateHistoryRecord(url);
+  if (activeRouter) activeRouter.location = Location.fromUrl(url);
+}
 
 function isPointerActivation(visit: Visit) {
   const event = visit.trigger.event;
