@@ -1,5 +1,6 @@
 ---
 import { toLanguageTag, type Locale } from '../i18n/config';
+import { PAGEFIND_META_CACHE_TAG } from '../lib/pagefind-cache-tag';
 import * as m from '../paraglide/messages.js';
 
 type Props = { locale: Locale };
@@ -51,6 +52,7 @@ const placeholderTemplate = `
     instance={pagefindInstance}
     lang={toLanguageTag(locale).toLowerCase()}
     excerpt-length="36"
+    meta-cache-tag={PAGEFIND_META_CACHE_TAG}
     preload></pagefind-config>
 
   <div class="site-search__interactive">
