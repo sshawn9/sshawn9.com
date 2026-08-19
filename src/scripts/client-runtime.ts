@@ -37,5 +37,6 @@ export function claimClientRuntime(name: string) {
     onDispose(cleanup: Cleanup) {
       cleanups.add(cleanup);
     },
+    dispose,
   };
 }

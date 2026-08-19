@@ -1,6 +1,7 @@
 import type Swup from 'swup';
 import type { Visit } from 'swup';
 import { $navigation, resetNavigationState, updateNavigation } from '../stores/site-state';
+import { claimClientRuntime } from './client-runtime';
 import { prepareTypography } from './typography-controller';
 
 const SHOW_DELAY_MS = 120;
@@ -14,8 +15,6 @@ declare global {
     swup?: Swup;
   }
 }
-
-let activeCleanup: (() => void) | undefined;
 
 function internalHref(event: MouseEvent) {
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
@@ -52,7 +51,7 @@ function persistScrollPosition() {
 }
 
 export function startNavigationController() {
-  activeCleanup?.();
+  const runtime = claimClientRuntime('navigation');
 
   let revision = 0;
   let activeVisitId: number | undefined;
@@ -175,32 +174,23 @@ export function startNavigationController() {
   const persistBeforeDocumentLeaves = () => persistScrollPosition();
 
   installTypographyHook();
-  document.addEventListener('swup:enable', handleSwupEnable);
-  document.addEventListener('swup:visit:start', begin);
-  document.addEventListener('swup:visit:abort', abort);
-  document.addEventListener('swup:visit:end', finish);
-  document.addEventListener('site:after-swap', reflectReplacement);
-  document.addEventListener('click', preventDuplicateNavigation, true);
-  window.addEventListener('scroll', scheduleScrollPersistence, { passive: true });
-  window.addEventListener('pagehide', persistBeforeDocumentLeaves);
+  runtime.listen(document, 'swup:enable', handleSwupEnable);
+  runtime.listen(document, 'swup:visit:start', begin);
+  runtime.listen(document, 'swup:visit:abort', abort);
+  runtime.listen(document, 'swup:visit:end', finish);
+  runtime.listen(document, 'site:after-swap', reflectReplacement);
+  runtime.listen(document, 'click', preventDuplicateNavigation, true);
+  runtime.listen(window, 'scroll', scheduleScrollPersistence, { passive: true });
+  runtime.listen(window, 'pagehide', persistBeforeDocumentLeaves);
 
-  const cleanup = () => {
-    document.removeEventListener('swup:enable', handleSwupEnable);
-    document.removeEventListener('swup:visit:start', begin);
-    document.removeEventListener('swup:visit:abort', abort);
-    document.removeEventListener('swup:visit:end', finish);
-    document.removeEventListener('site:after-swap', reflectReplacement);
-    document.removeEventListener('click', preventDuplicateNavigation, true);
-    window.removeEventListener('scroll', scheduleScrollPersistence);
-    window.removeEventListener('pagehide', persistBeforeDocumentLeaves);
+  runtime.onDispose(() => {
     if (scrollFrame) cancelAnimationFrame(scrollFrame);
     removeTypographyHook?.();
     removeTypographyHook = undefined;
     hookedSwup = undefined;
     revision += 1;
     reset(revision);
-    if (activeCleanup === cleanup) activeCleanup = undefined;
-  };
-  activeCleanup = cleanup;
-  return cleanup;
+  });
+
+  return runtime.dispose;
 }
