@@ -178,16 +178,19 @@ const placeholderTemplate = `
       let pendingQuery = '';
       let resultsSnapshot: HTMLElement | undefined;
       let settleTimer: number | undefined;
-      let snapshotRemovalTimer: number | undefined;
 
       const removeResultsSnapshot = (snapshot = resultsSnapshot) => {
         if (!snapshot) return;
         snapshot.remove();
         if (resultsSnapshot === snapshot) resultsSnapshot = undefined;
-        window.clearTimeout(snapshotRemovalTimer);
-        snapshotRemovalTimer = undefined;
       };
-      const finishResultsTransition = (immediate = false) => {
+      // Both layers keep the site's translucent "glass" card background, so
+      // cross-fading them would briefly stack two translucent layers and let
+      // a different amount of the wallpaper show through mid-transition than
+      // at rest, reading as the list dimming or brightening. Swap instantly
+      // instead: the snapshot is removed in the same tick the live results
+      // reappear, so exactly one translucent layer is ever visible.
+      const finishResultsTransition = () => {
         if (!resultsSnapshot) return;
 
         window.clearTimeout(settleTimer);
@@ -195,18 +198,7 @@ const placeholderTemplate = `
         resultsFrame.removeAttribute('data-search-results-refreshing');
         pagefindResults.removeAttribute('aria-hidden');
         pagefindResults.inert = false;
-
-        const snapshot = resultsSnapshot;
-        if (immediate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-          removeResultsSnapshot(snapshot);
-          return;
-        }
-
-        snapshot.setAttribute('data-search-results-leaving', '');
-        snapshot.addEventListener('transitionend', () => removeResultsSnapshot(snapshot), {
-          once: true,
-        });
-        snapshotRemovalTimer = window.setTimeout(() => removeResultsSnapshot(snapshot), 240);
+        removeResultsSnapshot();
       };
       const visiblePlaceholderExists = () => {
         const rows = pagefindResults.querySelectorAll<HTMLElement>('.site-search-result');
@@ -227,9 +219,6 @@ const placeholderTemplate = `
         window.clearTimeout(settleTimer);
         settleTimer = undefined;
 
-        if (resultsSnapshot?.hasAttribute('data-search-results-leaving')) {
-          removeResultsSnapshot();
-        }
         if (!resultsSnapshot) {
           const currentResults = pagefindResults.querySelector<HTMLElement>('.pf-results');
           if (!currentResults?.querySelector('.site-search-result__link')) return;
@@ -247,7 +236,6 @@ const placeholderTemplate = `
           resultsSnapshot = snapshot;
         }
 
-        resultsSnapshot.removeAttribute('data-search-results-leaving');
         resultsFrame.setAttribute('data-search-results-refreshing', '');
         pagefindResults.setAttribute('aria-hidden', 'true');
         pagefindResults.inert = true;
@@ -267,7 +255,6 @@ const placeholderTemplate = `
         () => {
           resultsObserver.disconnect();
           window.clearTimeout(settleTimer);
-          window.clearTimeout(snapshotRemovalTimer);
           removeResultsSnapshot();
         },
         { once: true },

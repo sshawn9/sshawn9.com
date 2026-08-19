@@ -876,16 +876,31 @@ html.theme-transitioning::view-transition-new(root) {
   grid-area: 1 / 1;
   min-width: 0;
   opacity: 1;
-  transition: opacity 160ms ease;
 }
 
+/* Pagefind's own base styles reset any element carrying a `pf-*` class via a
+   high-specificity `all: revert`. The cloned snapshot keeps the `pf-results`
+   class so it inherits Pagefind's list styling, but that same revert strips
+   the grid placement and opacity set above, so the snapshot falls into
+   normal document flow below the live results instead of overlaying them.
+   Reassert them here so the snapshot actually overlaps the live results. */
 .site-search-results > .site-search-results__snapshot {
+  grid-area: 1 / 1 !important;
+  opacity: 1 !important;
   z-index: 1;
   pointer-events: none;
 }
 
-.site-search-results[data-search-results-refreshing] > pagefind-results,
-.site-search-results > .site-search-results__snapshot[data-search-results-leaving] {
+/* Both layers keep the site's translucent "glass" card background, which
+   lets the scenic wallpaper show through. Animating opacity on both layers
+   at once (a cross-fade) would briefly stack two translucent layers, and
+   how much wallpaper leaks through two overlapping translucent layers isn't
+   the same as through one, so the list reads as dimming or brightening
+   mid-transition regardless of which curve or backdrop patches over it.
+   Swapping instantly instead of fading keeps exactly one translucent layer
+   visible at any moment, so the amount of wallpaper showing through never
+   changes and the glass look is preserved without a brightness pulse. */
+.site-search-results[data-search-results-refreshing] > pagefind-results {
   opacity: 0;
 }
 
