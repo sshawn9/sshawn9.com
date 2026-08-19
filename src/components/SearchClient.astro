@@ -293,6 +293,28 @@ const placeholderTemplate = `
         input.value = query;
         applyQuery(query, false);
         pagefindInstance.triggerSearch(query);
+        // Pagefind's own component reassigns input.value asynchronously right
+        // after this call, and focusing a `type="search"` input then collapses
+        // its cursor back to position 0 in a further async step, so a restored
+        // query would be typed into at its start instead of its end. Reassert
+        // the end position once on focus, and once more on the selection
+        // change that follows it, to win both of those races.
+        const placeCursorAtEnd = () => {
+          if (document.activeElement !== input) return;
+          const end = input.value.length;
+          input.setSelectionRange(end, end);
+        };
+        input.addEventListener(
+          'focus',
+          () => {
+            placeCursorAtEnd();
+            document.addEventListener('selectionchange', placeCursorAtEnd, {
+              once: true,
+              signal: abortController.signal,
+            });
+          },
+          { once: true, signal: abortController.signal },
+        );
       };
 
       input.addEventListener(
