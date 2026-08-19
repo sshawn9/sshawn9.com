@@ -15,6 +15,7 @@ type Props = {
   type?: 'website' | 'article';
   noIndex?: boolean;
   searchable?: boolean;
+  searchResultType?: 'page' | 'article' | 'project';
   locale?: Locale;
   alternateLocales?: Locale[];
 };
@@ -28,9 +29,15 @@ const {
   type = 'website',
   noIndex = false,
   searchable = true,
+  searchResultType = 'page',
   alternateLocales,
 } = Astro.props;
 const lang = toLanguageTag(locale);
+const searchResultTypeLabel = {
+  page: m.search_result_type_page({}, { locale }),
+  article: m.search_result_type_article({}, { locale }),
+  project: m.search_result_type_project({}, { locale }),
+}[searchResultType];
 ---
 
 <!doctype html>
@@ -57,6 +64,16 @@ const lang = toLanguageTag(locale);
         data-pagefind-body={searchable ? '' : undefined}
         data-pagefind-ignore={searchable ? undefined : 'all'}
       >
+        {
+          searchable && (
+            <span
+              class="sr-only"
+              aria-hidden="true"
+              data-pagefind-ignore
+              data-pagefind-meta={`type:${searchResultTypeLabel}`}
+            />
+          )
+        }
         <slot />
       </main>
       <SiteFooter {locale} />

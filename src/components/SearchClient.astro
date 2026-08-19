@@ -5,18 +5,341 @@ import * as m from '../paraglide/messages.js';
 type Props = { locale: Locale };
 const { locale } = Astro.props;
 const pagefindInstance = `site-${locale}`;
+const resultTemplate = `
+  <li class="site-search-result">
+    <article class="site-search-result__card">
+      <div class="site-search-result__meta">
+        {{#if meta.type}}
+        <span class="site-search-result__type">{{ meta.type }}</span>
+        {{/if}}
+        {{#if meta.published}}
+        <span>{{ meta.published }}</span>
+        {{/if}}
+      </div>
+      <h2 class="site-search-result__title">
+        <a class="site-search-result__link" href="{{ meta.url | default(url) | safeUrl }}">{{ meta.title }}</a>
+      </h2>
+      {{#if excerpt}}
+      <p class="site-search-result__excerpt">{{+ excerpt +}}</p>
+      {{/if}}
+    </article>
+    {{#if sub_results}}
+    <ul class="site-search-result__sections">
+      {{#each sub_results as sub}}
+      <li>
+        <a class="site-search-result__section-link" href="{{ sub.url | safeUrl }}">{{ sub.title }}</a>
+        <p class="site-search-result__section-excerpt">{{+ sub.excerpt +}}</p>
+      </li>
+      {{/each}}
+    </ul>
+    {{/if}}
+  </li>
+`;
+const placeholderTemplate = `
+  <li class="site-search-result" aria-hidden="true">
+    <div class="site-search-result__card">
+      <p class="pf-skeleton site-search-result__skeleton-meta"></p>
+      <p class="pf-skeleton site-search-result__skeleton-title"></p>
+      <p class="pf-skeleton site-search-result__skeleton-excerpt"></p>
+    </div>
+  </li>
+`;
 ---
 
-<div class="surface pagefind-search rounded-3xl p-5 sm:p-8">
+<div class="surface pagefind-search rounded-2xl p-4 sm:p-6" data-site-search>
   <pagefind-config
     instance={pagefindInstance}
     lang={toLanguageTag(locale).toLowerCase()}
     excerpt-length="36"
     preload></pagefind-config>
-  <pagefind-input instance={pagefindInstance} placeholder={m.search_placeholder({}, { locale })}
-  ></pagefind-input>
-  <pagefind-summary instance={pagefindInstance}></pagefind-summary>
-  <pagefind-results instance={pagefindInstance}></pagefind-results>
+
+  <div class="site-search__interactive">
+    <pagefind-input instance={pagefindInstance} placeholder={m.search_placeholder({}, { locale })}
+    ></pagefind-input>
+
+    <div class="site-search__context">
+      <pagefind-summary instance={pagefindInstance}></pagefind-summary>
+    </div>
+
+    <div class="site-search-empty" data-site-search-empty hidden>
+      <p class="site-search-empty__title">{m.search_empty_title({}, { locale })}</p>
+      <p class="site-search-empty__description">
+        {m.search_empty_description({}, { locale })}
+      </p>
+    </div>
+
+    <div class="site-search-results" data-site-search-results>
+      <pagefind-results instance={pagefindInstance} max-sub-results="3">
+        <script is:inline type="text/pagefind-template" set:html={resultTemplate} />
+        <script
+          is:inline
+          type="text/pagefind-template"
+          data-template="placeholder"
+          set:html={placeholderTemplate}
+        />
+      </pagefind-results>
+    </div>
+  </div>
+
+  <noscript>
+    <div class="site-search-noscript">
+      <p class="site-search-empty__title">{m.search_no_script_title({}, { locale })}</p>
+      <p class="site-search-empty__description">
+        {m.search_no_script_description({}, { locale })}
+      </p>
+    </div>
+  </noscript>
+
+  <site-search-state instance={pagefindInstance}></site-search-state>
 </div>
 
 <script is:inline src="/pagefind/pagefind-component-ui.js" type="module"></script>
+
+<script>
+  import { replaceCurrentHistoryUrl } from '../scripts/page-router';
+
+  type PagefindInstance = {
+    getInputs: () => Element[];
+    getResults: () => Element[];
+    searchTerm: string;
+    triggerSearch: (query: string) => void;
+  };
+
+  type PagefindComponentsWindow = Window & {
+    PagefindComponents?: {
+      getInstanceManager: () => {
+        getInstance: (name: string) => PagefindInstance;
+        removeInstance?: (name: string) => void;
+      };
+    };
+  };
+
+  class SiteSearchState extends HTMLElement {
+    private abortController?: AbortController;
+
+    connectedCallback() {
+      void this.connect();
+    }
+
+    disconnectedCallback() {
+      this.abortController?.abort();
+      const components = (window as PagefindComponentsWindow).PagefindComponents;
+      components?.getInstanceManager().removeInstance?.(this.getAttribute('instance') ?? 'default');
+    }
+
+    private async connect() {
+      this.abortController?.abort();
+      const abortController = new AbortController();
+      this.abortController = abortController;
+
+      await customElements.whenDefined('pagefind-input');
+      if (abortController.signal.aborted) return;
+
+      const search = this.closest<HTMLElement>('[data-site-search]');
+      const pagefindInput = search?.querySelector('pagefind-input');
+      const pagefindResults = search?.querySelector('pagefind-results');
+      const resultsFrame = search?.querySelector<HTMLElement>('[data-site-search-results]');
+      if (
+        !search ||
+        !(pagefindInput instanceof HTMLElement) ||
+        !(pagefindResults instanceof HTMLElement) ||
+        !(resultsFrame instanceof HTMLElement)
+      ) {
+        return;
+      }
+
+      let input = pagefindInput.querySelector('input');
+      if (!(input instanceof HTMLInputElement)) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        input = pagefindInput.querySelector('input');
+      }
+      if (!(input instanceof HTMLInputElement) || abortController.signal.aborted) return;
+
+      const pagefindInstanceName = this.getAttribute('instance') ?? 'default';
+      let pagefindInstance: PagefindInstance | undefined;
+      const registrationDeadline = performance.now() + 5_000;
+      while (!pagefindInstance && performance.now() < registrationDeadline) {
+        const components = (window as PagefindComponentsWindow).PagefindComponents;
+        const candidate = components?.getInstanceManager().getInstance(pagefindInstanceName);
+        if (
+          candidate?.getInputs().includes(pagefindInput) &&
+          candidate.getResults().includes(pagefindResults)
+        ) {
+          pagefindInstance = candidate;
+          break;
+        }
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        if (abortController.signal.aborted) return;
+      }
+      if (!pagefindInstance) return;
+
+      // Pagefind clears the current list before loading the next result fragments. Keep a
+      // non-interactive front buffer until the new list is ready to paint in one handoff.
+      let pendingQuery = '';
+      let resultsSnapshot: HTMLElement | undefined;
+      let settleTimer: number | undefined;
+      let snapshotRemovalTimer: number | undefined;
+
+      const removeResultsSnapshot = (snapshot = resultsSnapshot) => {
+        if (!snapshot) return;
+        snapshot.remove();
+        if (resultsSnapshot === snapshot) resultsSnapshot = undefined;
+        window.clearTimeout(snapshotRemovalTimer);
+        snapshotRemovalTimer = undefined;
+      };
+      const finishResultsTransition = (immediate = false) => {
+        if (!resultsSnapshot) return;
+
+        window.clearTimeout(settleTimer);
+        settleTimer = undefined;
+        resultsFrame.removeAttribute('data-search-results-refreshing');
+        pagefindResults.removeAttribute('aria-hidden');
+        pagefindResults.inert = false;
+
+        const snapshot = resultsSnapshot;
+        if (immediate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          removeResultsSnapshot(snapshot);
+          return;
+        }
+
+        snapshot.setAttribute('data-search-results-leaving', '');
+        snapshot.addEventListener('transitionend', () => removeResultsSnapshot(snapshot), {
+          once: true,
+        });
+        snapshotRemovalTimer = window.setTimeout(() => removeResultsSnapshot(snapshot), 240);
+      };
+      const visiblePlaceholderExists = () => {
+        const rows = pagefindResults.querySelectorAll<HTMLElement>('.site-search-result');
+        return Array.from(rows).some((row) => {
+          if (!row.querySelector('.pf-skeleton')) return false;
+          const rect = row.getBoundingClientRect();
+          return rect.bottom > 0 && rect.top < window.innerHeight + 50;
+        });
+      };
+      const finishWhenResultsAreReady = () => {
+        if (!resultsSnapshot || pagefindInstance.searchTerm !== pendingQuery) return;
+        const results = pagefindResults.querySelector<HTMLElement>('.pf-results');
+        if (results?.getAttribute('aria-busy') === 'true' || visiblePlaceholderExists()) return;
+        finishResultsTransition();
+      };
+      const beginResultsTransition = (query: string) => {
+        pendingQuery = query;
+        window.clearTimeout(settleTimer);
+        settleTimer = undefined;
+
+        if (resultsSnapshot?.hasAttribute('data-search-results-leaving')) {
+          removeResultsSnapshot();
+        }
+        if (!resultsSnapshot) {
+          const currentResults = pagefindResults.querySelector<HTMLElement>('.pf-results');
+          if (!currentResults?.querySelector('.site-search-result__link')) return;
+
+          const snapshot = currentResults.cloneNode(true) as HTMLElement;
+          snapshot.classList.add('site-search-results__snapshot');
+          snapshot.setAttribute('data-site-search-results-snapshot', '');
+          snapshot.setAttribute('aria-hidden', 'true');
+          snapshot.setAttribute('inert', '');
+          snapshot.removeAttribute('aria-busy');
+          snapshot.querySelectorAll('[data-pf-selected]').forEach((element) => {
+            element.removeAttribute('data-pf-selected');
+          });
+          resultsFrame.appendChild(snapshot);
+          resultsSnapshot = snapshot;
+        }
+
+        resultsSnapshot.removeAttribute('data-search-results-leaving');
+        resultsFrame.setAttribute('data-search-results-refreshing', '');
+        pagefindResults.setAttribute('aria-hidden', 'true');
+        pagefindResults.inert = true;
+        settleTimer = window.setTimeout(() => finishResultsTransition(), 2_500);
+      };
+      const resultsObserver = new MutationObserver(() => {
+        finishWhenResultsAreReady();
+      });
+      resultsObserver.observe(pagefindResults, {
+        attributeFilter: ['aria-busy'],
+        attributes: true,
+        childList: true,
+        subtree: true,
+      });
+      abortController.signal.addEventListener(
+        'abort',
+        () => {
+          resultsObserver.disconnect();
+          window.clearTimeout(settleTimer);
+          window.clearTimeout(snapshotRemovalTimer);
+          removeResultsSnapshot();
+        },
+        { once: true },
+      );
+
+      const emptyState = search.querySelector<HTMLElement>('[data-site-search-empty]');
+      const applyQuery = (query: string, updateUrl: boolean) => {
+        const normalizedQuery = query.trim();
+        emptyState?.toggleAttribute('hidden', normalizedQuery.length > 0);
+
+        if (!updateUrl) return;
+        const url = new URL(window.location.href);
+        if (normalizedQuery) {
+          url.searchParams.set('q', normalizedQuery);
+        } else {
+          url.searchParams.delete('q');
+        }
+        replaceCurrentHistoryUrl(`${url.pathname}${url.search}${url.hash}`);
+      };
+      const restoreFromUrl = () => {
+        const query = new URL(window.location.href).searchParams.get('q') ?? '';
+        beginResultsTransition(query);
+        input.value = query;
+        applyQuery(query, false);
+        pagefindInstance.triggerSearch(query);
+      };
+
+      input.addEventListener(
+        'input',
+        () => {
+          beginResultsTransition(input.value);
+          applyQuery(input.value, true);
+        },
+        { signal: abortController.signal },
+      );
+      search.addEventListener(
+        'keydown',
+        (event) => {
+          if (event.key !== 'Escape' || event.target !== input) return;
+          event.preventDefault();
+          event.stopPropagation();
+          input.blur();
+        },
+        { capture: true, signal: abortController.signal },
+      );
+      search.addEventListener(
+        'click',
+        (event) => {
+          if (event.target instanceof Element && event.target.closest('.pf-input-clear')) {
+            beginResultsTransition('');
+          }
+        },
+        { capture: true, signal: abortController.signal },
+      );
+      search.addEventListener(
+        'click',
+        (event) => {
+          if (!(event.target instanceof Element) || !event.target.closest('.pf-input-clear')) {
+            return;
+          }
+          queueMicrotask(() => applyQuery(input.value, true));
+        },
+        { signal: abortController.signal },
+      );
+      window.addEventListener('popstate', restoreFromUrl, { signal: abortController.signal });
+
+      restoreFromUrl();
+      search.dataset.searchReady = '';
+    }
+  }
+
+  if (!customElements.get('site-search-state')) {
+    customElements.define('site-search-state', SiteSearchState);
+  }
+</script>
