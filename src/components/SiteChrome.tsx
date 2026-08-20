@@ -4,7 +4,7 @@ import type { ReadableAtom } from 'nanostores';
 import { localStorageKey } from '../paraglide/runtime.js';
 import { startThemeController, toggleTheme } from '../scripts/theme-controller';
 import { startWallpaperController, wallpaperActions } from '../scripts/wallpaper';
-import { $navigation, $theme, $wallpaper } from '../stores/site-state';
+import { $navigation, $theme, $wallpaper, SSR_WALLPAPER_STATE } from '../stores/site-state';
 import '../styles/site-chrome.css';
 
 type IconProps = {
@@ -286,7 +286,7 @@ function ThemeButton(props: { labels: SiteChromeLabels }) {
 }
 
 function WallpaperSettings(props: { labels: SiteChromeLabels }) {
-  const wallpaper = useStoreValue($wallpaper);
+  const wallpaper = useStoreValue($wallpaper, SSR_WALLPAPER_STATE);
 
   return (
     <div class="wallpaper-settings" data-wallpaper-settings>
@@ -346,7 +346,10 @@ function WallpaperSettings(props: { labels: SiteChromeLabels }) {
           disabled={!wallpaper().enabled || !wallpaper().ready}
           onClick={() => void wallpaperActions.download()}
         >
-          <DownloadIcon class="wallpaper-settings__action-icon" />
+          <DownloadIcon
+            class="wallpaper-settings__action-icon"
+            classList={{ 'wallpaper-settings__action-icon--pulsing': wallpaper().downloading }}
+          />
           <span>{props.labels.wallpaperDownload}</span>
         </button>
       </div>
@@ -360,7 +363,7 @@ function WallpaperLayers(props: {
   firstImageRef: (element: HTMLImageElement) => void;
   secondImageRef: (element: HTMLImageElement) => void;
 }) {
-  const wallpaper = useStoreValue($wallpaper);
+  const wallpaper = useStoreValue($wallpaper, SSR_WALLPAPER_STATE);
   const photo = () => wallpaper().currentPhoto;
   const creditVisible = () => wallpaper().enabled && wallpaper().ready && Boolean(photo());
 

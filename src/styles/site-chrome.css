@@ -394,9 +394,34 @@ html[data-navigation-progress='finishing'] .site-header__progress {
   animation: wallpaper-control-spin 800ms linear infinite;
 }
 
+/* Saving a full-resolution photo takes seconds on a slow connection. The button
+   already reports `aria-busy`, but that is invisible to anyone not using
+   assistive technology, so give the action a visible waiting state too. */
+.wallpaper-settings__action-icon--pulsing {
+  animation: wallpaper-control-pulse 1s ease-in-out infinite;
+}
+
+@keyframes wallpaper-control-pulse {
+  50% {
+    opacity: 0.35;
+    transform: translateY(1px);
+  }
+}
+
 @keyframes wallpaper-control-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wallpaper-settings__action-icon--spinning,
+  .wallpaper-settings__action-icon--pulsing {
+    animation: none;
+  }
+
+  .wallpaper-settings__actions button[aria-busy='true'] .wallpaper-settings__action-icon {
+    opacity: 0.5;
   }
 }
 

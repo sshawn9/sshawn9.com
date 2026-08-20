@@ -955,6 +955,15 @@ test('a hard refresh keeps the same clear wallpaper without replacing its backgr
     .poll(() => page.evaluate(() => sessionStorage.getItem('wallpaper-current-background')))
     .toBe(storedPoster);
   await expect.poll(() => imageRequests).toBe(0);
+
+  // The controls are restored to a ready state before hydration, so they must not
+  // keep the inert state the server rendered them with.
+  await page.locator('[data-wallpaper-menu-trigger]').click();
+  const settings = page.locator('[data-wallpaper-menu]');
+  await expect(settings.locator('[data-wallpaper-download]')).toBeEnabled();
+  await expect(settings.locator('[data-wallpaper-auto-rotation]')).toBeEnabled();
+  // This manifest holds a single photo, so advancing genuinely has no target.
+  await expect(settings.locator('[data-wallpaper-refresh]')).toBeDisabled();
 });
 
 test('the wallpaper recovers from failure and cycles without repeats', async ({ page }) => {

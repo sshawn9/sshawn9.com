@@ -32,13 +32,25 @@ export const $navigation = atom<NavigationState>({
   phase: 'idle',
 });
 
-export const $wallpaper = atom<WallpaperState>({
-  enabled: bootstrap?.wallpaper.enabled ?? true,
-  autoRotation: bootstrap?.wallpaper.autoRotation ?? true,
-  ready: Boolean(bootstrapPhoto),
+// The state the server renders with: no bootstrap snapshot exists there, so the
+// wallpaper controls are emitted in their inert form. Components must hydrate
+// from this value rather than from the already-restored client state, otherwise
+// a prop that differs from SSR at hydration time and never changes afterward
+// keeps its server-rendered value forever.
+export const SSR_WALLPAPER_STATE: WallpaperState = {
+  enabled: true,
+  autoRotation: true,
+  ready: false,
   canAdvance: false,
   loading: false,
   downloading: false,
+};
+
+export const $wallpaper = atom<WallpaperState>({
+  ...SSR_WALLPAPER_STATE,
+  enabled: bootstrap?.wallpaper.enabled ?? true,
+  autoRotation: bootstrap?.wallpaper.autoRotation ?? true,
+  ready: Boolean(bootstrapPhoto),
   currentPhoto: bootstrapPhoto,
 });
 
