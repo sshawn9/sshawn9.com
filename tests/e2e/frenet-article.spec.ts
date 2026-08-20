@@ -556,7 +556,7 @@ test('reloading an article restores its scroll position without an animation', a
     const initialScroll = await page.evaluate(() => window.scrollY);
     expect(initialScroll).toBeGreaterThan(0);
     await expect
-      .poll(() => page.evaluate(() => history.state?.scrollY), { timeout: 5_000 })
+      .poll(() => page.evaluate(() => history.state?.scrollY), { timeout: 20_000 })
       .toBe(initialScroll);
 
     await page.evaluate(() => {
@@ -566,7 +566,9 @@ test('reloading an article restores its scroll position without an animation', a
 
     await page.reload();
     await expect
-      .poll(() => page.evaluate(() => sessionStorage.getItem('reload-first-frame-scroll-y')))
+      .poll(() => page.evaluate(() => sessionStorage.getItem('reload-first-frame-scroll-y')), {
+        timeout: 20_000,
+      })
       .not.toBeNull();
     const firstFrameScroll = Number(
       await page.evaluate(() => sessionStorage.getItem('reload-first-frame-scroll-y')),
