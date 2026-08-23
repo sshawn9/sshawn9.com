@@ -154,7 +154,7 @@ export async function getVisibleArticles(locale: Locale = BASE_LOCALE): Promise<
     getCollection('articleMetadata'),
   ]);
   const entries = mergeArticleMetadata(contentEntries, metadataEntries).filter(
-    ({ data }) => SITE_MODE === 'preview' || !data.draft,
+    ({ data }) => import.meta.env.DEV || SITE_MODE === 'preview' || !data.draft,
   );
   return resolveArticles(entries, locale);
 }
