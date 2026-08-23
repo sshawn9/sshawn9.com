@@ -12,6 +12,7 @@ import expressiveCode from 'astro-expressive-code';
 import rehypeExternalLinks from 'rehype-external-links';
 import rehypeKatex from 'rehype-katex';
 import remarkMath from 'remark-math';
+import draftToolbar from './src/dev-toolbar/drafts/integration.ts';
 
 const site = 'https://sshawn9.com';
 const isPreviewBuild = process.env.SITE_MODE === 'preview';
@@ -128,6 +129,7 @@ export default defineConfig({
     },
   },
   integrations: [
+    draftToolbar(),
     solid(),
     expressiveCode({
       themes: ['github-dark', 'github-light'],
