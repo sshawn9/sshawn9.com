@@ -1,10 +1,44 @@
-<script is:inline data-swup-ignore-script>
+---
+import { SITE_STORAGE_KEYS } from '../lib/site-preferences';
+
+const nestedScrollPositionPrefix = SITE_STORAGE_KEYS.nestedScrollPositionPrefix;
+---
+
+<script is:inline data-swup-ignore-script define:vars={{ nestedScrollPositionPrefix }}>
   (() => {
     const position = window.__SSHawn9SiteBootstrap?.scrollPosition;
     if (position) {
       // The complete server-rendered body now exists, but the browser has not painted it yet.
       window.scrollTo(position.x, position.y);
     }
+
+    try {
+      document.querySelectorAll('[data-scroll-restoration-key]').forEach((element) => {
+        if (!(element instanceof HTMLElement)) return;
+        const key = element.dataset.scrollRestorationKey;
+        if (!key) return;
+        const saved = JSON.parse(
+          sessionStorage.getItem(`${nestedScrollPositionPrefix}${location.pathname}:${key}`) ??
+            'null',
+        );
+        if (
+          typeof saved !== 'object' ||
+          saved === null ||
+          !Number.isFinite(saved.top) ||
+          !Number.isFinite(saved.left)
+        ) {
+          return;
+        }
+
+        const maxTop = Math.max(0, element.scrollHeight - element.clientHeight);
+        const maxLeft = Math.max(0, element.scrollWidth - element.clientWidth);
+        element.scrollTop = Math.min(maxTop, Math.max(0, saved.top));
+        element.scrollLeft = Math.min(maxLeft, Math.max(0, saved.left));
+      });
+    } catch {
+      // Invalid or unavailable storage must not delay the first paint.
+    }
+
     history.scrollRestoration = 'auto';
 
     document.documentElement.removeAttribute('data-document-state');

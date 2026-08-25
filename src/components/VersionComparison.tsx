@@ -289,7 +289,7 @@ export default function VersionComparison(props: Props) {
       </main>
 
       <aside class="hidden min-w-0 self-stretch lg:block" aria-label={props.labels.compareHeading}>
-        <div class="article-sidebar-scroll sticky top-[8.75rem] max-h-[calc(100dvh-9.75rem)] overflow-y-auto overscroll-contain pr-2 pb-2">
+        <div class="article-sidebar-scrollbar sticky top-[var(--site-article-sidebar-sticky-offset)] max-h-[min(75dvh,calc(100dvh-var(--site-article-sidebar-sticky-offset)-var(--site-sidebar-bottom-gap)))] overflow-y-auto overscroll-contain pr-2 pb-2 [scrollbar-gutter:stable]">
           <Controls variant="desktop" />
         </div>
       </aside>

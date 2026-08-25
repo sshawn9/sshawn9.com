@@ -38,6 +38,14 @@ function setupArticleToc() {
   const headingOffset = Number.parseFloat(getComputedStyle(headings[0]).scrollMarginTop) || 0;
   const positionTolerance = 1 / Math.max(window.devicePixelRatio, 1);
 
+  const persistSection = (slug: string) => {
+    try {
+      sessionStorage.setItem(sectionStorageKey(), slug);
+    } catch {
+      // A disabled storage backend does not prevent scroll tracking.
+    }
+  };
+
   const setActive = (slug: string, persist = true) => {
     if (!slug || slug === activeSlug) return;
     activeSlug = slug;
@@ -49,13 +57,7 @@ function setupArticleToc() {
       else link.removeAttribute('aria-current');
     }
 
-    if (persist) {
-      try {
-        sessionStorage.setItem(sectionStorageKey(), slug);
-      } catch {
-        // A disabled storage backend does not prevent scroll tracking.
-      }
-    }
+    if (persist) persistSection(slug);
   };
 
   const findCurrentHeading = () => {
@@ -65,6 +67,11 @@ function setupArticleToc() {
       current = heading;
     }
     return current;
+  };
+
+  const persistCurrentSection = () => {
+    const heading = findCurrentHeading();
+    if (heading) persistSection(heading.id);
   };
 
   const reconcile = () => {
@@ -81,8 +88,8 @@ function setupArticleToc() {
   const bootstrapSection = getSiteBootstrapState()?.articleSection;
   const hashSlug = location.hash ? decodeURIComponent(location.hash.slice(1)) : '';
   const initialSlug =
-    hashSlug ||
     (bootstrapSection?.pathname === location.pathname ? bootstrapSection.slug : '') ||
+    hashSlug ||
     links.find((link) => link.classList.contains('is-active-link'))?.hash.slice(1) ||
     headings[0]?.id;
   if (initialSlug) setActive(initialSlug, false);
@@ -112,6 +119,7 @@ function setupArticleToc() {
 
   window.addEventListener('resize', scheduleReconcile, { signal: listeners.signal });
   window.addEventListener('pageshow', scheduleReconcile, { signal: listeners.signal });
+  window.addEventListener('pagehide', persistCurrentSection, { signal: listeners.signal });
   void whenTypographyReady().then(scheduleReconcile);
   requestAnimationFrame(() => requestAnimationFrame(reconcile));
 

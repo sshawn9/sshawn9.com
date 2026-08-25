@@ -28,7 +28,12 @@ const comparisonId = `article-version-comparison-${variant}`;
     {m.version_heading({}, { locale })}
   </h2>
 
-  <ol class="mt-4 border-l border-slate-900/10 dark:border-white/10">
+  <ol
+    class:list={[
+      'mt-4',
+      variant === 'mobile' && 'border-l border-slate-900/10 dark:border-white/10',
+    ]}
+  >
     {
       versions.map((version) => {
         const isSelected = version.number === selected.number;
@@ -41,7 +46,8 @@ const comparisonId = `article-version-comparison-${variant}`;
               href={href}
               aria-current={isSelected ? 'page' : undefined}
               class:list={[
-                'toc-entry -ml-px block border-l py-1.5 pl-4 text-xs leading-5',
+                'toc-entry block border-l py-1.5 pl-4 text-xs leading-5',
+                variant === 'mobile' ? '-ml-px' : 'border-l-2',
                 isSelected ? 'text-strong' : undefined,
               ]}
             >

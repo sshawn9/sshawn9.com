@@ -19,6 +19,16 @@
   visibility: hidden;
 }
 
+/* Static HTML cannot resolve query-string filters; reveal only after client URL state is applied. */
+:root[data-blog-browser-pending] body,
+[data-blog-listing][data-blog-browser-pending] [data-blog-browser] {
+  visibility: hidden;
+}
+
+[data-blog-listing][data-blog-browser-pending] :is(.filter-option, .tag-chip) {
+  transition: none;
+}
+
 @theme {
   --font-display: var(--font-manrope);
   --font-sans: var(--font-source-sans-3);
@@ -335,6 +345,99 @@ html.theme-transitioning::view-transition-new(root) {
     background: color-mix(in srgb, var(--text-accent) 14%, transparent);
     color: var(--text-accent-hover);
     font-weight: 700;
+  }
+
+  .blog-sidebar-scrollbar,
+  .article-sidebar-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--text-supporting) 42%, transparent) transparent;
+  }
+
+  [data-blog-sidebar-expand-icon] {
+    display: none;
+  }
+
+  :root[data-blog-sidebar-collapsed]
+    [data-blog-sidebar-layout]:not([data-sidebar-controlled])
+    [data-blog-sidebar-collapse-icon],
+  [data-blog-sidebar-layout][data-sidebar-controlled][data-sidebar-collapsed]
+    [data-blog-sidebar-collapse-icon] {
+    display: none;
+  }
+
+  :root[data-blog-sidebar-collapsed]
+    [data-blog-sidebar-layout]:not([data-sidebar-controlled])
+    [data-blog-sidebar-expand-icon],
+  [data-blog-sidebar-layout][data-sidebar-controlled][data-sidebar-collapsed]
+    [data-blog-sidebar-expand-icon] {
+    display: inline;
+  }
+
+  :root[data-blog-sidebar-collapsed]
+    [data-blog-sidebar-layout]:not([data-sidebar-controlled])
+    [data-blog-sidebar-resizer],
+  [data-blog-sidebar-layout][data-sidebar-controlled][data-sidebar-collapsed]
+    [data-blog-sidebar-resizer],
+  [data-blog-sidebar-layout][data-sidebar-animating] [data-blog-sidebar-resizer] {
+    display: none;
+  }
+
+  [data-article-sidebar-expand-icon] {
+    display: none;
+  }
+
+  :root[data-article-sidebar-collapsed]
+    [data-article-sidebar-layout]:not([data-sidebar-controlled])
+    [data-article-sidebar-collapse-icon],
+  [data-article-sidebar-layout][data-sidebar-controlled][data-sidebar-collapsed]
+    [data-article-sidebar-collapse-icon] {
+    display: none;
+  }
+
+  :root[data-article-sidebar-collapsed]
+    [data-article-sidebar-layout]:not([data-sidebar-controlled])
+    [data-article-sidebar-expand-icon],
+  [data-article-sidebar-layout][data-sidebar-controlled][data-sidebar-collapsed]
+    [data-article-sidebar-expand-icon] {
+    display: inline;
+  }
+
+  :root[data-article-sidebar-collapsed]
+    [data-article-sidebar-layout]:not([data-sidebar-controlled])
+    [data-article-sidebar-resizer],
+  [data-article-sidebar-layout][data-sidebar-controlled][data-sidebar-collapsed]
+    [data-article-sidebar-resizer],
+  [data-article-sidebar-layout][data-sidebar-animating] [data-article-sidebar-resizer] {
+    display: none;
+  }
+
+  :root[data-article-sidebar-collapsed]
+    [data-article-sidebar-layout]:not([data-sidebar-controlled]):not([data-sidebar-animating])
+    [data-article-sidebar-column],
+  [data-article-sidebar-layout][data-sidebar-controlled][data-sidebar-collapsed]:not(
+      [data-sidebar-animating]
+    )
+    [data-article-sidebar-column] {
+    visibility: hidden;
+  }
+
+  @media (min-width: 64rem) {
+    [data-sidebar-layout][data-sidebar-animating],
+    [data-sidebar-layout][data-sidebar-animating] [data-sidebar-shell] {
+      transition: grid-template-columns 200ms ease-out;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .blog-sidebar-scrollbar,
+    .article-sidebar-scrollbar {
+      scrollbar-width: auto;
+      scrollbar-color: auto;
+    }
+
+    [data-article-sidebar-boundary] {
+      background: CanvasText;
+    }
   }
 
   .toc-entry {
@@ -781,6 +884,15 @@ html.theme-transitioning::view-transition-new(root) {
   border-left-width: 2px;
   border-left-color: var(--text-accent);
   color: var(--text-strong);
+}
+
+[data-article-sidebar-scroll] .js-toc {
+  border-left: 0;
+}
+
+[data-article-sidebar-scroll] .js-toc :where(.toc-link) {
+  margin-left: 0;
+  border-left-width: 2px;
 }
 
 [data-article-toc] :where(.toc-entry.is-active-link) {

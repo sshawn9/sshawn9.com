@@ -8,8 +8,23 @@ export const SITE_STORAGE_KEYS = {
   wallpaperCurrentPhoto: 'wallpaper-current-photo',
   wallpaperCurrentBackground: 'wallpaper-current-background',
   wallpaperPhotoQueue: 'wallpaper-photo-queue',
+  blogSidebarLayout: 'blog-sidebar-layout',
+  articleSidebarLayout: 'article-sidebar-layout',
+  nestedScrollPositionPrefix: 'nested-scroll-position:',
   articleSectionPrefix: 'article-section:',
   fontReadyPrefix: 'font-ready:',
+} as const;
+
+export const BLOG_SIDEBAR_LAYOUT = {
+  defaultWidth: 272,
+  minWidth: 208,
+  maxWidth: 400,
+} as const;
+
+export const ARTICLE_SIDEBAR_LAYOUT = {
+  defaultWidth: 224,
+  minWidth: 208,
+  maxWidth: 352,
 } as const;
 
 export type StoredTheme = 'light' | 'dark';
@@ -19,6 +34,15 @@ export type StoredWallpaperBackground = {
   kind: 'remote' | 'poster';
   url: string;
 };
+
+export type StoredSidebarLayout = {
+  collapsed: boolean;
+  width: number;
+};
+
+export type StoredBlogSidebarLayout = StoredSidebarLayout;
+
+export type StoredArticleSidebarLayout = StoredSidebarLayout;
 
 export type SiteBootstrapState = {
   theme: StoredTheme;
@@ -32,6 +56,8 @@ export type SiteBootstrapState = {
     currentPhoto?: unknown;
     background?: StoredWallpaperBackground;
   };
+  blogSidebarLayout: StoredBlogSidebarLayout;
+  articleSidebarLayout: StoredArticleSidebarLayout;
   articleSection?: {
     pathname: string;
     slug: string;

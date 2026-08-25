@@ -81,12 +81,14 @@ const searchResultTypeLabel = {
     <RestoreScrollPosition />
     <script>
       import { startNavigationController } from '../scripts/navigation-controller';
+      import { startNestedScrollRestoration } from '../scripts/nested-scroll-restoration';
       import { startPageRouter } from '../scripts/page-router';
       import '../scripts/reveal';
       import '../scripts/transient-ui';
       import { startTypographyController } from '../scripts/typography-controller';
 
       startPageRouter();
+      startNestedScrollRestoration();
       void startTypographyController();
       startNavigationController();
     </script>
