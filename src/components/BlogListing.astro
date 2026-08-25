@@ -41,12 +41,55 @@ const tags = getTagDefinitions(articles);
 ---
 
 <BaseLayout title={pageTitle} description={description} searchable={false} {locale}>
-  <section class="content-shell py-12 sm:py-16 lg:pt-9">
+  <section class="content-shell py-12 sm:py-16 lg:pt-9" data-blog-listing>
     {
       heading && (
         <h1 class="mb-10 text-3xl font-extrabold tracking-tight sm:text-4xl">#{heading}</h1>
       )
     }
     <BlogBrowser client:load articles={listArticles} {tags} {locale} {filterable} />
+    <script is:inline>
+      (() => {
+        const listing = document.currentScript?.closest('[data-blog-listing]');
+        if (!(listing instanceof HTMLElement)) return;
+        if (listing.hasAttribute('data-blog-browser-ready')) return;
+
+        const parameters = new URLSearchParams(location.search);
+        if (!parameters.has('tag') && !parameters.has('page')) return;
+
+        listing.setAttribute('data-blog-browser-pending', '');
+        const root = document.documentElement;
+        if (root.dataset.documentState === 'parsing') {
+          root.setAttribute('data-blog-browser-pending', '');
+        }
+        const island = listing.querySelector('astro-island[component-url*="BlogBrowser"]');
+
+        const revealStaticFallback = () => {
+          listing.removeAttribute('data-blog-browser-pending');
+          if (!document.querySelector('[data-blog-listing][data-blog-browser-pending]')) {
+            root.removeAttribute('data-blog-browser-pending');
+          }
+        };
+        const watchdog = window.setTimeout(revealStaticFallback, 5_000);
+
+        if (!(island instanceof HTMLElement)) return;
+
+        const handleHydrationError = (event) => {
+          if (event.target !== island) return;
+          window.clearTimeout(watchdog);
+          island.removeEventListener('astro:hydration-error', handleHydrationError);
+          revealStaticFallback();
+        };
+        island.addEventListener('astro:hydration-error', handleHydrationError);
+        island.addEventListener(
+          'astro:hydrate',
+          () => {
+            window.clearTimeout(watchdog);
+            island.removeEventListener('astro:hydration-error', handleHydrationError);
+          },
+          { once: true },
+        );
+      })();
+    </script>
   </section>
 </BaseLayout>

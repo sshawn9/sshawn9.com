@@ -1,7 +1,17 @@
 ---
-import { SITE_STORAGE_KEYS } from '../lib/site-preferences';
+import {
+  ARTICLE_SIDEBAR_LAYOUT,
+  BLOG_SIDEBAR_LAYOUT,
+  SITE_STORAGE_KEYS,
+} from '../lib/site-preferences';
 
 const storageKeys = SITE_STORAGE_KEYS;
+const blogSidebarDefaultWidth = BLOG_SIDEBAR_LAYOUT.defaultWidth;
+const blogSidebarMinWidth = BLOG_SIDEBAR_LAYOUT.minWidth;
+const blogSidebarMaxWidth = BLOG_SIDEBAR_LAYOUT.maxWidth;
+const articleSidebarDefaultWidth = ARTICLE_SIDEBAR_LAYOUT.defaultWidth;
+const articleSidebarMinWidth = ARTICLE_SIDEBAR_LAYOUT.minWidth;
+const articleSidebarMaxWidth = ARTICLE_SIDEBAR_LAYOUT.maxWidth;
 const { fontRevision, fontFailsafeMs } = Astro.props as {
   fontRevision: string;
   fontFailsafeMs: number;
@@ -11,7 +21,17 @@ const { fontRevision, fontFailsafeMs } = Astro.props as {
 <script
   is:inline
   data-swup-ignore-script
-  define:vars={{ storageKeys, fontRevision, fontFailsafeMs }}
+  define:vars={{
+    storageKeys,
+    blogSidebarDefaultWidth,
+    blogSidebarMinWidth,
+    blogSidebarMaxWidth,
+    articleSidebarDefaultWidth,
+    articleSidebarMinWidth,
+    articleSidebarMaxWidth,
+    fontRevision,
+    fontFailsafeMs,
+  }}
 >
   (() => {
     const root = document.documentElement;
@@ -39,9 +59,24 @@ const { fontRevision, fontFailsafeMs } = Astro.props as {
     let articleSlug;
     let scrollPosition;
     let navigationType;
+    let blogSidebarLayoutState = {
+      collapsed: false,
+      width: blogSidebarDefaultWidth,
+    };
+    let articleSidebarLayoutState = {
+      collapsed: false,
+      width: articleSidebarDefaultWidth,
+    };
     const readSessionJson = (key) => {
       try {
         return JSON.parse(sessionStorage.getItem(key) ?? 'null');
+      } catch {
+        return null;
+      }
+    };
+    const readLocalJson = (key) => {
+      try {
+        return JSON.parse(localStorage.getItem(key) ?? 'null');
       } catch {
         return null;
       }
@@ -86,6 +121,38 @@ const { fontRevision, fontFailsafeMs } = Astro.props as {
           ? localStorage.getItem(storageKeys.wallpaperLegacyRotation) !== 'fixed'
           : storedAutoRotation !== 'false';
 
+      const storedBlogSidebarLayout = readLocalJson(storageKeys.blogSidebarLayout);
+      if (
+        typeof storedBlogSidebarLayout === 'object' &&
+        storedBlogSidebarLayout !== null &&
+        typeof storedBlogSidebarLayout.collapsed === 'boolean' &&
+        Number.isFinite(storedBlogSidebarLayout.width)
+      ) {
+        blogSidebarLayoutState = {
+          collapsed: storedBlogSidebarLayout.collapsed,
+          width: Math.min(
+            blogSidebarMaxWidth,
+            Math.max(blogSidebarMinWidth, storedBlogSidebarLayout.width),
+          ),
+        };
+      }
+
+      const storedArticleSidebarLayout = readLocalJson(storageKeys.articleSidebarLayout);
+      if (
+        typeof storedArticleSidebarLayout === 'object' &&
+        storedArticleSidebarLayout !== null &&
+        typeof storedArticleSidebarLayout.collapsed === 'boolean' &&
+        Number.isFinite(storedArticleSidebarLayout.width)
+      ) {
+        articleSidebarLayoutState = {
+          collapsed: storedArticleSidebarLayout.collapsed,
+          width: Math.min(
+            articleSidebarMaxWidth,
+            Math.max(articleSidebarMinWidth, storedArticleSidebarLayout.width),
+          ),
+        };
+      }
+
       photo = readSessionJson(storageKeys.wallpaperCurrentPhoto);
       const candidate = readSessionJson(storageKeys.wallpaperCurrentBackground);
 
@@ -111,7 +178,7 @@ const { fontRevision, fontFailsafeMs } = Astro.props as {
         navigationType === 'reload' || navigationType === 'back_forward'
           ? sessionStorage.getItem(`${storageKeys.articleSectionPrefix}${location.pathname}`)
           : null;
-      articleSlug = hashSlug || restoredSlug || undefined;
+      articleSlug = restoredSlug || hashSlug || undefined;
     } catch {
       // Storage may be unavailable or stale; the safe defaults still produce a complete snapshot.
     }
@@ -121,6 +188,18 @@ const { fontRevision, fontFailsafeMs } = Astro.props as {
     root.dataset.theme = dark ? 'github-dark' : 'github-light';
     root.style.colorScheme = theme;
     root.dataset.wallpaperMode = enabled ? 'scenic' : 'default';
+    root.toggleAttribute('data-blog-sidebar-collapsed', blogSidebarLayoutState.collapsed);
+    root.style.setProperty('--blog-sidebar-boot-width', `${blogSidebarLayoutState.width}px`);
+    root.style.setProperty(
+      '--blog-sidebar-boot-track',
+      blogSidebarLayoutState.collapsed ? '0px' : `${blogSidebarLayoutState.width}px`,
+    );
+    root.toggleAttribute('data-article-sidebar-collapsed', articleSidebarLayoutState.collapsed);
+    root.style.setProperty('--article-sidebar-boot-width', `${articleSidebarLayoutState.width}px`);
+    root.style.setProperty(
+      '--article-sidebar-boot-track',
+      articleSidebarLayoutState.collapsed ? '0px' : `${articleSidebarLayoutState.width}px`,
+    );
     document
       .querySelector('meta[name="theme-color"]')
       ?.setAttribute('content', dark ? '#070a12' : '#f7f8fb');
@@ -140,6 +219,8 @@ const { fontRevision, fontFailsafeMs } = Astro.props as {
         currentPhoto: photo ?? undefined,
         background,
       },
+      blogSidebarLayout: blogSidebarLayoutState,
+      articleSidebarLayout: articleSidebarLayoutState,
       articleSection: articleSlug ? { pathname: location.pathname, slug: articleSlug } : undefined,
     };
   })();

@@ -1,9 +1,11 @@
-import { Collapsible } from '@kobalte/core/collapsible';
 import { ToggleButton } from '@kobalte/core/toggle-button';
-import { ToggleGroup } from '@kobalte/core/toggle-group';
-import { For, Show, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
+import { For, Show, batch, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
 import type { Locale } from '../i18n/config';
 import * as m from '../paraglide/messages.js';
+import BlogSidebarLayout from './BlogSidebarLayout';
+import BlogTagFilters, { type BlogTag } from './BlogTagFilters';
+
+export type { BlogTag } from './BlogTagFilters';
 
 export type BlogListArticle = {
   id: string;
@@ -15,12 +17,6 @@ export type BlogListArticle = {
   publishedLabel: string;
   tags: string[];
   tagHrefs: Record<string, string>;
-};
-
-export type BlogTag = {
-  name: string;
-  slug: string;
-  count: number;
 };
 
 type Props = {
@@ -36,9 +32,11 @@ const PAGE_PARAMETER = 'page';
 
 export default function BlogBrowser(props: Props) {
   const filterable = () => props.filterable !== false;
+  const hasSidebar = () => filterable() && props.tags.length > 0;
   const tagsByName = new Map(props.tags.map((tag) => [tag.name, tag]));
   const [selectedTags, setSelectedTags] = createSignal<string[]>([]);
   const [pageIndex, setPageIndex] = createSignal(0);
+  let browserElement!: HTMLDivElement;
 
   const filteredArticles = createMemo(() => {
     const selected = selectedTags();
@@ -119,194 +117,178 @@ export default function BlogBrowser(props: Props) {
     const requestedPage = Number.parseInt(parameters.get(PAGE_PARAMETER) ?? '1', 10);
     const initialPageIndex =
       Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage - 1 : 0;
+    const matchingArticleCount =
+      validTags.length === 0
+        ? props.articles.length
+        : props.articles.filter((article) => validTags.some((tag) => article.tags.includes(tag)))
+            .length;
+    const lastPageIndex = Math.max(0, Math.ceil(matchingArticleCount / PAGE_SIZE) - 1);
 
-    setTags(validTags, false);
-    setPage(initialPageIndex, false);
+    batch(() => {
+      setSelectedTags(validTags);
+      setPageIndex(Math.min(initialPageIndex, lastPageIndex));
+    });
   };
 
   onMount(() => {
+    const listing = browserElement.closest<HTMLElement>('[data-blog-listing]');
+    const parameters = new URLSearchParams(window.location.search);
+    if (parameters.has(TAG_PARAMETER) || parameters.has(PAGE_PARAMETER)) {
+      listing?.setAttribute('data-blog-browser-pending', '');
+    }
+
     restoreUrlState();
+    listing?.setAttribute('data-blog-browser-ready', '');
+    if (listing?.hasAttribute('data-blog-browser-pending')) {
+      requestAnimationFrame(() => {
+        if (listing.isConnected) {
+          // Solid has now updated the DOM; commit its final styles before revealing the listing.
+          void listing.offsetWidth;
+          listing.removeAttribute('data-blog-browser-pending');
+        }
+        document.documentElement.removeAttribute('data-blog-browser-pending');
+      });
+    } else {
+      document.documentElement.removeAttribute('data-blog-browser-pending');
+    }
     window.addEventListener('popstate', restoreUrlState);
     onCleanup(() => window.removeEventListener('popstate', restoreUrlState));
   });
 
-  return (
-    <div
-      class={
-        filterable() && props.tags.length > 0
-          ? 'grid gap-10 [--blog-filter-top:7rem] lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start'
-          : undefined
-      }
-    >
-      <Show when={filterable() && props.tags.length > 0}>
-        <aside class="lg:min-h-[calc(100dvh-var(--blog-filter-top))] lg:self-stretch">
-          <div
-            data-tag-filter-panel
-            class="lg:sticky lg:top-[var(--blog-filter-top)] lg:max-h-[min(42rem,calc(100dvh-9rem))] lg:overflow-y-auto lg:overscroll-contain lg:pr-2"
-          >
-            <Collapsible defaultOpen>
-              <Collapsible.Trigger class="text-strong group flex w-full items-center justify-between gap-4 py-2 text-left text-sm font-bold">
-                <span>{m.article_tags({}, { locale: props.locale })}</span>
-                <span
-                  class="size-2.5 rotate-45 border-r-2 border-b-2 border-slate-400 transition-transform group-data-[expanded]:rotate-[225deg] dark:border-slate-500"
-                  aria-hidden="true"
-                />
-              </Collapsible.Trigger>
+  const ArticleResults = () => (
+    <div class="@container min-w-0 scroll-mt-28" data-blog-results>
+      <p class="text-supporting text-right font-mono text-xs" aria-live="polite">
+        {m.blog_article_count({ count: filteredCount() }, { locale: props.locale })}
+      </p>
 
-              <Collapsible.Content class="mt-2">
-                <ToggleGroup
-                  multiple
-                  orientation="vertical"
-                  value={selectedTags()}
-                  onChange={(values) => setTags(values)}
-                  aria-label={m.article_tags({}, { locale: props.locale })}
-                  class="flex flex-col gap-1"
-                >
-                  <For each={props.tags}>
-                    {(tag) => (
-                      <ToggleGroup.Item
-                        value={tag.name}
-                        data-tag-filter={tag.name}
-                        data-tag-slug={tag.slug}
-                        data-tag-count={tag.count}
-                        class="filter-option grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-left text-sm"
-                      >
-                        <span class="min-w-0 truncate">{tag.name}</span>
-                        <span class="font-mono text-[0.68rem] opacity-65">{tag.count}</span>
-                      </ToggleGroup.Item>
-                    )}
-                  </For>
-                </ToggleGroup>
-              </Collapsible.Content>
-            </Collapsible>
-          </div>
-        </aside>
+      <Show
+        when={filteredCount() > 0}
+        fallback={
+          <p class="text-supporting py-16 text-sm">{m.blog_empty({}, { locale: props.locale })}</p>
+        }
+      >
+        <ol class="mt-2">
+          <For each={visibleArticles()}>
+            {(article) => (
+              <li data-blog-article data-article-tags={JSON.stringify(article.tags)} data-reveal>
+                <article class="group grid gap-4 border-b border-slate-900/10 py-7 @2xl:grid-cols-[minmax(0,1fr)_minmax(12rem,18rem)] @2xl:items-start @2xl:gap-7 dark:border-white/10">
+                  <div class="min-w-0" lang={article.contentLanguage}>
+                    <h2 class="text-xl font-extrabold tracking-tight sm:text-2xl">
+                      <a href={article.href} class="interactive-heading">
+                        {article.title}
+                      </a>
+                    </h2>
+                    <Show when={article.description}>
+                      {(description) => (
+                        <p class="text-default mt-2 max-w-4xl text-sm leading-6">{description()}</p>
+                      )}
+                    </Show>
+                  </div>
+
+                  <footer class="min-w-0">
+                    <time
+                      datetime={article.publishedDateTime}
+                      class="text-supporting mb-3 ml-2.5 block font-mono text-xs font-bold"
+                    >
+                      {article.publishedLabel}
+                    </time>
+                    <ul
+                      class="flex flex-wrap items-center gap-2"
+                      aria-label={m.article_tags({}, { locale: props.locale })}
+                    >
+                      <For each={article.tags}>
+                        {(tag) => (
+                          <li>
+                            <Show
+                              when={filterable()}
+                              fallback={
+                                <a
+                                  href={article.tagHrefs[tag]}
+                                  data-article-tag-link={tag}
+                                  class="tag-chip block rounded-full px-2.5 py-1 font-mono text-[0.62rem]"
+                                >
+                                  #{tag}
+                                </a>
+                              }
+                            >
+                              <ToggleButton
+                                pressed={selectedTags().includes(tag)}
+                                onChange={(pressed) => setTagPressed(tag, pressed)}
+                                data-article-tag={tag}
+                                class="tag-chip rounded-full px-2.5 py-1 font-mono text-[0.62rem]"
+                              >
+                                #{tag}
+                              </ToggleButton>
+                            </Show>
+                          </li>
+                        )}
+                      </For>
+                    </ul>
+                  </footer>
+                </article>
+              </li>
+            )}
+          </For>
+        </ol>
       </Show>
 
-      <div class="min-w-0 scroll-mt-28" data-blog-results>
-        <p class="text-supporting text-right font-mono text-xs" aria-live="polite">
-          {m.blog_article_count({ count: filteredCount() }, { locale: props.locale })}
-        </p>
+      <Show when={pageCount() > 1}>
+        <nav
+          class="mt-8 flex items-center justify-between gap-4"
+          aria-label={m.pagination_label({}, { locale: props.locale })}
+        >
+          <button
+            type="button"
+            onClick={() => changePage(pageIndex() - 1)}
+            disabled={pageIndex() === 0}
+            class="interactive-supporting inline-flex items-center gap-2 text-sm font-bold disabled:pointer-events-none disabled:invisible"
+          >
+            <span aria-hidden="true">←</span>
+            {m.pagination_previous({}, { locale: props.locale })}
+          </button>
 
-        <Show
-          when={filteredCount() > 0}
-          fallback={
-            <p class="text-supporting py-16 text-sm">
-              {m.blog_empty({}, { locale: props.locale })}
-            </p>
+          <span class="text-supporting font-mono text-xs">
+            {m.blog_page_count(
+              {
+                count: filteredCount(),
+                current: pageIndex() + 1,
+                total: pageCount(),
+              },
+              { locale: props.locale },
+            )}
+          </span>
+
+          <button
+            type="button"
+            onClick={() => changePage(pageIndex() + 1)}
+            disabled={pageIndex() >= pageCount() - 1}
+            class="interactive-supporting inline-flex items-center gap-2 text-sm font-bold disabled:pointer-events-none disabled:invisible"
+          >
+            {m.pagination_next({}, { locale: props.locale })}
+            <span aria-hidden="true">→</span>
+          </button>
+        </nav>
+      </Show>
+    </div>
+  );
+
+  return (
+    <div ref={browserElement} data-blog-browser class="contents">
+      <Show when={hasSidebar()} fallback={<ArticleResults />}>
+        <BlogSidebarLayout
+          locale={props.locale}
+          sidebar={
+            <BlogTagFilters
+              tags={props.tags}
+              selectedTags={selectedTags()}
+              locale={props.locale}
+              onChange={(values) => setTags(values)}
+            />
           }
         >
-          <ol class="mt-2">
-            <For each={visibleArticles()}>
-              {(article) => {
-                return (
-                  <li
-                    data-blog-article
-                    data-article-tags={JSON.stringify(article.tags)}
-                    data-reveal
-                  >
-                    <article class="group grid gap-4 border-b border-slate-900/10 py-7 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,18rem)] lg:items-start lg:gap-7 dark:border-white/10">
-                      <div class="min-w-0" lang={article.contentLanguage}>
-                        <h2 class="text-xl font-extrabold tracking-tight sm:text-2xl">
-                          <a href={article.href} class="interactive-heading">
-                            {article.title}
-                          </a>
-                        </h2>
-                        <Show when={article.description}>
-                          {(description) => (
-                            <p class="text-default mt-2 max-w-4xl text-sm leading-6">
-                              {description()}
-                            </p>
-                          )}
-                        </Show>
-                      </div>
-
-                      <footer class="min-w-0">
-                        <time
-                          datetime={article.publishedDateTime}
-                          class="text-supporting mb-3 ml-2.5 block font-mono text-xs font-bold"
-                        >
-                          {article.publishedLabel}
-                        </time>
-                        <ul
-                          class="flex flex-wrap items-center gap-2"
-                          aria-label={m.article_tags({}, { locale: props.locale })}
-                        >
-                          <For each={article.tags}>
-                            {(tag) => (
-                              <li>
-                                <Show
-                                  when={filterable()}
-                                  fallback={
-                                    <a
-                                      href={article.tagHrefs[tag]}
-                                      data-article-tag-link={tag}
-                                      class="tag-chip block rounded-full px-2.5 py-1 font-mono text-[0.62rem]"
-                                    >
-                                      #{tag}
-                                    </a>
-                                  }
-                                >
-                                  <ToggleButton
-                                    pressed={selectedTags().includes(tag)}
-                                    onChange={(pressed) => setTagPressed(tag, pressed)}
-                                    data-article-tag={tag}
-                                    class="tag-chip rounded-full px-2.5 py-1 font-mono text-[0.62rem]"
-                                  >
-                                    #{tag}
-                                  </ToggleButton>
-                                </Show>
-                              </li>
-                            )}
-                          </For>
-                        </ul>
-                      </footer>
-                    </article>
-                  </li>
-                );
-              }}
-            </For>
-          </ol>
-        </Show>
-
-        <Show when={pageCount() > 1}>
-          <nav
-            class="mt-8 flex items-center justify-between gap-4"
-            aria-label={m.pagination_label({}, { locale: props.locale })}
-          >
-            <button
-              type="button"
-              onClick={() => changePage(pageIndex() - 1)}
-              disabled={pageIndex() === 0}
-              class="interactive-supporting inline-flex items-center gap-2 text-sm font-bold disabled:pointer-events-none disabled:invisible"
-            >
-              <span aria-hidden="true">←</span>
-              {m.pagination_previous({}, { locale: props.locale })}
-            </button>
-
-            <span class="text-supporting font-mono text-xs">
-              {m.blog_page_count(
-                {
-                  count: filteredCount(),
-                  current: pageIndex() + 1,
-                  total: pageCount(),
-                },
-                { locale: props.locale },
-              )}
-            </span>
-
-            <button
-              type="button"
-              onClick={() => changePage(pageIndex() + 1)}
-              disabled={pageIndex() >= pageCount() - 1}
-              class="interactive-supporting inline-flex items-center gap-2 text-sm font-bold disabled:pointer-events-none disabled:invisible"
-            >
-              {m.pagination_next({}, { locale: props.locale })}
-              <span aria-hidden="true">→</span>
-            </button>
-          </nav>
-        </Show>
-      </div>
+          <ArticleResults />
+        </BlogSidebarLayout>
+      </Show>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import type { MarkdownHeading } from 'astro';
 import { ArrowUp, ChevronDown } from '@lucide/astro';
 import { Schema } from 'astro-seo-schema';
 import type { BlogPosting, WithContext } from 'schema-dts';
+import ArticleSidebarLayout from '../components/ArticleSidebarLayout.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
 import VersionSwitcher from '../components/VersionSwitcher.astro';
 import { SITE } from '../config';
@@ -97,9 +98,9 @@ const articleTags = getArticleTags(article);
 >
   <Schema slot="head" item={articleSchema} />
 
-  <article class="content-shell pt-12 pb-24 sm:pt-16">
-    <div class="mx-auto grid max-w-6xl gap-x-12 lg:grid-cols-[minmax(0,1fr)_13rem] lg:items-start">
-      <div class="min-w-0" data-article-main>
+  <article class="content-shell pt-12 sm:pt-16">
+    <ArticleSidebarLayout {locale}>
+      <Fragment slot="main">
         <header data-reveal>
           <Breadcrumbs items={breadcrumbs} {locale} />
 
@@ -163,7 +164,8 @@ const articleTags = getArticleTags(article);
           }
 
           <dl
-            class="mt-7 grid grid-cols-2 gap-4 border-y border-slate-900/8 py-4 text-xs lg:hidden dark:border-white/8"
+            class="mt-7 grid grid-cols-2 gap-4 border-y border-slate-900/8 py-4 text-xs lg:hidden dark:border-white/8 print:grid"
+            data-article-mobile-information
             data-pagefind-ignore
           >
             <div>
@@ -190,7 +192,7 @@ const articleTags = getArticleTags(article);
 
           {
             toc.length > 0 && (
-              <div class="mt-7 lg:hidden" data-pagefind-ignore>
+              <div class="mt-7 lg:hidden print:hidden" data-pagefind-ignore>
                 <button
                   type="button"
                   popovertarget="article-toc-mobile"
@@ -239,7 +241,7 @@ const articleTags = getArticleTags(article);
 
           {
             article.isVersioned && (
-              <div class="mt-7 rounded-2xl border border-slate-900/10 bg-slate-900/[0.025] p-4 lg:hidden dark:border-white/10 dark:bg-white/[0.025]">
+              <div class="mt-7 rounded-2xl border border-slate-900/10 bg-slate-900/[0.025] p-4 lg:hidden dark:border-white/10 dark:bg-white/[0.025] print:hidden">
                 <VersionSwitcher {article} selected={version} variant="mobile" />
               </div>
             )
@@ -263,110 +265,94 @@ const articleTags = getArticleTags(article);
             <ArrowUp class="size-4" aria-hidden="true" />
           </a>
         </footer>
-      </div>
+      </Fragment>
 
-      <aside
-        class="hidden min-w-0 self-stretch lg:block"
-        aria-label={m.article_supporting_information({}, { locale })}
-        data-pagefind-ignore
-        data-article-sidebar-column
-      >
-        <div
-          class="article-sidebar-scroll sticky top-[8.75rem] max-h-[calc(100dvh-9.75rem)] overflow-y-auto overscroll-contain pr-2 pb-2"
-          data-article-sidebar-scroll
-        >
-          <section aria-labelledby="article-info-heading">
-            <h2 id="article-info-heading" class="sidebar-heading">
-              {m.article_information({}, { locale })}
-            </h2>
-            <dl class="mt-4 border-l border-slate-900/10 dark:border-white/10">
-              <div
-                class="-ml-px flex items-baseline gap-3 border-l border-transparent py-1.5 pl-4 text-xs leading-5"
+      <section aria-labelledby="article-info-heading">
+        <h2 id="article-info-heading" class="sidebar-heading">
+          {m.article_information({}, { locale })}
+        </h2>
+        <dl class="mt-4">
+          <div class="flex items-baseline gap-3 py-1.5 text-xs leading-5">
+            <dt class="text-supporting">
+              {m.article_first_published({}, { locale })}
+            </dt>
+            <dd class="text-supporting ml-auto font-mono text-[0.62rem]">
+              <time datetime={firstPublished.toISOString()}
+                >{formatDate(firstPublished, locale)}</time
               >
-                <dt class="text-supporting">
-                  {m.article_first_published({}, { locale })}
-                </dt>
+            </dd>
+          </div>
+          {
+            updatedAt && (
+              <div class="flex items-baseline gap-3 py-1.5 text-xs leading-5">
+                <dt class="text-supporting">{m.article_last_updated({}, { locale })}</dt>
                 <dd class="text-supporting ml-auto font-mono text-[0.62rem]">
-                  <time datetime={firstPublished.toISOString()}
-                    >{formatDate(firstPublished, locale)}</time
-                  >
+                  <time datetime={updatedAt.toISOString()}>{formatDate(updatedAt, locale)}</time>
                 </dd>
               </div>
-              {
-                updatedAt && (
-                  <div class="-ml-px flex items-baseline gap-3 border-l border-transparent py-1.5 pl-4 text-xs leading-5">
-                    <dt class="text-supporting">{m.article_last_updated({}, { locale })}</dt>
-                    <dd class="text-supporting ml-auto font-mono text-[0.62rem]">
-                      <time datetime={updatedAt.toISOString()}>
-                        {formatDate(updatedAt, locale)}
-                      </time>
-                    </dd>
-                  </div>
-                )
-              }
-            </dl>
+            )
+          }
+        </dl>
+      </section>
+
+      {
+        toc.length > 0 && (
+          <section
+            class="mt-7 border-t border-slate-900/10 pt-6 dark:border-white/10"
+            aria-labelledby="article-toc-heading"
+          >
+            <h2 id="article-toc-heading" class="sidebar-heading">
+              {m.article_toc({}, { locale })}
+            </h2>
+            <nav
+              class="js-toc mt-4"
+              lang={contentLanguageTag}
+              aria-labelledby="article-toc-heading"
+              data-article-toc
+            >
+              <ul class="toc-list">
+                {tocGroups.map(({ heading, children }, index) => (
+                  <li class="toc-list-item">
+                    <a
+                      href={`#${heading.slug}`}
+                      class:list={[
+                        `toc-link node-name--H${heading.depth}`,
+                        index === 0 && 'is-active-link',
+                      ]}
+                      aria-current={index === 0 ? 'location' : undefined}
+                    >
+                      {heading.text}
+                    </a>
+                    {children.length > 0 && (
+                      <ul class="toc-list">
+                        {children.map((child) => (
+                          <li class="toc-list-item">
+                            <a
+                              href={`#${child.slug}`}
+                              class={`toc-link node-name--H${child.depth}`}
+                            >
+                              {child.text}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </nav>
           </section>
+        )
+      }
 
-          {
-            toc.length > 0 && (
-              <section
-                class="mt-7 border-t border-slate-900/10 pt-6 dark:border-white/10"
-                aria-labelledby="article-toc-heading"
-              >
-                <h2 id="article-toc-heading" class="sidebar-heading">
-                  {m.article_toc({}, { locale })}
-                </h2>
-                <nav
-                  class="js-toc mt-4"
-                  lang={contentLanguageTag}
-                  aria-labelledby="article-toc-heading"
-                  data-article-toc
-                >
-                  <ul class="toc-list">
-                    {tocGroups.map(({ heading, children }, index) => (
-                      <li class="toc-list-item">
-                        <a
-                          href={`#${heading.slug}`}
-                          class:list={[
-                            `toc-link node-name--H${heading.depth}`,
-                            index === 0 && 'is-active-link',
-                          ]}
-                          aria-current={index === 0 ? 'location' : undefined}
-                        >
-                          {heading.text}
-                        </a>
-                        {children.length > 0 && (
-                          <ul class="toc-list">
-                            {children.map((child) => (
-                              <li class="toc-list-item">
-                                <a
-                                  href={`#${child.slug}`}
-                                  class={`toc-link node-name--H${child.depth}`}
-                                >
-                                  {child.text}
-                                </a>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </nav>
-              </section>
-            )
-          }
-
-          {
-            article.isVersioned && (
-              <div class="mt-7 border-t border-slate-900/10 pt-6 dark:border-white/10">
-                <VersionSwitcher {article} selected={version} variant="desktop" />
-              </div>
-            )
-          }
-        </div>
-      </aside>
-    </div>
+      {
+        article.isVersioned && (
+          <div class="mt-7 border-t border-slate-900/10 pt-6 dark:border-white/10">
+            <VersionSwitcher {article} selected={version} variant="desktop" />
+          </div>
+        )
+      }
+    </ArticleSidebarLayout>
   </article>
 
   <script is:inline>

@@ -1,3 +1,14 @@
+:root {
+  --site-header-content-block-size: 3.5rem;
+  /* Keeps sticky sidebars fixed at their top offset when the footer enters the viewport. */
+  --site-footer-block-size: 5.5625rem;
+  --site-header-sticky-offset: calc(
+    var(--site-header-content-block-size) + env(safe-area-inset-top) + 1px
+  );
+  --site-article-sidebar-sticky-offset: calc(var(--site-header-sticky-offset) + 5.1875rem);
+  --site-sidebar-bottom-gap: max(2rem, var(--site-footer-block-size));
+}
+
 .site-chrome {
   display: contents;
 }
@@ -48,7 +59,7 @@ html[data-navigation-progress='finishing'] .site-header__progress {
 
 .site-header__inner {
   display: flex;
-  min-height: 3.5rem;
+  min-height: var(--site-header-content-block-size);
   align-items: center;
   gap: 1.75rem;
 }
@@ -427,7 +438,7 @@ html[data-navigation-progress='finishing'] .site-header__progress {
 
 @media (max-width: 47.999rem) {
   .site-header__inner {
-    min-height: 3.5rem;
+    min-height: var(--site-header-content-block-size);
     justify-content: space-between;
     gap: 1rem;
   }
@@ -457,6 +468,10 @@ html[data-navigation-progress='finishing'] .site-header__progress {
 }
 
 @media (max-height: 32rem), (max-width: 47.999rem) and (orientation: landscape) {
+  :root {
+    --site-header-sticky-offset: env(safe-area-inset-top);
+  }
+
   .site-header {
     position: relative;
   }

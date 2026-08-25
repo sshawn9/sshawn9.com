@@ -1,4 +1,74 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+const NESTED_SCROLL_POSITION_PREFIX = 'nested-scroll-position:';
+
+async function readSavedNestedScrollTop(page: Page, restorationKey: string) {
+  return page.evaluate(
+    ({ prefix, restorationKey }) => {
+      try {
+        const storageKey = `${prefix}${location.pathname}:${restorationKey}`;
+        const position = JSON.parse(sessionStorage.getItem(storageKey) ?? 'null');
+        return position?.top ?? 0;
+      } catch {
+        return 0;
+      }
+    },
+    { prefix: NESTED_SCROLL_POSITION_PREFIX, restorationKey },
+  );
+}
+
+type NestedScrollFrameProbe = {
+  done: boolean;
+  values: number[];
+};
+
+async function installNestedScrollFrameProbe(page: Page, restorationKey: string) {
+  await page.addInitScript((key) => {
+    const probe: NestedScrollFrameProbe = { done: false, values: [] };
+    Object.defineProperty(window, '__nestedScrollFrameProbe', {
+      configurable: true,
+      value: probe,
+    });
+
+    let frame = 0;
+    const sample = () => {
+      const element = document.querySelector<HTMLElement>(
+        `[data-scroll-restoration-key="${CSS.escape(key)}"]`,
+      );
+      const bodyVisible = document.body && getComputedStyle(document.body).visibility !== 'hidden';
+      if (element && bodyVisible) probe.values.push(element.scrollTop);
+
+      frame += 1;
+      if (frame < 60) requestAnimationFrame(sample);
+      else probe.done = true;
+    };
+    requestAnimationFrame(sample);
+  }, restorationKey);
+}
+
+async function readNestedScrollFrameProbe(page: Page) {
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            window as typeof window & {
+              __nestedScrollFrameProbe?: NestedScrollFrameProbe;
+            }
+          ).__nestedScrollFrameProbe?.done ?? false,
+      ),
+    )
+    .toBe(true);
+
+  return page.evaluate(
+    () =>
+      (
+        window as typeof window & {
+          __nestedScrollFrameProbe?: NestedScrollFrameProbe;
+        }
+      ).__nestedScrollFrameProbe?.values ?? [],
+  );
+}
 
 test('the site header exposes desktop navigation and a mobile disclosure menu', async ({
   page,
@@ -486,6 +556,356 @@ test('article information and both tables of contents are present without client
   await context.close();
 });
 
+test('the article sidebar owns its modules and keeps its right edge and control stable', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => localStorage.setItem('wallpaper-enabled', 'false'));
+  await page.goto('/en/blog/my-personal-website/');
+
+  const layout = page.locator('[data-article-sidebar-layout]');
+  const main = page.locator('[data-article-main]');
+  const sidebar = page.locator('#article-sidebar');
+  const sidebarScroll = page.locator('[data-article-sidebar-scroll]');
+  const boundary = page.locator('[data-article-sidebar-boundary]');
+  const resizer = page.getByRole('separator', { name: 'Resize article sidebar' });
+  const collapseButton = page.getByRole('button', { name: 'Collapse article sidebar' });
+
+  await expect(sidebar).toBeVisible();
+  await expect(sidebar).toHaveAccessibleName('Article information and navigation');
+  await expect(
+    sidebar.getByRole('heading', { level: 2, name: 'Article information' }),
+  ).toBeVisible();
+  await expect(sidebar.getByRole('heading', { level: 2, name: 'On this page' })).toBeVisible();
+  await expect(sidebar.getByRole('heading', { level: 2, name: 'Versions' })).toBeVisible();
+  await expect(sidebar.getByRole('heading', { level: 2, name: 'Article overview' })).toHaveCount(0);
+  await expect(boundary).toBeVisible();
+  await expect(resizer).toHaveAttribute('aria-valuemin', '208');
+  await expect(resizer).toHaveAttribute('aria-valuemax', '352');
+  await expect(resizer).toHaveAttribute('aria-valuenow', '224');
+
+  const initialLayoutBox = await layout.boundingBox();
+  const initialMainBox = await main.boundingBox();
+  const initialSidebarBox = await sidebar.boundingBox();
+  const initialSidebarScrollBox = await sidebarScroll.boundingBox();
+  const initialToggleBox = await collapseButton.boundingBox();
+  const initialResizerBox = await resizer.boundingBox();
+  expect(initialLayoutBox).not.toBeNull();
+  expect(initialMainBox).not.toBeNull();
+  expect(initialSidebarBox).not.toBeNull();
+  expect(initialSidebarScrollBox).not.toBeNull();
+  expect(initialToggleBox).not.toBeNull();
+  expect(initialResizerBox).not.toBeNull();
+  expect(initialSidebarBox!.width).toBeCloseTo(224, 0);
+  expect(initialSidebarBox!.x - (initialMainBox!.x + initialMainBox!.width)).toBeCloseTo(40, 0);
+  expect(initialSidebarBox!.x + initialSidebarBox!.width).toBeCloseTo(
+    initialLayoutBox!.x + initialLayoutBox!.width,
+    1,
+  );
+  expect(initialToggleBox!.x + initialToggleBox!.width).toBeCloseTo(
+    initialLayoutBox!.x + initialLayoutBox!.width,
+    1,
+  );
+  expect(initialToggleBox!.y + initialToggleBox!.height).toBeLessThan(initialSidebarScrollBox!.y);
+  expect(initialResizerBox!.x + initialResizerBox!.width / 2).toBeCloseTo(initialSidebarBox!.x, 1);
+
+  const dragX = initialResizerBox!.x + initialResizerBox!.width / 2;
+  const dragY = initialResizerBox!.y + Math.min(initialResizerBox!.height / 2, 240);
+  await page.mouse.move(dragX, dragY);
+  await page.mouse.down();
+  await page.mouse.move(dragX - 64, dragY, { steps: 6 });
+  await expect(resizer).toHaveAttribute('aria-valuenow', '288');
+  expect(
+    await layout.evaluate((element) =>
+      element.style.getPropertyValue('--article-sidebar-current-width'),
+    ),
+  ).toBe('288px');
+  expect(
+    await page
+      .locator('html')
+      .evaluate((element) => element.style.getPropertyValue('--article-sidebar-boot-width')),
+  ).toBe('224px');
+  await page.mouse.up();
+  await expect(resizer).toHaveAttribute('aria-valuenow', '288');
+  expect(
+    await page
+      .locator('html')
+      .evaluate((element) => element.style.getPropertyValue('--article-sidebar-boot-width')),
+  ).toBe('288px');
+
+  const resizedMainBox = await main.boundingBox();
+  const resizedSidebarBox = await sidebar.boundingBox();
+  const resizedToggleBox = await collapseButton.boundingBox();
+  expect(resizedMainBox).not.toBeNull();
+  expect(resizedSidebarBox).not.toBeNull();
+  expect(resizedToggleBox).not.toBeNull();
+  expect(resizedMainBox!.x).toBeCloseTo(initialMainBox!.x, 1);
+  expect(resizedMainBox!.width).toBeCloseTo(initialMainBox!.width - 64, 1);
+  expect(resizedSidebarBox!.width).toBeCloseTo(288, 0);
+  expect(resizedSidebarBox!.x + resizedSidebarBox!.width).toBeCloseTo(
+    initialSidebarBox!.x + initialSidebarBox!.width,
+    1,
+  );
+  expect(resizedToggleBox!.x).toBeCloseTo(initialToggleBox!.x, 1);
+  expect(resizedToggleBox!.y).toBeCloseTo(initialToggleBox!.y, 1);
+
+  await resizer.focus();
+  await resizer.press('ArrowRight');
+  await expect(resizer).toHaveAttribute('aria-valuenow', '272');
+
+  await collapseButton.click();
+  await expect(layout).toHaveAttribute('data-sidebar-collapsed', '');
+  await expect(sidebar).toHaveAttribute('aria-hidden', 'true');
+  await expect(sidebar).toHaveAttribute('inert', '');
+  await expect.poll(async () => (await sidebar.boundingBox())?.width ?? 0).toBeLessThanOrEqual(0.5);
+
+  const expandButton = page.getByRole('button', { name: 'Expand article sidebar' });
+  const collapsedToggleBox = await expandButton.boundingBox();
+  expect(collapsedToggleBox).not.toBeNull();
+  expect(collapsedToggleBox!.x).toBeCloseTo(initialToggleBox!.x, 1);
+  expect(collapsedToggleBox!.y).toBeCloseTo(initialToggleBox!.y, 1);
+  await expect
+    .poll(() =>
+      page.evaluate(() => JSON.parse(localStorage.getItem('article-sidebar-layout') ?? 'null')),
+    )
+    .toEqual({ collapsed: true, width: 272 });
+
+  await expandButton.click();
+  await expect(sidebar).not.toHaveAttribute('aria-hidden');
+  await expect(sidebar).not.toHaveAttribute('inert');
+  await expect(resizer).toHaveAttribute('aria-valuenow', '272');
+  await expect.poll(async () => (await sidebar.boundingBox())?.width ?? 0).toBeCloseTo(272, 0);
+  const restoredToggleBox = await collapseButton.boundingBox();
+  expect(restoredToggleBox).not.toBeNull();
+  expect(restoredToggleBox!.x).toBeCloseTo(initialToggleBox!.x, 1);
+  expect(restoredToggleBox!.y).toBeCloseTo(initialToggleBox!.y, 1);
+
+  await page.evaluate(() => window.swup?.navigate('/en/blog/closed-loop-control-timing/'));
+  await expect(page).toHaveURL(/\/en\/blog\/closed-loop-control-timing\/$/);
+  await expect(sidebar.getByRole('heading', { level: 2, name: 'On this page' })).toBeVisible();
+  await expect(resizer).toHaveAttribute('aria-valuenow', '272');
+  await expect(collapseButton).toBeVisible();
+});
+
+test('the collapsed article sidebar and its saved width are correct from the first frame', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.route('**/ArticleSidebarLayout*.js', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.continue();
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem('wallpaper-enabled', 'false');
+    localStorage.setItem('article-sidebar-layout', JSON.stringify({ collapsed: true, width: 288 }));
+    const state = {
+      done: false,
+      frames: [] as Array<{
+        sidebarWidth: number;
+        mainX: number;
+        mainWidth: number;
+        toggleX: number;
+        layoutRight: number;
+        controllerApplied: boolean;
+      }>,
+    };
+    Object.defineProperty(window, '__articleSidebarFrameState', {
+      configurable: true,
+      value: state,
+    });
+
+    let frame = 0;
+    const sample = () => {
+      const layout = document.querySelector('[data-article-sidebar-layout]');
+      const main = document.querySelector('[data-article-main]');
+      const sidebar = document.querySelector('#article-sidebar');
+      const toggle = document.querySelector('[data-article-sidebar-controls] button');
+      if (layout && main && sidebar && toggle) {
+        const layoutBox = layout.getBoundingClientRect();
+        const mainBox = main.getBoundingClientRect();
+        const sidebarBox = sidebar.getBoundingClientRect();
+        const toggleBox = toggle.getBoundingClientRect();
+        const round = (value: number) => Math.round(value * 100) / 100;
+        state.frames.push({
+          sidebarWidth: round(sidebarBox.width),
+          mainX: round(mainBox.x),
+          mainWidth: round(mainBox.width),
+          toggleX: round(toggleBox.x),
+          layoutRight: round(layoutBox.right),
+          controllerApplied: toggle.hasAttribute('data-article-sidebar-expand'),
+        });
+      }
+
+      frame += 1;
+      if (frame < 90) requestAnimationFrame(sample);
+      else state.done = true;
+    };
+    requestAnimationFrame(sample);
+  });
+
+  await page.goto('/en/blog/my-personal-website/');
+  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            window as typeof window & {
+              __articleSidebarFrameState: { done: boolean };
+            }
+          ).__articleSidebarFrameState.done,
+      ),
+    )
+    .toBe(true);
+
+  const frames = await page.evaluate(
+    () =>
+      (
+        window as typeof window & {
+          __articleSidebarFrameState: {
+            frames: Array<{
+              sidebarWidth: number;
+              mainX: number;
+              mainWidth: number;
+              toggleX: number;
+              layoutRight: number;
+              controllerApplied: boolean;
+            }>;
+          };
+        }
+      ).__articleSidebarFrameState.frames,
+  );
+  expect(frames.length).toBeGreaterThan(0);
+  expect(new Set(frames.map(({ sidebarWidth }) => sidebarWidth))).toEqual(new Set([0]));
+  expect(new Set(frames.map(({ mainX }) => mainX)).size).toBe(1);
+  expect(new Set(frames.map(({ mainWidth }) => mainWidth)).size).toBe(1);
+  expect(new Set(frames.map(({ toggleX }) => toggleX)).size).toBe(1);
+  expect(new Set(frames.map(({ layoutRight }) => layoutRight)).size).toBe(1);
+  expect(frames.some(({ controllerApplied }) => !controllerApplied)).toBe(true);
+  expect(frames.some(({ controllerApplied }) => controllerApplied)).toBe(true);
+
+  const expandButton = page.getByRole('button', { name: 'Expand article sidebar' });
+  const toggleBox = await expandButton.boundingBox();
+  expect(toggleBox).not.toBeNull();
+  expect(toggleBox!.x + toggleBox!.width).toBeCloseTo(frames[0]!.layoutRight, 1);
+  await expandButton.click();
+  await expect(page.getByRole('separator', { name: 'Resize article sidebar' })).toHaveAttribute(
+    'aria-valuenow',
+    '288',
+  );
+});
+
+test('the article body and article sidebar keep independent scroll positions', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => localStorage.setItem('wallpaper-enabled', 'false'));
+  await page.goto('/en/blog/persistent-navigation-shell-and-client-lifecycle-for-my-website/');
+
+  const main = page.locator('[data-article-main]');
+  const shell = page.locator('[data-article-sidebar-shell]');
+  const sidebarScroll = page.locator('[data-article-sidebar-scroll]');
+  expect(
+    await sidebarScroll.evaluate((element) => element.scrollHeight > element.clientHeight),
+  ).toBe(true);
+
+  const initialShellBox = await shell.boundingBox();
+  const mainBox = await main.boundingBox();
+  expect(initialShellBox).not.toBeNull();
+  expect(mainBox).not.toBeNull();
+  await page.mouse.move(mainBox!.x + Math.min(mainBox!.width / 2, 320), 500);
+  await page.mouse.wheel(0, 600);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  await expect(sidebarScroll).toHaveJSProperty('scrollTop', 0);
+
+  const stickyShellBox = await shell.boundingBox();
+  expect(stickyShellBox).not.toBeNull();
+  expect(stickyShellBox!.y).toBeCloseTo(initialShellBox!.y, 1);
+  const pageScrollBeforeSidebar = await page.evaluate(() => window.scrollY);
+  const sidebarScrollBox = await sidebarScroll.boundingBox();
+  expect(sidebarScrollBox).not.toBeNull();
+  expect(sidebarScrollBox!.height).toBeLessThanOrEqual(900 * 0.75 + 1);
+  expect(sidebarScrollBox!.y + sidebarScrollBox!.height).toBeLessThanOrEqual(900 - 32 + 1);
+  await page.mouse.move(
+    sidebarScrollBox!.x + sidebarScrollBox!.width / 2,
+    sidebarScrollBox!.y + sidebarScrollBox!.height / 2,
+  );
+  await page.mouse.wheel(0, 320);
+  await expect
+    .poll(() => sidebarScroll.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.scrollY)).toBe(pageScrollBeforeSidebar);
+
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY + window.innerHeight))
+    .toBe(await page.evaluate(() => document.documentElement.scrollHeight));
+  const footerBox = await page.locator('#swup > footer').boundingBox();
+  const finalShellBox = await shell.boundingBox();
+  expect(footerBox).not.toBeNull();
+  expect(finalShellBox).not.toBeNull();
+  expect(finalShellBox!.y).toBeCloseTo(initialShellBox!.y, 1);
+  expect(finalShellBox!.y + finalShellBox!.height).toBeLessThanOrEqual(footerBox!.y + 1);
+});
+
+test('the article sidebar follows the non-sticky header contract in a short desktop viewport', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 500 });
+  await page.addInitScript(() => localStorage.setItem('wallpaper-enabled', 'false'));
+  await page.goto('/en/blog/persistent-navigation-shell-and-client-lifecycle-for-my-website/');
+
+  const header = page.locator('[data-site-header]');
+  const shell = page.locator('[data-article-sidebar-shell]');
+  await expect(header).toHaveCSS('position', 'relative');
+  await expect(shell).toHaveCSS('top', '83px');
+
+  await page.evaluate(() => window.scrollTo(0, 600));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  await expect.poll(async () => (await shell.boundingBox())?.y ?? Number.NaN).toBeCloseTo(83, 1);
+});
+
+test('the article sidebar keeps its page-owned position when a TOC anchor is clicked and refreshed', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => localStorage.setItem('wallpaper-enabled', 'false'));
+  await page.goto('/en/blog/persistent-navigation-shell-and-client-lifecycle-for-my-website/');
+  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
+
+  const restorationKey = 'article-sidebar';
+  const sidebarScroll = page.locator(`[data-scroll-restoration-key="${restorationKey}"]`);
+  const deepTocLink = sidebarScroll.locator('[data-article-toc] a[href^="#"]').last();
+  await deepTocLink.scrollIntoViewIfNeeded();
+  const savedTop = await sidebarScroll.evaluate((element) => element.scrollTop);
+  expect(savedTop).toBeGreaterThan(0);
+  await expect.poll(() => readSavedNestedScrollTop(page, restorationKey)).toBe(savedTop);
+
+  const targetHash = await deepTocLink.getAttribute('href');
+  expect(targetHash).toMatch(/^#./);
+  await deepTocLink.click();
+  await expect.poll(() => new URL(page.url()).hash).toBe(targetHash);
+  await expect(sidebarScroll).toHaveJSProperty('scrollTop', savedTop);
+  await expect.poll(() => readSavedNestedScrollTop(page, restorationKey)).toBe(savedTop);
+
+  await installNestedScrollFrameProbe(page, restorationKey);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const frames = await readNestedScrollFrameProbe(page);
+  expect(frames.length).toBeGreaterThan(0);
+  expect(new Set(frames)).toEqual(new Set([savedTop]));
+  await expect(sidebarScroll).toHaveJSProperty('scrollTop', savedTop);
+  await expect(deepTocLink).toHaveAttribute('aria-current', 'location');
+
+  await page.evaluate(() => window.swup?.navigate('/en/blog/closed-loop-control-timing/'));
+  await expect(page).toHaveURL(/\/en\/blog\/closed-loop-control-timing\/$/);
+  await expect(sidebarScroll).toHaveJSProperty('scrollTop', 0);
+
+  await page.goBack();
+  await expect
+    .poll(() => new URL(page.url()).pathname)
+    .toBe('/en/blog/persistent-navigation-shell-and-client-lifecycle-for-my-website/');
+  await expect.poll(() => new URL(page.url()).hash).toBe(targetHash);
+  await expect(sidebarScroll).toHaveJSProperty('scrollTop', savedTop);
+});
+
 test('the article table of contents restores its active section without rebuilding SSR links', async ({
   page,
 }) => {
@@ -503,30 +923,36 @@ test('the article table of contents restores its active section without rebuildi
       ).__initialArticleTocLink = link;
       probe.disconnect();
 
-      if (sessionStorage.getItem('capture-article-toc-first-frame') !== 'true') return;
-      requestAnimationFrame(() => {
+      if (sessionStorage.getItem('capture-article-toc-visible-frames') !== 'true') return;
+      const frameProbe = { done: false, hrefs: [] as string[] };
+      Object.defineProperty(window, '__articleTocVisibleFrameProbe', {
+        configurable: true,
+        value: frameProbe,
+      });
+
+      const sample = () => {
+        const bodyVisible =
+          document.body && getComputedStyle(document.body).visibility !== 'hidden';
         const active = document.querySelector<HTMLAnchorElement>(
           '[data-article-sidebar-column] [data-article-toc] a.is-active-link',
         );
-        sessionStorage.setItem('article-toc-first-frame-href', active?.getAttribute('href') ?? '');
-      });
+        if (bodyVisible) frameProbe.hrefs.push(active?.getAttribute('href') ?? '');
+
+        if (frameProbe.hrefs.length < 60) requestAnimationFrame(sample);
+        else frameProbe.done = true;
+      };
+      requestAnimationFrame(sample);
     });
     probe.observe(document, { childList: true, subtree: true });
   });
 
   await page.goto('/en/blog/closed-loop-control-timing/');
+  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
   const analysisLink = page.locator(
     '[data-article-sidebar-column] [data-article-toc] a[href="#analysis"]',
   );
   await analysisLink.click();
   await expect(analysisLink).toHaveClass(/is-active-link/);
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        sessionStorage.getItem('article-section:/en/blog/closed-loop-control-timing/'),
-      ),
-    )
-    .toBe('analysis');
   expect(
     await page.evaluate(
       () =>
@@ -541,16 +967,83 @@ test('the article table of contents restores its active section without rebuildi
     ),
   ).toBe(true);
 
+  const articleMain = page.locator('[data-article-main]');
+  const articleMainBox = await articleMain.boundingBox();
+  expect(articleMainBox).not.toBeNull();
+  await page.mouse.move(
+    articleMainBox!.x + Math.min(articleMainBox!.width / 2, 320),
+    Math.min(articleMainBox!.y + 300, 700),
+  );
+  await page.mouse.wheel(0, 750);
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document
+          .querySelector('[data-article-sidebar-column] [data-article-toc] a.is-active-link')
+          ?.getAttribute('href'),
+      ),
+    )
+    .not.toBe('#analysis');
+  await expect.poll(() => new URL(page.url()).hash).toBe('#analysis');
+  const savedScrollY = await page.evaluate(
+    () =>
+      new Promise<number>((resolve) => {
+        let previous = scrollY;
+        let stableFrames = 0;
+        const sample = () => {
+          const current = scrollY;
+          stableFrames = current === previous ? stableFrames + 1 : 0;
+          previous = current;
+          if (stableFrames >= 3) resolve(current);
+          else requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+      }),
+  );
+  await expect.poll(() => page.evaluate(() => history.state?.scrollY)).toBe(savedScrollY);
+
   await page.evaluate(() => {
-    sessionStorage.setItem('capture-article-toc-first-frame', 'true');
-    sessionStorage.removeItem('article-toc-first-frame-href');
+    sessionStorage.setItem('capture-article-toc-visible-frames', 'true');
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
 
   await expect
-    .poll(() => page.evaluate(() => sessionStorage.getItem('article-toc-first-frame-href')))
-    .toBe('#analysis');
-  await expect(analysisLink).toHaveClass(/is-active-link/);
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            window as typeof window & {
+              __articleTocVisibleFrameProbe?: { done: boolean };
+            }
+          ).__articleTocVisibleFrameProbe?.done ?? false,
+      ),
+    )
+    .toBe(true);
+  const visibleFrameHrefs = await page.evaluate(
+    () =>
+      (
+        window as typeof window & {
+          __articleTocVisibleFrameProbe?: { hrefs: string[] };
+        }
+      ).__articleTocVisibleFrameProbe?.hrefs ?? [],
+  );
+  const expectedHref = await page.evaluate(() => {
+    const headings = [
+      ...document.querySelectorAll<HTMLElement>('.js-toc-content :is(h2[id], h3[id])'),
+    ];
+    const headingOffset = Number.parseFloat(getComputedStyle(headings[0]!).scrollMarginTop) || 0;
+    const tolerance = 1 / Math.max(devicePixelRatio, 1);
+    let current = headings[0]!;
+    for (const heading of headings) {
+      if (heading.getBoundingClientRect().top - headingOffset > tolerance) break;
+      current = heading;
+    }
+    return `#${current.id}`;
+  });
+  expect(visibleFrameHrefs.length).toBe(60);
+  expect(new Set(visibleFrameHrefs)).toEqual(new Set([expectedHref]));
+  expect(expectedHref).not.toBe('#analysis');
+  await expect.poll(() => new URL(page.url()).hash).toBe('#analysis');
   expect(
     await page.evaluate(
       () =>
@@ -565,8 +1058,7 @@ test('the article table of contents restores its active section without rebuildi
     ),
   ).toBe(true);
   await page.evaluate(() => {
-    sessionStorage.removeItem('capture-article-toc-first-frame');
-    sessionStorage.removeItem('article-toc-first-frame-href');
+    sessionStorage.removeItem('capture-article-toc-visible-frames');
   });
 });
 
@@ -1429,6 +1921,288 @@ test('tag filtering keeps the complete facet list and fixed global counts', asyn
   expect(new URL(page.url()).searchParams.getAll('tag')).toContain(candidate.slug);
 });
 
+test('a selected tag is applied before the refreshed blog becomes visible', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.route('**/BlogBrowser*.js', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.continue();
+  });
+  await page.addInitScript(() => {
+    localStorage.setItem('theme', 'dark');
+    localStorage.setItem('wallpaper-enabled', 'false');
+  });
+  await page.goto('/en/blog/');
+  await expect(page.locator('astro-island[component-url*="BlogBrowser"]')).not.toHaveAttribute(
+    'ssr',
+    '',
+  );
+
+  const initialArticleCount = await page.locator('[data-blog-article]').count();
+  const candidate = await page
+    .locator('[data-tag-filter]')
+    .evaluateAll((elements, unfilteredCount) => {
+      const index = elements.findIndex((element) => {
+        const count = Number(element.getAttribute('data-tag-count'));
+        return count > 0 && count < unfilteredCount;
+      });
+      if (index < 0) return null;
+      const element = elements[index]!;
+      return {
+        index,
+        count: Number(element.getAttribute('data-tag-count')),
+        name: element.getAttribute('data-tag-filter'),
+        slug: element.getAttribute('data-tag-slug'),
+      };
+    }, initialArticleCount);
+  if (!candidate?.name || !candidate.slug) {
+    throw new Error('Expected a tag with fewer results than the first page.');
+  }
+
+  await page.locator('[data-tag-filter]').nth(candidate.index).click();
+  await expect(page.locator('[data-blog-article]')).toHaveCount(candidate.count);
+  expect(new URL(page.url()).searchParams.getAll('tag')).toContain(candidate.slug);
+
+  await page.addInitScript(
+    ({ tagName, tagSlug }) => {
+      const probe = {
+        done: false,
+        frames: [] as Array<{
+          visible: boolean;
+          articleCount: number;
+          tagPressed: boolean;
+          tagStyle: string;
+          tagAnimations: number;
+          articleTagPressed: boolean;
+          articleTagStyle: string;
+          articleTagAnimations: number;
+          hydrated: boolean;
+          pending: boolean;
+          outerPageVisible: boolean;
+          browserVisible: boolean;
+        }>,
+      };
+      Object.defineProperty(window, '__blogFilterRefreshFrameState', {
+        configurable: true,
+        value: probe,
+      });
+
+      let frame = 0;
+      const sample = () => {
+        const island = document.querySelector<HTMLElement>(
+          'astro-island[component-url*="BlogBrowser"]',
+        );
+        const browser = document.querySelector<HTMLElement>('[data-blog-browser]');
+        const listing = document.querySelector<HTMLElement>('[data-blog-listing]');
+        const header = document.querySelector<HTMLElement>('[data-site-header]');
+        const footer = document.querySelector<HTMLElement>('#swup > footer');
+        const tag = document.querySelector<HTMLElement>(`[data-tag-slug="${CSS.escape(tagSlug)}"]`);
+        const articleTag = document.querySelector<HTMLElement>(
+          `[data-article-tag="${CSS.escape(tagName)}"]`,
+        );
+        const articles = document.querySelectorAll('[data-blog-article]');
+        if (
+          island &&
+          browser &&
+          listing &&
+          header &&
+          footer &&
+          tag &&
+          articleTag &&
+          articles.length > 0
+        ) {
+          const tagStyle = getComputedStyle(tag);
+          const articleTagStyle = getComputedStyle(articleTag);
+          const outerPageVisible =
+            getComputedStyle(document.body).visibility !== 'hidden' &&
+            getComputedStyle(header).visibility !== 'hidden' &&
+            getComputedStyle(footer).visibility !== 'hidden';
+          const browserVisible = getComputedStyle(browser).visibility !== 'hidden';
+          probe.frames.push({
+            visible: outerPageVisible && browserVisible && tagStyle.visibility !== 'hidden',
+            articleCount: articles.length,
+            tagPressed: tag.getAttribute('aria-pressed') === 'true',
+            tagStyle: [
+              tagStyle.backgroundColor,
+              tagStyle.borderLeftColor,
+              tagStyle.color,
+              tagStyle.fontWeight,
+            ].join('|'),
+            tagAnimations: tag.getAnimations().length,
+            articleTagPressed: articleTag.getAttribute('aria-pressed') === 'true',
+            articleTagStyle: [
+              articleTagStyle.backgroundColor,
+              articleTagStyle.borderColor,
+              articleTagStyle.color,
+            ].join('|'),
+            articleTagAnimations: articleTag.getAnimations().length,
+            hydrated: !island.hasAttribute('ssr'),
+            pending: listing.hasAttribute('data-blog-browser-pending'),
+            outerPageVisible,
+            browserVisible,
+          });
+        }
+
+        frame += 1;
+        if (frame < 90) requestAnimationFrame(sample);
+        else probe.done = true;
+      };
+      requestAnimationFrame(sample);
+    },
+    { tagName: candidate.name, tagSlug: candidate.slug },
+  );
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            window as typeof window & {
+              __blogFilterRefreshFrameState: { done: boolean };
+            }
+          ).__blogFilterRefreshFrameState.done,
+      ),
+    )
+    .toBe(true);
+
+  const frames = await page.evaluate(
+    () =>
+      (
+        window as typeof window & {
+          __blogFilterRefreshFrameState: {
+            frames: Array<{
+              visible: boolean;
+              articleCount: number;
+              tagPressed: boolean;
+              tagStyle: string;
+              tagAnimations: number;
+              articleTagPressed: boolean;
+              articleTagStyle: string;
+              articleTagAnimations: number;
+              hydrated: boolean;
+              pending: boolean;
+              outerPageVisible: boolean;
+              browserVisible: boolean;
+            }>;
+          };
+        }
+      ).__blogFilterRefreshFrameState.frames,
+  );
+  expect(frames.length).toBeGreaterThan(0);
+
+  const staleFrames = frames.filter(
+    ({ articleCount, tagPressed }) => articleCount !== candidate.count || !tagPressed,
+  );
+  expect(staleFrames.length).toBeGreaterThan(0);
+  expect(staleFrames.every(({ visible }) => !visible)).toBe(true);
+  expect(staleFrames.every(({ outerPageVisible }) => !outerPageVisible)).toBe(true);
+
+  const visibleFrames = frames.filter(({ visible }) => visible);
+  expect(visibleFrames.length).toBeGreaterThan(0);
+  expect(
+    visibleFrames.every(
+      ({ articleCount, tagPressed, articleTagPressed, pending }) =>
+        articleCount === candidate.count && tagPressed && articleTagPressed && !pending,
+    ),
+  ).toBe(true);
+  expect(new Set(visibleFrames.map(({ tagStyle }) => tagStyle)).size).toBe(1);
+  expect(new Set(visibleFrames.map(({ articleTagStyle }) => articleTagStyle)).size).toBe(1);
+  expect(visibleFrames.every(({ tagAnimations }) => tagAnimations === 0)).toBe(true);
+  expect(visibleFrames.every(({ articleTagAnimations }) => articleTagAnimations === 0)).toBe(true);
+  expect(visibleFrames.some(({ hydrated }) => hydrated)).toBe(true);
+});
+
+test('a failed blog island reveals its complete static fallback', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  let failedRequests = 0;
+  await page.route(/\/BlogBrowser[^/]*\.js(?:\?.*)?$/, async (route) => {
+    failedRequests += 1;
+    await route.abort('failed');
+  });
+
+  await page.goto('/en/blog/?tag=astro', { waitUntil: 'domcontentloaded' });
+
+  const listing = page.locator('[data-blog-listing]');
+  const browser = page.locator('[data-blog-browser]');
+  await expect(listing).toHaveAttribute('data-blog-browser-pending', '');
+  await expect(browser).toBeHidden();
+  await expect(page.locator('[data-site-header]')).toBeHidden();
+
+  await expect(listing).not.toHaveAttribute('data-blog-browser-pending', '', { timeout: 3_000 });
+  await expect(browser).toBeVisible();
+  await expect(page.locator('[data-site-header]')).toBeVisible();
+  await expect(page.locator('#swup > footer')).toBeVisible();
+  await expect(page.locator('astro-island[component-url*="BlogBrowser"]')).toHaveAttribute(
+    'ssr',
+    '',
+  );
+  expect(failedRequests).toBeGreaterThanOrEqual(2);
+});
+
+test('a stalled blog island fails open at the watchdog boundary', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const frozenTime = new Date('2026-08-26T00:00:00Z');
+  await page.clock.install({ time: frozenTime });
+  await page.clock.pauseAt(frozenTime);
+  let releaseRequest = () => {};
+  const stalledRequest = new Promise<void>((resolve) => {
+    releaseRequest = resolve;
+  });
+  await page.route('**/BlogBrowser*.js', async (route) => {
+    await stalledRequest;
+    await route.abort('failed');
+  });
+
+  try {
+    await page.goto('/en/blog/?tag=astro', { waitUntil: 'domcontentloaded' });
+
+    const listing = page.locator('[data-blog-listing]');
+    const browser = page.locator('[data-blog-browser]');
+    await expect(listing).toHaveAttribute('data-blog-browser-pending', '');
+    await expect(browser).toBeHidden();
+    await expect(page.locator('[data-site-header]')).toBeHidden();
+
+    await page.clock.fastForward(4_999);
+    await expect(listing).toHaveAttribute('data-blog-browser-pending', '');
+    await page.clock.fastForward(1);
+    await expect(listing).not.toHaveAttribute('data-blog-browser-pending', '');
+    await expect(browser).toBeVisible();
+    await expect(page.locator('[data-site-header]')).toBeVisible();
+  } finally {
+    releaseRequest();
+    await page.unrouteAll({ behavior: 'wait' });
+  }
+});
+
+test('a shared second-page URL keeps its static first page hidden until hydration', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.route('**/BlogBrowser*.js', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.continue();
+  });
+
+  await page.goto('/en/blog/?page=2', { waitUntil: 'domcontentloaded' });
+
+  const listing = page.locator('[data-blog-listing]');
+  const browser = page.locator('[data-blog-browser]');
+  const island = page.locator('astro-island[component-url*="BlogBrowser"]');
+  const countLabel = page.locator('[data-blog-results] > p');
+  const total = Number((await countLabel.textContent())?.match(/\d+/)?.[0]);
+  expect(total).toBeGreaterThan(8);
+  await expect(listing).toHaveAttribute('data-blog-browser-pending', '');
+  await expect(browser).toBeHidden();
+  await expect(page.locator('[data-site-header]')).toBeHidden();
+  await expect(page.locator('[data-blog-article]')).toHaveCount(8);
+
+  await expect(island).not.toHaveAttribute('ssr', '');
+  await expect(listing).not.toHaveAttribute('data-blog-browser-pending', '');
+  await expect(browser).toBeVisible();
+  await expect(page.locator('[data-site-header]')).toBeVisible();
+  await expect(page.locator('[data-blog-article]')).toHaveCount(Math.min(8, total - 8));
+});
+
 test('tag filter panel remains stable while result height changes', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/en/blog/');
@@ -1452,6 +2226,766 @@ test('tag filter panel remains stable while result height changes', async ({ pag
   await expect.poll(panelTop).toBe(initialTop);
 });
 
+test('document and sidebar scrolling remain independent on desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/en/blog/');
+
+  const shell = page.locator('[data-blog-sidebar-shell]');
+  const viewport = page.locator('[data-blog-sidebar-viewport]');
+  const panel = page.locator('[data-tag-filter-panel]');
+  const results = page.locator('[data-blog-results]');
+
+  await expect(shell).toHaveCSS('position', 'sticky');
+  await expect(viewport).toHaveCSS('overflow', 'clip');
+
+  const initialGeometry = await page.evaluate(() => {
+    const shell = document.querySelector('[data-blog-sidebar-shell]');
+    const panel = document.querySelector('[data-tag-filter-panel]');
+    const results = document.querySelector('[data-blog-results]');
+    if (!(shell instanceof HTMLElement) || !(panel instanceof HTMLElement) || !results) {
+      throw new Error('Expected the desktop blog layout');
+    }
+    return {
+      shellTop: shell.getBoundingClientRect().top,
+      panelScrollTop: panel.scrollTop,
+      resultsTop: results.getBoundingClientRect().top,
+    };
+  });
+
+  const documentScrollTop = await page.evaluate(() => {
+    const maximum = document.documentElement.scrollHeight - window.innerHeight;
+    window.scrollTo(0, Math.min(360, maximum));
+    return window.scrollY;
+  });
+  expect(documentScrollTop).toBeGreaterThan(0);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(documentScrollTop);
+
+  const afterDocumentScroll = await page.evaluate(() => {
+    const shell = document.querySelector('[data-blog-sidebar-shell]');
+    const panel = document.querySelector('[data-tag-filter-panel]');
+    const results = document.querySelector('[data-blog-results]');
+    if (!(shell instanceof HTMLElement) || !(panel instanceof HTMLElement) || !results) {
+      throw new Error('Expected the desktop blog layout');
+    }
+    return {
+      shellTop: shell.getBoundingClientRect().top,
+      panelScrollTop: panel.scrollTop,
+      resultsTop: results.getBoundingClientRect().top,
+    };
+  });
+  expect(afterDocumentScroll.shellTop).toBeCloseTo(initialGeometry.shellTop, 1);
+  expect(afterDocumentScroll.panelScrollTop).toBe(initialGeometry.panelScrollTop);
+  expect(afterDocumentScroll.resultsTop).toBeLessThan(initialGeometry.resultsTop);
+
+  const panelBox = await panel.boundingBox();
+  expect(panelBox).not.toBeNull();
+  const windowScrollBeforePanel = await page.evaluate(() => window.scrollY);
+  await page.mouse.move(panelBox!.x + panelBox!.width / 2, panelBox!.y + panelBox!.height / 2);
+  await page.mouse.wheel(0, 320);
+  await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.scrollY)).toBe(windowScrollBeforePanel);
+
+  const resultsBox = await results.boundingBox();
+  expect(resultsBox).not.toBeNull();
+  const panelScrollBeforeResults = await panel.evaluate((element) => element.scrollTop);
+  const windowScrollBeforeResults = await page.evaluate(() => window.scrollY);
+  await page.mouse.move(resultsBox!.x + Math.min(resultsBox!.width / 2, 200), 450);
+  await page.mouse.wheel(0, 320);
+  await expect
+    .poll(() => page.evaluate(() => window.scrollY))
+    .toBeGreaterThan(windowScrollBeforeResults);
+  expect(await panel.evaluate((element) => element.scrollTop)).toBe(panelScrollBeforeResults);
+  expect(
+    await shell.evaluate((element) => Math.round(element.getBoundingClientRect().top * 100) / 100),
+  ).toBeCloseTo(Math.round(initialGeometry.shellTop * 100) / 100, 1);
+});
+
+test('the tag sidebar restores its scroll position before a refreshed page is painted', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => localStorage.setItem('wallpaper-enabled', 'false'));
+  await page.goto('/en/blog/');
+  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
+
+  const restorationKey = 'blog-sidebar-tags';
+  const panel = page.locator(`[data-scroll-restoration-key="${restorationKey}"]`);
+  const savedTop = await panel.evaluate((element) => {
+    const top = Math.min(320, element.scrollHeight - element.clientHeight);
+    element.scrollTop = top;
+    return top;
+  });
+  expect(savedTop).toBeGreaterThan(0);
+  await expect.poll(() => readSavedNestedScrollTop(page, restorationKey)).toBe(savedTop);
+
+  await installNestedScrollFrameProbe(page, restorationKey);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const frames = await readNestedScrollFrameProbe(page);
+  expect(frames.length).toBeGreaterThan(0);
+  expect(new Set(frames)).toEqual(new Set([savedTop]));
+  await expect(panel).toHaveJSProperty('scrollTop', savedTop);
+
+  await page.evaluate(() => window.swup?.navigate('/en/about/'));
+  await expect(page).toHaveURL(/\/en\/about\/$/);
+  await page.evaluate(
+    ({ prefix, pathname, restorationKey }) =>
+      sessionStorage.removeItem(`${prefix}${pathname}:${restorationKey}`),
+    {
+      prefix: NESTED_SCROLL_POSITION_PREFIX,
+      pathname: '/en/blog/',
+      restorationKey,
+    },
+  );
+
+  await page.evaluate(() => window.swup?.navigate('/en/blog/'));
+  await expect(page).toHaveURL(/\/en\/blog\/$/);
+  await expect(page.locator('astro-island[component-url*="BlogBrowser"]')).not.toHaveAttribute(
+    'ssr',
+    '',
+  );
+
+  const reenteredPanel = page.locator(`[data-scroll-restoration-key="${restorationKey}"]`);
+  const reenteredTop = await reenteredPanel.evaluate((element) => {
+    const top = Math.min(240, element.scrollHeight - element.clientHeight);
+    element.scrollTop = top;
+    return top;
+  });
+  expect(reenteredTop).toBeGreaterThan(0);
+  await expect.poll(() => readSavedNestedScrollTop(page, restorationKey)).toBe(reenteredTop);
+
+  await installNestedScrollFrameProbe(page, restorationKey);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const reenteredFrames = await readNestedScrollFrameProbe(page);
+  expect(reenteredFrames.length).toBeGreaterThan(0);
+  expect(new Set(reenteredFrames)).toEqual(new Set([reenteredTop]));
+  await expect(reenteredPanel).toHaveJSProperty('scrollTop', reenteredTop);
+});
+
+test('the tag sidebar preserves a first-navigation scroll through island hydration and refresh', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.route('**/BlogBrowser*.js', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.continue();
+  });
+  await page.addInitScript(() => localStorage.setItem('wallpaper-enabled', 'false'));
+  await page.goto('/en/about/');
+  await page.evaluate(() => sessionStorage.clear());
+  await page.locator('[data-site-header] .site-header__desktop a[href="/en/blog/"]').click();
+  await expect(page).toHaveURL(/\/en\/blog\/$/);
+
+  const restorationKey = 'blog-sidebar-tags';
+  await expect(page.locator('astro-island[component-url*="BlogBrowser"]')).not.toHaveAttribute(
+    'ssr',
+    '',
+  );
+  const panel = page.locator(`[data-scroll-restoration-key="${restorationKey}"]`);
+  const firstTop = await panel.evaluate((element) => {
+    const top = Math.min(280, element.scrollHeight - element.clientHeight);
+    element.scrollTop = top;
+    return top;
+  });
+  expect(firstTop).toBeGreaterThan(0);
+  await expect(panel).toHaveJSProperty('scrollTop', firstTop);
+  await expect.poll(() => readSavedNestedScrollTop(page, restorationKey)).toBe(firstTop);
+
+  await installNestedScrollFrameProbe(page, restorationKey);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const frames = await readNestedScrollFrameProbe(page);
+  expect(frames.length).toBeGreaterThan(0);
+  expect(new Set(frames)).toEqual(new Set([firstTop]));
+  await expect(panel).toHaveJSProperty('scrollTop', firstTop);
+});
+
+test('island hydration cannot overwrite a restored nested scroll position with scroll noise', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.route('**/BlogBrowser*.js', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    await route.continue();
+  });
+  await page.goto('/en/about/');
+
+  const restorationKey = 'blog-sidebar-tags';
+  const restoredTop = 240;
+  await page.evaluate(
+    ({ prefix, restorationKey, restoredTop }) => {
+      sessionStorage.setItem(
+        `${prefix}/en/blog/:${restorationKey}`,
+        JSON.stringify({ top: restoredTop, left: 0 }),
+      );
+    },
+    { prefix: NESTED_SCROLL_POSITION_PREFIX, restorationKey, restoredTop },
+  );
+
+  await page.goto('/en/blog/', { waitUntil: 'domcontentloaded' });
+  const island = page.locator('astro-island[component-url*="BlogBrowser"]');
+  const panel = page.locator(`[data-scroll-restoration-key="${restorationKey}"]`);
+  await expect(island).toHaveAttribute('ssr', '');
+  await expect(panel).toHaveJSProperty('scrollTop', restoredTop);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            globalThis as typeof globalThis & {
+              __sshawn9ClientRuntimes?: Map<string, unknown>;
+            }
+          ).__sshawn9ClientRuntimes?.has('nested-scroll-restoration') ?? false,
+      ),
+    )
+    .toBe(true);
+
+  await panel.evaluate((element) => {
+    element.scrollTop = 0;
+    element.dispatchEvent(new Event('scroll'));
+  });
+  await expect(panel).toHaveJSProperty('scrollTop', 0);
+
+  await expect(island).not.toHaveAttribute('ssr', '');
+  await expect(panel).toHaveJSProperty('scrollTop', restoredTop);
+  await expect.poll(() => readSavedNestedScrollTop(page, restorationKey)).toBe(restoredTop);
+});
+
+test('a real nested scroll during slow island hydration remains authoritative', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  let releaseBundle = () => {};
+  let markBundleRequested = () => {};
+  const bundleGate = new Promise<void>((resolve) => {
+    releaseBundle = resolve;
+  });
+  const bundleRequested = new Promise<void>((resolve) => {
+    markBundleRequested = resolve;
+  });
+  await page.route('**/BlogBrowser*.js', async (route) => {
+    markBundleRequested();
+    await bundleGate;
+    await route.continue();
+  });
+
+  try {
+    await page.goto('/en/about/');
+    await page.evaluate(() => sessionStorage.clear());
+    await page.goto('/en/blog/', { waitUntil: 'domcontentloaded' });
+    await bundleRequested;
+
+    const restorationKey = 'blog-sidebar-tags';
+    const island = page.locator('astro-island[component-url*="BlogBrowser"]');
+    const panel = page.locator(`[data-scroll-restoration-key="${restorationKey}"]`);
+    await expect(island).toHaveAttribute('ssr', '');
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (
+              globalThis as typeof globalThis & {
+                __sshawn9ClientRuntimes?: Map<string, unknown>;
+              }
+            ).__sshawn9ClientRuntimes?.has('nested-scroll-restoration') ?? false,
+        ),
+      )
+      .toBe(true);
+
+    await page.clock.install();
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
+    const panelBox = await panel.boundingBox();
+    expect(panelBox).not.toBeNull();
+    await page.mouse.move(panelBox!.x + panelBox!.width / 2, panelBox!.y + panelBox!.height / 2);
+    await page.mouse.wheel(0, 300);
+    await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    const userTop = await panel.evaluate((element) => element.scrollTop);
+    expect(await readSavedNestedScrollTop(page, restorationKey)).toBe(0);
+
+    releaseBundle();
+    await expect(island).not.toHaveAttribute('ssr', '');
+    await expect(panel).toHaveJSProperty('scrollTop', userTop);
+    await expect.poll(() => readSavedNestedScrollTop(page, restorationKey)).toBe(userTop);
+  } finally {
+    releaseBundle();
+    await page.unrouteAll({ behavior: 'wait' });
+  }
+});
+
+test('the tall desktop sidebar ends with the article list and stays clear of the footer', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 1253 });
+  await page.goto('/zh/blog/');
+
+  const initialShellTop = await page
+    .locator('[data-blog-sidebar-shell]')
+    .evaluate((element) => element.getBoundingClientRect().top);
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+
+  const geometry = await page.evaluate(() => {
+    const rect = (selector: string) => {
+      const element = document.querySelector(selector);
+      if (!element) throw new Error(`Missing layout element: ${selector}`);
+      return element.getBoundingClientRect();
+    };
+    const shell = rect('[data-blog-sidebar-shell]');
+    const articleList = rect('[data-blog-results] > ol');
+    const pagination = rect('[data-blog-results] > nav');
+    const footer = rect('#swup > footer');
+
+    return {
+      shellTop: shell.top,
+      shellBottom: shell.bottom,
+      articleListBottom: articleList.bottom,
+      paginationTop: pagination.top,
+      footerTop: footer.top,
+    };
+  });
+
+  expect(geometry.shellTop).toBeCloseTo(initialShellTop, 1);
+  expect(Math.abs(geometry.shellBottom - geometry.articleListBottom)).toBeLessThanOrEqual(24);
+  expect(geometry.shellBottom).toBeLessThan(geometry.paginationTop);
+  expect(geometry.shellBottom).toBeLessThan(geometry.footerTop);
+});
+
+test('the blog sidebar owns its controls and preserves the content gutter while resizing', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/en/blog/');
+
+  const layout = page.locator('[data-blog-sidebar-layout]');
+  const shell = page.locator('[data-blog-sidebar-shell]');
+  const viewport = page.locator('[data-blog-sidebar-viewport]');
+  const sidebar = page.locator('#blog-sidebar');
+  const tagSection = sidebar.locator('[data-blog-sidebar-section="article-tags"]');
+  const tagPanel = sidebar.locator('[data-tag-filter-panel]');
+  const results = page.locator('[data-blog-results]');
+  const resizer = page.getByRole('separator', { name: 'Resize blog sidebar' });
+  const boundary = resizer.locator('[data-blog-sidebar-boundary]');
+  const collapseButton = page.getByRole('button', { name: 'Collapse blog sidebar' });
+  const sidebarTitle = sidebar.getByRole('heading', { level: 2, name: 'Article tags' });
+
+  await expect(sidebar).toBeVisible();
+  await expect(sidebar).toHaveAccessibleName('Article tags');
+  await expect(sidebarTitle).toBeVisible();
+  await expect(tagSection).toBeVisible();
+  await expect(tagSection.locator('h3')).toHaveCount(0);
+  await expect(tagSection.locator('[data-blog-sidebar-collapse]')).toHaveCount(0);
+  await expect(collapseButton).toBeVisible();
+  await expect(boundary).toBeVisible();
+  expect(await boundary.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(
+    'rgba(0, 0, 0, 0)',
+  );
+  await expect(resizer).toHaveAttribute('aria-orientation', 'vertical');
+  await expect(resizer).toHaveAttribute('aria-valuemin', '208');
+  await expect(resizer).toHaveAttribute('aria-valuemax', '400');
+  await expect(resizer).toHaveAttribute('aria-valuenow', '272');
+
+  const initialSidebarBox = await sidebar.boundingBox();
+  const initialTagPanelBox = await tagPanel.boundingBox();
+  const initialResultsBox = await results.boundingBox();
+  const resizerBox = await resizer.boundingBox();
+  const initialToggleBox = await collapseButton.boundingBox();
+  const sidebarTitleBox = await sidebarTitle.boundingBox();
+  const initialLayoutBox = await layout.boundingBox();
+  const initialShellBox = await shell.boundingBox();
+  expect(initialSidebarBox).not.toBeNull();
+  expect(initialTagPanelBox).not.toBeNull();
+  expect(initialResultsBox).not.toBeNull();
+  expect(resizerBox).not.toBeNull();
+  expect(initialToggleBox).not.toBeNull();
+  expect(sidebarTitleBox).not.toBeNull();
+  expect(initialLayoutBox).not.toBeNull();
+  expect(initialShellBox).not.toBeNull();
+  expect(initialSidebarBox!.width).toBeCloseTo(272, 0);
+  expect(sidebarTitleBox!.x).toBeGreaterThan(initialToggleBox!.x + initialToggleBox!.width);
+  expect(sidebarTitleBox!.y + sidebarTitleBox!.height / 2).toBeCloseTo(
+    initialToggleBox!.y + initialToggleBox!.height / 2,
+    1,
+  );
+  expect(
+    initialSidebarBox!.x +
+      initialSidebarBox!.width -
+      (initialTagPanelBox!.x + initialTagPanelBox!.width),
+  ).toBeCloseTo(16, 0);
+  expect(resizerBox!.height).toBeCloseTo(initialShellBox!.height, 0);
+  expect(initialResultsBox!.x - (initialSidebarBox!.x + initialSidebarBox!.width)).toBeCloseTo(
+    40,
+    0,
+  );
+
+  const dragStartX = resizerBox!.x + resizerBox!.width / 2;
+  const dragStartY = resizerBox!.y + Math.min(resizerBox!.height / 2, 240);
+  await page.mouse.move(dragStartX, dragStartY);
+  await page.mouse.down();
+  await page.mouse.move(dragStartX + 72, dragStartY, { steps: 6 });
+  await page.mouse.up();
+  await expect(resizer).toHaveAttribute('aria-valuenow', '344');
+
+  const resizedSidebarBox = await sidebar.boundingBox();
+  const resizedResultsBox = await results.boundingBox();
+  expect(resizedSidebarBox).not.toBeNull();
+  expect(resizedResultsBox).not.toBeNull();
+  expect(resizedSidebarBox!.width).toBeCloseTo(344, 0);
+  expect(resizedResultsBox!.x - (resizedSidebarBox!.x + resizedSidebarBox!.width)).toBeCloseTo(
+    40,
+    0,
+  );
+  expect(resizedResultsBox!.width).toBeLessThan(initialResultsBox!.width);
+
+  await resizer.focus();
+  await resizer.press('ArrowLeft');
+  await expect(resizer).toHaveAttribute('aria-valuenow', '328');
+
+  await collapseButton.click();
+  await expect(layout).toHaveAttribute('data-sidebar-collapsed', '');
+  await expect(sidebar).toHaveAttribute('aria-hidden', 'true');
+  await expect(sidebar).toHaveAttribute('inert', '');
+  await expect.poll(async () => (await sidebar.boundingBox())?.width ?? 0).toBeLessThanOrEqual(0.5);
+
+  const expandButton = page.getByRole('button', { name: 'Expand blog sidebar' });
+  await expect(expandButton).toBeVisible();
+  const collapsedToggleBox = await expandButton.boundingBox();
+  expect(collapsedToggleBox).not.toBeNull();
+  expect(collapsedToggleBox!.x).toBeCloseTo(initialToggleBox!.x, 1);
+  expect(collapsedToggleBox!.y).toBeCloseTo(initialToggleBox!.y, 1);
+  await expect(viewport).toHaveCSS('overflow', 'clip');
+  expect(
+    await tagSection.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      const hitTarget = document.elementFromPoint(
+        bounds.left + Math.min(bounds.width / 2, 80),
+        bounds.top + 20,
+      );
+      return hitTarget !== null && element.contains(hitTarget);
+    }),
+  ).toBe(false);
+  const collapsedLayoutBox = await layout.boundingBox();
+  const expandedResultsBox = await results.boundingBox();
+  expect(collapsedLayoutBox).not.toBeNull();
+  expect(expandedResultsBox).not.toBeNull();
+  expect(expandedResultsBox!.x - collapsedLayoutBox!.x).toBeCloseTo(40, 0);
+
+  const expansionFrames = await page.evaluate(async () => {
+    const sidebar = document.querySelector('#blog-sidebar');
+    const expand = document.querySelector<HTMLButtonElement>('[data-blog-sidebar-expand]');
+    if (!sidebar || !expand) throw new Error('Expected the collapsed blog sidebar');
+
+    const frames: Array<{ sidebarWidth: number; boundaryVisible: boolean }> = [];
+    expand.click();
+
+    await new Promise<void>((resolve) => {
+      let frame = 0;
+      const sample = () => {
+        frames.push({
+          sidebarWidth: sidebar.getBoundingClientRect().width,
+          boundaryVisible:
+            (document.querySelector('[data-blog-sidebar-boundary]')?.getClientRects().length ?? 0) >
+            0,
+        });
+        frame += 1;
+        if (frame < 20) requestAnimationFrame(sample);
+        else resolve();
+      };
+      requestAnimationFrame(sample);
+    });
+
+    return frames;
+  });
+  expect(
+    expansionFrames.every(
+      ({ sidebarWidth, boundaryVisible }) => sidebarWidth >= 327.5 || !boundaryVisible,
+    ),
+  ).toBe(true);
+  expect(expansionFrames.at(-1)?.boundaryVisible).toBe(true);
+  await expect(layout).not.toHaveAttribute('data-sidebar-collapsed', '');
+  await expect(resizer).toHaveAttribute('aria-valuenow', '328');
+  await expect(collapseButton).toBeFocused();
+  await expect.poll(async () => (await sidebar.boundingBox())?.width ?? 0).toBeCloseTo(328, 0);
+  const restoredToggleBox = await collapseButton.boundingBox();
+  expect(restoredToggleBox).not.toBeNull();
+  expect(restoredToggleBox!.x).toBeCloseTo(initialToggleBox!.x, 1);
+  expect(restoredToggleBox!.y).toBeCloseTo(initialToggleBox!.y, 1);
+});
+
+test('blog sidebar geometry is identical across the SSR and hydration frames', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => {
+    localStorage.setItem('wallpaper-enabled', 'false');
+    const state = {
+      done: false,
+      frames: [] as Array<{
+        sidebarX: number;
+        sidebarWidth: number;
+        resultsX: number;
+        collapseX: number;
+      }>,
+    };
+    Object.defineProperty(window, '__blogSidebarFrameState', {
+      configurable: true,
+      value: state,
+    });
+
+    let frame = 0;
+    const sample = () => {
+      const sidebar = document.querySelector('#blog-sidebar');
+      const results = document.querySelector('[data-blog-results]');
+      const collapse = document.querySelector('[data-blog-sidebar-collapse]');
+      if (sidebar && results && collapse) {
+        const sidebarBox = sidebar.getBoundingClientRect();
+        const resultsBox = results.getBoundingClientRect();
+        const collapseBox = collapse.getBoundingClientRect();
+        const round = (value: number) => Math.round(value * 100) / 100;
+        state.frames.push({
+          sidebarX: round(sidebarBox.x),
+          sidebarWidth: round(sidebarBox.width),
+          resultsX: round(resultsBox.x),
+          collapseX: round(collapseBox.x),
+        });
+      }
+
+      frame += 1;
+      if (frame < 90) requestAnimationFrame(sample);
+      else state.done = true;
+    };
+    requestAnimationFrame(sample);
+  });
+
+  await page.goto('/en/blog/');
+  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
+  await expect(page.locator('astro-island[component-url*="BlogBrowser"]')).not.toHaveAttribute(
+    'ssr',
+    '',
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            window as typeof window & {
+              __blogSidebarFrameState: { done: boolean };
+            }
+          ).__blogSidebarFrameState.done,
+      ),
+    )
+    .toBe(true);
+
+  const frames = await page.evaluate(
+    () =>
+      (
+        window as typeof window & {
+          __blogSidebarFrameState: {
+            frames: Array<{
+              sidebarX: number;
+              sidebarWidth: number;
+              resultsX: number;
+              collapseX: number;
+            }>;
+          };
+        }
+      ).__blogSidebarFrameState.frames,
+  );
+  expect(frames.length).toBeGreaterThan(0);
+  expect(new Set(frames.map(({ sidebarX }) => sidebarX)).size).toBe(1);
+  expect(new Set(frames.map(({ sidebarWidth }) => sidebarWidth))).toEqual(new Set([272]));
+  expect(new Set(frames.map(({ resultsX }) => resultsX)).size).toBe(1);
+  expect(new Set(frames.map(({ collapseX }) => collapseX)).size).toBe(1);
+  expect(frames[0]!.resultsX - frames[0]!.sidebarX - frames[0]!.sidebarWidth).toBe(40);
+});
+
+test('blog sidebar width and collapsed state persist without a first-frame layout change', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/en/blog/');
+  await expect(page.locator('astro-island[component-url*="BlogBrowser"]')).not.toHaveAttribute(
+    'ssr',
+    '',
+  );
+
+  const resizer = page.getByRole('separator', { name: 'Resize blog sidebar' });
+  const resizerBox = await resizer.boundingBox();
+  expect(resizerBox).not.toBeNull();
+  const dragX = resizerBox!.x + resizerBox!.width / 2;
+  const dragY = resizerBox!.y + Math.min(resizerBox!.height / 2, 240);
+  await page.mouse.move(dragX, dragY);
+  await page.mouse.down();
+  await page.mouse.move(dragX + 48, dragY, { steps: 4 });
+  await page.mouse.up();
+  await expect(resizer).toHaveAttribute('aria-valuenow', '320');
+  await expect
+    .poll(() =>
+      page.evaluate(() => JSON.parse(localStorage.getItem('blog-sidebar-layout') ?? 'null')),
+    )
+    .toEqual({ collapsed: false, width: 320 });
+
+  await page.addInitScript(() => {
+    const state = {
+      done: false,
+      frames: [] as Array<{
+        sidebarWidth: number;
+        contentWidth: number;
+        resultsOffset: number;
+        boundaryVisible: boolean;
+        collapseIconVisible: boolean;
+        expandIconVisible: boolean;
+      }>,
+    };
+    Object.defineProperty(window, '__blogSidebarPreferenceFrameState', {
+      configurable: true,
+      value: state,
+    });
+
+    let frame = 0;
+    const sample = () => {
+      const layout = document.querySelector('[data-blog-sidebar-layout]');
+      const sidebar = document.querySelector('#blog-sidebar');
+      const content = sidebar?.firstElementChild;
+      const results = document.querySelector('[data-blog-results]');
+      const boundary = document.querySelector('[data-blog-sidebar-boundary]');
+      const collapseIcon = document.querySelector('[data-blog-sidebar-collapse-icon]');
+      const expandIcon = document.querySelector('[data-blog-sidebar-expand-icon]');
+      if (layout && sidebar && content && results && collapseIcon && expandIcon) {
+        const layoutBox = layout.getBoundingClientRect();
+        const sidebarBox = sidebar.getBoundingClientRect();
+        const contentBox = content.getBoundingClientRect();
+        const resultsBox = results.getBoundingClientRect();
+        const round = (value: number) => Math.round(value * 100) / 100;
+        state.frames.push({
+          sidebarWidth: round(sidebarBox.width),
+          contentWidth: round(contentBox.width),
+          resultsOffset: round(resultsBox.x - layoutBox.x),
+          boundaryVisible: boundary !== null && boundary.getClientRects().length !== 0,
+          collapseIconVisible: getComputedStyle(collapseIcon).display !== 'none',
+          expandIconVisible: getComputedStyle(expandIcon).display !== 'none',
+        });
+      }
+
+      frame += 1;
+      if (frame < 60) requestAnimationFrame(sample);
+      else state.done = true;
+    };
+    requestAnimationFrame(sample);
+  });
+
+  const readFrames = async () => {
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (
+              window as typeof window & {
+                __blogSidebarPreferenceFrameState: { done: boolean };
+              }
+            ).__blogSidebarPreferenceFrameState.done,
+        ),
+      )
+      .toBe(true);
+    return page.evaluate(
+      () =>
+        (
+          window as typeof window & {
+            __blogSidebarPreferenceFrameState: {
+              frames: Array<{
+                sidebarWidth: number;
+                contentWidth: number;
+                resultsOffset: number;
+                boundaryVisible: boolean;
+                collapseIconVisible: boolean;
+                expandIconVisible: boolean;
+              }>;
+            };
+          }
+        ).__blogSidebarPreferenceFrameState.frames,
+    );
+  };
+
+  await page.reload();
+  const expandedFrames = await readFrames();
+  expect(expandedFrames.length).toBeGreaterThan(0);
+  expect(new Set(expandedFrames.map(({ sidebarWidth }) => sidebarWidth))).toEqual(new Set([320]));
+  expect(new Set(expandedFrames.map(({ contentWidth }) => contentWidth))).toEqual(new Set([320]));
+  expect(new Set(expandedFrames.map(({ resultsOffset }) => resultsOffset))).toEqual(new Set([360]));
+  expect(expandedFrames.every(({ boundaryVisible }) => boundaryVisible)).toBe(true);
+  expect(expandedFrames.every(({ collapseIconVisible }) => collapseIconVisible)).toBe(true);
+  expect(expandedFrames.some(({ expandIconVisible }) => expandIconVisible)).toBe(false);
+
+  await page.getByRole('button', { name: 'Collapse blog sidebar' }).click();
+  await expect(page.locator('[data-blog-sidebar-layout]')).toHaveAttribute(
+    'data-sidebar-collapsed',
+    '',
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(() => JSON.parse(localStorage.getItem('blog-sidebar-layout') ?? 'null')),
+    )
+    .toEqual({ collapsed: true, width: 320 });
+
+  await page.reload();
+  const collapsedFrames = await readFrames();
+  expect(collapsedFrames.length).toBeGreaterThan(0);
+  expect(new Set(collapsedFrames.map(({ sidebarWidth }) => sidebarWidth))).toEqual(new Set([0]));
+  expect(new Set(collapsedFrames.map(({ contentWidth }) => contentWidth))).toEqual(new Set([320]));
+  expect(new Set(collapsedFrames.map(({ resultsOffset }) => resultsOffset))).toEqual(new Set([40]));
+  expect(collapsedFrames.some(({ boundaryVisible }) => boundaryVisible)).toBe(false);
+  expect(collapsedFrames.some(({ collapseIconVisible }) => collapseIconVisible)).toBe(false);
+  expect(collapsedFrames.every(({ expandIconVisible }) => expandIconVisible)).toBe(true);
+
+  await page.getByRole('button', { name: 'Expand blog sidebar' }).click();
+  await expect
+    .poll(async () => (await page.locator('#blog-sidebar').boundingBox())?.width)
+    .toBe(320);
+});
+
+test('the blog sidebar becomes a mobile tag disclosure without desktop controls', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 760, height: 900 });
+  await page.goto('/en/blog/');
+
+  const sidebar = page.getByRole('complementary', { name: 'Article tags' });
+  const results = page.locator('[data-blog-results]');
+  const tagTrigger = page.getByRole('button', { name: 'Article tags' });
+  const filters = page.locator('[data-tag-filter]');
+
+  await expect(sidebar).toBeVisible();
+  await expect(page.locator('[data-blog-sidebar-collapse]')).toBeHidden();
+  await expect(page.locator('[data-blog-sidebar-resizer]')).toBeHidden();
+  await expect(tagTrigger).toBeVisible();
+  await expect(filters.first()).toBeVisible();
+
+  await tagTrigger.click();
+  await expect(tagTrigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(filters.first()).toBeHidden();
+  await tagTrigger.click();
+  await expect(tagTrigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(filters.first()).toBeVisible();
+
+  const sidebarBox = await sidebar.boundingBox();
+  const resultsBox = await results.boundingBox();
+  expect(sidebarBox).not.toBeNull();
+  expect(resultsBox).not.toBeNull();
+  expect(resultsBox!.y - (sidebarBox!.y + sidebarBox!.height)).toBeCloseTo(40, 0);
+});
+
+test('leaving the desktop breakpoint cannot strand the blog sidebar collapsed', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/zh/blog/');
+
+  const layout = page.locator('[data-blog-sidebar-layout]');
+  const sidebar = page.getByRole('complementary', { name: '文章标签' });
+  await page.getByRole('button', { name: '收起博客侧栏' }).click();
+  await expect(layout).toHaveAttribute('data-sidebar-collapsed', '');
+
+  await page.setViewportSize({ width: 760, height: 900 });
+  await expect(layout).not.toHaveAttribute('data-sidebar-collapsed', '');
+  await expect(sidebar).not.toHaveAttribute('aria-hidden', 'true');
+  await expect(sidebar).toBeVisible();
+  await expect(page.getByRole('button', { name: '文章标签' })).toBeVisible();
+});
+
 test('version comparison loads on demand and supports both layouts', async ({ page }) => {
   await page.goto('/zh/blog/my-personal-website/');
   const comparisonLink = page.locator('[data-version-compare-link]').first();
@@ -1460,6 +2994,8 @@ test('version comparison loads on demand and supports both layouts', async ({ pa
   await page.goto(comparisonHref!);
 
   await expect(page.locator('[data-version-comparison]')).toBeVisible();
+  const desktopSidebar = page.locator('[data-version-comparison] > aside > div');
+  await expect(desktopSidebar).toHaveCSS('top', '140px');
   const unifiedDiff = page.locator('[data-diff-panel="unified"]');
   await expect(unifiedDiff).toBeVisible();
   await expect(unifiedDiff.locator('.d2h-diff-table')).toHaveCSS(
@@ -1473,6 +3009,10 @@ test('version comparison loads on demand and supports both layouts', async ({ pa
       ),
     ),
   ).toBe(true);
+
+  await page.setViewportSize({ width: 1024, height: 500 });
+  await expect(page.locator('[data-site-header]')).toHaveCSS('position', 'relative');
+  await expect(desktopSidebar).toHaveCSS('top', '83px');
   await page.locator('[data-diff-mode="split"]:visible').click();
   await expect(page.locator('[data-diff-panel="split"]')).toBeVisible();
 });
