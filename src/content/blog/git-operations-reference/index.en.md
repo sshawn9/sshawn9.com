@@ -1000,3 +1000,301 @@ git maintenance run --auto
 ```
 
 A comprehensive `gc` might take a long time, and might also clean up data that has passed its retention period and is unreachable. After enabling `start`, there is usually no need to manually run the above tasks anymore; explicitly specifying `--task` is mainly used for immediately addressing confirmed repository data issues.
+
+## Local and Remote Histories Diverge After Rebasing a Pushed Branch onto the Latest `main`
+
+This section covers a specific scenario: the commits on `feature/example` have already been pushed, and the local branch is then rebased onto an updated `origin/main`. The rebase rewrites only the local history, so the local branch diverges from the old history on the remote. At this point, a regular `push` is rejected, and `pull` does not directly solve the problem either.
+
+### How This Happens
+
+1. Create `feature/example` from `main` and make two commits, `C` and `D`.
+2. Push the branch. At this point, both `feature/example` and `origin/feature/example` point to `D`.
+3. `main` then advances by 29 commits.
+4. On `feature/example`, run `git fetch origin` and `git rebase origin/main`. Git recreates `C′` and `D′` after the new base. The local branch now points to `D′`, while the remote still points to the old `D`.
+
+### Commit Graph After the Rebase
+
+In the graph, `M*` represents the 29 new commits on `main` in a collapsed form. The rebase has rewritten only the local history: the remote ref remains on `C` and `D`, while the local branch passes through `M*` and points to the recreated `C′` and `D′`:
+
+<!-- prettier-ignore -->
+<svg class="not-prose" viewBox="0 0 1040 320" role="img" aria-label="Positions of the local and remote refs after rebasing a pushed branch" aria-describedby="diverge-graph-description" style="display: block; width: 100%; height: auto; margin: 1.5rem 0; color: var(--ink)">
+  <desc id="diverge-graph-description">A and B are shared history. origin/feature/example still points to C and D, which branch from B. M with an asterisk represents the 29 new commits on origin/main in a collapsed form. The local feature/example points to C prime and D prime, recreated after those commits. B is the common ancestor of the two histories.</desc>
+  <defs>
+    <marker id="diverge-history-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="currentColor" />
+    </marker>
+  </defs>
+  <rect x="1" y="1" width="1038" height="318" rx="18" fill="var(--surface-strong)" stroke="var(--line)" />
+  <g fill="none" stroke="currentColor" stroke-width="1.75" marker-end="url(#diverge-history-arrow)">
+    <line x1="157" y1="210" x2="263" y2="210" />
+    <line x1="297" y1="210" x2="403" y2="210" />
+    <line x1="437" y1="210" x2="543" y2="210" />
+    <line x1="577" y1="210" x2="683" y2="210" />
+    <line x1="292" y1="196" x2="405" y2="104" />
+    <line x1="437" y1="90" x2="543" y2="90" />
+  </g>
+  <g fill="var(--page-muted)" stroke="currentColor" stroke-width="1.75">
+    <circle cx="140" cy="210" r="16" />
+    <circle cx="280" cy="210" r="16" />
+    <circle cx="420" cy="210" r="16" />
+    <circle cx="560" cy="210" r="16" />
+    <circle cx="700" cy="210" r="16" />
+    <circle cx="420" cy="90" r="16" />
+    <circle cx="560" cy="90" r="16" />
+  </g>
+  <g fill="currentColor" font-family="var(--font-mono)" font-size="14" font-weight="700" text-anchor="middle">
+    <text x="140" y="215">A</text>
+    <text x="280" y="215">B</text>
+    <text x="420" y="215">M*</text>
+    <text x="560" y="215">C′</text>
+    <text x="700" y="215">D′</text>
+    <text x="420" y="95">C</text>
+    <text x="560" y="95">D</text>
+  </g>
+  <g font-family="var(--font-mono)" font-size="14" font-weight="650" fill="currentColor">
+    <g transform="translate(446 30)">
+      <rect width="228" height="40" rx="10" fill="var(--page-muted)" stroke="var(--line)" />
+      <text x="114" y="25" text-anchor="middle">origin/feature/example</text>
+    </g>
+    <line x1="560" y1="70" x2="560" y2="74" stroke="var(--line)" />
+    <g transform="translate(358 250)">
+      <rect width="124" height="40" rx="10" fill="var(--page-muted)" stroke="var(--line)" />
+      <text x="62" y="25" text-anchor="middle">origin/main</text>
+    </g>
+    <line x1="420" y1="226" x2="420" y2="250" stroke="var(--line)" />
+    <g transform="translate(586 250)">
+      <rect width="228" height="40" rx="10" fill="var(--page-muted)" stroke="var(--line)" />
+      <text x="114" y="25" text-anchor="middle">feature/example · HEAD</text>
+    </g>
+    <line x1="700" y1="226" x2="700" y2="250" stroke="var(--line)" />
+  </g>
+  <g fill="var(--muted)" font-family="var(--font-sans)" font-size="14" text-anchor="middle">
+    <text x="280" y="264">Common ancestor</text>
+  </g>
+</svg>
+
+The commit graph also explains the `ahead` and `behind` counts. Check the short-format status:
+
+```bash
+git status --short --branch
+```
+
+The output will be:
+
+```text
+## feature/example...origin/feature/example [ahead 31, behind 2]
+```
+
+`ahead` and `behind` count commits by reachability; they do not compare file contents:
+
+- `ahead 31`: the 29 commits represented by `M*`, plus the local `C′` and `D′`.
+- `behind 2`: the old remote-only commits `C` and `D`.
+
+More generally, suppose `main` gains `N` commits after the branches diverge and all `K` commits already on the feature branch are rebased. If no other divergence exists, the status will show `ahead N + K` and `behind K`. Here, `behind 2` confirms that the commit graph has diverged, but the number alone does not mean that someone added new work to the remote.
+
+### What Happens If You Run `git push` Now
+
+```bash
+git push origin feature/example
+```
+
+A regular push is rejected. The output usually includes:
+
+```text
+! [rejected] feature/example -> feature/example (non-fast-forward)
+error: failed to push some refs to '<remote-url>'
+```
+
+A regular push permits only a fast-forward update: the remote branch tip before the push must be an ancestor of the commit being pushed. Here, the remote tip is `D`, while the local tip `D′` is on a different line of history. `D` is not an ancestor of `D′`. This check still fails even if `D` and `D′` ultimately introduce the same file changes.
+
+### What Happens If You Run `git pull` Now
+
+```bash
+git pull
+```
+
+`pull` first fetches the remote state, then tries to integrate `origin/feature/example` into the current branch. Because the two sides have diverged, what happens next depends on the pull strategy:
+
+| pull strategy                          | What happens                                                                                                                                              |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Neither merge nor rebase is configured | Git stops and reports `Need to specify how to reconcile divergent branches`                                                                               |
+| `pull.ff=only` or `git pull --ff-only` | Git stops and reports `Not possible to fast-forward`                                                                                                      |
+| merge                                  | Git tries to merge `D` and `D′`; this may cause conflicts, and a successful merge leaves a merge commit connecting both the old and new histories         |
+| rebase                                 | Git uses the old `origin/feature/example` as the base and replays the local-only commits again; this may cause conflicts or produce an unexpected history |
+
+When `pull.rebase=true` is configured, `git pull` takes the last path. If conflicts occur, the output usually includes `CONFLICT` and `could not apply`, and the repository is left in an unfinished rebase.
+
+All of these behaviors try to integrate the old remote history. What this scenario actually requires is replacing `C` and `D` with `C′` and `D′`. Therefore, even if `pull` can complete, it is not the correct way to handle this situation.
+
+If an accidental pull is currently stopped at a conflict, abort the operation that is actually in progress:
+
+```bash
+# If pull is using rebase
+git rebase --abort
+
+# If pull is using merge
+git merge --abort
+```
+
+If pull failed before integration began, there is nothing to abort. If it has already completed, first use `reflog` to recover the branch position from before the pull, then continue with the steps below.
+
+### Resolution
+
+The correct goal is to move the remote `feature/example` from the old commit `D` to the rebased `D′`. This requires that the branch may be rewritten and that the remote contains no new work from anyone else.
+
+First update the remote-tracking ref and inspect the remote-only commits:
+
+```bash
+git fetch origin
+
+# View the complete graph after the histories diverged
+git log --graph --oneline --decorate --boundary \
+  feature/example...origin/feature/example
+
+# View only commits that exist on the remote but not locally
+git log --oneline \
+  feature/example..origin/feature/example
+
+# Check whether those remote commits have patch-equivalent local versions
+git cherry -v \
+  feature/example origin/feature/example
+```
+
+In this example, the only remote-only commits should be the pre-rebase `C` and `D`. `git cherry` will usually mark them with `-`, indicating that patch-equivalent `C′` and `D′` exist locally. A `-` is only supporting evidence; use the commit IDs, messages, and collaboration context to verify that these really are the old commits you intend to replace.
+
+Once verified, update the remote with a protected force push:
+
+```bash
+# Purpose: Replace the old remote history with the rebased local history
+# Conditions: You have fetched and confirmed that the remote contains only the pre-rebase commits; the branch may be rewritten
+# Result: If the protective checks pass, updates origin/feature/example to the local feature/example
+git push \
+  --force-with-lease \
+  --force-if-includes \
+  origin feature/example
+```
+
+This push command contains two layers of protection: `--force-with-lease` checks whether the remote branch is still at the expected position, while `--force-if-includes` checks whether that remote position was genuinely part of the local branch's history. Before examining these checks, distinguish the three refs in this example:
+
+| Location                       | Points to | Meaning                                               |
+| ------------------------------ | --------- | ----------------------------------------------------- |
+| Server-side `feature/example`  | `D`       | The remote branch that the push will actually change  |
+| Local `origin/feature/example` | `D`       | The remote position recorded by the most recent fetch |
+| Local `feature/example`        | `D′`      | The new rebased history ready to be pushed            |
+
+Think of `--force-with-lease` as saying, “I agree to overwrite only the remote version I expect.”
+
+No expected value is specified here, so Git uses the value of the local `origin/feature/example`, `D`, as the expectation. The server compares the values atomically when updating the ref:
+
+- The server still points to `D`: the remote branch has not moved away from the state recorded locally, so the check passes and Git may proceed with trying to update it to `D′`.
+- The server already points to `X` pushed by someone else: `X` differs from the locally recorded `D`, so the check fails and the remote remains unchanged.
+
+This check does not compare file contents or determine whether `C` and `D` really are obsolete copies. You must establish those facts during the preceding history inspection.
+
+`--force-with-lease` still has a gap: after someone pushes `X`, an editor might automatically run `fetch` and update the local `origin/feature/example` to `X` as well. The server and the local record now match again, so the lease alone would pass even though you may never have seen or handled `X`.
+
+`--force-if-includes` addresses this gap. It requires the reflog of the local `feature/example` to show that the current remote-tracking tip was previously contained in that branch's history, rather than merely recorded by `fetch`:
+
+- In this example, `D` was the tip of `feature/example` before the rebase, and the branch reflog retains that position, so the check passes.
+- If `X` was only fetched in the background into `origin/feature/example`, the local feature branch never contained `X`, so the check fails.
+- If you deliberately integrated `X` into the local branch, the ancestry relationship and reflog can establish that fact, allowing the check to pass.
+
+Together, the checks produce the following results:
+
+| Situation                                                      | `--force-with-lease` | `--force-if-includes` | Result          |
+| -------------------------------------------------------------- | -------------------- | --------------------- | --------------- |
+| The remote is still at the old commit `D`                      | passes               | passes                | update allowed  |
+| Someone pushed `X`, and you have not fetched it                | fails                | no need to continue   | update rejected |
+| A background fetch retrieved `X`, but you did not integrate it | passes               | fails                 | update rejected |
+| You deliberately integrated `X` locally                        | passes               | passes                | update allowed  |
+
+“Update allowed” means only that these two protective checks have passed; it does not mean that Git has determined your intended outcome for you. If either check fails, fetch and inspect again. Do not switch to an unconditional `--force`.
+
+After a successful push, verify the result:
+
+```bash
+git fetch origin
+git status --short --branch
+```
+
+The expected output no longer contains `ahead` or `behind`:
+
+```text
+## feature/example...origin/feature/example
+```
+
+### Pinning an Explicit Expected Value for the Lease
+
+In the previous command, the lease expectation comes from `origin/feature/example`, and a later `fetch` may update that ref. To pin the push condition to “the server-side branch must still point to the `D` that I just inspected,” explicitly provide the commit ID of `D`:
+
+```bash
+# Print and manually verify the remote tip; in this example, it should be the old pre-rebase commit D
+git rev-parse origin/feature/example
+
+# Substitute the full commit ID from the previous command for <expected-remote-tip>
+git push \
+  --force-with-lease=refs/heads/feature/example:<expected-remote-tip> \
+  origin feature/example:feature/example
+```
+
+This form directly compares the server-side `refs/heads/feature/example` with the specified commit ID and no longer depends on a remote-tracking ref that might change. The update is accepted only if the two values match; otherwise, the remote remains unchanged.
+
+When `--force-with-lease=<ref>:<expect>` is used, `--force-if-includes` has no effect and should not be combined with it. If the server-side check fails, fetch and inspect the remote history again instead of switching to `--force`.
+
+### When the Remote Contains New Commits from Other Sources
+
+If `git log feature/example..origin/feature/example` shows unfamiliar commits other than `C` and `D`, or if `git cherry` produces an unexplained `+`, stop the force push. You can no longer assume that the remote contains only the old history you intend to replace.
+
+What to do next depends on which history you need to preserve:
+
+| Goal                                            | Approach                                                                                                                  |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Preserve the complete existing remote history   | Merge `origin/feature/example`, resolve any conflicts, then push normally                                                 |
+| Keep the rebased history linear                 | Coordinate with the commit authors, cherry-pick only the confirmed new commits onto `D′`, then use a protected force push |
+| The branch is protected or may not be rewritten | Push the rebased history as a new branch and handle it through a pull request                                             |
+
+To preserve the complete remote history:
+
+```bash
+# Conditions: The working tree has no uncommitted changes that would interfere with the merge
+git merge origin/feature/example
+git push origin feature/example
+```
+
+The merge commit contains both the local and remote tips, so a regular push can fast-forward the remote. The tradeoff is that both the pre-rebase and post-rebase feature branch histories are retained.
+
+If you need only particular new commits from the remote, select them explicitly:
+
+```bash
+git cherry-pick <remote-new-commit>...
+```
+
+After resolving conflicts and running tests, repeat the remote-history inspection from this section, then use the protected force push. Do not mechanically run `git rebase origin/feature/example`: that command chooses the old remote feature history as the new base and may also replay the batch of `main` commits as local-only commits, defeating the original goal of basing the feature branch on the latest `main`.
+
+If the branch may not be rewritten, keep the current rebased result and push it as a new branch:
+
+```bash
+git switch -c feature/example-rebased
+git push --set-upstream origin feature/example-rebased
+```
+
+### Reducing This Kind of Divergence
+
+- Before creating a feature branch, update the remote-tracking refs and start from the latest `origin/main`:
+
+  ```bash
+  git fetch origin
+  git switch -c feature/example origin/main
+  ```
+
+- Keep feature branches short-lived to reduce the need to rewrite already-pushed history just to catch up with `main`.
+- On a personal branch that may be rewritten, treat “rebase onto the latest `main`” and “force-push with a lease” as a single operation. Do not run Pull or Sync between them.
+- For a shared branch whose history should not be rewritten, merge the latest `main` to preserve the existing commit IDs:
+
+  ```bash
+  git fetch origin
+  git merge origin/main
+  git push origin feature/example
+  ```
+
+- If the hosting platform prohibits force pushes, follow its branch-protection rules. When you need a new linear history, push it to a new branch and handle it through a pull request.

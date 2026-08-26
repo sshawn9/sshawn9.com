@@ -991,3 +991,301 @@ git maintenance run --auto
 ```
 
 全面 `gc` 可能耗时较长，也可能清理已经超过保留期限且无法到达的数据。启用 `start` 后通常无需再手动运行上述任务；显式指定 `--task` 主要用于立即处理已经确认的仓库数据问题。
+
+## 已推送分支变基到最新 main 后，本地与远端分叉
+
+这一节处理一个明确场景：`feature/example` 上的提交已经推送，随后本地分支变基到更新后的 `origin/main`。变基只改写本地历史，因此本地分支与远端旧历史发生分叉；此时普通 `push` 会被拒绝，`pull` 也不会直接解决问题。
+
+### 问题如何产生
+
+1. 从 `main` 创建 `feature/example`，完成两个提交 `C`、`D`。
+2. 推送分支；此时 `feature/example` 与 `origin/feature/example` 都指向 `D`。
+3. `main` 随后增加 29 个提交。
+4. 在 `feature/example` 上执行 `git fetch origin` 和 `git rebase origin/main`。Git 在新基线后重新创建 `C′`、`D′`，本地分支改为指向 `D′`；远端仍然指向旧的 `D`。
+
+### 变基后的提交图
+
+图中 `M*` 折叠表示 `main` 新增的 29 个提交。变基只改写了本地：远端引用停在 `C`、`D`，本地分支则经过 `M*` 后指向重新创建的 `C′`、`D′`：
+
+<!-- prettier-ignore -->
+<svg class="not-prose" viewBox="0 0 1040 320" role="img" aria-label="变基已推送分支后本地与远端引用的位置" aria-describedby="diverge-graph-description" style="display: block; width: 100%; height: auto; margin: 1.5rem 0; color: var(--ink)">
+  <desc id="diverge-graph-description">A 和 B 是两侧共同的历史。origin/feature/example 仍指向从 B 分出的 C 和 D。M 星号折叠表示 origin/main 新增的 29 个提交。本地 feature/example 指向在这些提交之后重建的 C′ 和 D′。B 是两者的共同祖先。</desc>
+  <defs>
+    <marker id="diverge-history-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="currentColor" />
+    </marker>
+  </defs>
+  <rect x="1" y="1" width="1038" height="318" rx="18" fill="var(--surface-strong)" stroke="var(--line)" />
+  <g fill="none" stroke="currentColor" stroke-width="1.75" marker-end="url(#diverge-history-arrow)">
+    <line x1="157" y1="210" x2="263" y2="210" />
+    <line x1="297" y1="210" x2="403" y2="210" />
+    <line x1="437" y1="210" x2="543" y2="210" />
+    <line x1="577" y1="210" x2="683" y2="210" />
+    <line x1="292" y1="196" x2="405" y2="104" />
+    <line x1="437" y1="90" x2="543" y2="90" />
+  </g>
+  <g fill="var(--page-muted)" stroke="currentColor" stroke-width="1.75">
+    <circle cx="140" cy="210" r="16" />
+    <circle cx="280" cy="210" r="16" />
+    <circle cx="420" cy="210" r="16" />
+    <circle cx="560" cy="210" r="16" />
+    <circle cx="700" cy="210" r="16" />
+    <circle cx="420" cy="90" r="16" />
+    <circle cx="560" cy="90" r="16" />
+  </g>
+  <g fill="currentColor" font-family="var(--font-mono)" font-size="14" font-weight="700" text-anchor="middle">
+    <text x="140" y="215">A</text>
+    <text x="280" y="215">B</text>
+    <text x="420" y="215">M*</text>
+    <text x="560" y="215">C′</text>
+    <text x="700" y="215">D′</text>
+    <text x="420" y="95">C</text>
+    <text x="560" y="95">D</text>
+  </g>
+  <g font-family="var(--font-mono)" font-size="14" font-weight="650" fill="currentColor">
+    <g transform="translate(446 30)">
+      <rect width="228" height="40" rx="10" fill="var(--page-muted)" stroke="var(--line)" />
+      <text x="114" y="25" text-anchor="middle">origin/feature/example</text>
+    </g>
+    <line x1="560" y1="70" x2="560" y2="74" stroke="var(--line)" />
+    <g transform="translate(358 250)">
+      <rect width="124" height="40" rx="10" fill="var(--page-muted)" stroke="var(--line)" />
+      <text x="62" y="25" text-anchor="middle">origin/main</text>
+    </g>
+    <line x1="420" y1="226" x2="420" y2="250" stroke="var(--line)" />
+    <g transform="translate(586 250)">
+      <rect width="228" height="40" rx="10" fill="var(--page-muted)" stroke="var(--line)" />
+      <text x="114" y="25" text-anchor="middle">feature/example · HEAD</text>
+    </g>
+    <line x1="700" y1="226" x2="700" y2="250" stroke="var(--line)" />
+  </g>
+  <g fill="var(--muted)" font-family="var(--font-sans)" font-size="14" text-anchor="middle">
+    <text x="280" y="264">共同祖先</text>
+  </g>
+</svg>
+
+提交图同时解释了 `ahead` 与 `behind`。查看短格式状态：
+
+```bash
+git status --short --branch
+```
+
+会得到：
+
+```text
+## feature/example...origin/feature/example [ahead 31, behind 2]
+```
+
+`ahead` 和 `behind` 按提交的可达关系计数，不比较文件内容：
+
+- `ahead 31`：`M*` 代表的 29 个提交，加上本地的 `C′`、`D′`。
+- `behind 2`：远端独有的旧提交 `C`、`D`。
+
+一般地，如果 `main` 在分叉后增加了 `N` 个提交，功能分支上已有的 `K` 个提交又全部被变基，那么在没有其他分叉的前提下会显示 `ahead N + K`、`behind K`。这里的 `behind 2` 说明提交图确实分叉了，但不能单凭这个数字判断远端有人增加了工作。
+
+### 此时执行 push
+
+```bash
+git push origin feature/example
+```
+
+普通推送会被拒绝，输出通常包含：
+
+```text
+! [rejected] feature/example -> feature/example (non-fast-forward)
+error: failed to push some refs to '<remote-url>'
+```
+
+普通推送只允许 fast-forward：推送前的远端分支尖端必须是待推送提交的祖先。这里的远端尖端是 `D`，而本地尖端 `D′` 位于另一条历史上，`D` 不是 `D′` 的祖先。即使 `D` 与 `D′` 最终引入相同的文件修改，这项检查仍然不会通过。
+
+### 此时执行 pull
+
+```bash
+git pull
+```
+
+`pull` 会先获取远端状态，再尝试把 `origin/feature/example` 整合进当前分支。因为两侧已经分叉，之后的现象取决于 pull 策略：
+
+| pull 策略                              | 现象                                                                                         |
+| -------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 未配置 merge 或 rebase                 | Git 停止并提示 `Need to specify how to reconcile divergent branches`                         |
+| `pull.ff=only` 或 `git pull --ff-only` | Git 停止并提示 `Not possible to fast-forward`                                                |
+| merge                                  | Git 尝试合并 `D` 与 `D′`；可能产生冲突，成功时会留下同时连接新旧历史的合并提交               |
+| rebase                                 | Git 以旧的 `origin/feature/example` 为基线再次重放本地独有提交；可能发生冲突或得到非预期历史 |
+
+配置了 `pull.rebase=true` 时，`git pull` 走最后一条路径。发生冲突时，输出通常包含 `CONFLICT` 和 `could not apply`，仓库会停在尚未完成的 rebase 中。
+
+这些行为都在尝试整合远端旧历史，而本例真正需要的是用 `C′`、`D′` 替换 `C`、`D`。因此，`pull` 即使能够完成，也不是这个场景的正确处置。
+
+如果误执行的 pull 正停在冲突中，先按实际进行状态中止：
+
+```bash
+# pull 使用 rebase 时
+git rebase --abort
+
+# pull 使用 merge 时
+git merge --abort
+```
+
+如果 pull 在开始整合前已经报错退出，不需要执行中止命令；如果它已经完成，应先通过 `reflog` 找回 pull 之前的分支位置，再继续下面的步骤。
+
+### 解决方法
+
+正确目标是让远端 `feature/example` 从旧提交 `D` 改为指向变基后的 `D′`。前提是这个分支允许改写，而且远端没有其他人新增的工作。
+
+先更新远程跟踪引用并检查远端独有提交：
+
+```bash
+git fetch origin
+
+# 查看分叉后的完整提交图
+git log --graph --oneline --decorate --boundary \
+  feature/example...origin/feature/example
+
+# 只查看远端有、本地没有的提交
+git log --oneline \
+  feature/example..origin/feature/example
+
+# 检查这些远端提交是否存在补丁等价的本地版本
+git cherry -v \
+  feature/example origin/feature/example
+```
+
+本例中，远端独有提交应当只有变基前的 `C`、`D`；`git cherry` 通常会在它们前面标记 `-`，表示本地存在补丁等价的 `C′`、`D′`。`-` 只是辅助证据，仍需根据提交 ID、提交说明和协作情况确认它们确实是准备替换的旧提交。
+
+确认无误后，用带保护的强制推送更新远端：
+
+```bash
+# 用途：以变基后的本地历史替换远端旧历史
+# 条件：已经 fetch 并确认远端只有变基前的旧提交；该分支允许改写
+# 结果：保护检查通过时，将 origin/feature/example 更新到本地 feature/example
+git push \
+  --force-with-lease \
+  --force-if-includes \
+  origin feature/example
+```
+
+这条推送命令包含两层保护：`--force-with-lease` 检查远端分支是否仍处于预期位置，`--force-if-includes` 检查该远端位置是否真正进入过本地分支历史。理解这两项检查前，先区分本例中的三个引用：
+
+| 位置                          | 指向 | 含义                            |
+| ----------------------------- | ---- | ------------------------------- |
+| 服务端 `feature/example`      | `D`  | 推送真正准备改动的远端分支      |
+| 本地 `origin/feature/example` | `D`  | 最近一次 `fetch` 记录的远端位置 |
+| 本地 `feature/example`        | `D′` | 变基后准备推送的新历史          |
+
+`--force-with-lease` 可以理解为：“我只同意覆盖自己预期中的那个远端版本。”
+
+这里没有显式填写期望值，因此 Git 使用本地 `origin/feature/example` 的值 `D` 作为期望。服务端在更新引用时进行原子比较：
+
+- 服务端仍指向 `D`：说明远端分支没有偏离本地记录的状态，检查通过，可以继续尝试把它更新为 `D′`。
+- 服务端已经指向别人新推送的 `X`：`X` 与本地记录的 `D` 不同，检查失败，远端保持不变。
+
+这项检查不比较文件内容，也不会判断 `C`、`D` 是否真的是旧副本；这些结论必须在前面的历史检查中确认。
+
+`--force-with-lease` 仍有一个缺口：编辑器可能在别人推送 `X` 后自动执行 `fetch`，把本地 `origin/feature/example` 也更新为 `X`。此时服务端和本地记录再次相等，单独使用 lease 就会通过，尽管自己可能从未看过或处理过 `X`。
+
+`--force-if-includes` 用来检查这个缺口。它要求本地 `feature/example` 的引用日志表明，当前远程跟踪尖端曾经被包含在该分支的历史中，而不只是被 `fetch` 记录过：
+
+- 本例的 `D` 曾是变基前 `feature/example` 的尖端，分支引用日志保留了这个位置，因此检查通过。
+- 如果 `X` 只是被后台 `fetch` 到 `origin/feature/example`，本地功能分支从未包含 `X`，检查失败。
+- 如果已经有意把 `X` 整合进本地分支，祖先关系和引用日志能够证明这一点，检查才会通过。
+
+组合后的结果如下：
+
+| 情况                                      | `--force-with-lease` | `--force-if-includes` | 结果     |
+| ----------------------------------------- | -------------------- | --------------------- | -------- |
+| 远端仍是旧提交 `D`                        | 通过                 | 通过                  | 允许更新 |
+| 别人推送了 `X`，本地尚未 `fetch`          | 失败                 | 无需继续              | 拒绝更新 |
+| 后台已经 `fetch` 到 `X`，但本地未整合 `X` | 通过                 | 失败                  | 拒绝更新 |
+| 本地已经有意整合 `X`                      | 通过                 | 通过                  | 允许更新 |
+
+“允许更新”只表示这两项保护检查通过，不代表 Git 已经替人判断了业务意图。任一检查失败时，都应重新 `fetch` 和检查，不要改用无条件的 `--force`。
+
+推送成功后再次确认：
+
+```bash
+git fetch origin
+git status --short --branch
+```
+
+预期不再出现 ahead 或 behind：
+
+```text
+## feature/example...origin/feature/example
+```
+
+### 显式指定 lease 的期望值
+
+前一条命令的 lease 期望值来自 `origin/feature/example`，而该引用可能被之后的 `fetch` 更新。若希望把推送条件固定为“服务端分支必须仍指向刚刚核对过的 `D`”，可以显式指定 `D` 的 commit ID：
+
+```bash
+# 输出并人工核对远端尖端；本例应当是变基前的旧提交 D
+git rev-parse origin/feature/example
+
+# 将上一步输出的完整 commit ID 填入 <expected-remote-tip>
+git push \
+  --force-with-lease=refs/heads/feature/example:<expected-remote-tip> \
+  origin feature/example:feature/example
+```
+
+这种形式直接比较服务端 `refs/heads/feature/example` 与指定的 commit ID，不再依赖可能变化的远程跟踪引用。两者相等时才接受更新，否则远端保持不变。
+
+使用 `--force-with-lease=<ref>:<expect>` 时，`--force-if-includes` 不起作用，不应同时使用。若服务端检查失败，应重新获取并检查远端历史，而不是改用 `--force`。
+
+### 远端存在其他来源的新提交时
+
+如果 `git log feature/example..origin/feature/example` 出现 `C`、`D` 之外的不认识提交，或者 `git cherry` 输出无法解释的 `+`，停止强制推送。此时不能再假设远端只有等待替换的旧历史。
+
+接下来的处理取决于希望保留哪种历史：
+
+| 目标                   | 处理方式                                                                  |
+| ---------------------- | ------------------------------------------------------------------------- |
+| 完整保留现有远端历史   | 合并 `origin/feature/example`，解决冲突后普通推送                         |
+| 保持变基后的线性历史   | 与提交作者协调，只把确认需要的新提交 `cherry-pick` 到 `D′` 后，再安全强推 |
+| 分支受保护或不允许改写 | 将变基后的历史推送为新分支，通过合并请求处理                              |
+
+选择完整保留远端历史时：
+
+```bash
+# 条件：工作区没有会妨碍合并的未提交修改
+git merge origin/feature/example
+git push origin feature/example
+```
+
+合并提交会同时包含本地与远端尖端，因此普通推送能够 fast-forward 远端。代价是变基前后的两条功能分支历史都会保留。
+
+如果只需要远端新增的个别提交，应明确选择它们：
+
+```bash
+git cherry-pick <remote-new-commit>...
+```
+
+完成冲突处理和测试后，重新执行本节的远端检查，再使用带保护的强制推送。不要机械执行 `git rebase origin/feature/example`：它会把旧的远端功能分支历史选作新基线，并可能把 `main` 的那批提交也作为本地独有提交重放，偏离最初把功能分支建立在最新 `main` 上的目的。
+
+如果分支不允许改写，可以保留当前变基结果并推送为新分支：
+
+```bash
+git switch -c feature/example-rebased
+git push --set-upstream origin feature/example-rebased
+```
+
+### 减少此类分叉
+
+- 创建功能分支前先更新远程跟踪引用，并从最新 `origin/main` 开始：
+
+  ```bash
+  git fetch origin
+  git switch -c feature/example origin/main
+  ```
+
+- 缩短功能分支的生命周期，减少为了追赶 `main` 而改写已推送历史的需要。
+- 个人分支允许改写时，把“变基到最新 `main`”和“带 lease 的强制推送”视为同一次操作；变基后不要先执行 Pull 或 Sync。
+- 已经共享且不希望改写的分支，使用 merge 引入最新 `main`，保留原有提交 ID：
+
+  ```bash
+  git fetch origin
+  git merge origin/main
+  git push origin feature/example
+  ```
+
+- 托管平台禁止强制推送时，遵守分支保护规则；需要线性新历史时推送到新分支，再通过合并请求处理。
