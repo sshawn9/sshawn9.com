@@ -121,7 +121,9 @@ test('search keeps the previous candidates visible until the next results are re
   await page.goto('/en/search/?q=gi');
 
   const resultsFrame = searchRoot(page).locator('[data-site-search-results]');
-  const firstResult = resultsFrame.locator('.site-search-result__link').first();
+  const firstResult = resultsFrame
+    .locator('pagefind-results .site-search-result[data-pf-result-index="0"]')
+    .locator('.site-search-result__link');
   await expect(firstResult).toBeVisible({ timeout: 15_000 });
   const previousTitle = await firstResult.textContent();
 
@@ -130,9 +132,11 @@ test('search keeps the previous candidates visible until the next results are re
 
   const snapshot = resultsFrame.locator('[data-site-search-results-snapshot]');
   await expect(snapshot).toBeVisible();
-  await expect(snapshot.locator('.site-search-result__link').first()).toHaveText(
-    previousTitle ?? '',
-  );
+  await expect(
+    snapshot
+      .locator('.site-search-result[data-pf-result-index="0"]')
+      .locator('.site-search-result__link'),
+  ).toHaveText(previousTitle ?? '');
   await expect(resultsFrame.locator('pagefind-results')).toHaveAttribute('aria-hidden', 'true');
 
   await expect(resultsFrame).not.toHaveAttribute('data-search-results-refreshing', '', {

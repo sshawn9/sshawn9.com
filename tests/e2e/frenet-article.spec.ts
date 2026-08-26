@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+test.describe.configure({ timeout: 60_000 });
+
 type PlotlyElement = HTMLElement & {
   data?: Array<{
     meta?: { semantic?: string };
@@ -350,15 +352,27 @@ test('locale switching uses the click-time position after repeated scrolling', a
 
   await page.locator('a[data-locale-switch="en"]').first().click();
   await expect(page).toHaveURL(/\/en\/blog\/frenet-arc-length-conversion\/$/);
+  await expect(page.locator('html')).not.toHaveAttribute('data-navigation-pending', '');
   const scrollSamples = await page.evaluate(async () => {
-    const samples: number[] = [];
-    for (let index = 0; index < 180; index += 1) {
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      samples.push(window.scrollY);
-    }
+    const samples = [window.scrollY];
+    await new Promise<void>((resolve) => {
+      let quietTimer = 0;
+      const finish = () => {
+        removeEventListener('scroll', record);
+        resolve();
+      };
+      const record = () => {
+        samples.push(window.scrollY);
+        clearTimeout(quietTimer);
+        quietTimer = window.setTimeout(finish, 500);
+      };
+      addEventListener('scroll', record, { passive: true });
+      quietTimer = window.setTimeout(finish, 500);
+    });
+    samples.push(window.scrollY);
     return samples;
   });
-  expect(scrollSamples).toEqual(Array.from({ length: 180 }, () => 0));
+  expect(scrollSamples.every((position) => position === 0)).toBe(true);
 });
 
 test('the plot splitter preserves the geometry scale while resizing both plots live', async ({

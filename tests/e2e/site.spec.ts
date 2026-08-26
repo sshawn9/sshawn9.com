@@ -2116,28 +2116,39 @@ test('a selected tag is applied before the refreshed blog becomes visible', asyn
 test('a failed blog island reveals its complete static fallback', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   let failedRequests = 0;
+  let releaseRequest = () => {};
+  const heldRequest = new Promise<void>((resolve) => {
+    releaseRequest = resolve;
+  });
   await page.route(/\/BlogBrowser[^/]*\.js(?:\?.*)?$/, async (route) => {
     failedRequests += 1;
+    await heldRequest;
     await route.abort('failed');
   });
 
-  await page.goto('/en/blog/?tag=astro', { waitUntil: 'domcontentloaded' });
+  try {
+    await page.goto('/en/blog/?tag=astro', { waitUntil: 'domcontentloaded' });
 
-  const listing = page.locator('[data-blog-listing]');
-  const browser = page.locator('[data-blog-browser]');
-  await expect(listing).toHaveAttribute('data-blog-browser-pending', '');
-  await expect(browser).toBeHidden();
-  await expect(page.locator('[data-site-header]')).toBeHidden();
+    const listing = page.locator('[data-blog-listing]');
+    const browser = page.locator('[data-blog-browser]');
+    await expect(listing).toHaveAttribute('data-blog-browser-pending', '');
+    await expect(browser).toBeHidden();
+    await expect(page.locator('[data-site-header]')).toBeHidden();
 
-  await expect(listing).not.toHaveAttribute('data-blog-browser-pending', '', { timeout: 3_000 });
-  await expect(browser).toBeVisible();
-  await expect(page.locator('[data-site-header]')).toBeVisible();
-  await expect(page.locator('#swup > footer')).toBeVisible();
-  await expect(page.locator('astro-island[component-url*="BlogBrowser"]')).toHaveAttribute(
-    'ssr',
-    '',
-  );
-  expect(failedRequests).toBeGreaterThanOrEqual(2);
+    releaseRequest();
+    await expect(listing).not.toHaveAttribute('data-blog-browser-pending', '', { timeout: 3_000 });
+    await expect(browser).toBeVisible();
+    await expect(page.locator('[data-site-header]')).toBeVisible();
+    await expect(page.locator('#swup > footer')).toBeVisible();
+    await expect(page.locator('astro-island[component-url*="BlogBrowser"]')).toHaveAttribute(
+      'ssr',
+      '',
+    );
+    expect(failedRequests).toBeGreaterThanOrEqual(2);
+  } finally {
+    releaseRequest();
+    await page.unrouteAll({ behavior: 'wait' });
+  }
 });
 
 test('a stalled blog island fails open at the watchdog boundary', async ({ page }) => {
@@ -2179,29 +2190,39 @@ test('a shared second-page URL keeps its static first page hidden until hydratio
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
+  let releaseRequest = () => {};
+  const heldRequest = new Promise<void>((resolve) => {
+    releaseRequest = resolve;
+  });
   await page.route('**/BlogBrowser*.js', async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await heldRequest;
     await route.continue();
   });
 
-  await page.goto('/en/blog/?page=2', { waitUntil: 'domcontentloaded' });
+  try {
+    await page.goto('/en/blog/?page=2', { waitUntil: 'domcontentloaded' });
 
-  const listing = page.locator('[data-blog-listing]');
-  const browser = page.locator('[data-blog-browser]');
-  const island = page.locator('astro-island[component-url*="BlogBrowser"]');
-  const countLabel = page.locator('[data-blog-results] > p');
-  const total = Number((await countLabel.textContent())?.match(/\d+/)?.[0]);
-  expect(total).toBeGreaterThan(8);
-  await expect(listing).toHaveAttribute('data-blog-browser-pending', '');
-  await expect(browser).toBeHidden();
-  await expect(page.locator('[data-site-header]')).toBeHidden();
-  await expect(page.locator('[data-blog-article]')).toHaveCount(8);
+    const listing = page.locator('[data-blog-listing]');
+    const browser = page.locator('[data-blog-browser]');
+    const island = page.locator('astro-island[component-url*="BlogBrowser"]');
+    const countLabel = page.locator('[data-blog-results] > p');
+    const total = Number((await countLabel.textContent())?.match(/\d+/)?.[0]);
+    expect(total).toBeGreaterThan(8);
+    await expect(listing).toHaveAttribute('data-blog-browser-pending', '');
+    await expect(browser).toBeHidden();
+    await expect(page.locator('[data-site-header]')).toBeHidden();
+    await expect(page.locator('[data-blog-article]')).toHaveCount(8);
 
-  await expect(island).not.toHaveAttribute('ssr', '');
-  await expect(listing).not.toHaveAttribute('data-blog-browser-pending', '');
-  await expect(browser).toBeVisible();
-  await expect(page.locator('[data-site-header]')).toBeVisible();
-  await expect(page.locator('[data-blog-article]')).toHaveCount(Math.min(8, total - 8));
+    releaseRequest();
+    await expect(island).not.toHaveAttribute('ssr', '');
+    await expect(listing).not.toHaveAttribute('data-blog-browser-pending', '');
+    await expect(browser).toBeVisible();
+    await expect(page.locator('[data-site-header]')).toBeVisible();
+    await expect(page.locator('[data-blog-article]')).toHaveCount(Math.min(8, total - 8));
+  } finally {
+    releaseRequest();
+    await page.unrouteAll({ behavior: 'wait' });
+  }
 });
 
 test('tag filter panel remains stable while result height changes', async ({ page }) => {
