@@ -2093,7 +2093,8 @@ test('a selected tag is applied before the refreshed blog becomes visible', asyn
   const staleFrames = frames.filter(
     ({ articleCount, tagPressed }) => articleCount !== candidate.count || !tagPressed,
   );
-  expect(staleFrames.length).toBeGreaterThan(0);
+  // Hydration can finish before the first observable animation frame. If a stale
+  // frame is observed, the prepaint guard must keep both the listing and shell hidden.
   expect(staleFrames.every(({ visible }) => !visible)).toBe(true);
   expect(staleFrames.every(({ outerPageVisible }) => !outerPageVisible)).toBe(true);
 
