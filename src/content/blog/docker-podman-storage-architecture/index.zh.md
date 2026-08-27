@@ -1,6 +1,6 @@
 ---
-title: Docker 与 Podman 的镜像存储为什么彼此看不见
-description: 按 Docker Rootful、Docker Rootless、Podman Rootless、Podman Rootful 和 Podman API service 五种模式，逐一确定镜像与容器数据归谁所有、落在哪里，以及 endpoint 和 sudo 各自改变了什么。
+title: Docker 与 Podman 的存储架构：进程身份、服务端点与数据边界
+description: 梳理 Docker 与 Podman 在 rootful、rootless 和 API service 模式下由谁管理存储、数据落在哪里，以及 endpoint、context、sudo 和有效 UID 分别改变了什么。
 ---
 
 Docker Engine 采用[客户端—服务端架构](https://docs.docker.com/get-started/docker-overview/#docker-architecture)：`docker` 是 CLI 客户端，`dockerd` 是持续运行的守护进程，两者通过 REST API 通信。执行 `docker pull` 时，CLI 把请求交给 `dockerd`，由它下载并保存镜像；执行 `docker images` 时，CLI 显示的也是 `dockerd` 返回的列表。因此，同一个 Docker CLI 连接不同的 `dockerd`，看到的内容就会不同。
