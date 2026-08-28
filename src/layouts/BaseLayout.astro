@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import BaseHead from '../components/BaseHead.astro';
+import CloudflareWebAnalytics from '../components/CloudflareWebAnalytics.astro';
 import RestoreScrollPosition from '../components/RestoreScrollPosition.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import SiteHeader from '../components/SiteHeader.astro';
@@ -92,5 +93,6 @@ const searchResultTypeLabel = {
       void startTypographyController();
       startNavigationController();
     </script>
+    <CloudflareWebAnalytics />
   </body>
 </html>
