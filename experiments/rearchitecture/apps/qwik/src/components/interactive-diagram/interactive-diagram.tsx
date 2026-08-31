@@ -1,9 +1,9 @@
-import { component$, useSignal } from "@builder.io/qwik";
+import { component$, useSignal } from '@builder.io/qwik';
 
 /** Lightweight resumable control with an explicitly deferred heavy module. */
 export const InteractiveDiagram = component$(() => {
   const curvature = useSignal(24);
-  const heavyStatus = useSignal("尚未加载重型依赖");
+  const heavyStatus = useSignal('尚未加载重型依赖');
 
   return (
     <figure class="diagram" data-interactive-diagram>
@@ -26,10 +26,8 @@ export const InteractiveDiagram = component$(() => {
       <button
         type="button"
         onClick$={async () => {
-          heavyStatus.value = "正在加载";
-          const { describeHeavyRuntime } = await import(
-            "../../runtime/heavy-placeholder"
-          );
+          heavyStatus.value = '正在加载';
+          const { describeHeavyRuntime } = await import('../../runtime/heavy-placeholder');
           heavyStatus.value = describeHeavyRuntime();
         }}
       >

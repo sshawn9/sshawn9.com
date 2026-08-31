@@ -1,9 +1,9 @@
-import { component$ } from "@builder.io/qwik";
-import { QwikCityProvider, RouterOutlet } from "@builder.io/qwik-city";
-import { NavigationStateBridge } from "./components/navigation-state-bridge/navigation-state-bridge";
-import { RouterHead } from "./components/router-head/router-head";
-import { SiteShell } from "./components/site-shell/site-shell";
-import "./global.css";
+import { component$ } from '@builder.io/qwik';
+import { QwikCityProvider, RouterOutlet } from '@builder.io/qwik-city';
+import { NavigationStateBridge } from './components/navigation-state-bridge/navigation-state-bridge';
+import { RouterHead } from './components/router-head/router-head';
+import { SiteShell } from './components/site-shell/site-shell';
+import './global.css';
 
 const prepaintScript =
   '(()=>{try{const t=localStorage.getItem("poc:theme");const w=localStorage.getItem("poc:wallpaper");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;if(w==="on"||w==="off")document.documentElement.dataset.wallpaper=w}catch{}})()';

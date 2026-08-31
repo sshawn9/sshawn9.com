@@ -1,5 +1,5 @@
 /** Owns validation and merging for this candidate's per-history-entry state. */
-export const LEDGER_KEY = "rearchitecturePoc";
+export const LEDGER_KEY = 'rearchitecturePoc';
 
 export interface ScrollPoint {
   x: number;
@@ -14,13 +14,11 @@ export interface ScrollSnapshot {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function finiteNumber(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0
-    ? value
-    : 0;
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
 }
 
 function readPoint(value: unknown): ScrollPoint {
@@ -53,10 +51,7 @@ export function readSnapshot(
   }
 
   const regions = Object.fromEntries(
-    Object.entries(candidate.regions).map(([key, value]) => [
-      key,
-      readPoint(value),
-    ]),
+    Object.entries(candidate.regions).map(([key, value]) => [key, readPoint(value)]),
   );
 
   return {
