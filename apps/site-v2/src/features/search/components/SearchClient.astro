@@ -1,0 +1,118 @@
+---
+import type { Locale } from '@sshawn9/site-domain/locales';
+import { getFoundationCopy } from '@sshawn9/site-i18n/copy';
+import { CURRENT_BUILD_ID } from '../../../runtime/build-identity';
+import SearchFallback from './SearchFallback.astro';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const copy = getFoundationCopy(locale);
+const instanceName = `site-${locale}`;
+const languageTag = locale === 'zh' ? 'zh-cn' : 'en';
+const resultTemplate = `
+  <li class="site-search-result">
+    <article class="site-search-result__card">
+      <div class="site-search-result__primary">
+        <div class="site-search-result__meta">
+          {{#if meta.type}}<span class="site-search-result__type">{{ meta.type }}</span>{{/if}}
+          {{#if meta.published}}<span>{{ meta.published }}</span>{{/if}}
+        </div>
+        <h2 class="site-search-result__title">
+          <a class="site-search-result__link" href="{{ meta.url | default(url) | safeUrl }}">{{ meta.title }}</a>
+        </h2>
+        {{#if excerpt}}<p class="site-search-result__excerpt">{{+ excerpt +}}</p>{{/if}}
+      </div>
+      {{#if sub_results}}
+      <ul class="site-search-result__sections">
+        {{#each sub_results as sub}}
+        <li>
+          <a class="site-search-result__section-link" href="{{ sub.url | safeUrl }}">{{ sub.title }}</a>
+          <p class="site-search-result__section-excerpt">{{+ sub.excerpt +}}</p>
+        </li>
+        {{/each}}
+      </ul>
+      {{/if}}
+    </article>
+  </li>
+`;
+const placeholderTemplate = `
+  <li class="site-search-result" aria-hidden="true">
+    <div class="site-search-result__card">
+      <p class="pf-skeleton site-search-result__skeleton-meta"></p>
+      <p class="pf-skeleton site-search-result__skeleton-title"></p>
+      <p class="pf-skeleton site-search-result__skeleton-excerpt"></p>
+    </div>
+  </li>
+`;
+---
+
+<div
+  class="site-search-panel"
+  data-site-search
+  data-search-instance={instanceName}
+  data-search-path={`/${locale}/search/`}
+  data-search-generation={CURRENT_BUILD_ID}
+>
+  <pagefind-config
+    instance={instanceName}
+    lang={languageTag}
+    bundle-path="/pagefind/"
+    excerpt-length="36"
+    meta-cache-tag={CURRENT_BUILD_ID}
+    preload></pagefind-config>
+
+  <div class="site-search-loading" data-search-loading role="status" hidden>
+    <input
+      class="site-search-fallback__input"
+      type="search"
+      placeholder={copy.searchPlaceholder}
+      aria-label={copy.searchPageTitle}
+      disabled
+    />
+    <span class="site-search-loading__line" aria-hidden="true"></span>
+  </div>
+
+  <div class="site-search__interactive" data-search-interactive hidden>
+    <pagefind-input instance={instanceName} placeholder={copy.searchPlaceholder}></pagefind-input>
+
+    <div class="site-search__context">
+      <pagefind-summary instance={instanceName}></pagefind-summary>
+    </div>
+
+    <div class="site-search-empty" data-search-empty hidden>
+      <p class="site-search-fallback__title">{copy.searchEmptyTitle}</p>
+      <p class="site-search-fallback__description">{copy.searchEmptyDescription}</p>
+    </div>
+
+    <div class="site-search-results">
+      <pagefind-results instance={instanceName} max-sub-results="3">
+        <script is:inline type="text/pagefind-template" set:html={resultTemplate} />
+        <script
+          is:inline
+          type="text/pagefind-template"
+          data-template="placeholder"
+          set:html={placeholderTemplate}
+        />
+      </pagefind-results>
+    </div>
+  </div>
+
+  <div data-search-fallback hidden>
+    <SearchFallback {locale} reason="unavailable" />
+  </div>
+
+  <div data-search-no-script-fallback>
+    <SearchFallback {locale} reason="no-script" />
+  </div>
+
+  <script is:inline>
+    const searchRoot = document.currentScript?.closest('[data-site-search]');
+    searchRoot?.querySelector('[data-search-no-script-fallback]')?.setAttribute('hidden', '');
+    searchRoot?.querySelector('[data-search-loading]')?.removeAttribute('hidden');
+  </script>
+</div>
+
+<script is:inline src="/pagefind/pagefind-component-ui.js" type="module"></script>

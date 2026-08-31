@@ -1,0 +1,304 @@
+---
+import type { MarkdownHeading } from 'astro';
+import { getArticleUpdatedAt, type ResolvedArticleVersion } from '@sshawn9/site-domain/articles';
+import { formatDate } from '@sshawn9/site-domain/date';
+import type { Locale } from '@sshawn9/site-domain/locales';
+import { getTagSlug } from '@sshawn9/site-domain/tags';
+import type { SiteArticle, SiteArticleEntry } from '../../../content/article-catalog';
+import { getArticleHref, getArticleVersionHref } from '../../../content/article-routes';
+import { formatUiCopy, getFoundationCopy } from '@sshawn9/site-i18n/copy';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { createArticleSidebarPrepaintScript } from '../runtime/article-sidebar-state';
+import ArticleToc from './ArticleToc.astro';
+import ArticleVersionSwitcher from './ArticleVersionSwitcher.astro';
+
+interface Props {
+  locale: Locale;
+  article: SiteArticle;
+  version: ResolvedArticleVersion<SiteArticleEntry>;
+  headings: MarkdownHeading[];
+  currentRoute?: boolean;
+}
+
+const { locale, article, version, headings, currentRoute = false } = Astro.props;
+const copy = getFoundationCopy(locale);
+const post = version.entry;
+const contentLanguageTag = version.contentLocale === 'zh' ? 'zh-CN' : 'en';
+const firstPublished = article.versions[0].entry.data.publishedAt;
+const updatedAt = getArticleUpdatedAt(version);
+const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+const canonicalPath = currentRoute
+  ? getArticleHref(article, version.contentLocale)
+  : getArticleVersionHref(article, version, version.contentLocale);
+const canonical = post.data.canonical ?? new URL(canonicalPath, Astro.site).toString();
+const pageTitle = currentRoute
+  ? post.data.title
+  : formatUiCopy(copy.articleVersionTitleTemplate, {
+      title: post.data.title,
+      version: version.number,
+    });
+const alternateLinks = version.availableLocales.map((alternateLocale) => ({
+  locale: alternateLocale,
+  href: currentRoute
+    ? getArticleHref(article, alternateLocale)
+    : getArticleVersionHref(article, version, alternateLocale),
+}));
+const tags = [...new Set(post.data.tags)];
+const fallbackLanguage =
+  version.contentLocale === 'zh' ? copy.articleFallbackLanguageZh : copy.articleFallbackLanguageEn;
+const requestedLanguage =
+  locale === 'zh' ? copy.articleFallbackLanguageZh : copy.articleFallbackLanguageEn;
+const fallbackNotice = formatUiCopy(copy.articleFallbackNoticeTemplate, {
+  language: fallbackLanguage,
+  requestedLanguage,
+});
+---
+
+<BaseLayout
+  title={pageTitle}
+  description={post.data.description}
+  {locale}
+  {canonical}
+  noIndex={!currentRoute || !version.hasRequestedLocale}
+  searchable={currentRoute}
+  searchResultType="article"
+  searchPublishedAt={firstPublished}
+  {alternateLinks}
+  prepaintScripts={[createArticleSidebarPrepaintScript()]}
+  fontQueries={[
+    '400 1em "JetBrains Mono Variable"',
+    '400 1em var(--font-source-sans-3)',
+    'italic 400 1em var(--font-source-sans-3)',
+  ]}
+>
+  <article
+    class="content-shell article-page"
+    lang={contentLanguageTag}
+    data-article-page
+    data-article-id={article.id}
+    data-article-version={version.number}
+  >
+    <div class="article-layout" data-article-sidebar-layout>
+      <header class="article-header">
+        <nav aria-label={copy.breadcrumbs}>
+          <ol class="breadcrumbs">
+            <li><a href={`/${locale}/blog/`}>{copy.navBlog}</a></li>
+            <li aria-hidden="true">/</li>
+            {
+              currentRoute ? (
+                <li aria-current="page">{post.data.title}</li>
+              ) : (
+                <>
+                  <li>
+                    <a href={getArticleHref(article)}>{post.data.title}</a>
+                  </li>
+                  <li aria-hidden="true">/</li>
+                  <li aria-current="page">v{version.number}</li>
+                </>
+              )
+            }
+          </ol>
+        </nav>
+
+        <h1>{post.data.title}</h1>
+        {post.data.description && <p class="article-lede">{post.data.description}</p>}
+        {
+          tags.length > 0 && (
+            <ul class="tag-list" aria-label={copy.articleTags}>
+              {tags.map((tag) => (
+                <li>
+                  <a href={`/${locale}/tags/${getTagSlug(tag)}/`}>#{tag}</a>
+                </li>
+              ))}
+            </ul>
+          )
+        }
+        {!version.hasRequestedLocale && <p class="article-fallback-notice">{fallbackNotice}</p>}
+
+        <div class="article-mobile-support">
+          <dl class="article-mobile-meta">
+            <div>
+              <dt>{copy.articleFirstPublished}</dt>
+              <dd>
+                <time datetime={firstPublished.toISOString()}>
+                  {formatDate(firstPublished, locale)}
+                </time>
+              </dd>
+            </div>
+            {
+              updatedAt && (
+                <div>
+                  <dt>{copy.articleLastUpdated}</dt>
+                  <dd>
+                    <time datetime={updatedAt.toISOString()}>{formatDate(updatedAt, locale)}</time>
+                  </dd>
+                </div>
+              )
+            }
+          </dl>
+
+          {
+            toc.length > 0 && (
+              <div class="article-mobile-toc-module">
+                <button
+                  type="button"
+                  popovertarget="article-toc-mobile"
+                  aria-expanded="false"
+                  class="article-mobile-toc-toggle"
+                  data-article-mobile-toc-toggle
+                >
+                  {copy.articleToc}
+                  <span aria-hidden="true">⌄</span>
+                </button>
+                <div
+                  id="article-toc-mobile"
+                  popover
+                  class="article-popover article-mobile-toc-popover"
+                  data-article-mobile-toc
+                  data-transient-overlay
+                >
+                  <h2 id="article-toc-mobile-heading">{copy.articleToc}</h2>
+                  <nav
+                    aria-labelledby="article-toc-mobile-heading"
+                    data-article-toc
+                    data-scroll-region="article-toc-mobile"
+                  >
+                    <ArticleToc headings={toc} />
+                  </nav>
+                </div>
+              </div>
+            )
+          }
+
+          {
+            article.isVersioned && (
+              <div class="article-mobile-version-card">
+                <ArticleVersionSwitcher
+                  {article}
+                  selected={version}
+                  {locale}
+                  {copy}
+                  variant="mobile"
+                />
+              </div>
+            )
+          }
+        </div>
+      </header>
+
+      <div class="article-sidebar-shell">
+        <div class="article-sidebar-rail">
+          <div
+            role="separator"
+            aria-label={copy.articleSidebarResize}
+            aria-controls="article-sidebar"
+            aria-orientation="vertical"
+            aria-valuemin="208"
+            aria-valuemax="352"
+            aria-valuenow="224"
+            tabindex="0"
+            data-article-sidebar-resizer
+          >
+            <span aria-hidden="true" data-article-sidebar-boundary></span>
+          </div>
+        </div>
+
+        <div class="article-sidebar-viewport">
+          <aside
+            id="article-sidebar"
+            aria-label={copy.articleSupportingInformation}
+            data-article-sidebar-panel
+          >
+            <div class="article-sidebar-scroll" data-scroll-region="article-sidebar">
+              <section aria-labelledby="article-information-heading">
+                <h2 id="article-information-heading" class="article-sidebar-heading">
+                  {copy.articleInformation}
+                </h2>
+                <dl class="article-meta">
+                  <div>
+                    <dt>{copy.articleFirstPublished}</dt>
+                    <dd>
+                      <time datetime={firstPublished.toISOString()}>
+                        {formatDate(firstPublished, locale)}
+                      </time>
+                    </dd>
+                  </div>
+                  {
+                    updatedAt && (
+                      <div>
+                        <dt>{copy.articleLastUpdated}</dt>
+                        <dd>
+                          <time datetime={updatedAt.toISOString()}>
+                            {formatDate(updatedAt, locale)}
+                          </time>
+                        </dd>
+                      </div>
+                    )
+                  }
+                </dl>
+              </section>
+
+              {
+                toc.length > 0 && (
+                  <section class="article-sidebar-module" aria-labelledby="article-toc-heading">
+                    <h2 id="article-toc-heading" class="article-sidebar-heading">
+                      {copy.articleToc}
+                    </h2>
+                    <nav aria-labelledby="article-toc-heading" data-article-toc>
+                      <ArticleToc headings={toc} />
+                    </nav>
+                  </section>
+                )
+              }
+
+              {
+                article.isVersioned && (
+                  <div class="article-sidebar-module">
+                    <ArticleVersionSwitcher
+                      {article}
+                      selected={version}
+                      {locale}
+                      {copy}
+                      variant="desktop"
+                    />
+                  </div>
+                )
+              }
+            </div>
+          </aside>
+        </div>
+
+        <div class="article-sidebar-controls">
+          <button
+            type="button"
+            aria-label={copy.articleSidebarCollapse}
+            aria-controls="article-sidebar"
+            aria-expanded="true"
+            data-collapse-label={copy.articleSidebarCollapse}
+            data-expand-label={copy.articleSidebarExpand}
+            data-article-sidebar-toggle
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+              <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+              <path d="M9 3v18"></path>
+              <path data-article-sidebar-collapse-icon d="m16 9-3 3 3 3"></path>
+              <path data-article-sidebar-expand-icon d="m14 9 3 3-3 3"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="article-main">
+        <div class="article-prose">
+          <slot />
+        </div>
+        <footer class="article-back-to-top">
+          <a class="article-link" href="#main-content">
+            {copy.articleBackToTop}
+            <span aria-hidden="true">↑</span>
+          </a>
+        </footer>
+      </div>
+    </div>
+  </article>
+</BaseLayout>

@@ -1,0 +1,110 @@
+---
+import type { Locale } from '@sshawn9/site-domain/locales';
+import type { TagDefinition } from '@sshawn9/site-domain/tags';
+import type { FoundationCopy } from '@sshawn9/site-i18n/copy';
+import { BLOG_SIDEBAR_LIMITS } from '../runtime/blog-sidebar-state';
+
+interface Props {
+  locale: Locale;
+  tags: TagDefinition[];
+  copy: FoundationCopy;
+}
+
+const { locale, tags, copy } = Astro.props;
+const sidebarId = 'blog-sidebar';
+const titleId = 'blog-sidebar-title';
+const mobilePanelId = 'blog-tag-panel';
+---
+
+<div class="blog-layout" data-blog-sidebar-layout>
+  <div class="blog-sidebar-shell" data-blog-sidebar-shell>
+    <button
+      type="button"
+      class="blog-sidebar-toggle"
+      data-blog-sidebar-toggle
+      data-blog-sidebar-collapse
+      data-collapse-label={copy.blogSidebarCollapse}
+      data-expand-label={copy.blogSidebarExpand}
+      aria-label={copy.blogSidebarCollapse}
+      aria-controls={sidebarId}
+      aria-expanded="true"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+        <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+        <path d="M9 3v18"></path>
+        <path data-blog-sidebar-collapse-icon d="m16 15-3-3 3-3"></path>
+        <path data-blog-sidebar-expand-icon d="m14 9 3 3-3 3"></path>
+      </svg>
+    </button>
+
+    <div class="blog-sidebar-viewport" data-blog-sidebar-viewport>
+      <aside id={sidebarId} class="blog-sidebar" data-blog-sidebar-panel aria-labelledby={titleId}>
+        <header class="blog-sidebar-header">
+          <h2 id={titleId}>{copy.articleTags}</h2>
+        </header>
+
+        <section class="blog-tag-module" data-blog-sidebar-section="article-tags">
+          <button
+            type="button"
+            class="blog-mobile-tag-toggle"
+            data-blog-mobile-toggle
+            aria-controls={mobilePanelId}
+            aria-expanded="true"
+          >
+            <span>{copy.articleTags}</span>
+            <span class="blog-mobile-tag-chevron" aria-hidden="true"></span>
+          </button>
+
+          <div
+            id={mobilePanelId}
+            class="blog-tag-panel"
+            data-blog-mobile-panel
+            data-scroll-region="blog-sidebar-tags"
+          >
+            <ul class="blog-tag-directory" aria-label={copy.articleTags}>
+              {
+                tags.map((tag) => (
+                  <li>
+                    <a
+                      href={`/${locale}/tags/${tag.slug}/`}
+                      class="blog-tag-filter"
+                      data-blog-tag-definition
+                      data-blog-filter-link
+                      data-tag-name={tag.name}
+                      data-tag-slug={tag.slug}
+                      data-tag-count={tag.count}
+                    >
+                      <span class="blog-tag-name">{tag.name}</span>
+                      <span class="blog-tag-count">{tag.count}</span>
+                      <span class="sr-only" data-blog-selected-copy hidden>
+                        {copy.blogTagSelected}
+                      </span>
+                    </a>
+                  </li>
+                ))
+              }
+            </ul>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <div class="blog-sidebar-rail">
+      <div
+        role="separator"
+        aria-label={copy.blogSidebarResize}
+        aria-controls={sidebarId}
+        aria-orientation="vertical"
+        aria-valuemin={BLOG_SIDEBAR_LIMITS.minWidth}
+        aria-valuemax={BLOG_SIDEBAR_LIMITS.maxWidth}
+        aria-valuenow={BLOG_SIDEBAR_LIMITS.defaultWidth}
+        tabindex="0"
+        data-blog-sidebar-resizer
+      >
+        <span data-blog-sidebar-boundary></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="blog-results-column"><slot /></div>
+</div>

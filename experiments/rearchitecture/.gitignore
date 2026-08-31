@@ -1,0 +1,10 @@
+node_modules/
+.cross-generation-builds/
+apps/*/dist/
+apps/*/server/
+apps/*/tmp/
+playwright-report/
+test-results/
+shared/generated/
+apps/astro/src/pages/zh/blog/frenet-poc.astro
+apps/qwik/src/routes/zh/blog/frenet-poc/index.tsx

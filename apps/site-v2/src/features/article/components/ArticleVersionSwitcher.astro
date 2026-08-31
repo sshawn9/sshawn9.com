@@ -1,0 +1,100 @@
+---
+import { getArticleVersionDate, type ResolvedArticleVersion } from '@sshawn9/site-domain/articles';
+import { formatDate } from '@sshawn9/site-domain/date';
+import type { Locale } from '@sshawn9/site-domain/locales';
+import type { SiteArticle, SiteArticleEntry } from '../../../content/article-catalog';
+import {
+  getArticleCompareHref,
+  getArticleHref,
+  getArticleVersionHref,
+} from '../../../content/article-routes';
+import type { FoundationCopy } from '@sshawn9/site-i18n/copy';
+
+interface Props {
+  article: SiteArticle;
+  selected: ResolvedArticleVersion<SiteArticleEntry>;
+  locale: Locale;
+  copy: FoundationCopy;
+  variant: 'desktop' | 'mobile';
+}
+
+const { article, selected, locale, copy, variant } = Astro.props;
+const versions = article.versions.toReversed();
+const headingId = `article-versions-${variant}`;
+const comparisonId = `article-version-comparison-${variant}`;
+---
+
+<section class="article-version-module" aria-labelledby={headingId}>
+  <h2 id={headingId} class="article-sidebar-heading">{copy.versionHeading}</h2>
+  <ol class="article-version-list">
+    {
+      versions.map((version) => {
+        const isSelected = version.number === selected.number;
+        const isLatest = version.number === article.current.number;
+        const date = getArticleVersionDate(version);
+        return (
+          <li>
+            <a
+              class="article-version-link"
+              href={isLatest ? getArticleHref(article) : getArticleVersionHref(article, version)}
+              aria-current={isSelected ? 'page' : undefined}
+              data-current-version={isSelected ? '' : undefined}
+            >
+              <span class="article-version-line">
+                <strong data-latest-version={isLatest ? '' : undefined}>v{version.number}</strong>
+                <time datetime={date.toISOString()}>{formatDate(date, locale)}</time>
+              </span>
+              <span lang={version.contentLocale === 'zh' ? 'zh-CN' : 'en'}>
+                {version.entry.data.revisionSummary ?? copy.versionFirstRelease}
+              </span>
+            </a>
+          </li>
+        );
+      })
+    }
+  </ol>
+
+  <div class="article-version-compare">
+    <button
+      type="button"
+      popovertarget={comparisonId}
+      aria-expanded="false"
+      class="article-version-compare-toggle"
+      data-article-popover-toggle
+    >
+      {copy.versionCompareHeading}
+      <span aria-hidden="true">⌄</span>
+    </button>
+    <div
+      id={comparisonId}
+      popover
+      class="article-popover"
+      data-article-popover
+      data-transient-overlay
+    >
+      <h3>{copy.versionChooseComparison}</h3>
+      <ol class="article-comparison-list" aria-label={copy.versionChooseComparison}>
+        {
+          versions.map((version) => {
+            const date = getArticleVersionDate(version);
+            return (
+              <li>
+                {version.number === selected.number ? (
+                  <span aria-disabled="true" class="article-comparison-disabled">
+                    <strong>v{version.number}</strong>
+                    <time datetime={date.toISOString()}>{formatDate(date, locale)}</time>
+                  </span>
+                ) : (
+                  <a href={getArticleCompareHref(article, selected, version)}>
+                    <strong>v{version.number}</strong>
+                    <time datetime={date.toISOString()}>{formatDate(date, locale)}</time>
+                  </a>
+                )}
+              </li>
+            );
+          })
+        }
+      </ol>
+    </div>
+  </div>
+</section>

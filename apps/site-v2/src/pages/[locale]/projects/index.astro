@@ -1,0 +1,20 @@
+---
+import { LOCALES, type Locale } from '@sshawn9/site-domain/locales';
+import ProjectListPage from '../../../features/projects/components/ProjectListPage.astro';
+import { getProjects, type SiteProject } from '../../../content/project-catalog';
+
+type Props = { locale: Locale; projects: SiteProject[] };
+
+export async function getStaticPaths() {
+  return Promise.all(
+    LOCALES.map(async (locale) => ({
+      params: { locale },
+      props: { locale, projects: await getProjects(locale) },
+    })),
+  );
+}
+
+const { locale, projects } = Astro.props;
+---
+
+<ProjectListPage {locale} {projects} />

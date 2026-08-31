@@ -1,0 +1,26 @@
+{
+  "name": "@sshawn9/site-domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./article-convention": "./src/article-convention.ts",
+    "./articles": "./src/articles.ts",
+    "./date": "./src/date.ts",
+    "./locales": "./src/locales.ts",
+    "./projects": "./src/projects.ts",
+    "./site": "./src/site.ts",
+    "./tags": "./src/tags.ts",
+    "./wallpaper": "./src/wallpaper.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit --project tsconfig.json"
+  },
+  "dependencies": {
+    "github-slugger": "2.0.0"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}

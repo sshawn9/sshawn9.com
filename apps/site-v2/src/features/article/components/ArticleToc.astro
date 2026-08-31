@@ -1,0 +1,45 @@
+---
+import type { MarkdownHeading } from 'astro';
+
+interface Props {
+  headings: MarkdownHeading[];
+}
+
+const { headings } = Astro.props;
+const groups = headings.reduce<Array<{ heading: MarkdownHeading; children: MarkdownHeading[] }>>(
+  (result, heading) => {
+    if (heading.depth === 2 || result.length === 0) result.push({ heading, children: [] });
+    else result.at(-1)?.children.push(heading);
+    return result;
+  },
+  [],
+);
+---
+
+<ul class="article-toc-list">
+  {
+    groups.map(({ heading, children }, index) => (
+      <li>
+        <a
+          href={`#${heading.slug}`}
+          data-toc-slug={heading.slug}
+          data-active={index === 0 ? '' : undefined}
+          aria-current={index === 0 ? 'location' : undefined}
+        >
+          {heading.text}
+        </a>
+        {children.length > 0 && (
+          <ul>
+            {children.map((child) => (
+              <li>
+                <a href={`#${child.slug}`} data-toc-slug={child.slug}>
+                  {child.text}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </li>
+    ))
+  }
+</ul>

@@ -1,0 +1,27 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { LOCALES, type Locale } from '@sshawn9/site-domain/locales';
+import BlogListingPage from '../../../features/blog/components/BlogListingPage.astro';
+import { getVisibleArticles, type SiteArticle } from '../../../content/article-catalog';
+import { getFoundationCopy } from '@sshawn9/site-i18n/copy';
+
+type Props = { locale: Locale; articles: SiteArticle[] };
+
+export const getStaticPaths = (async () =>
+  Promise.all(
+    LOCALES.map(async (locale) => ({
+      params: { locale },
+      props: { locale, articles: await getVisibleArticles(locale) },
+    })),
+  )) satisfies GetStaticPaths;
+
+const { locale, articles } = Astro.props;
+const copy = getFoundationCopy(locale);
+---
+
+<BlogListingPage
+  {locale}
+  {articles}
+  title={copy.blogPageTitle}
+  description={copy.blogPageDescription}
+/>

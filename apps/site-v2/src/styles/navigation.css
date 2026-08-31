@@ -1,0 +1,36 @@
+[data-initial-frame-document-ready] {
+  display: block;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/*
+ * Native View Transitions still provide Astro's atomic DOM swap, but page
+ * motion belongs to PageOutletTransition's live elements. Both snapshots are
+ * captured at the transparent seam, so they must not animate or interpolate
+ * the geometry of a full-height document outlet.
+ */
+::view-transition-group(page-outlet),
+::view-transition-old(page-outlet),
+::view-transition-new(page-outlet) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+.page-outlet {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+@keyframes navigation-progress {
+  from {
+    transform: translate3d(-110%, 0, 0);
+  }
+  to {
+    transform: translate3d(390%, 0, 0);
+  }
+}

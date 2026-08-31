@@ -1,0 +1,57 @@
+---
+import InitialFrameCoordinator from './InitialFrameCoordinator.astro';
+
+interface Article {
+  title: string;
+  description: string;
+  publishedAt: string;
+  updatedAt: string;
+  tags: readonly string[];
+}
+
+interface TocEntry {
+  id: string;
+  title: string;
+}
+
+interface Props {
+  article: Article;
+  toc: TocEntry[];
+}
+
+const { article, toc } = Astro.props;
+---
+
+<article class="article-layout" data-article-page>
+  <header class="article-header">
+    <a href="/zh/blog/">博客</a>
+    <h1>{article.title}</h1>
+    <p class="article-lede">{article.description}</p>
+    <div class="tag-row">
+      {article.tags.map((tag) => <span class="tag-pill">#{tag}</span>)}
+    </div>
+  </header>
+  <aside class="article-toc" data-scroll-region="article-toc" aria-labelledby="toc-heading">
+    <h2 id="toc-heading">本文目录</h2>
+    <p class="article-meta">
+      首次发布 {article.publishedAt}<br />
+      最后更新 {article.updatedAt}
+    </p>
+    <ol>
+      {
+        toc.map((entry) => (
+          <li>
+            <a href={'#' + entry.id}>{entry.title}</a>
+          </li>
+        ))
+      }
+    </ol>
+  </aside>
+  <div class="article-body">
+    <div id="initial-frame-ready" class="initial-frame-boundary">
+      <slot name="initial-frame" />
+      <InitialFrameCoordinator />
+    </div>
+    <slot />
+  </div>
+</article>

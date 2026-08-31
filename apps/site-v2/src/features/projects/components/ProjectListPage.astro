@@ -1,0 +1,41 @@
+---
+import type { Locale } from '@sshawn9/site-domain/locales';
+import type { SiteProject } from '../../../content/project-catalog';
+import { getFoundationCopy } from '@sshawn9/site-i18n/copy';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import ProjectCard from './ProjectCard.astro';
+
+interface Props {
+  locale: Locale;
+  projects: SiteProject[];
+}
+
+const { locale, projects } = Astro.props;
+const copy = getFoundationCopy(locale);
+---
+
+<BaseLayout
+  title={copy.projectsPageTitle}
+  description={copy.projectsPageDescription}
+  {locale}
+  searchable
+  fontQueries={['400 1em "JetBrains Mono Variable"']}
+>
+  <section class="content-shell project-list-page">
+    <h1 class="sr-only">{copy.projectsPageTitle}</h1>
+    <ol class="project-list">
+      {
+        projects.map((project, index) => (
+          <li>
+            <ProjectCard
+              {project}
+              tagsLabel={copy.projectTags}
+              showPreview
+              reverse={index % 2 === 1}
+            />
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+</BaseLayout>

@@ -1,7 +1,7 @@
 {
   "extends": "astro/tsconfigs/strict",
   "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist"],
+  "exclude": ["dist", "apps", "experiments", "packages/site-i18n/generated"],
   "compilerOptions": {
     "jsx": "preserve",
     "jsxImportSource": "solid-js"

@@ -3,7 +3,7 @@ import type { GetStaticPaths } from 'astro';
 import BlogListing from '../../../components/BlogListing.astro';
 import { LOCALES, type Locale } from '../../../i18n/config';
 import { getVisibleArticles, type Article } from '../../../lib/articles';
-import * as m from '../../../paraglide/messages.js';
+import * as m from '@sshawn9/site-i18n/messages';
 
 type Props = { locale: Locale; articles: Article[] };
 

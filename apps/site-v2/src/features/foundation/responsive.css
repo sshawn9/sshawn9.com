@@ -1,0 +1,10 @@
+@media (max-width: 47.999rem) {
+  .home-projects {
+    padding-bottom: 5rem;
+  }
+
+  .foundation-article-card {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+}

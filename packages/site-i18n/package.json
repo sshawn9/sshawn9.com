@@ -1,0 +1,23 @@
+{
+  "name": "@sshawn9/site-i18n",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./copy": "./src/foundation-copy.ts",
+    "./messages": "./generated/messages.js",
+    "./runtime": "./generated/runtime.js",
+    "./paraglide": "./src/paraglide.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit --project tsconfig.json"
+  },
+  "dependencies": {
+    "@inlang/paraglide-js": "^2.23.0",
+    "@sshawn9/site-domain": "0.0.0"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}

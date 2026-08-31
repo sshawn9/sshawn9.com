@@ -6,7 +6,7 @@ import {
   MOTION_CONTROL_INITIAL_POSITION,
   MOTION_CONTROL_MODEL,
   MOTION_CONTROL_VIEW_BOX,
-} from '../../src/content/projects/autonomous-driving-motion-control/motion-control-project-model';
+} from '@sshawn9/content-ui/motion-control/model';
 
 describe('motion-control project model', () => {
   it('uses a true closest-point projection and a signed left-normal error', () => {

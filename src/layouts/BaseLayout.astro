@@ -5,7 +5,7 @@ import RestoreScrollPosition from '../components/RestoreScrollPosition.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import SiteHeader from '../components/SiteHeader.astro';
 import { BASE_LOCALE, toLanguageTag, type Locale } from '../i18n/config';
-import * as m from '../paraglide/messages.js';
+import * as m from '@sshawn9/site-i18n/messages';
 
 type Props = {
   title?: string;
@@ -80,6 +80,7 @@ const searchResultTypeLabel = {
     </div>
     <RestoreScrollPosition />
     <script>
+      import { installContentUiRuntime } from '@sshawn9/content-ui/runtime';
       import { startNavigationController } from '../scripts/navigation-controller';
       import { startNestedScrollRestoration } from '../scripts/nested-scroll-restoration';
       import { startPageRouter } from '../scripts/page-router';
@@ -87,6 +88,7 @@ const searchResultTypeLabel = {
       import '../scripts/transient-ui';
       import { startTypographyController } from '../scripts/typography-controller';
 
+      installContentUiRuntime();
       startPageRouter();
       startNestedScrollRestoration();
       void startTypographyController();

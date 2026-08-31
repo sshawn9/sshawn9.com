@@ -1,7 +1,17 @@
-import { execFileSync } from 'node:child_process';
 import { getCollection, type CollectionEntry } from 'astro:content';
 import { SITE_MODE } from 'astro:env/server';
-import { BASE_LOCALE, otherLocale, type Locale } from '../i18n/config';
+import { createSourceLastModifiedResolver } from '@sshawn9/site-build/git-last-modified';
+import {
+  getArticleUpdatedAt,
+  getArticleVersion,
+  getArticleVersionDate,
+  getArticleProjectIds as getResolvedArticleProjectIds,
+  getArticleTags as getResolvedArticleTags,
+  resolveArticles as resolveArticleEntries,
+  type ResolvedArticle,
+  type ResolvedArticleVersion,
+} from '@sshawn9/site-domain/articles';
+import { BASE_LOCALE, type Locale } from '../i18n/config';
 import { parseArticleEntryId } from './article-convention';
 
 type BlogContentEntry = CollectionEntry<'blog'>;
@@ -11,72 +21,10 @@ export type BlogEntry = Omit<BlogContentEntry, 'data'> & {
   sourceLastModifiedAt?: Date;
 };
 
-export type ArticleVersion = {
-  entry: BlogEntry;
-  number: number;
-  contentLocale: Locale;
-  availableLocales: Locale[];
-  hasRequestedLocale: boolean;
-};
+export type ArticleVersion = ResolvedArticleVersion<BlogEntry>;
+export type Article = ResolvedArticle<BlogEntry>;
 
-export type Article = {
-  id: string;
-  locale: Locale;
-  versions: ArticleVersion[];
-  current: ArticleVersion;
-  isVersioned: boolean;
-};
-
-type SourceCandidate = {
-  entry: BlogEntry;
-  contentLocale: Locale;
-  explicitLocale: boolean;
-};
-
-const sourceLastModifiedCache = new Map<string, Date | undefined>();
-let repositoryHistoryChecked = false;
-
-function assertCompleteGitHistory(): void {
-  if (repositoryHistoryChecked) return;
-
-  const shallow = execFileSync('git', ['rev-parse', '--is-shallow-repository'], {
-    cwd: process.cwd(),
-    encoding: 'utf8',
-  }).trim();
-  if (shallow === 'true') {
-    throw new Error(
-      'Automatic article update dates require complete Git history. Fetch the repository with depth 0.',
-    );
-  }
-  repositoryHistoryChecked = true;
-}
-
-function getSourceLastModifiedAt(filePath: string | undefined): Date | undefined {
-  if (!filePath) return undefined;
-  if (sourceLastModifiedCache.has(filePath)) return sourceLastModifiedCache.get(filePath);
-
-  assertCompleteGitHistory();
-  const timestamp = execFileSync('git', ['log', '-1', '--format=%cI', '--', filePath], {
-    cwd: process.cwd(),
-    encoding: 'utf8',
-  }).trim();
-  const modifiedAt = timestamp ? new Date(timestamp) : undefined;
-  if (modifiedAt && Number.isNaN(modifiedAt.getTime())) {
-    throw new Error(`Git returned an invalid update date for ${filePath}: ${timestamp}`);
-  }
-
-  sourceLastModifiedCache.set(filePath, modifiedAt);
-  return modifiedAt;
-}
-
-function selectSource(candidates: SourceCandidate[], locale: Locale): SourceCandidate | undefined {
-  const forLocale = (candidateLocale: Locale) =>
-    candidates
-      .filter((candidate) => candidate.contentLocale === candidateLocale)
-      .sort((left, right) => Number(right.explicitLocale) - Number(left.explicitLocale))[0];
-
-  return forLocale(locale) ?? forLocale(otherLocale(locale));
-}
+const getSourceLastModifiedAt = createSourceLastModifiedResolver(process.cwd());
 
 function mergeArticleMetadata(
   entries: BlogContentEntry[],
@@ -102,50 +50,7 @@ function mergeArticleMetadata(
 }
 
 export function resolveArticles(entries: BlogEntry[], locale: Locale = BASE_LOCALE): Article[] {
-  const sources = new Map<string, Map<number, SourceCandidate[]>>();
-
-  for (const entry of entries) {
-    const parsed = parseArticleEntryId(entry.id);
-    const versions = sources.get(parsed.articleId) ?? new Map<number, SourceCandidate[]>();
-    const candidates = versions.get(parsed.version) ?? [];
-    candidates.push({
-      entry,
-      contentLocale: parsed.contentLocale,
-      explicitLocale: parsed.explicitLocale,
-    });
-    versions.set(parsed.version, candidates);
-    sources.set(parsed.articleId, versions);
-  }
-
-  return [...sources.entries()]
-    .flatMap(([id, versionSources]): Article[] => {
-      const versions = [...versionSources.entries()]
-        .sort(([left], [right]) => left - right)
-        .flatMap(([number, candidates]): ArticleVersion[] => {
-          const selected = selectSource(candidates, locale);
-          if (!selected) return [];
-
-          return [
-            {
-              entry: selected.entry,
-              number,
-              contentLocale: selected.contentLocale,
-              availableLocales: [
-                ...new Set(candidates.map((candidate) => candidate.contentLocale)),
-              ],
-              hasRequestedLocale: selected.contentLocale === locale,
-            },
-          ];
-        });
-      const current = versions.at(-1);
-      return current ? [{ id, locale, versions, current, isVersioned: versions.length > 1 }] : [];
-    })
-    .sort((left, right) => {
-      const dateDifference =
-        right.versions[0].entry.data.publishedAt.getTime() -
-        left.versions[0].entry.data.publishedAt.getTime();
-      return dateDifference || left.id.localeCompare(right.id);
-    });
+  return resolveArticleEntries(entries, locale);
 }
 
 export async function getVisibleArticles(locale: Locale = BASE_LOCALE): Promise<Article[]> {
@@ -163,21 +68,19 @@ export function getVersionByNumber(
   article: Article,
   versionNumber: number,
 ): ArticleVersion | undefined {
-  return article.versions.find((version) => version.number === versionNumber);
+  return getArticleVersion(article, versionNumber);
 }
 
 export function getVersionDate(version: ArticleVersion): Date {
-  return version.entry.data.revisedAt ?? version.entry.data.publishedAt;
-}
-
-export function getArticleUpdatedAt(version: ArticleVersion): Date | undefined {
-  return version.entry.data.revisedAt ?? version.entry.sourceLastModifiedAt;
+  return getArticleVersionDate(version);
 }
 
 export function getArticleTags(article: Article): string[] {
-  return [...new Set(article.current.entry.data.tags)];
+  return getResolvedArticleTags(article);
 }
 
 export function getArticleProjectIds(article: Article): string[] {
-  return [...new Set(article.current.entry.data.projects.map((project) => project.id))];
+  return getResolvedArticleProjectIds(article);
 }
+
+export { getArticleUpdatedAt };

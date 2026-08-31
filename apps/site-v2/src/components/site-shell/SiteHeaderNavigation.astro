@@ -1,0 +1,65 @@
+---
+import type { Locale } from '@sshawn9/site-domain/locales';
+import type { FoundationCopy } from '@sshawn9/site-i18n/copy';
+
+interface Props {
+  locale: Locale;
+  copy: FoundationCopy;
+  mobile?: boolean;
+}
+
+const { locale, copy, mobile = false } = Astro.props;
+const prefix = mobile ? 'mobile-' : '';
+const navigationKey = mobile ? 'mobile-navigation' : 'primary-navigation';
+const currentPath = Astro.url.pathname;
+const items = [
+  { key: 'projects', path: 'projects', label: copy.navProjects },
+  { key: 'blog', path: 'blog', label: copy.navBlog },
+  { key: 'about', path: 'about', label: copy.navAbout },
+] as const;
+const searchIsCurrent = currentPath.startsWith(`/${locale}/search/`);
+---
+
+<nav
+  class={mobile ? 'site-header__mobile-navigation' : 'site-header__primary-navigation'}
+  data-shell-sync-key={navigationKey}
+  aria-label={mobile ? copy.mobileNavigation : copy.primaryNavigation}
+>
+  {
+    items.map(({ key, path, label }) => {
+      const href = `/${locale}/${path}/`;
+      return (
+        <a
+          class={mobile ? 'site-header__mobile-link' : 'site-header__nav-link'}
+          data-shell-sync-key={`${prefix}${key}`}
+          data-shell-copy-text
+          data-shell-nav-prefix={href}
+          href={href}
+          aria-current={currentPath.startsWith(href) ? 'page' : undefined}
+        >
+          {label}
+        </a>
+      );
+    })
+  }
+
+  {
+    mobile && (
+      <a
+        class="site-header__mobile-link site-header__mobile-search"
+        data-shell-sync-key="mobile-search"
+        data-shell-nav-prefix={`/${locale}/search/`}
+        href={`/${locale}/search/`}
+        aria-current={searchIsCurrent ? 'page' : undefined}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-4.35-4.35" />
+        </svg>
+        <span data-shell-sync-key="mobile-search-label" data-shell-copy-text>
+          {copy.navSearch}
+        </span>
+      </a>
+    )
+  }
+</nav>

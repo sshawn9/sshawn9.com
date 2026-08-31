@@ -1,0 +1,46 @@
+:where(h1, h2, h3, h4, h5, h6) {
+  margin-block: 0;
+  color: var(--text-strong);
+  font-family: var(--font-display);
+  font-synthesis: none;
+}
+
+:where(p, ol, ul, dl, figure, blockquote, pre) {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: rgb(34 211 238 / 0.24);
+  color: var(--text-strong);
+}
+
+:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 3px;
+}
+
+.content-shell {
+  width: min(100% - 2rem, 76rem);
+  margin-inline: auto;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 0.75rem;
+  left: 0.75rem;
+  transform: translateY(-180%);
+  border-radius: 0.5rem;
+  background: var(--surface-strong);
+  padding: 0.6rem 0.8rem;
+  color: var(--text-strong);
+  font-weight: 700;
+}
+
+.skip-link:focus {
+  transform: none;
+}

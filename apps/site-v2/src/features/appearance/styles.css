@@ -1,0 +1,123 @@
+.wallpaper {
+  display: contents;
+}
+
+.wallpaper__boot,
+.wallpaper__media {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+:root[data-wallpaper-mode='scenic'][data-wallpaper-boot-photo-id] .wallpaper__boot {
+  opacity: 1;
+}
+
+:root[data-wallpaper-compositor='ready'] .wallpaper__boot {
+  opacity: 0;
+}
+
+:root[data-wallpaper-mode='scenic'] .wallpaper__media[data-wallpaper-ready] {
+  opacity: 1;
+}
+
+.wallpaper__boot-image,
+.wallpaper__images,
+.wallpaper__image,
+.wallpaper__scrim {
+  position: absolute;
+  inset: 0;
+}
+
+.wallpaper__boot-image,
+.wallpaper__image {
+  background-image: var(--wallpaper-boot-image, none);
+  background-position: center;
+  background-size: cover;
+  opacity: var(--wallpaper-image-opacity);
+  filter: saturate(var(--wallpaper-filter-saturation)) contrast(var(--wallpaper-filter-contrast))
+    brightness(var(--wallpaper-filter-brightness));
+}
+
+.wallpaper__image {
+  background-image: none;
+  opacity: 0;
+}
+
+.wallpaper__image.is-active {
+  opacity: var(--wallpaper-image-opacity);
+}
+
+.wallpaper__loader {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .wallpaper__boot[data-wallpaper-transitions='enabled'],
+  .wallpaper__media[data-wallpaper-transitions='enabled'] {
+    transition: opacity 720ms ease;
+  }
+
+  .wallpaper__media[data-wallpaper-transitions='enabled'] .wallpaper__image {
+    transition: opacity 1.4s ease;
+  }
+}
+
+.wallpaper__scrim::before,
+.wallpaper__scrim::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+}
+
+.wallpaper__scrim::before {
+  background: linear-gradient(
+    to bottom,
+    rgb(247 248 251 / 0.62),
+    rgb(247 248 251 / 0.7) 30%,
+    rgb(247 248 251 / 0.78)
+  );
+  opacity: var(--wallpaper-light-scrim-opacity);
+}
+
+.wallpaper__scrim::after {
+  background: linear-gradient(
+    to bottom,
+    rgb(7 9 13 / 0.48),
+    rgb(7 9 13 / 0.66) 60%,
+    rgb(7 9 13 / 0.76)
+  );
+  opacity: var(--wallpaper-dark-scrim-opacity);
+}
+
+.wallpaper__credit {
+  position: fixed;
+  z-index: 20;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  max-width: calc(100vw - 2rem);
+  color: var(--text-disabled);
+  font-size: 0.625rem;
+  line-height: 1.3;
+  pointer-events: auto;
+}
+
+.wallpaper__credit a {
+  color: inherit;
+  font-weight: 400;
+  text-decoration: none;
+  text-underline-offset: 0.16em;
+}
+
+.wallpaper__credit a:hover,
+.wallpaper__credit a:focus-visible {
+  color: var(--text-supporting);
+  text-decoration: underline;
+}

@@ -1,0 +1,24 @@
+---
+import { LOCALES, type Locale } from '@sshawn9/site-domain/locales';
+import FoundationAboutPage from '../../features/foundation/components/FoundationAboutPage.astro';
+import { getFoundationCopy } from '@sshawn9/site-i18n/copy';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+type Props = { locale: Locale };
+
+export function getStaticPaths() {
+  return LOCALES.map((locale) => ({ params: { locale }, props: { locale } }));
+}
+
+const { locale } = Astro.props;
+const copy = getFoundationCopy(locale);
+---
+
+<BaseLayout
+  title={copy.aboutPageTitle}
+  description={copy.aboutUnderConstruction}
+  {locale}
+  searchable
+>
+  <FoundationAboutPage {locale} />
+</BaseLayout>

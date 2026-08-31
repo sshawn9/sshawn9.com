@@ -57,6 +57,9 @@
   "frenet_splitter_label": "Resize the relation and geometry plots",
   "frenet_loading": "Loading interactive figure…",
   "frenet_error": "Interactive figure failed to load: {message}",
+  "interactive_figure_javascript_required": "This interactive figure requires JavaScript. The article text and figure caption remain available.",
+  "interactive_figure_loading": "Loading interactive figure…",
+  "interactive_figure_unavailable": "The interactive figure is unavailable. The article text and figure caption remain available.",
   "frenet_relation_curve_title": "dℓ/ds relation curve",
   "frenet_coordinate_scale_curve_title": "1 − dκᵣ",
   "frenet_relation_surface_title": "dℓ/ds relation surface",
@@ -120,6 +123,8 @@
   "search_empty_description": "Results appear as you type, with titles and matching sections prioritized.",
   "search_no_script_title": "Search requires JavaScript",
   "search_no_script_description": "Enable JavaScript to use site search.",
+  "search_unavailable_title": "Search is temporarily unavailable",
+  "search_unavailable_description": "The search engine could not be loaded. You can still browse the main sections below.",
   "search_result_type_page": "Page",
   "search_result_type_article": "Article",
   "search_result_type_project": "Project",
@@ -127,6 +132,7 @@
   "search_dev_description_before": "Run ",
   "search_dev_description_middle": ", then use ",
   "search_dev_description_after": " to test the complete search experience.",
+  "search_dev_description": "Build and preview the site to test the generated search index.",
 
   "not_found_title": "Page not found",
   "not_found_heading": "This is the 404 page",
@@ -139,6 +145,7 @@
   "blog_sidebar_collapse": "Collapse blog sidebar",
   "blog_sidebar_expand": "Expand blog sidebar",
   "blog_sidebar_resize": "Resize blog sidebar",
+  "blog_tag_selected": "selected",
   "tag_page_title": "Articles tagged “{tag}”",
   "tag_page_description": "{count} public articles tagged “{tag}”.",
   "blog_article_count": "Articles: {count}",
@@ -179,5 +186,6 @@
   "diff_added": "Added",
   "diff_no_changes": "The article body is identical in these two versions.",
   "diff_loading": "Loading the selected versions…",
-  "diff_error": "The selected versions could not be loaded."
+  "diff_error": "The selected versions could not be loaded.",
+  "diff_static_fallback": "The interactive diff needs JavaScript. Both complete version snapshots remain available through the links above."
 }

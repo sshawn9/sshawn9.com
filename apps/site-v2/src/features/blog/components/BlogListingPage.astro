@@ -1,0 +1,56 @@
+---
+import type { Locale } from '@sshawn9/site-domain/locales';
+import { getTagDefinitions } from '@sshawn9/site-domain/tags';
+import BlogArticleList from './BlogArticleList.astro';
+import BlogSidebar from './BlogSidebar.astro';
+import { getFoundationCopy } from '@sshawn9/site-i18n/copy';
+import type { SiteArticle } from '../../../content/article-catalog';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { createBlogSidebarPrepaintScript } from '../runtime/blog-sidebar-state';
+import { createBlogViewPrepaintScript } from '../runtime/blog-view-state';
+
+interface Props {
+  locale: Locale;
+  articles: SiteArticle[];
+  title: string;
+  description: string;
+  heading?: string;
+  filterable?: boolean;
+}
+
+const { locale, articles, title, description, heading, filterable = true } = Astro.props;
+const copy = getFoundationCopy(locale);
+const tags = getTagDefinitions(articles);
+const viewPrepaintScript = createBlogViewPrepaintScript();
+const prepaintScripts = filterable ? [createBlogSidebarPrepaintScript()] : [];
+---
+
+<BaseLayout
+  {title}
+  {description}
+  {locale}
+  {prepaintScripts}
+  fontQueries={['400 1em "JetBrains Mono Variable"']}
+>
+  <section
+    class="content-shell blog-page"
+    data-blog-listing
+    data-blog-filterable={String(filterable)}
+    data-article-count-template={copy.blogArticleCountTemplate}
+    data-page-count-template={copy.blogPageCountTemplate}
+  >
+    {heading ? <h1 class="blog-tag-heading">#{heading}</h1> : <h1 class="sr-only">{title}</h1>}
+
+    {
+      filterable && tags.length > 0 ? (
+        <BlogSidebar {locale} {tags} {copy}>
+          <BlogArticleList {locale} {articles} {copy} />
+        </BlogSidebar>
+      ) : (
+        <BlogArticleList {locale} {articles} {copy} />
+      )
+    }
+
+    <script is:inline set:html={viewPrepaintScript} />
+  </section>
+</BaseLayout>

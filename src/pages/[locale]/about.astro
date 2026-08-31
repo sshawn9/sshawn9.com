@@ -1,7 +1,7 @@
 ---
 import { getLocaleStaticPaths, type Locale } from '../../i18n/config';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import * as m from '../../paraglide/messages.js';
+import * as m from '@sshawn9/site-i18n/messages';
 
 type Props = { locale: Locale };
 export const getStaticPaths = getLocaleStaticPaths;

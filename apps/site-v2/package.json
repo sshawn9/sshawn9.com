@@ -1,0 +1,36 @@
+{
+  "name": "@sshawn9/site-v2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "astro build && pagefind --site dist",
+    "check": "astro check",
+    "dev": "astro dev --host 127.0.0.1 --port 4332",
+    "preview": "astro preview --host 127.0.0.1 --port 4333",
+    "test:e2e": "npm run build && playwright test"
+  },
+  "dependencies": {
+    "@sshawn9/content-ui": "0.0.0",
+    "@astrojs/markdown-remark": "7.2.2",
+    "@astrojs/mdx": "7.0.5",
+    "@astrojs/solid-js": "7.0.1",
+    "@fontsource-variable/jetbrains-mono": "5.2.8",
+    "@fontsource-variable/manrope": "5.2.8",
+    "@fontsource-variable/noto-sans-sc": "5.3.0",
+    "@fontsource-variable/source-sans-3": "5.3.0",
+    "@sshawn9/site-build": "0.0.0",
+    "@sshawn9/site-domain": "0.0.0",
+    "@sshawn9/site-i18n": "0.0.0",
+    "astro": "7.1.6",
+    "diff": "^8.0.4",
+    "diff2html": "^3.4.56",
+    "photoswipe": "^5.4.4",
+    "solid-js": "1.9.14"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.9",
+    "@playwright/test": "1.62.1",
+    "pagefind": "1.5.2",
+    "typescript": "6.0.3"
+  }
+}

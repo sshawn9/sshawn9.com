@@ -1,0 +1,100 @@
+---
+import { getArticleVersionDate } from '@sshawn9/site-domain/articles';
+import { formatDate } from '@sshawn9/site-domain/date';
+import { LOCALES, type Locale } from '@sshawn9/site-domain/locales';
+import VersionComparison from '../../../../../features/article/components/VersionComparison';
+import { getVisibleArticles, type SiteArticle } from '../../../../../content/article-catalog';
+import {
+  getArticleHref,
+  getArticleVersionHref,
+  getArticleVersionSourceHref,
+} from '../../../../../content/article-routes';
+import type {
+  VersionComparisonLabels,
+  VersionComparisonVersion,
+} from '../../../../../content/version-comparison';
+import { formatUiCopy, getFoundationCopy } from '@sshawn9/site-i18n/copy';
+import BaseLayout from '../../../../../layouts/BaseLayout.astro';
+
+type Props = { locale: Locale; article: SiteArticle };
+
+export async function getStaticPaths() {
+  const localizedArticles = await Promise.all(
+    LOCALES.map(async (locale) => ({ locale, articles: await getVisibleArticles(locale) })),
+  );
+
+  return localizedArticles.flatMap(({ locale, articles }) =>
+    articles
+      .filter((article) => article.isVersioned)
+      .map((article) => ({
+        params: { locale, id: article.id },
+        props: { locale, article },
+      })),
+  );
+}
+
+const { locale, article } = Astro.props;
+const copy = getFoundationCopy(locale);
+const post = article.current.entry;
+const comparePageHref = `/${locale}/blog/${article.id}/compare/`;
+const versions: VersionComparisonVersion[] = article.versions.toReversed().map((version) => {
+  const date = getArticleVersionDate(version);
+  return {
+    number: version.number,
+    dateTime: date.toISOString(),
+    dateLabel: formatDate(date, locale),
+    href:
+      version.number === article.current.number
+        ? getArticleHref(article)
+        : getArticleVersionHref(article, version),
+    sourceHref: getArticleVersionSourceHref(article, version),
+  };
+});
+const labels: VersionComparisonLabels = {
+  eyebrow: copy.versionCompareEyebrow,
+  displayMode: copy.versionDisplayMode,
+  unified: copy.versionUnified,
+  split: copy.versionSplit,
+  compareHeading: copy.versionCompareHeading,
+  chooseOther: copy.versionChooseOther,
+  baseLabelTemplate: copy.versionBaseLabelTemplate,
+  removed: copy.diffRemoved,
+  added: copy.diffAdded,
+  noChanges: copy.diffNoChanges,
+  loading: copy.diffLoading,
+  error: copy.diffError,
+  staticFallback: copy.diffStaticFallback,
+};
+const title = formatUiCopy(copy.versionComparePageTitleTemplate, { title: post.data.title });
+const description = formatUiCopy(copy.versionComparePageDescriptionTemplate, {
+  title: post.data.title,
+});
+---
+
+<BaseLayout
+  {title}
+  {description}
+  {locale}
+  noIndex
+  fontQueries={['400 1em "JetBrains Mono Variable"']}
+>
+  <section class="content-shell version-comparison-page">
+    <nav aria-label={copy.breadcrumbs}>
+      <ol class="breadcrumbs">
+        <li><a href={`/${locale}/blog/`}>{copy.navBlog}</a></li>
+        <li aria-hidden="true">/</li>
+        <li><a href={getArticleHref(article)}>{post.data.title}</a></li>
+        <li aria-hidden="true">/</li>
+        <li aria-current="page">{copy.versionCompareHeading}</li>
+      </ol>
+    </nav>
+
+    <VersionComparison
+      client:load
+      articleTitle={post.data.title}
+      {versions}
+      {labels}
+      {comparePageHref}
+    />
+  </section>
+</BaseLayout>

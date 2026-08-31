@@ -1,0 +1,391 @@
+@import '@fontsource-variable/noto-sans-sc/wght.css';
+@import '@fontsource-variable/jetbrains-mono/wght.css';
+@import '@fontsource-variable/jetbrains-mono/wght-italic.css';
+@import 'katex/dist/katex.min.css';
+
+/*
+ * Theme changes animate the live document. Registered semantic colors avoid
+ * flattening the page into View Transition screenshots, which breaks the
+ * real stacking relationship between translucent shell layers and content.
+ */
+@property --page {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f7f8fb;
+}
+
+@property --page-muted {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #eef1f7;
+}
+
+@property --text-strong {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #090d14;
+}
+
+@property --text-default {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #0b1017;
+}
+
+@property --text-supporting {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #111720;
+}
+
+@property --text-disabled {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #64748b;
+}
+
+@property --text-accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #5b4e72;
+}
+
+@property --text-accent-hover {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #443857;
+}
+
+@property --text-on-accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f8fafc;
+}
+
+@property --text-success {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #14532d;
+}
+
+@property --text-danger {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #7f1d1d;
+}
+
+@property --text-special {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #4c1d95;
+}
+
+@property --line {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgb(15 23 42 / 0.1);
+}
+
+@property --surface {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgb(255 255 255 / 0.72);
+}
+
+@property --surface-strong {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgb(255 255 255 / 0.9);
+}
+
+@property --page-grid {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgb(100 116 139 / 0.05);
+}
+
+@property --page-glow-cyan {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgb(34 211 238 / 0.1);
+}
+
+@property --page-glow-violet {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgb(139 92 246 / 0.1);
+}
+
+@property --wallpaper-image-opacity {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+
+@property --wallpaper-filter-saturation {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0.92;
+}
+
+@property --wallpaper-filter-contrast {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0.94;
+}
+
+@property --wallpaper-filter-brightness {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+
+@property --wallpaper-dark-scrim-opacity {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --wallpaper-light-scrim-opacity {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+
+:root {
+  color-scheme: light;
+  --font-display-fallback: system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-sans-fallback: system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono-fallback:
+    ui-monospace, 'SFMono-Regular', 'Cascadia Code', 'Roboto Mono', Consolas, 'PingFang SC',
+    'Microsoft YaHei', monospace;
+  --font-display: var(--font-manrope);
+  --font-sans: var(--font-source-sans-3);
+  --font-mono: 'JetBrains Mono Variable', 'Noto Sans SC Variable', var(--font-mono-fallback);
+  --page: #f7f8fb;
+  --page-muted: #eef1f7;
+  --scenic-text-strong: #090d14;
+  --scenic-text-default: #0b1017;
+  --scenic-text-supporting: #111720;
+  --scenic-text-disabled: #64748b;
+  --scenic-text-accent: #5b4e72;
+  --scenic-text-accent-hover: #443857;
+  --scenic-text-on-accent: #f8fafc;
+  --scenic-text-success: #14532d;
+  --scenic-text-danger: #7f1d1d;
+  --scenic-text-special: #4c1d95;
+  --default-background-text-strong: #090d14;
+  --default-background-text-default: #0b1017;
+  --default-background-text-supporting: #111720;
+  --default-background-text-disabled: #64748b;
+  --default-background-text-accent: #5b4e72;
+  --default-background-text-accent-hover: #443857;
+  --default-background-text-on-accent: #f8fafc;
+  --default-background-text-success: #14532d;
+  --default-background-text-danger: #7f1d1d;
+  --default-background-text-special: #4c1d95;
+  --text-strong: var(--scenic-text-strong);
+  --text-default: var(--scenic-text-default);
+  --text-supporting: var(--scenic-text-supporting);
+  --text-disabled: var(--scenic-text-disabled);
+  --text-accent: var(--scenic-text-accent);
+  --text-accent-hover: var(--scenic-text-accent-hover);
+  --text-on-accent: var(--scenic-text-on-accent);
+  --text-success: var(--scenic-text-success);
+  --text-danger: var(--scenic-text-danger);
+  --text-special: var(--scenic-text-special);
+  /* Compatibility names used by the isolated research islands during migration. */
+  --ink: var(--text-strong);
+  --muted: var(--text-supporting);
+  --line: rgb(15 23 42 / 0.1);
+  --surface: rgb(255 255 255 / 0.72);
+  --surface-strong: rgb(255 255 255 / 0.9);
+  --page-grid: rgb(100 116 139 / 0.05);
+  --page-glow-cyan: rgb(34 211 238 / 0.1);
+  --page-glow-violet: rgb(139 92 246 / 0.1);
+  --wallpaper-image-opacity: 1;
+  --wallpaper-filter-saturation: 0.92;
+  --wallpaper-filter-contrast: 0.94;
+  --wallpaper-filter-brightness: 1;
+  --wallpaper-light-scrim-opacity: 1;
+  --wallpaper-dark-scrim-opacity: 0;
+  --page-background:
+    linear-gradient(to bottom, transparent 0%, var(--page) 54rem),
+    radial-gradient(circle at 14% 4%, var(--page-glow-cyan), transparent 25rem),
+    radial-gradient(circle at 86% 10%, var(--page-glow-violet), transparent 27rem),
+    linear-gradient(to right, var(--page-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--page-grid) 1px, transparent 1px);
+  --header-height: 3.5rem;
+  --site-footer-block-size: 5.5625rem;
+  --site-header-sticky-offset: calc(var(--header-height) + env(safe-area-inset-top) + 1px);
+  --site-article-sidebar-sticky-offset: calc(var(--site-header-sticky-offset) + 5.1875rem);
+  --site-sidebar-bottom-gap: max(2rem, var(--site-footer-block-size));
+}
+
+/*
+ * Font readiness coordinates geometry consumers; it never owns document
+ * visibility. Document surfaces stay painted while a cold document prepares
+ * fonts, and a warm refresh cannot remove and reinsert an already visible page.
+ */
+
+[data-font-surface][data-font-fallback] {
+  --font-display: var(--font-display-fallback);
+  --font-sans: var(--font-sans-fallback);
+  --font-mono: var(--font-mono-fallback);
+  font-family: var(--font-sans-fallback);
+}
+
+/* KaTeX names its faces directly instead of using the site font variables. */
+[data-font-surface][data-font-fallback] .katex,
+[data-font-surface][data-font-fallback] .katex * {
+  font-family: 'Times New Roman', serif !important;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --page: #070a12;
+  --page-muted: #0d1220;
+  --scenic-text-strong: #eef2f6;
+  --scenic-text-default: #e5eaf0;
+  --scenic-text-supporting: #d6dde6;
+  --scenic-text-disabled: #8b98aa;
+  --scenic-text-accent: #b9acc8;
+  --scenic-text-accent-hover: #d0c5dc;
+  --scenic-text-on-accent: #09131a;
+  --scenic-text-success: #dcfce7;
+  --scenic-text-danger: #fee2e2;
+  --scenic-text-special: #ede9fe;
+  --default-background-text-strong: #f1f5f9;
+  --default-background-text-default: #b7c0cf;
+  --default-background-text-supporting: #98a2b3;
+  --default-background-text-disabled: #45556c;
+  --default-background-text-accent: #67e8f9;
+  --default-background-text-accent-hover: #53eafd;
+  --default-background-text-on-accent: #020617;
+  --default-background-text-success: oklch(84.5% 0.143 164.978);
+  --default-background-text-danger: oklch(81% 0.117 11.638);
+  --default-background-text-special: #c4b5fd;
+  --line: rgb(148 163 184 / 0.14);
+  --surface: rgb(14 20 34 / 0.72);
+  --surface-strong: rgb(14 20 34 / 0.92);
+  --page-grid: rgb(148 163 184 / 0.04);
+  --page-glow-cyan: rgb(34 211 238 / 0.11);
+  --page-glow-violet: rgb(139 92 246 / 0.12);
+  --wallpaper-image-opacity: 0.56;
+  --wallpaper-filter-saturation: 0.94;
+  --wallpaper-filter-contrast: 1;
+  --wallpaper-filter-brightness: 0.96;
+  --wallpaper-light-scrim-opacity: 0;
+  --wallpaper-dark-scrim-opacity: 1;
+}
+
+:root[data-wallpaper-mode='default'] {
+  --text-strong: var(--default-background-text-strong);
+  --text-default: var(--default-background-text-default);
+  --text-supporting: var(--default-background-text-supporting);
+  --text-disabled: var(--default-background-text-disabled);
+  --text-accent: var(--default-background-text-accent);
+  --text-accent-hover: var(--default-background-text-accent-hover);
+  --text-on-accent: var(--default-background-text-on-accent);
+  --text-success: var(--default-background-text-success);
+  --text-danger: var(--default-background-text-danger);
+  --text-special: var(--default-background-text-special);
+}
+
+:root[data-theme-transition='active'] {
+  transition:
+    --page 600ms ease-in-out,
+    --page-muted 600ms ease-in-out,
+    --text-strong 600ms ease-in-out,
+    --text-default 600ms ease-in-out,
+    --text-supporting 600ms ease-in-out,
+    --text-disabled 600ms ease-in-out,
+    --text-accent 600ms ease-in-out,
+    --text-accent-hover 600ms ease-in-out,
+    --text-on-accent 600ms ease-in-out,
+    --text-success 600ms ease-in-out,
+    --text-danger 600ms ease-in-out,
+    --text-special 600ms ease-in-out,
+    --line 600ms ease-in-out,
+    --surface 600ms ease-in-out,
+    --surface-strong 600ms ease-in-out,
+    --page-grid 600ms ease-in-out,
+    --page-glow-cyan 600ms ease-in-out,
+    --page-glow-violet 600ms ease-in-out,
+    --wallpaper-image-opacity 600ms ease-in-out,
+    --wallpaper-filter-saturation 600ms ease-in-out,
+    --wallpaper-filter-contrast 600ms ease-in-out,
+    --wallpaper-filter-brightness 600ms ease-in-out,
+    --wallpaper-light-scrim-opacity 600ms ease-in-out,
+    --wallpaper-dark-scrim-opacity 600ms ease-in-out;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+html {
+  min-width: 20rem;
+  overflow-x: clip;
+  scrollbar-gutter: stable;
+  background-color: var(--page);
+  background-image: var(--page-background);
+  background-attachment: fixed;
+  background-size:
+    auto,
+    auto,
+    auto,
+    4rem 4rem,
+    4rem 4rem;
+  scroll-behavior: smooth;
+  text-rendering: optimizeLegibility;
+}
+
+html[data-initial-scroll-restoration] {
+  scroll-behavior: auto;
+}
+
+html[data-navigation-pending] {
+  scroll-behavior: auto;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: clip;
+  background: transparent;
+  color: var(--text-default);
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.site-shell {
+  display: contents;
+}
+
+main,
+.site-footer {
+  position: relative;
+  z-index: 1;
+}

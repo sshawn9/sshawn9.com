@@ -1,0 +1,57 @@
+---
+import type { SiteProject } from '../../../content/project-catalog';
+import ProjectPreview from './ProjectPreview.astro';
+
+interface Props {
+  project: SiteProject;
+  tagsLabel: string;
+  headingLevel?: 'h2' | 'h3';
+  showPreview?: boolean;
+  reverse?: boolean;
+}
+
+const {
+  project,
+  tagsLabel,
+  headingLevel = 'h2',
+  showPreview = false,
+  reverse = false,
+} = Astro.props;
+const Heading = headingLevel;
+const contentLanguageTag = project.contentLocale === 'zh' ? 'zh-CN' : 'en';
+const preview = showPreview ? project.preview : undefined;
+---
+
+<article
+  class:list={['project-card', preview && 'project-card--with-preview', reverse && 'is-reversed']}
+  lang={contentLanguageTag}
+>
+  <div class="project-card__content">
+    <Heading>
+      <a
+        class:list={['project-card__link', !preview && 'project-card__link--full']}
+        href={project.href}
+      >
+        {project.title}
+      </a>
+    </Heading>
+    <p>{project.description}</p>
+    {
+      project.tags.length > 0 && (
+        <ul class="project-tag-list" aria-label={tagsLabel}>
+          {project.tags.map((tag) => (
+            <li>#{tag}</li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+
+  {
+    preview && (
+      <div class="project-card__preview">
+        <ProjectPreview kind={preview} />
+      </div>
+    )
+  }
+</article>

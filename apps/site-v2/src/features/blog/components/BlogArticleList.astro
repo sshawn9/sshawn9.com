@@ -1,0 +1,83 @@
+---
+import { getArticleTags } from '@sshawn9/site-domain/articles';
+import { formatDate } from '@sshawn9/site-domain/date';
+import type { Locale } from '@sshawn9/site-domain/locales';
+import { getTagSlug } from '@sshawn9/site-domain/tags';
+import type { FoundationCopy } from '@sshawn9/site-i18n/copy';
+import type { SiteArticle } from '../../../content/article-catalog';
+
+interface Props {
+  locale: Locale;
+  articles: SiteArticle[];
+  copy: FoundationCopy;
+}
+
+const { locale, articles, copy } = Astro.props;
+const nextPageHref = `${Astro.url.pathname}?page=2`;
+---
+
+<div class="blog-results" data-blog-results>
+  <p class="blog-result-count" data-blog-result-count aria-live="polite">
+    {copy.blogArticleCountTemplate.replace('{count}', String(articles.length))}
+  </p>
+
+  <p class="blog-empty" data-blog-empty hidden>{copy.blogEmpty}</p>
+
+  <ol class="blog-article-list">
+    {
+      articles.map((article) => {
+        const entry = article.current.entry;
+        const tags = getArticleTags(article);
+        const tagSlugs = tags.map(getTagSlug);
+        const publishedAt = article.versions[0].entry.data.publishedAt;
+        return (
+          <li data-blog-article data-article-tag-slugs={JSON.stringify(tagSlugs)}>
+            <article
+              class="blog-article"
+              lang={article.current.contentLocale === 'zh' ? 'zh-CN' : 'en'}
+            >
+              <div class="blog-article-copy">
+                <h2>
+                  <a href={`/${locale}/blog/${article.id}/`}>{entry.data.title}</a>
+                </h2>
+                {entry.data.description && <p>{entry.data.description}</p>}
+              </div>
+
+              <footer class="blog-article-meta">
+                <time datetime={publishedAt.toISOString()}>{formatDate(publishedAt, locale)}</time>
+                <ul aria-label={copy.articleTags}>
+                  {tags.map((tag, index) => (
+                    <li>
+                      <a
+                        href={`/${locale}/tags/${tagSlugs[index]}/`}
+                        class="blog-article-tag"
+                        data-blog-filter-link
+                        data-tag-slug={tagSlugs[index]}
+                      >
+                        #{tag}
+                        <span class="sr-only" data-blog-selected-copy hidden>
+                          {copy.blogTagSelected}
+                        </span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </footer>
+            </article>
+          </li>
+        );
+      })
+    }
+  </ol>
+
+  <nav class="blog-pagination" data-blog-pagination aria-label={copy.paginationLabel} hidden>
+    <a href={Astro.url.pathname} data-blog-page="previous" hidden>
+      <span aria-hidden="true">←</span>
+      {copy.paginationPrevious}
+    </a>
+    <a href={nextPageHref} data-blog-page="next">
+      {copy.paginationNext}
+      <span aria-hidden="true">→</span>
+    </a>
+  </nav>
+</div>

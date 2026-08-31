@@ -1,0 +1,32 @@
+---
+import type { Locale } from '@sshawn9/site-domain/locales';
+import { getFoundationCopy } from '@sshawn9/site-i18n/copy';
+
+interface Props {
+  locale: Locale;
+  reason: 'no-script' | 'unavailable';
+}
+
+const { locale, reason } = Astro.props;
+const copy = getFoundationCopy(locale);
+const title = reason === 'no-script' ? copy.searchNoScriptTitle : copy.searchUnavailableTitle;
+const description =
+  reason === 'no-script' ? copy.searchNoScriptDescription : copy.searchUnavailableDescription;
+---
+
+<div class="site-search-fallback" role="status">
+  <input
+    class="site-search-fallback__input"
+    type="search"
+    placeholder={copy.searchPlaceholder}
+    aria-label={copy.searchPageTitle}
+    disabled
+  />
+  <p class="site-search-fallback__title">{title}</p>
+  <p class="site-search-fallback__description">{description}</p>
+  <nav class="site-search-fallback__links" aria-label={copy.primaryNavigation}>
+    <a href={`/${locale}/`}>{copy.home}</a>
+    <a href={`/${locale}/projects/`}>{copy.navProjects}</a>
+    <a href={`/${locale}/blog/`}>{copy.navBlog}</a>
+  </nav>
+</div>
