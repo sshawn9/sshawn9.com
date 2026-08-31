@@ -6,7 +6,12 @@ export const article = {
     '基于车辆运动学中的弧长换算关系，通过交互图观察车辆轨迹有向弧长与参考路径弧长在不同状态下的接近程度。',
   publishedAt: '2026年7月22日',
   updatedAt: '2026年8月19日',
-  tags: ['Frenet', 'Vehicle Kinematics', 'Arc-Length Parameterization', 'Interactive Visualization'],
+  tags: [
+    'Frenet',
+    'Vehicle Kinematics',
+    'Arc-Length Parameterization',
+    'Interactive Visualization',
+  ],
 } as const;
 
 export const tags = [
@@ -55,7 +60,8 @@ export const listArticles = [
   {
     slug: 'frenet-vehicle-dynamics',
     title: 'Frenet 坐标下的车辆运动学',
-    description: '以后轴中心的最近点投影定义车辆 Frenet 状态，并说明弧长换算、坐标有效域及倒车时的符号约定。',
+    description:
+      '以后轴中心的最近点投影定义车辆 Frenet 状态，并说明弧长换算、坐标有效域及倒车时的符号约定。',
     publishedAt: '2026年7月22日',
     tags: ['Frenet', 'Vehicle Kinematics', 'Path Tracking', 'Arc-Length Parameterization'],
   },

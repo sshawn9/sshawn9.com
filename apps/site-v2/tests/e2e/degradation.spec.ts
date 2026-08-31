@@ -20,10 +20,7 @@ test('storage rejection keeps the document and in-memory controls usable', async
 
   await expect(page.locator('main')).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-font-state', /^(ready|degraded)$/);
-  await expect(page.locator('[data-blog-listing]')).toHaveAttribute(
-    'data-blog-runtime-ready',
-    '',
-  );
+  await expect(page.locator('[data-blog-listing]')).toHaveAttribute('data-blog-runtime-ready', '');
 
   const root = page.locator('html');
   const previousTheme = await root.getAttribute('data-theme');

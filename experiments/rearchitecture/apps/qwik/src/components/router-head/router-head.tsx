@@ -1,5 +1,5 @@
-import { component$ } from "@builder.io/qwik";
-import { useDocumentHead, useLocation } from "@builder.io/qwik-city";
+import { component$ } from '@builder.io/qwik';
+import { useDocumentHead, useLocation } from '@builder.io/qwik-city';
 
 /** Renders route-owned head metadata inside the single Qwik document shell. */
 export const RouterHead = component$(() => {

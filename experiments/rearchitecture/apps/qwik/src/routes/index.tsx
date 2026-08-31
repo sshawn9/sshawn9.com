@@ -1,5 +1,5 @@
-import { component$ } from "@builder.io/qwik";
-import type { DocumentHead } from "@builder.io/qwik-city";
+import { component$ } from '@builder.io/qwik';
+import type { DocumentHead } from '@builder.io/qwik-city';
 
 export default component$(() => (
   <section>
@@ -11,5 +11,5 @@ export default component$(() => (
 ));
 
 export const head: DocumentHead = {
-  title: "全站重构垂直切片",
+  title: '全站重构垂直切片',
 };

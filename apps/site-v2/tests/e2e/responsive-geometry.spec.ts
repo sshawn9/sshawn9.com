@@ -103,10 +103,7 @@ async function responsiveGeometry(page: Page) {
         if (overflowingElements.length >= 12) break;
       }
       for (const element of document.body.querySelectorAll<HTMLElement>('*')) {
-        if (
-          element.closest('.katex-mathml') ||
-          element.scrollWidth <= element.clientWidth + 1
-        ) {
+        if (element.closest('.katex-mathml') || element.scrollWidth <= element.clientWidth + 1) {
           continue;
         }
         const name = [

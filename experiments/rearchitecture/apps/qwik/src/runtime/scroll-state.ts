@@ -1,8 +1,4 @@
-import {
-  mergeSnapshot,
-  readSnapshot,
-  type ScrollSnapshot,
-} from "./state-ledger";
+import { mergeSnapshot, readSnapshot, type ScrollSnapshot } from './state-ledger';
 
 export function currentRouteKey() {
   return window.location.pathname + window.location.search;
@@ -10,14 +6,12 @@ export function currentRouteKey() {
 
 export function captureScrollSnapshot(): ScrollSnapshot {
   const regions = Object.fromEntries(
-    Array.from(
-      document.querySelectorAll<HTMLElement>("[data-scroll-region]"),
-    ).flatMap((element) => {
-      const key = element.dataset.scrollRegion;
-      return key
-        ? [[key, { x: element.scrollLeft, y: element.scrollTop }] as const]
-        : [];
-    }),
+    Array.from(document.querySelectorAll<HTMLElement>('[data-scroll-region]')).flatMap(
+      (element) => {
+        const key = element.dataset.scrollRegion;
+        return key ? [[key, { x: element.scrollLeft, y: element.scrollTop }] as const] : [];
+      },
+    ),
   );
 
   return {
@@ -29,10 +23,7 @@ export function captureScrollSnapshot(): ScrollSnapshot {
 }
 
 export function persistCurrentScroll() {
-  history.replaceState(
-    mergeSnapshot(history.state, captureScrollSnapshot()),
-    "",
-  );
+  history.replaceState(mergeSnapshot(history.state, captureScrollSnapshot()), '');
 }
 
 export function restoreCurrentScroll() {
@@ -41,14 +32,11 @@ export function restoreCurrentScroll() {
     return false;
   }
 
-  const previousScrollBehavior =
-    document.documentElement.style.scrollBehavior;
-  document.documentElement.style.scrollBehavior = "auto";
+  const previousScrollBehavior = document.documentElement.style.scrollBehavior;
+  document.documentElement.style.scrollBehavior = 'auto';
   window.scrollTo(snapshot.page.x, snapshot.page.y);
   document.documentElement.style.scrollBehavior = previousScrollBehavior;
-  for (const element of document.querySelectorAll<HTMLElement>(
-    "[data-scroll-region]",
-  )) {
+  for (const element of document.querySelectorAll<HTMLElement>('[data-scroll-region]')) {
     const key = element.dataset.scrollRegion;
     const point = key ? snapshot.regions[key] : undefined;
     if (point) {

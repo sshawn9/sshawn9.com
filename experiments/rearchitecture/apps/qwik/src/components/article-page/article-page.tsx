@@ -1,5 +1,5 @@
-import { component$, Slot } from "@builder.io/qwik";
-import { Link } from "@builder.io/qwik-city";
+import { component$, Slot } from '@builder.io/qwik';
+import { Link } from '@builder.io/qwik-city';
 
 interface Article {
   title: string;
@@ -37,11 +37,7 @@ export const ArticlePage = component$<ArticlePageProps>(({ article, toc }) => (
       </header>
       <Slot />
     </article>
-    <aside
-      class="article-toc"
-      data-scroll-region="article-toc"
-      aria-labelledby="toc-heading"
-    >
+    <aside class="article-toc" data-scroll-region="article-toc" aria-labelledby="toc-heading">
       <h2 id="toc-heading">本文目录</h2>
       <p class="article-meta">
         首次发布 {article.publishedAt}
@@ -51,7 +47,7 @@ export const ArticlePage = component$<ArticlePageProps>(({ article, toc }) => (
       <ol>
         {toc.map((entry) => (
           <li key={entry.id}>
-            <a href={"#" + entry.id}>{entry.title}</a>
+            <a href={'#' + entry.id}>{entry.title}</a>
           </li>
         ))}
       </ol>
