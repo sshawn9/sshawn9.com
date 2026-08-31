@@ -1,0 +1,14 @@
+---
+import type { Locale } from '@sshawn9/site-domain/locales';
+import ClosedLoopControlTimingClient from './ClosedLoopControlTimingClient.tsx';
+
+type Props = {
+  locale?: Locale;
+};
+
+const { locale } = Astro.props;
+---
+
+<div class="closed-loop-control-timing-boundary">
+  <ClosedLoopControlTimingClient {locale} client:only="solid-js" />
+</div>

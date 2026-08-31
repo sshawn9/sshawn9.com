@@ -1,0 +1,9 @@
+@media (max-width: 47.999rem) {
+  .version-comparison-pair {
+    gap: 0.6rem;
+  }
+
+  .version-comparison-pair a {
+    min-width: 0;
+  }
+}

@@ -4,7 +4,7 @@ import BlogListing from '../../../components/BlogListing.astro';
 import { LOCALES, type Locale } from '../../../i18n/config';
 import { getVisibleArticles, type Article } from '../../../lib/articles';
 import { getArticlesForTag, getTagDefinitions, type TagDefinition } from '../../../lib/tags';
-import * as m from '../../../paraglide/messages.js';
+import * as m from '@sshawn9/site-i18n/messages';
 
 type Props = {
   locale: Locale;

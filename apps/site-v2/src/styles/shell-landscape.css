@@ -1,0 +1,9 @@
+@media (max-height: 32rem), (max-width: 47.999rem) and (orientation: landscape) {
+  :root {
+    --site-header-sticky-offset: env(safe-area-inset-top);
+  }
+
+  .site-header {
+    position: relative;
+  }
+}

@@ -1,0 +1,44 @@
+---
+import { render } from 'astro:content';
+import type { GetStaticPaths } from 'astro';
+import type { ResolvedArticleVersion } from '@sshawn9/site-domain/articles';
+import { LOCALES, type Locale } from '@sshawn9/site-domain/locales';
+import ArticlePage from '../../../../../features/article/components/ArticlePage.astro';
+import {
+  getVisibleArticles,
+  type SiteArticle,
+  type SiteArticleEntry,
+} from '../../../../../content/article-catalog';
+
+interface Props {
+  locale: Locale;
+  article: SiteArticle;
+  version: ResolvedArticleVersion<SiteArticleEntry>;
+}
+
+export const getStaticPaths = (async () => {
+  const localizedArticles = await Promise.all(
+    LOCALES.map(async (locale) => ({ locale, articles: await getVisibleArticles(locale) })),
+  );
+
+  return localizedArticles.flatMap(({ locale, articles }) =>
+    articles.flatMap((article) =>
+      article.isVersioned
+        ? article.versions
+            .filter((version) => version.number !== article.current.number)
+            .map((version) => ({
+              params: { locale, id: article.id, version: String(version.number) },
+              props: { locale, article, version },
+            }))
+        : [],
+    ),
+  );
+}) satisfies GetStaticPaths;
+
+const { locale, article, version } = Astro.props;
+const { Content, headings } = await render(version.entry);
+---
+
+<ArticlePage {locale} {article} {version} {headings}>
+  <Content />
+</ArticlePage>

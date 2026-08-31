@@ -4,7 +4,7 @@ import {
   isWallpaperManifest,
   type WallpaperManifest,
   type WallpaperPhoto,
-} from '../src/lib/wallpaper';
+} from '@sshawn9/site-domain/wallpaper';
 
 const MANIFEST_KEY = 'wallpaper-manifest-v1';
 const MAX_POOL_PHOTOS = 250;
@@ -267,17 +267,8 @@ export async function handleWallpaperRequest(
     });
   }
 
-  let manifest = await readManifest(env);
-  if (!manifest) {
-    try {
-      manifest = await refreshOnce(env);
-    } catch (error) {
-      console.error('Unable to initialize the wallpaper manifest.', error);
-      return unavailableResponse(request);
-    }
-  }
-
-  return manifestResponse(manifest, request);
+  const manifest = await readManifest(env);
+  return manifest ? manifestResponse(manifest, request) : unavailableResponse(request);
 }
 
 export async function handleWallpaperDownloadRequest(

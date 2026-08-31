@@ -1,0 +1,39 @@
+---
+interface Props {
+  initialPath: string;
+}
+
+const { initialPath } = Astro.props;
+const blogIsCurrent = initialPath.startsWith('/zh/blog');
+---
+
+<header class="site-header" data-site-shell transition:persist="site-shell">
+  <nav class="site-nav" aria-label="主导航">
+    <a class="brand" href="/zh/blog/">
+      <span class="brand-mark" aria-hidden="true">S</span>
+      <span class="brand-name">SHAWN</span>
+    </a>
+    <a class="nav-link nav-projects" href="/zh/blog/">项目</a>
+    <a
+      class="nav-link"
+      href="/zh/blog/"
+      data-shell-nav-prefix="/zh/blog"
+      aria-current={blogIsCurrent ? 'page' : undefined}>博客</a
+    >
+    <a class="nav-link" href="/zh/blog/">关于</a>
+    <span class="shell-actions">
+      <a class="shell-action" href="/en/blog/" aria-label="切换到英文">文</a>
+      <button class="shell-action" type="button" data-shell-action="theme" aria-label="切换主题">
+        <span class="theme-icon theme-icon-dark" aria-hidden="true">☾</span>
+        <span class="theme-icon theme-icon-light" aria-hidden="true">☀</span>
+      </button>
+      <button
+        class="shell-action"
+        type="button"
+        data-shell-action="wallpaper"
+        aria-label="切换壁纸"
+        aria-pressed="true">▧</button
+      >
+    </span>
+  </nav>
+</header>

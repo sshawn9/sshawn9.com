@@ -1,0 +1,29 @@
+---
+import { render } from 'astro:content';
+import { LOCALES, type Locale } from '@sshawn9/site-domain/locales';
+import ProjectDetailPage from '../../../../features/projects/components/ProjectDetailPage.astro';
+import { getProjectPages, type ProjectPageData } from '../../../../content/project-catalog';
+
+type Props = { locale: Locale; pageData: ProjectPageData };
+
+export async function getStaticPaths() {
+  const localizedPages = await Promise.all(
+    LOCALES.map(async (locale) => ({ locale, pages: await getProjectPages(locale) })),
+  );
+
+  return localizedPages.flatMap(({ locale, pages }) =>
+    pages.map((pageData) => ({
+      params: { locale, id: pageData.project.id },
+      props: { locale, pageData },
+    })),
+  );
+}
+
+const { locale, pageData } = Astro.props;
+const { project, relatedArticles } = pageData;
+const { Content } = await render(project.entry);
+---
+
+<ProjectDetailPage {locale} {project} {relatedArticles}>
+  <Content />
+</ProjectDetailPage>

@@ -1,0 +1,57 @@
+---
+import { Image, getImage } from 'astro:assets';
+
+type Props = {
+  src: ImageMetadata;
+  alt: string;
+};
+
+const { src, alt } = Astro.props;
+const previewWidth = Math.min(src.width, 512);
+const fullWidth = Math.min(src.width, 3000);
+const fullHeight = Math.round((src.height * fullWidth) / src.width);
+const fullImage = await getImage({ src, width: fullWidth, format: 'webp' });
+---
+
+<figure class="article-zoom-image not-prose">
+  <a
+    href={fullImage.src}
+    target="_blank"
+    rel="noopener noreferrer"
+    data-pswp-item
+    data-article-media-item
+    data-pswp-width={fullWidth}
+    data-pswp-height={fullHeight}
+  >
+    <Image
+      src={src}
+      alt={alt}
+      width={previewWidth}
+      sizes="(max-width: 19rem) calc(100vw - 3rem), 16rem"
+      loading="lazy"
+      decoding="async"
+    />
+  </a>
+</figure>
+
+<style>
+  .article-zoom-image {
+    display: inline-block;
+    width: min(100%, 16rem);
+    margin: 2rem 1rem 2rem 0;
+    vertical-align: top;
+  }
+
+  .article-zoom-image a {
+    display: block;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    cursor: zoom-in;
+  }
+
+  .article-zoom-image :global(img) {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+</style>

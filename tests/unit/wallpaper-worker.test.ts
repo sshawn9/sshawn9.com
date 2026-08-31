@@ -355,12 +355,10 @@ describe('wallpaper Worker', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('returns 503 when the initial manifest cannot be created', async () => {
+  it('returns 503 for an empty cache without letting a visitor initialize it', async () => {
     const kv = new MemoryKv();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response(null, { status: 503 })),
-    );
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
 
     const response = await handleWallpaperRequest(
       new Request('https://sshawn9.com/api/wallpapers'),
@@ -375,6 +373,8 @@ describe('wallpaper Worker', () => {
     expect(response.status).toBe(503);
     expect(response.headers.get('Retry-After')).toBe('60');
     expect(response.headers.get('Cache-Control')).toBe('no-store');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(kv.putCalls).toBe(0);
   });
 
   it('does not refresh an existing manifest during a user request', async () => {

@@ -2,7 +2,7 @@ import { Collapsible } from '@kobalte/core/collapsible';
 import { ToggleGroup } from '@kobalte/core/toggle-group';
 import { For } from 'solid-js';
 import type { Locale } from '../i18n/config';
-import * as m from '../paraglide/messages.js';
+import * as m from '@sshawn9/site-i18n/messages';
 
 export type BlogTag = {
   name: string;

@@ -1,0 +1,8 @@
+---
+import { createInitialFrameScript } from '../runtime/initial-frame';
+
+const script = createInitialFrameScript();
+---
+
+<!-- Keeps the marker declarative for no-JS, then coordinates enhanced first paint. -->
+<script is:inline set:html={script} />

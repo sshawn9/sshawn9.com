@@ -1,0 +1,233 @@
+.project-list-page {
+  padding-block: 3rem;
+}
+
+@media (min-width: 40rem) {
+  .project-list-page {
+    padding-block: 4rem;
+  }
+}
+
+.project-list {
+  margin: 2rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 1.5rem;
+  list-style: none;
+}
+
+.project-list-page .project-list {
+  margin-top: 0;
+}
+
+.project-card {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 1.5rem;
+  background: var(--surface);
+  padding: clamp(1.5rem, 4vw, 2rem);
+  box-shadow:
+    inset 0 1px rgb(255 255 255 / 0.1),
+    0 18px 50px rgb(7 10 18 / 0.08);
+}
+
+.project-card__content {
+  min-width: 0;
+}
+
+.project-card h2,
+.project-card h3 {
+  font-size: clamp(1.5rem, 3vw, 1.875rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: clamp(2rem, 3.6vw, 2.25rem);
+  text-wrap: balance;
+}
+
+.project-card__link {
+  color: var(--text-strong);
+  text-decoration: none;
+  text-decoration-color: currentcolor;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.18em;
+}
+
+.project-card__link:hover,
+.project-card__link:focus-visible {
+  text-decoration: underline;
+}
+
+.project-card__link--full::after {
+  position: absolute;
+  content: '';
+  inset: 0;
+}
+
+.project-card__content > p {
+  max-width: 48rem;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.75rem;
+}
+
+.project-tag-list {
+  margin-top: 1rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  color: var(--text-supporting);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1rem;
+  list-style: none;
+}
+
+.project-card__preview {
+  min-width: 0;
+}
+
+[data-project-preview-static] {
+  pointer-events: none;
+}
+
+[data-project-preview-static] .motion-control-vehicle-handle {
+  cursor: default;
+}
+
+.project-detail-page {
+  width: min(100% - 2rem, 56rem);
+  padding-block: 3rem;
+}
+
+.project-detail-header {
+  margin-top: 2.5rem;
+  padding-bottom: 2.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.project-detail-header h1 {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 2.5rem;
+  text-wrap: balance;
+}
+
+.project-detail-header > p {
+  max-width: 48rem;
+  margin-top: 1.25rem;
+  font-size: 1rem;
+  line-height: 2rem;
+}
+
+.project-prose {
+  margin-top: 2.5rem;
+}
+
+.project-related {
+  margin-top: 4rem;
+  padding-top: 2.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.project-related > h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 2rem;
+}
+
+.project-related > ol {
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.project-related > ol > li {
+  border-bottom: 1px solid var(--line);
+}
+
+.project-related article {
+  padding-block: 1.5rem;
+}
+
+.project-related h3 {
+  font-size: 1.125rem;
+  letter-spacing: -0.02em;
+  line-height: 1.75rem;
+}
+
+.project-related h3 a {
+  color: var(--text-strong);
+  text-decoration: none;
+  text-decoration-color: color-mix(in srgb, var(--text-accent) 58%, transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.18em;
+}
+
+.project-related h3 a:hover,
+.project-related h3 a:focus-visible {
+  text-decoration: underline;
+}
+
+.project-related article p {
+  max-width: 52rem;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+}
+
+@media (min-width: 40rem) {
+  .project-card__content > p {
+    font-size: 1rem;
+  }
+
+  .project-detail-page {
+    padding-block: 4rem;
+  }
+
+  .project-detail-header h1 {
+    font-size: 3rem;
+    line-height: 3rem;
+  }
+
+  .project-detail-header > p {
+    font-size: 1.125rem;
+  }
+
+  .project-related > h2 {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+  }
+
+  .project-related h3 {
+    font-size: 1.25rem;
+  }
+}
+
+@media (min-width: 48rem) {
+  .project-card--with-preview {
+    display: grid;
+    grid-template-columns: minmax(15rem, 0.6fr) minmax(0, 1.4fr);
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  .project-card--with-preview.is-reversed .project-card__content {
+    order: 2;
+  }
+
+  .project-card--with-preview.is-reversed .project-card__preview {
+    order: 1;
+  }
+}
+
+@media (max-width: 47.999rem) {
+  .project-card__preview {
+    margin-top: 1.75rem;
+  }
+}

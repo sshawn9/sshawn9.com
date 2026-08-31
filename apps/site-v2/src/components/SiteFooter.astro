@@ -1,0 +1,17 @@
+---
+import type { Locale } from '@sshawn9/site-domain/locales';
+import { getFoundationCopy } from '@sshawn9/site-i18n/copy';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const copy = getFoundationCopy(locale);
+---
+
+<footer class="site-footer" lang={locale === 'zh' ? 'zh-CN' : 'en'}>
+  <div class="content-shell">
+    <a href={`/${locale}/`} aria-label={`${copy.home} · Shawn`}>SHAWN</a>
+  </div>
+</footer>

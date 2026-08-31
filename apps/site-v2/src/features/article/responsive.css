@@ -1,0 +1,47 @@
+@media (max-width: 63.999rem) {
+  .article-layout {
+    display: block;
+  }
+
+  .article-mobile-support {
+    display: block;
+  }
+
+  .article-sidebar-shell {
+    display: none;
+  }
+
+  .article-mobile-toc-module,
+  .article-mobile-version-card {
+    margin-top: 1rem;
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--text-strong) 2.5%, transparent);
+    padding: 0.75rem 1rem;
+  }
+
+  .article-mobile-version-card {
+    padding: 1rem;
+  }
+
+  .article-main {
+    padding-bottom: 5rem;
+  }
+
+  .version-comparison-grid {
+    display: block;
+  }
+
+  .version-comparison-grid > aside {
+    display: none;
+  }
+
+  .version-comparison-mobile-controls {
+    margin-top: 1.75rem;
+    display: block;
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--text-strong) 2.5%, transparent);
+    padding: 1rem;
+  }
+}

@@ -1,0 +1,38 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { LOCALES, type Locale } from '@sshawn9/site-domain/locales';
+import FoundationHomePage from '../../features/foundation/components/FoundationHomePage.astro';
+import { getVisibleArticles, type SiteArticle } from '../../content/article-catalog';
+import { getProjects, type SiteProject } from '../../content/project-catalog';
+import { getFoundationCopy } from '@sshawn9/site-i18n/copy';
+
+type Props = { locale: Locale; articles: SiteArticle[]; projects: SiteProject[] };
+
+export async function getStaticPaths() {
+  return Promise.all(
+    LOCALES.map(async (locale) => {
+      const [articles, projects] = await Promise.all([
+        getVisibleArticles(locale),
+        getProjects(locale),
+      ]);
+      return {
+        params: { locale },
+        props: { locale, articles: articles.slice(0, 4), projects },
+      };
+    }),
+  );
+}
+
+const { locale, articles, projects } = Astro.props;
+const copy = getFoundationCopy(locale);
+---
+
+<BaseLayout
+  title="SHAWN"
+  description={copy.homeHeroTitle}
+  {locale}
+  searchable
+  fontQueries={['400 1em "JetBrains Mono Variable"']}
+>
+  <FoundationHomePage {locale} {articles} {projects} />
+</BaseLayout>

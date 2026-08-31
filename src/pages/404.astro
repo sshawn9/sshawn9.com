@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
 import { ArrowLeft, Search } from '@lucide/astro';
-import * as m from '../paraglide/messages.js';
+import * as m from '@sshawn9/site-i18n/messages';
 
 const text = {
   title: [m.not_found_title({}, { locale: 'en' }), m.not_found_title({}, { locale: 'zh' })],
@@ -84,7 +84,7 @@ const text = {
       <div class="content-shell py-8"><a data-localized-path="/">SHAWN</a></div>
     </footer>
     <script>
-      import { getLocale } from '../paraglide/runtime.js';
+      import { getLocale } from '@sshawn9/site-i18n/runtime';
 
       (() => {
         const routeLocale = location.pathname.match(/^\/(en|zh)(?:\/|$)/)?.[1];

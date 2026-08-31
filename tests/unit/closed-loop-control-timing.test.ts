@@ -3,7 +3,7 @@ import { parse, View } from 'vega';
 import {
   createClosedLoopControlTimingSpec,
   type ClosedLoopControlTimingCopy,
-} from '../../src/content/blog/closed-loop-control-timing/closed-loop-control-timing-spec';
+} from '@sshawn9/content-ui/closed-loop-control-timing/spec';
 
 const copy = new Proxy({} as ClosedLoopControlTimingCopy, {
   get: (_target, property) => String(property),

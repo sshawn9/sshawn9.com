@@ -1,0 +1,83 @@
+---
+import { otherLocale, type Locale } from '@sshawn9/site-domain/locales';
+import { getFoundationCopy } from '@sshawn9/site-i18n/copy';
+import { getLocaleSwitchHref } from '../content/locale-routes';
+import BackdropSurface from '../features/appearance/components/BackdropSurface.astro';
+import SiteHeaderNavigation from './site-shell/SiteHeaderNavigation.astro';
+import SiteHeaderUtilities from './site-shell/SiteHeaderUtilities.astro';
+import WallpaperSettings from './site-shell/WallpaperSettings.astro';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const targetLocale = otherLocale(locale);
+const otherLocaleHref = getLocaleSwitchHref(Astro.url, targetLocale);
+const homeIsCurrent = Astro.url.pathname === `/${locale}/`;
+const copy = getFoundationCopy(locale);
+---
+
+<div
+  class="site-shell"
+  lang={locale === 'zh' ? 'zh-CN' : 'en'}
+  data-site-shell
+  data-shell-locale={locale}
+  transition:persist="site-shell"
+>
+  <BackdropSurface {locale} />
+
+  <header class="site-header" transition:name="site-header" transition:animate="none">
+    <div class="navigation-progress" aria-hidden="true"></div>
+    <div class="content-shell site-header__inner" data-font-surface>
+      <a
+        class="site-identity"
+        data-shell-sync-key="home"
+        href={`/${locale}/`}
+        aria-label={`${copy.home} · Shawn`}
+        aria-current={homeIsCurrent ? 'page' : undefined}
+      >
+        <span class="site-identity__monogram" aria-hidden="true">S</span>
+        <span>SHAWN</span>
+      </a>
+
+      <div class="site-header__desktop">
+        <SiteHeaderNavigation {locale} {copy} />
+        <SiteHeaderUtilities {locale} {targetLocale} {otherLocaleHref} {copy} />
+      </div>
+
+      <button
+        type="button"
+        class="site-header__menu-button"
+        data-shell-sync-key="mobile-menu-trigger"
+        data-mobile-menu-trigger
+        data-open-label={copy.openNavigation}
+        data-close-label={copy.closeNavigation}
+        aria-label={copy.openNavigation}
+        title={copy.openNavigation}
+        popovertarget="site-mobile-navigation"
+      >
+        <svg class="site-header__menu-open-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 5h16M4 12h16M4 19h16"></path>
+        </svg>
+        <svg class="site-header__menu-close-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M18 6 6 18M6 6l12 12"></path>
+        </svg>
+      </button>
+
+      <div
+        id="site-mobile-navigation"
+        class="site-header__mobile-panel"
+        data-shell-mobile-menu
+        data-transient-overlay
+        popover="auto"
+      >
+        <SiteHeaderNavigation {locale} {copy} mobile />
+        <WallpaperSettings {copy} inline />
+        <SiteHeaderUtilities {locale} {targetLocale} {otherLocaleHref} {copy} mobile />
+      </div>
+
+      <WallpaperSettings {copy} />
+    </div>
+  </header>
+</div>

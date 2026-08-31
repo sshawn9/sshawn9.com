@@ -1,0 +1,21 @@
+@media (max-width: 47.999rem) {
+  .site-header__inner {
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .site-header__desktop {
+    display: none;
+  }
+
+  .site-header__menu-button {
+    display: inline-flex;
+  }
+}
+
+@media (min-width: 48rem) {
+  .site-header__mobile-panel,
+  .site-header__menu-button {
+    display: none;
+  }
+}

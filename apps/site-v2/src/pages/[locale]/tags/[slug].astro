@@ -1,0 +1,45 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { LOCALES, type Locale } from '@sshawn9/site-domain/locales';
+import {
+  getArticlesForTag,
+  getTagDefinitions,
+  type TagDefinition,
+} from '@sshawn9/site-domain/tags';
+import BlogListingPage from '../../../features/blog/components/BlogListingPage.astro';
+import { getVisibleArticles, type SiteArticle } from '../../../content/article-catalog';
+import { formatUiCopy, getFoundationCopy } from '@sshawn9/site-i18n/copy';
+
+type Props = {
+  locale: Locale;
+  tag: TagDefinition;
+  articles: SiteArticle[];
+};
+
+export const getStaticPaths = (async () => {
+  const localizedArticles = await Promise.all(
+    LOCALES.map(async (locale) => ({ locale, articles: await getVisibleArticles(locale) })),
+  );
+  return localizedArticles.flatMap(({ locale, articles }) =>
+    getTagDefinitions(articles).map((tag) => ({
+      params: { locale, slug: tag.slug },
+      props: { locale, tag, articles: getArticlesForTag(articles, tag.name) },
+    })),
+  );
+}) satisfies GetStaticPaths;
+
+const { locale, tag, articles } = Astro.props;
+const copy = getFoundationCopy(locale);
+---
+
+<BlogListingPage
+  {locale}
+  {articles}
+  heading={tag.name}
+  filterable={false}
+  title={formatUiCopy(copy.tagPageTitleTemplate, { tag: tag.name })}
+  description={formatUiCopy(copy.tagPageDescriptionTemplate, {
+    tag: tag.name,
+    count: articles.length,
+  })}
+/>

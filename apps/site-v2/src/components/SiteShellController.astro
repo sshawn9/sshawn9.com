@@ -1,0 +1,7 @@
+---
+import { createSiteShellControllerScript } from '../runtime/site-shell-controller';
+
+const script = createSiteShellControllerScript();
+---
+
+<script is:inline data-site-shell-controller set:html={script} />

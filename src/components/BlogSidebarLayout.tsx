@@ -1,7 +1,7 @@
 import { onCleanup, onMount, type JSX } from 'solid-js';
 import type { Locale } from '../i18n/config';
 import { BLOG_SIDEBAR_LAYOUT } from '../lib/site-preferences';
-import * as m from '../paraglide/messages.js';
+import * as m from '@sshawn9/site-i18n/messages';
 import { createSidebarLayoutController } from '../scripts/sidebar-layout-controller';
 
 type Props = {

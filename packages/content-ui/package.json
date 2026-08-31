@@ -1,0 +1,46 @@
+{
+  "name": "@sshawn9/content-ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./figure-focus-dialog": "./src/components/FigureFocusDialog.astro",
+    "./focus-figure": "./src/components/FocusFigure.astro",
+    "./research-figure": "./src/components/ResearchFigure.astro",
+    "./runtime": "./src/runtime/index.ts",
+    "./zoom-image": "./src/components/ZoomImage.astro",
+    "./closed-loop-control-timing": "./src/features/closed-loop-control-timing/ClosedLoopControlTiming.astro",
+    "./closed-loop-control-timing/spec": "./src/features/closed-loop-control-timing/closed-loop-control-timing-spec.ts",
+    "./frenet-explorer": "./src/features/frenet-explorer/FrenetExplorer.tsx",
+    "./frenet-explorer/model": "./src/features/frenet-explorer/frenet-model.ts",
+    "./motion-control-project-visual": "./src/features/motion-control/MotionControlProjectVisual.tsx",
+    "./motion-control/model": "./src/features/motion-control/motion-control-project-model.ts",
+    "./styles/closed-loop-control-timing.css": "./src/features/closed-loop-control-timing/closed-loop-control-timing.css",
+    "./styles/frenet-explorer.css": "./src/features/frenet-explorer/frenet-explorer.css",
+    "./styles/research-figures.css": "./src/styles/research-figures.css"
+  },
+  "scripts": {
+    "check": "tsc --noEmit --project tsconfig.json"
+  },
+  "dependencies": {
+    "@ark-ui/solid": "^5.38.0",
+    "@kobalte/core": "^0.13.12",
+    "@lucide/astro": "^1.24.0",
+    "@sshawn9/site-domain": "0.0.0",
+    "@sshawn9/site-i18n": "0.0.0",
+    "d3-drag": "^3.0.0",
+    "d3-selection": "^3.0.0",
+    "flo-bezier3": "^8.0.14",
+    "lucide-solid": "^1.28.0",
+    "plotly.js-gl3d-dist-min": "^3.7.0",
+    "solid-js": "1.9.14",
+    "vega": "^6.3.1"
+  },
+  "devDependencies": {
+    "@types/d3-drag": "^3.0.7",
+    "@types/d3-selection": "^3.0.11",
+    "@types/plotly.js": "^3.0.10",
+    "astro": "7.1.6",
+    "typescript": "6.0.3"
+  }
+}

@@ -1,0 +1,18 @@
+---
+import type { ProjectPreviewKind } from '@sshawn9/site-domain/projects';
+import MotionControlProjectVisual from '@sshawn9/content-ui/motion-control-project-visual';
+
+interface Props {
+  kind: ProjectPreviewKind;
+}
+
+const { kind } = Astro.props;
+---
+
+{
+  kind === 'motion-control' && (
+    <div data-project-preview={kind} data-project-preview-static>
+      <MotionControlProjectVisual client:load />
+    </div>
+  )
+}

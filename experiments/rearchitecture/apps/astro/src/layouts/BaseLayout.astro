@@ -1,0 +1,75 @@
+---
+import { ClientRouter } from 'astro:transitions';
+import NavigationCoordinator from '../components/NavigationCoordinator.astro';
+import SiteShell from '../components/SiteShell.astro';
+import SiteShellController from '../components/SiteShellController.astro';
+import { CURRENT_BUILD_ID } from '../runtime/build-identity';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+  pageKind: 'blog' | 'article';
+}
+
+const { title, description, pageKind } = Astro.props;
+const path = Astro.url.pathname;
+---
+
+<!doctype html>
+<html lang="zh-CN" data-wallpaper="on">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
+    <meta name="poc-build-id" content={CURRENT_BUILD_ID} />
+    <meta name="required-fonts" content="400,700" />
+    <title>{title} · SHAWN</title>
+    <link rel="expect" href="#initial-frame-ready" blocking="render" />
+    <script is:inline>
+      (() => {
+        const root = document.documentElement;
+        if (root.dataset.theme !== 'light' && root.dataset.theme !== 'dark') {
+          let theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+          try {
+            const storedTheme = localStorage.getItem('poc:theme');
+            if (storedTheme === 'light' || storedTheme === 'dark') {
+              theme = storedTheme;
+            }
+          } catch {
+            // System theme remains the safe fallback when storage is unavailable.
+          }
+          root.dataset.theme = theme;
+        }
+
+        try {
+          const wallpaper = localStorage.getItem('poc:wallpaper');
+          if (wallpaper === 'on' || wallpaper === 'off') {
+            root.dataset.wallpaper = wallpaper;
+          }
+        } catch {
+          // Storage is optional; static defaults remain usable.
+        }
+      })();
+    </script>
+    <ClientRouter />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到主要内容</a>
+    <div class="site-background" aria-hidden="true" transition:persist="site-background"></div>
+    <div
+      class="navigation-progress"
+      data-navigation-progress
+      data-active="false"
+      aria-hidden="true"
+      transition:persist="navigation-progress"
+    >
+    </div>
+    <SiteShell initialPath={path} />
+    <SiteShellController />
+    <main id="main-content" class="page-frame" data-page-kind={pageKind}>
+      <slot />
+    </main>
+    <NavigationCoordinator />
+  </body>
+</html>

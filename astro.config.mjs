@@ -2,16 +2,13 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, envField, fontProviders } from 'astro/config';
-import { unified } from '@astrojs/markdown-remark';
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import solid from '@astrojs/solid-js';
-import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import tailwindcss from '@tailwindcss/vite';
 import expressiveCode from 'astro-expressive-code';
-import rehypeExternalLinks from 'rehype-external-links';
-import rehypeKatex from 'rehype-katex';
-import remarkMath from 'remark-math';
+import { createMarkdownProcessor } from '@sshawn9/site-build/markdown';
+import { createSiteParaglidePlugin } from '@sshawn9/site-i18n/paraglide';
 import draftToolbar from './src/dev-toolbar/drafts/integration.ts';
 
 const site = 'https://sshawn9.com';
@@ -20,15 +17,6 @@ const outDirUrl = new URL('./dist/', import.meta.url);
 const localFonts = fontProviders.local();
 /** @type {Map<string, Promise<boolean>>} */
 const indexability = new Map();
-
-const createMarkdownProcessor = () =>
-  unified({
-    remarkPlugins: [remarkMath],
-    rehypePlugins: [
-      rehypeKatex,
-      [rehypeExternalLinks, { target: '_blank', rel: ['noopener', 'noreferrer'] }],
-    ],
-  });
 
 /** @param {string} url */
 const isIndexablePage = async (url) => {
@@ -178,30 +166,9 @@ export default defineConfig({
         ]),
   ],
   vite: {
-    plugins: [
-      paraglideVitePlugin({
-        project: './project.inlang',
-        outdir: './src/paraglide',
-        strategy: ['url', 'localStorage', 'preferredLanguage', 'globalVariable', 'baseLocale'],
-        urlPatterns: [
-          {
-            pattern: '/',
-            localized: [
-              ['en', '/en'],
-              ['zh', '/zh'],
-            ],
-          },
-          {
-            pattern: '/:path(.*)?',
-            localized: [
-              ['en', '/en/:path(.*)?'],
-              ['zh', '/zh/:path(.*)?'],
-            ],
-          },
-        ],
-        emitTsDeclarations: false,
-      }),
-      tailwindcss(),
-    ],
+    plugins: [createSiteParaglidePlugin(), tailwindcss()],
+    ssr: {
+      noExternal: ['@sshawn9/content-ui'],
+    },
   },
 });

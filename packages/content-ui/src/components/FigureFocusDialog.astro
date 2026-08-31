@@ -1,0 +1,20 @@
+---
+import { BASE_LOCALE, requireLocale, toLanguageTag } from '@sshawn9/site-domain/locales';
+import * as m from '@sshawn9/site-i18n/messages';
+import '../styles/figure-focus.css';
+
+const locale = requireLocale(Astro.currentLocale ?? BASE_LOCALE);
+const languageTag = toLanguageTag(locale);
+---
+
+<figure-focus-controller>
+  <dialog
+    id="figure-focus-dialog"
+    lang={languageTag}
+    class="figure-focus-dialog"
+    data-figure-focus-dialog
+    aria-label={m.figure_dialog_label({}, { locale })}
+  >
+    <div class="figure-focus-stage" data-figure-focus-stage></div>
+  </dialog>
+</figure-focus-controller>

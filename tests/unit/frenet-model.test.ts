@@ -11,7 +11,7 @@ import {
   relationArrays,
   surfaceCoordinateDegeneracy,
   surfaceArrays,
-} from '../../src/content/blog/frenet-arc-length-conversion/frenet-model';
+} from '@sshawn9/content-ui/frenet-explorer/model';
 
 describe('Frenet arc-length model', () => {
   it('evaluates the conversion rate and preserves its singularity', () => {

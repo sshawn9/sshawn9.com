@@ -1,7 +1,7 @@
 import { autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
 import { Index, Show, createSignal, onCleanup, onMount, type ParentProps } from 'solid-js';
 import type { ReadableAtom } from 'nanostores';
-import { localStorageKey } from '../paraglide/runtime.js';
+import { localStorageKey } from '@sshawn9/site-i18n/runtime';
 import { startThemeController, toggleTheme } from '../scripts/theme-controller';
 import { startWallpaperController, wallpaperActions } from '../scripts/wallpaper';
 import { $navigation, $theme, $wallpaper, SSR_WALLPAPER_STATE } from '../stores/site-state';

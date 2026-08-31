@@ -1,0 +1,24 @@
+---
+import { createLocaleEntryRedirectScript } from '../runtime/locale-preference';
+
+const localeRedirectScript = createLocaleEntryRedirectScript();
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>SHAWN v2 foundation</title>
+    <script is:inline set:html={localeRedirectScript} />
+  </head>
+  <body>
+    <main>
+      <h1>SHAWN</h1>
+      <nav aria-label="Language">
+        <a href="/en/">English</a>
+        <a href="/zh/" lang="zh-CN">中文</a>
+      </nav>
+    </main>
+  </body>
+</html>

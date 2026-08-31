@@ -1,7 +1,7 @@
 import { ToggleButton } from '@kobalte/core/toggle-button';
 import { For, Show, batch, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
 import type { Locale } from '../i18n/config';
-import * as m from '../paraglide/messages.js';
+import * as m from '@sshawn9/site-i18n/messages';
 import BlogSidebarLayout from './BlogSidebarLayout';
 import BlogTagFilters, { type BlogTag } from './BlogTagFilters';
 

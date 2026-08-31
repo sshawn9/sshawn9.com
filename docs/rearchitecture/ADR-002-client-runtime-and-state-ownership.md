@@ -1,0 +1,210 @@
+# ADR-002：客户端运行时与状态所有权
+
+- 状态：已接受；用于正式 v2 实现
+- 日期：2026-08-28
+- 接受日期：2026-08-29
+- 决策范围：导航、状态恢复、绘制前状态、字体、滚动和组件生命周期
+- 用户可见变化：仅 `BCP-001` 已批准的跨代际完整文档导航边界；其余视觉与交互参数保持不变
+
+## 核心规则
+
+1. ClientRouter 是唯一导航所有者；本站代码不再实现路由、head 合并、脚本执行或历史索引。
+2. 每类状态只有一个所有者和一个持久化位置。
+3. 客户端运行时按职责拆成小型 TypeScript 模块；可复用逻辑使用显式类型化参数，不使用全局注册表或字符串事件总线。
+4. 页面行为由其岛屿或自定义元素生命周期拥有，离开 DOM 即释放。
+5. 首帧恢复代码与运行时代码共享同一份类型、schema 和纯函数源码。
+
+## 组合根
+
+`BaseLayout` 是文档生命周期的组合边界；静态 SiteShell 本身不水合：
+
+```text
+BaseLayout（Astro 静态文档）
+  ├── head prepaint IIFE
+  ├── SiteShell.astro（持久静态 HTML）
+  ├── SiteShellController（解析期尽早启用外壳语义）
+  ├── SiteRuntime（唯一的正常浏览器运行时组合根）
+  │   ├── AppearanceController（主题和壁纸）
+  │   ├── NavigationCoordinator（导航、代际、字体和滚动事务）
+  │   ├── PageRuntime（当前页面唯一的挂载/销毁所有者）
+  │   └── Content UI custom-element definitions
+  └── 页面交互岛（各自拥有 mount/unmount）
+```
+
+SiteShellController 是唯一的解析期长期入口：它作为自包含经典脚本紧邻静态外壳执行，并把安装状态记在持久 shell 自身；这使按钮在长正文继续解析前即可用，同时避免同文档导航重复注册。其余长期控制器只由 SiteRuntime 安装，组合根持有每个销毁函数，不再由模块级 `installed` 标志或 DOM 安装标志互相抢占。
+
+PageRuntime 是博客、文章和搜索页面唯一的 `before-swap → page-load` 所有者；各功能模块只返回与当前服务端 DOM 绑定的控制器。旧页面在 swap 前销毁，新页面在 `page-load` 挂载，同一 `main` 不重复挂载。普通文档离开时 SiteRuntime 统一释放监听、动画帧和计时器；进入浏览器 back-forward cache 时保留实例，让冻结文档恢复后继续工作。
+
+所有入口都只使用 Astro 的公开生命周期事件和明确 DOM 语义，不读取 `window.swup`、`window.__...`，也不按名称查找全局 controller。页面级资源仍必须自行提供精确的 `destroy()`；Solid 岛继续由框架拥有 mount/unmount。
+
+静态外壳避免在首屏关键结构之前执行框架 island bootstrap。普通 TypeScript 只增强已有可访问 HTML；Solid 仅在独立交互岛中使用。共享 codec、字体加载器和滚动应用函数保持纯净或显式依赖，因此初始文档脚本与正常导航运行时可以复用同一实现。
+
+## 导航事务
+
+框架实际事件顺序是：
+
+```text
+before-preparation
+  └── loader(): fetch → parse target document → preload target styles
+      └── local preparation: generation check → target font preparation
+after-preparation
+before-swap
+  └── framework swap
+      └── framework main-scroll restore
+after-swap
+  └── nested-scroll restore
+page-load
+  └── target scripts/islands ready for normal lifecycle
+```
+
+Astro 当前事件对象在 `before-preparation` 创建时把 `newDocument` 初始化为当前 `document`。只有原始 `loader()` 完成后，`newDocument` 才是目标文档。因此任何目标文档判断都必须包装并先调用原始 loader，不能在事件刚触发时读取。
+
+建议的导航阶段是可穷举联合类型，而不是散落布尔值：
+
+```ts
+type NavigationPhase =
+  | { kind: 'idle' }
+  | { kind: 'preparing'; id: number; from: URL; to: URL; startedAt: number }
+  | { kind: 'swapping'; id: number; to: URL }
+  | { kind: 'settling'; id: number; to: URL };
+```
+
+事务 ID 只用于拒绝迟到的本地异步结果；取消权属于 ClientRouter 提供的 `AbortSignal`，本站不得再维护第二个导航 AbortController。
+
+### `before-preparation`
+
+1. StateLedger 保存当前历史项的主滚动和嵌套滚动状态。
+2. 导航状态进入 `preparing`，沿用现有进度提示延时和最短显示时间。
+3. 包装原始 `loader()` 并等待它完成。
+4. loader 失败、非 HTML、目标不支持客户端导航或事务被取消时，交给框架原生回退。
+5. loader 成功后读取目标构建 ID；跨代际按已批准的 `BCP-001` 保存状态并执行完整文档导航。
+6. FontCoordinator 根据目标文档准备字体；等待期间旧页面完整、可读且控件仍可操作。
+
+### `before-swap`
+
+- 把主题、背景模式、Sidebar 几何和其他持久偏好写入 `newDocument.documentElement`；
+- 不删除旧样式，不手写 head 合并；
+- 不自行替换 DOM，只允许框架 `swap()` 执行一次；
+- 导航状态进入 `swapping`。
+
+### `after-swap` 与 `page-load`
+
+- 框架完成主滚动恢复后，StateLedger 恢复目标历史项的嵌套滚动区；
+- SiteShell 已持久存在；控制器根据目标 URL 同步 `aria-current` 等语义，不解析 JSON context 或重建组件实例；
+- 页面岛通过自身 mount/unmount 接管，不扫描并重放所有页面脚本；
+- `page-load` 后结束进度策略，进入 `idle`。
+
+## 状态账本
+
+### 状态所有权表
+
+| 状态                                     | 权威来源                                     | 原因                                 |
+| ---------------------------------------- | -------------------------------------------- | ------------------------------------ |
+| locale、route、tag、page、query、version | URL                                          | 可分享、可刷新、可由服务端独立重建   |
+| 当前历史项主滚动与嵌套滚动               | `history.state.sshawn9`                      | 同一路径的多个历史项必须拥有不同快照 |
+| 主题、壁纸开关、语言偏好、Sidebar 几何   | `localStorage`                               | 跨标签页会话或跨会话的用户偏好       |
+| 当前壁纸、随机队列、一次性导航状态转移   | `sessionStorage`                             | 只在当前标签页存活，不污染其他标签页 |
+| 导航进度、打开的全局浮层                 | 对应文档级控制器内存与语义 DOM               | 瞬时 UI，不应写入存储                |
+| 页面内交互参数                           | 交互岛本地状态；需要历史恢复时写命名 channel | 不把所有组件状态塞进一个全局 store   |
+| 文章、语言、版本、标签和项目关系         | 构建期领域模型                               | 内容事实，不由浏览器推断             |
+| 构建代际                                 | HTML meta + 构建常量                         | 检测目标文档与当前运行时是否匹配     |
+
+### History schema
+
+本站状态必须保存在自己的命名空间，同时保留 Astro 和浏览器的未知字段：
+
+```ts
+type SiteHistoryStateV1 = {
+  version: 1;
+  routeKey: string;
+  page: { x: number; y: number };
+  regions: Record<string, { x: number; y: number }>;
+  channels?: Record<string, unknown>;
+};
+```
+
+- 写入使用 `{ ...history.state, sshawn9: nextSiteState }`，禁止覆盖整个 `history.state`；隔离 POC 暂用 `rearchitecturePoc` 命名空间；
+- 读取必须 schema 校验、数值钳位并安全忽略未知版本；
+- 嵌套滚动按历史项保存，不能只按 pathname 保存；
+- `channels` 只接受登记过的类型化 codec，不能成为任意对象垃圾场；
+- 存储失败时退化为默认状态，不能阻塞核心导航。
+
+## 绘制前恢复
+
+首帧稳定不能以隐藏整个页面或无界等待网络资源为代价。初始文档保留四个职责明确的小入口：
+
+1. head 中的同步 prepaint：读取主题、背景和布局偏好，只写根属性、class 和 CSS 变量；
+2. head 中的 `<link rel="expect" href="#initial-frame-ready" blocking="render">`：目标是 `SiteRuntime` 前固定的文档末端 marker，只在支持的浏览器中等待静态 HTML 解析到该处，不等待字体、图片或客户端模块；
+3. marker 前的初始文档协调器：此时完整 DOM 和 CSS 已登记；它以当前文档 `FontFaceSet.check()` 和页面实际字形同步判定字体是否已经就绪，再负责字体准备、滚动和文字表面的最终提交；
+4. 持久 `BackdropSurface` 内直接编写的解析期 bootstrap：消费 head 已验证的恢复种子，在首帧前提交可用照片，并通过显式 owner 标记把未完成任务一次性交给 `BackdropPresenter`。
+
+固定末端 marker 使支持 `rel=expect` 的浏览器在首次提交前拥有完整静态布局，也给字体协调器一个可靠的文档边界。字体状态只协调依赖排版的测量消费者，不控制 `[data-font-surface]` 的可见性；正文、导航和页脚在字体准备及降级期间始终保留在画面中。
+
+head 入口使用共享 codec 生成自包含脚本；依赖 DOM 解析顺序的壁纸入口直接写成无依赖 classic script，禁止通过 `Function#toString` 序列化含模块依赖的函数。约束如下：
+
+- 无动态 import、无框架初始化，所有存储读取都经过共享 codec；
+- 主题、语言、布局和可计算的滚动状态必须同步准备；
+- 字体准备使用当前文档实际字符选中 unicode-range 分片；1.8 秒是提交固定本地回退的 degraded 上限；
+- 图片、字体或第三方资源不得拥有 `body` 或页面根节点的可见性；字体只能控制经登记的文字表面；
+- 初始文档不播放揭示动画；运行时接管只能确认同一状态，不能再做一次可见修正；
+- 体积设置构建预算。
+
+此前的 CSS 全局可见性门把壁纸、装饰与正文绑在同一个异步期限内，是刷新暗帧和慢资源放大的根源。当前边界只管理文字表面，不遮挡壁纸和页面底色，也不等待图片或客户端模块。
+
+## 字体协调
+
+FontCoordinator 是唯一字体就绪所有者：
+
+- 全站字体声明稳定存在于全局样式，关键 Latin 字体由 Astro Fonts 自托管并在 head 预加载；
+- 热刷新不信任历史存储标记；只有当前文档的 `FontFaceSet.check()` 确认本页精确查询和实际字形均已加载，才在异步边界前同步提交 `ready`；
+- 初始文档在完整 DOM/CSS 边界后准备实际页面字形，与滚动恢复一次提交 `ready` 或 `degraded`；
+- 客户端导航在 swap 前扫描目标文字需求，包括 CJK unicode-range、斜体、等宽与 KaTeX 字形；
+- 字体准备发生在 swap 前，旧页面继续显示，不能让目标正文以回退字体先出现；
+- 新导航复用 ClientRouter 的 `AbortSignal` 取消旧字体等待；
+- 字体失败只降级字体，不取消内容导航；迟到字体不得再换入 degraded 文档；
+- 热缓存不得重放 reveal 或引起几何变化。
+
+生成 HTML 曾在 SiteShell 之后、首屏静态区域完成之前插入并执行 island bootstrap，产生“只有部分静态 DOM”的真实中间帧。静态 SiteShell 与固定文档末端 marker 消除了该解析窗口。字体协调器之前又在 CSS 登记前执行，并且 `FontFaceSet.load()` 未传实际文字，导致 CJK 分片未准备却错误放行；随后所有文档无条件进入异步准备，让热刷新也暴露一帧隐藏文字。现在初始文档与客户端导航共用同一请求推导；当前文档已加载的精确字形同步提交，冷文档才进入有限异步准备。
+
+## 页面生命周期
+
+- Solid 岛使用框架 mount/unmount；
+- 简单 DOM 增强优先使用拥有 `connectedCallback`/`disconnectedCallback` 的自定义元素；
+- 文档级监听只存在于 SiteRuntime 明确组合的窄职责 controller，并随该 `Document` 一起释放；
+- 页面功能不得直接订阅 Astro 全局生命周期；统一由 PageRuntime 挂载和销毁；
+- 页面岛不能注册永不释放的 document/window 监听；
+- 不保留 `claimClientRuntime(name)` 这种按字符串抢占实例的注册表；
+- 不模拟 `site:before-swap`、`site:after-swap`、`site:page-load` 第二套生命周期。
+
+## 错误与降级
+
+| 故障                         | 行为                                                              |
+| ---------------------------- | ----------------------------------------------------------------- |
+| ClientRouter 获取/解析失败   | 原生文档导航                                                      |
+| 新导航覆盖旧导航             | 框架 signal 取消旧准备，旧事务不能提交                            |
+| 字体失败或超时               | 进入可读 degraded，页面仍导航                                     |
+| local/session/history 不可用 | 使用安全默认值，不阻塞完整 HTML                                   |
+| 页面岛加载失败               | 保留 SSR 正文、图注、链接和明确静态回退                           |
+| 构建代际不一致               | 按已批准的 `BCP-001` 保存状态并执行完整文档导航                   |
+| 首帧字体失败、超时或脚本异常 | 壁纸/底色始终可见；文字表面一次提交固定本地回退，迟到字体不再换入 |
+| 浏览器不支持 `rel=expect`    | 按普通静态 HTML 渐进解析与绘制；生产前完成该浏览器连续帧验收      |
+| View Transition 不可用       | 使用经过行为测试的动画 fallback；不得擅自改成无过渡整页突变       |
+
+## 禁止重新引入的模式
+
+- 第二个路由器或 head 管理器；
+- 以字符串名称连接的全站事件总线；
+- 同一状态同时存在 URL、store、DOM dataset 和 storage 四个相互回写的权威副本；
+- 页面级巨型 controller 扫描整个文档并认领所有组件；
+- 用固定 timeout 代替 CSS、字体、水合或图形的真实就绪信号；安全超时只能作为明确的 degraded 上限；
+- 用 `visibility`、`opacity` 或覆盖层建立等待异步资源的全局页面门；
+- 为测试方便暴露生产全局对象；
+- 为少量复用提前建立插件系统、service locator 或通用状态框架。
+
+## 验证要求
+
+- 导航状态机、history codec、存储失败和过期事务使用单元测试；
+- ClientRouter 适配器使用最小浏览器集成测试；
+- 外壳身份、连续帧、字体阻塞、快速导航和复合滚动使用行为/视觉测试；
+- 测试断言用户结果和公开 DOM 语义，不断言框架私有 class 或全局对象；
+- POC 中记录每个模块的职责、公共接口、行数和依赖，防止“小原型”提前形成新单体。
