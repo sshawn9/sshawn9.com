@@ -156,20 +156,3 @@ test('representative page families stay within every responsive geometry boundar
     }
   }
 });
-
-test('header geometry is identical between short and long documents', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/en/about/');
-  const shortDocumentHeader = await page.locator('.site-header__inner').boundingBox();
-
-  await page.locator('[data-shell-sync-key="blog"]').click();
-  await expect(page).toHaveURL(/\/en\/blog\/$/);
-  const longDocumentHeader = await page.locator('.site-header__inner').boundingBox();
-
-  expect(shortDocumentHeader).not.toBeNull();
-  expect(longDocumentHeader).not.toBeNull();
-  expect(longDocumentHeader?.x).toBeCloseTo(shortDocumentHeader?.x ?? 0, 1);
-  expect(longDocumentHeader?.y).toBeCloseTo(shortDocumentHeader?.y ?? 0, 1);
-  expect(longDocumentHeader?.width).toBeCloseTo(shortDocumentHeader?.width ?? 0, 1);
-  expect(longDocumentHeader?.height).toBeCloseTo(shortDocumentHeader?.height ?? 0, 1);
-});

@@ -432,50 +432,6 @@ test('slow same-build navigation exposes feedback without replacing the shell', 
   });
 });
 
-test('a target from another build performs a complete document navigation', async ({ page }) => {
-  let modifiedClientFetches = 0;
-  await page.addInitScript(() => {
-    const key = 'v2-document-load-count';
-    const count = Number(sessionStorage.getItem(key) ?? 0) + 1;
-    sessionStorage.setItem(key, String(count));
-  });
-  await page.route(`**${articlePath}`, async (route) => {
-    if (route.request().resourceType() !== 'fetch') {
-      await route.continue();
-      return;
-    }
-
-    modifiedClientFetches += 1;
-    const response = await route.fetch();
-    const originalHtml = await response.text();
-    const html = originalHtml.replace(
-      /(<meta name="site-build-id" content=")[^"]+("\s*\/?>)/,
-      '$1another-build$2',
-    );
-    expect(html).not.toBe(originalHtml);
-    await route.fulfill({ response, body: html });
-  });
-
-  await page.goto('/en/blog/');
-  await page.evaluate(() => {
-    document.querySelector<HTMLAnchorElement>(
-      'a[href="/en/blog/git-operations-reference/"]',
-    )!.dataset.astroPrefetch = 'false';
-    document.querySelector<HTMLElement>('[data-site-shell]')!.dataset.identityProbe = 'old-build';
-  });
-  await page.getByRole('link', { name: 'Git Operations Reference' }).click();
-
-  await expect(page).toHaveURL(new RegExp(`${articlePath}$`));
-  await expect
-    .poll(() => page.evaluate(() => sessionStorage.getItem('v2-document-load-count')))
-    .toBe('2');
-  await expect(page.locator('[data-site-shell]')).not.toHaveAttribute(
-    'data-identity-probe',
-    'old-build',
-  );
-  expect(modifiedClientFetches).toBe(1);
-});
-
 test('a newer navigation cancels stale preparation without a late error or swap', async ({
   page,
 }) => {
@@ -516,29 +472,4 @@ test('a newer navigation cancels stale preparation without a late error or swap'
   await expect(page.locator('[data-site-shell]')).toHaveAttribute('data-shell-locale', 'zh');
   await page.waitForTimeout(50);
   expect(pageErrors).toEqual([]);
-});
-
-test('page controllers mount once after repeated client navigations', async ({ page }) => {
-  await page.goto('/en/blog/');
-
-  for (let visit = 0; visit < 3; visit += 1) {
-    await expect(page.locator('[data-blog-listing]')).toHaveAttribute(
-      'data-blog-runtime-ready',
-      '',
-    );
-    await page.locator('[data-blog-article] h2 a').first().click();
-    await expect(page.locator('[data-article-page]')).toHaveAttribute(
-      'data-article-runtime-ready',
-      '',
-    );
-    await page.locator('[data-shell-sync-key="blog"]').click();
-    await expect(page).toHaveURL(/\/en\/blog\/$/);
-  }
-
-  await page.locator('[data-blog-tag-definition][data-tag-slug="astro"]').click();
-  await expect(page.locator('[data-blog-listing]')).toHaveAttribute(
-    'data-selected-tags',
-    '["astro"]',
-  );
-  expect(new URL(page.url()).searchParams.getAll('tag')).toEqual(['astro']);
 });

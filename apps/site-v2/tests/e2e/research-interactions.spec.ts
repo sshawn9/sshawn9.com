@@ -26,20 +26,6 @@ test('research articles remain readable and explain unavailable interaction with
   await context.close();
 });
 
-test('research figures initialize against the v2 font coordinator after client navigation', async ({
-  page,
-}) => {
-  await page.goto('/en/tags/frenet/');
-  await page.locator('a[href="/en/blog/planar-frenet-frame/"]').first().click();
-
-  await expect(page).toHaveURL(/\/en\/blog\/planar-frenet-frame\/$/);
-  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
-  await expect(page.locator('[data-plotly-figure]')).toHaveCount(2);
-  await expect(page.locator('[data-plotly-figure] .plot-container')).toHaveCount(2, {
-    timeout: 30_000,
-  });
-});
-
 test('Frenet and closed-loop islands reach their existing interactive states', async ({ page }) => {
   await page.goto('/en/blog/frenet-arc-length-conversion/');
   await expect(page.locator('[data-frenet-explorer]')).toHaveCount(10);

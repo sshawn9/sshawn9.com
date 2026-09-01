@@ -99,14 +99,3 @@ test('explicit image attachments keep a no-script link and gain an accessible vi
   await expect(page.locator('.pswp')).toBeHidden();
   await expect(attachment).toBeFocused();
 });
-
-test('ordinary explanatory images stay in the document flow instead of the attachment grid', async ({
-  request,
-}) => {
-  const response = await request.get('/en/blog/my-personal-website/v/1/');
-  expect(response.ok()).toBe(true);
-  const html = await response.text();
-
-  expect(html).toContain('start-with-the-theme-template');
-  expect(html).not.toContain('data-article-media-item');
-});

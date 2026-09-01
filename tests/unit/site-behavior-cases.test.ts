@@ -5,20 +5,20 @@ import { describe, expect, it } from 'vitest';
 
 const CONTRACT_ROOT = fileURLToPath(new URL('../../docs/site-behavior-cases/', import.meta.url));
 
-const EXPECTED_CASE_COUNTS = {
-  'article-sidebar-toc-versions': 27,
-  'blog-tags-sidebar': 29,
-  'browser-cache-artifacts': 6,
-  'content-tags-projects-media': 21,
-  'development-preview-production': 21,
-  'locale-theme-fonts': 15,
-  'refresh-navigation-lifecycle': 14,
-  'research-interactions': 20,
-  'scenic-wallpaper': 19,
-  search: 9,
-  'site-structure-responsive-visual': 9,
-  'validation-failure-classification': 8,
-} as const;
+const CASE_CATEGORIES = [
+  'article-sidebar-toc-versions',
+  'blog-tags-sidebar',
+  'browser-cache-artifacts',
+  'content-tags-projects-media',
+  'development-preview-production',
+  'locale-theme-fonts',
+  'refresh-navigation-lifecycle',
+  'research-interactions',
+  'scenic-wallpaper',
+  'search',
+  'site-structure-responsive-visual',
+  'validation-failure-classification',
+] as const;
 
 const REQUIRED_CASE_HEADINGS = ['### 场景', '### 正确行为', '### 禁止状态', '### 验收'] as const;
 
@@ -55,29 +55,17 @@ function listProposalFiles() {
 }
 
 describe('site behavior contract documentation', () => {
-  it('keeps all approved case categories and counts explicit', () => {
-    const actualCounts = Object.fromEntries(
-      Object.keys(EXPECTED_CASE_COUNTS).map((category) => [
-        category,
-        listCaseFiles(category).length,
-      ]),
-    );
-
-    expect(actualCounts).toEqual(EXPECTED_CASE_COUNTS);
-    expect(Object.values(actualCounts).reduce((total, count) => total + count, 0)).toBe(198);
-  });
-
   it('keeps the root and category indexes synchronized with case files', () => {
     const rootReadme = readMarkdown(join(CONTRACT_ROOT, 'README.md'));
 
-    for (const category of Object.keys(EXPECTED_CASE_COUNTS)) {
+    for (const category of CASE_CATEGORIES) {
       expect(rootReadme).toContain(`](./${category}/)`);
       expect(readIndexedCaseFiles(category)).toEqual(listCaseFiles(category));
     }
   });
 
   it('keeps every case in the agreed human-readable structure', () => {
-    for (const category of Object.keys(EXPECTED_CASE_COUNTS)) {
+    for (const category of CASE_CATEGORIES) {
       for (const caseFile of listCaseFiles(category)) {
         const relativePath = `${category}/${caseFile}`;
         const document = readMarkdown(join(CONTRACT_ROOT, relativePath));

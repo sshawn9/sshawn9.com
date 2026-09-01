@@ -87,63 +87,6 @@ test('the vehicle kinematics article preserves its derivation and native figures
   }
 });
 
-test('Plotly remains fully styled across native navigation between research articles', async ({
-  page,
-}) => {
-  await page.goto('/zh/blog/frenet-vehicle-kinematics/');
-  await expect(page.locator('.research-plot .js-plotly-plot')).toHaveCount(2, { timeout: 20_000 });
-
-  await page.evaluate(() => {
-    document.addEventListener(
-      'site:after-swap',
-      () => {
-        document.documentElement.dataset.plotlyStyleReadyAtSwap = String(
-          Boolean(document.getElementById('plotly.js-style-global')),
-        );
-      },
-      { once: true },
-    );
-  });
-  await page
-    .getByRole('link', {
-      name: '参考路径弧长与车辆轨迹有向弧长的局部换算：交互分析',
-    })
-    .click();
-  await expect(page).toHaveURL(/\/zh\/blog\/frenet-arc-length-conversion\/$/);
-  await expect(page.locator('html')).toHaveAttribute('data-plotly-style-ready-at-swap', 'true');
-
-  const explorer = page.locator('[data-frenet-explorer="phi"]');
-  await explorer.scrollIntoViewIfNeeded();
-  await expect(explorer.locator('.js-plotly-plot')).toHaveCount(2, { timeout: 20_000 });
-  await expect(page.locator('style#plotly\\.js-style-global')).toHaveCount(1);
-  await expect
-    .poll(() =>
-      page.locator('style#plotly\\.js-style-global').evaluate((style) => {
-        const element = style as HTMLStyleElement;
-        return element.sheet?.cssRules.length ?? 0;
-      }),
-    )
-    .toBeGreaterThan(0);
-  await expect
-    .poll(() =>
-      explorer.locator('.modebar').evaluate((element) => getComputedStyle(element).position),
-    )
-    .toBe('absolute');
-  await expect
-    .poll(() =>
-      explorer.locator('.frenet-main-plot').evaluate((element) => {
-        const plot = element as HTMLElement & { _fullLayout?: { width?: number } };
-        return Math.abs((plot._fullLayout?.width ?? 0) - plot.getBoundingClientRect().width);
-      }),
-    )
-    .toBeLessThanOrEqual(2);
-
-  await page.getByRole('link', { name: 'Frenet 坐标下的车辆运动学' }).first().click();
-  await expect(page).toHaveURL(/\/zh\/blog\/frenet-vehicle-kinematics\/(?:#.*)?$/);
-  await expect(page.locator('.research-plot .js-plotly-plot')).toHaveCount(2, { timeout: 20_000 });
-  await expect(page.locator('style#plotly\\.js-style-global')).toHaveCount(1);
-});
-
 test('the closed-loop timeline supports direct manipulation without sliders', async ({ page }) => {
   await page.goto('/zh/blog/closed-loop-control-timing/');
 

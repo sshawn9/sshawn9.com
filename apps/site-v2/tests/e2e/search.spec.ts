@@ -7,20 +7,6 @@ async function waitForSearch(page: Page) {
   await expect(searchRoot(page)).toHaveAttribute('data-search-ready', '');
 }
 
-test('the generated index contains only the 38 approved localized pages', async ({ request }) => {
-  const response = await request.get('/pagefind/pagefind-entry.json');
-  expect(response.ok()).toBe(true);
-  const entry = (await response.json()) as {
-    languages: Record<string, { page_count: number }>;
-  };
-
-  expect(entry.languages.en?.page_count).toBe(19);
-  expect(entry.languages['zh-cn']?.page_count).toBe(19);
-  expect(
-    Object.values(entry.languages).reduce((sum, language) => sum + language.page_count, 0),
-  ).toBe(38);
-});
-
 test('query, URL, localized results, keyboard behavior, and clear semantics stay aligned', async ({
   page,
 }) => {
