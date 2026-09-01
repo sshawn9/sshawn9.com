@@ -1,3 +1,5 @@
+import { isWallpaperBootDataUrl, MAX_WALLPAPER_BOOT_IMAGE_BYTES } from './document-preferences';
+
 const WALLPAPER_BOOT_IMAGE_TYPES = new Set([
   'image/avif',
   'image/jpeg',
@@ -7,20 +9,6 @@ const WALLPAPER_BOOT_IMAGE_TYPES = new Set([
 ]);
 const RESPONSIVE_IMAGE_ACCEPT = 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8';
 const WALLPAPER_BOOT_CAPTURE_TIMEOUT_MS = 8_000;
-
-export const MAX_WALLPAPER_BOOT_IMAGE_BYTES = 2_500_000;
-export const MAX_WALLPAPER_BOOT_DATA_URL_LENGTH =
-  Math.ceil((MAX_WALLPAPER_BOOT_IMAGE_BYTES * 4) / 3) + 128;
-export const WALLPAPER_BOOT_DATA_URL_PATTERN =
-  /^data:image\/(?:avif|jpe?g|png|webp);base64,[a-zA-Z0-9+/]+={0,2}$/;
-
-export function isWallpaperBootDataUrl(value: unknown): value is string {
-  return (
-    typeof value === 'string' &&
-    value.length <= MAX_WALLPAPER_BOOT_DATA_URL_LENGTH &&
-    WALLPAPER_BOOT_DATA_URL_PATTERN.test(value)
-  );
-}
 
 function blobAsDataUrl(
   sourceWindow: Window,

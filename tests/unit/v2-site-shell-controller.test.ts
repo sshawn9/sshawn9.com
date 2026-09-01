@@ -119,7 +119,10 @@ describe('v2 site shell controller', () => {
   });
 
   it('emits a self-contained classic-script body', () => {
-    expect(() => new Function('document', createSiteShellControllerScript())).not.toThrow();
+    const source = createSiteShellControllerScript();
+
+    expect(source).not.toMatch(/__vite_ssr_(?:import|export)/);
+    expect(() => new Function('document', source)).not.toThrow();
   });
 
   it('releases document listeners and its installation marker', () => {
