@@ -1,5 +1,6 @@
 ---
 import { createLocaleEntryRedirectScript } from '../runtime/locale-preference';
+import { SITE_CONTEXT } from '../config/site-context';
 
 const localeRedirectScript = createLocaleEntryRedirectScript();
 ---
@@ -9,6 +10,7 @@ const localeRedirectScript = createLocaleEntryRedirectScript();
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
+    {SITE_CONTEXT.noIndex && <meta name="robots" content="noindex, follow" />}
     <title>SHAWN v2 foundation</title>
     <script is:inline set:html={localeRedirectScript} />
   </head>

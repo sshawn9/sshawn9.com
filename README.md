@@ -26,34 +26,37 @@ npm ci
 npm run dev
 ```
 
-本仓库也支持由 Astro 管理的后台开发服务器：
+`npm run dev` 是 v2 的完整开发入口：Astro 在 `127.0.0.1:4332` 提供页面、HMR 和 Dev Toolbar，Wrangler 在 `127.0.0.1:8787` 提供 Worker API。Astro 仅在开发配置中把 `/api` 代理到 Wrangler；生产配置不导入 Toolbar 或开发代理。
+
+Toolbar 中的 `Drafts` 会列出草稿，`Single-language` 会列出缺少某种语言的文章版本。若只需页面与 Toolbar，也可单独后台运行 Astro：
 
 ```bash
-npm run astro -- dev --background
+npm run dev --workspace @sshawn9/site-v2 -- --background
 ```
+
+旧站开发入口暂时保留为 `npm run dev:legacy`，只用于迁移对照。
 
 完整的本地验证流程：
 
 ```bash
-npm run check
+npm run check:v2
 npm test
 npm run format:check
-npm run build
-npm run test:e2e
-npm run preview
+npm run build:v2
+npm run test:e2e:v2
 ```
 
-普通的 Astro 开发服务器不执行 Cloudflare Worker，因此会显示原有网格回退背景。测试完整的动态背景前，将 Unsplash Access Key 写入本地密钥文件：
+测试完整的动态背景前，将 Unsplash Access Key 写入本地密钥文件；完整的 `npm run dev` 会由 Wrangler 自动读取它：
 
 ```bash
 cp .dev.vars.example .dev.vars
 # 编辑 .dev.vars，填写 UNSPLASH_ACCESS_KEY
-npm run preview:worker
+npm run dev
 ```
 
-`preview:worker` 先构建静态网站，再由 Wrangler 同时运行静态资源、照片清单接口和本地 KV。
+需要验证接近部署形态、包含草稿并带 `noindex` 的静态预览时，运行 `npm run preview:worker:v2`。
 
-本仓库使用 Node 24 作为经过测试的开发运行时，`.nvmrc` 记录了这一建议版本。`npm run build` 会生成静态网站及其 Pagefind 多语言全站索引。浏览器测试使用 4322 端口，因此不会干扰运行在 4321 端口的常规开发服务器。
+本仓库使用 Node 24 作为经过测试的开发运行时，`.nvmrc` 记录了这一建议版本。`npm run build:v2` 会生成静态网站及其 Pagefind 多语言全站索引。v2 浏览器测试使用独立端口，因此不会干扰 4332 上的常规开发服务器。
 
 ## 国际化
 
