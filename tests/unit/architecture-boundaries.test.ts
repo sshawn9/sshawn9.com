@@ -82,6 +82,26 @@ describe('architecture boundaries', () => {
     expect(astroConfig).not.toContain('@astrojs/svelte');
   });
 
+  it('keeps v2 development tools outside the production application graph', async () => {
+    const productionSources = await collectSourceFiles(join(repositoryRoot, 'apps/site-v2/src'));
+    const violations: string[] = [];
+
+    for (const path of productionSources) {
+      const source = await readFile(path, 'utf8');
+      if (/from\s+['"][^'"]*devtools\//.test(source)) {
+        violations.push(relative(repositoryRoot, path));
+      }
+    }
+
+    const productionConfig = await readFile(
+      join(repositoryRoot, 'apps/site-v2/astro.config.mjs'),
+      'utf8',
+    );
+    expect(violations).toEqual([]);
+    expect(productionConfig).not.toContain('devtools');
+    expect(productionConfig).not.toContain('content-health');
+  });
+
   it('keeps content as data and imports interactive behavior through content-ui', async () => {
     const contentRoot = join(repositoryRoot, 'src/content');
     const implementationExtensions = new Set(['.astro', '.css', '.ts', '.tsx']);

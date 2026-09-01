@@ -5,7 +5,7 @@
   "scripts": {
     "build": "astro build && pagefind --site dist",
     "check": "astro check",
-    "dev": "astro dev --host 127.0.0.1 --port 4332",
+    "dev": "astro dev --config astro.dev.config.mjs --host 127.0.0.1 --port 4332",
     "preview": "astro preview --host 127.0.0.1 --port 4333",
     "test:e2e": "npm run build && playwright test"
   },

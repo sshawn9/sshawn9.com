@@ -12,6 +12,7 @@ import { CURRENT_BUILD_ID } from '../runtime/build-identity';
 import { createDocumentPreferenceScript } from '../features/appearance/runtime/document-preferences';
 import { FONT_QUERY_META_NAME } from '../runtime/font-coordinator';
 import { createInitialFrameScript, INITIAL_FRAME_READY_ID } from '../runtime/initial-frame';
+import { SITE_CONTEXT } from '../config/site-context';
 import '../styles/index.css';
 
 interface Props {
@@ -65,6 +66,7 @@ const declaredFontQueries = [
 const preferenceScript = createDocumentPreferenceScript();
 const prepaintScript = [preferenceScript, ...prepaintScripts].join('\n');
 const initialFrameScript = createInitialFrameScript();
+const documentNoIndex = noIndex || SITE_CONTEXT.noIndex;
 ---
 
 <!doctype html>
@@ -97,7 +99,7 @@ const initialFrameScript = createInitialFrameScript();
     }
     <slot name="head" />
     {canonical && <link rel="canonical" href={canonical} />}
-    {noIndex && <meta name="robots" content="noindex, follow" />}
+    {documentNoIndex && <meta name="robots" content="noindex, follow" />}
     {
       alternateLinks.map((alternate) => (
         <link
