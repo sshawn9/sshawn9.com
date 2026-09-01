@@ -4,7 +4,10 @@ import { LOCALE_PREFERENCE_KEY, saveLocalePreference } from './locale-preference
  * Keeps the persisted static shell's locale-dependent semantics in sync with
  * the incoming server-rendered shell without replacing its interactive nodes.
  */
-export function installSiteShellController(shellDocument: Document): (() => void) | undefined {
+function installSiteShellControllerWithDependencies(
+  shellDocument: Document,
+  persistLocalePreference: typeof saveLocalePreference,
+): (() => void) | undefined {
   const shellCandidate = shellDocument.querySelector<HTMLElement>('[data-site-shell]');
   if (!shellCandidate || shellCandidate.dataset.shellControllerInstalled === 'true') {
     return undefined;
@@ -158,7 +161,7 @@ export function installSiteShellController(shellDocument: Document): (() => void
     target.hash = sourceWindow.location.hash;
     link.href = target.href;
     try {
-      saveLocalePreference(sourceWindow.localStorage, targetLocale);
+      persistLocalePreference(sourceWindow.localStorage, targetLocale);
     } catch {}
   }
 
@@ -198,11 +201,18 @@ export function installSiteShellController(shellDocument: Document): (() => void
   };
 }
 
+export function installSiteShellController(shellDocument: Document): (() => void) | undefined {
+  return installSiteShellControllerWithDependencies(shellDocument, saveLocalePreference);
+}
+
 /** Emits the same typed implementation as a parser-executed classic script. */
 export function createSiteShellControllerScript(): string {
   return `const LOCALE_PREFERENCE_KEY = ${JSON.stringify(LOCALE_PREFERENCE_KEY)};
 ${saveLocalePreference.toString()}
-const disposeSiteShell = (${installSiteShellController.toString()})(document);
+const disposeSiteShell = (${installSiteShellControllerWithDependencies.toString()})(
+  document,
+  saveLocalePreference,
+);
 if (disposeSiteShell) {
   window.addEventListener('pagehide', function releaseSiteShell(event) {
     if (event.persisted) return;

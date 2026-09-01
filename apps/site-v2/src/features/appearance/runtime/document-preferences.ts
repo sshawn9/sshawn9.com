@@ -1,9 +1,19 @@
 import type { WallpaperPhoto } from '@sshawn9/site-domain/wallpaper';
-import {
-  isWallpaperBootDataUrl,
-  MAX_WALLPAPER_BOOT_DATA_URL_LENGTH,
-  WALLPAPER_BOOT_DATA_URL_PATTERN,
-} from './wallpaper-boot-image';
+
+export const MAX_WALLPAPER_BOOT_IMAGE_BYTES = 2_500_000;
+export const MAX_WALLPAPER_BOOT_DATA_URL_LENGTH =
+  Math.ceil((MAX_WALLPAPER_BOOT_IMAGE_BYTES * 4) / 3) + 128;
+export const WALLPAPER_BOOT_DATA_URL_PATTERN =
+  /^data:image\/(?:avif|jpe?g|png|webp);base64,[a-zA-Z0-9+/]+={0,2}$/;
+
+/** Validates the bounded image representation persisted by the appearance codec. */
+export function isWallpaperBootDataUrl(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length <= MAX_WALLPAPER_BOOT_DATA_URL_LENGTH &&
+    WALLPAPER_BOOT_DATA_URL_PATTERN.test(value)
+  );
+}
 
 const ROOT_APPEARANCE_ATTRIBUTES = [
   'data-theme',
