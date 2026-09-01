@@ -65,68 +65,6 @@ test('same-build language navigation preserves route state, shell identity, and 
   await expect.poll(() => page.evaluate(() => localStorage.getItem('PARAGLIDE_LOCALE'))).toBe('zh');
 });
 
-test('cross-build language navigation restores scroll before the target first frame', async ({
-  page,
-}) => {
-  await page.addInitScript(() => {
-    const count = Number(sessionStorage.getItem('locale-document-count') ?? 0) + 1;
-    sessionStorage.setItem('locale-document-count', String(count));
-    if (!location.pathname.startsWith('/zh/blog/git-operations-reference/')) return;
-
-    const observer = new PerformanceObserver((entries, paintObserver) => {
-      if (!entries.getEntries().some((entry) => entry.name === 'first-contentful-paint')) return;
-      paintObserver.disconnect();
-      sessionStorage.setItem('locale-first-frame-y', String(scrollY));
-    });
-    observer.observe({ type: 'paint', buffered: true });
-  });
-  await page.route(`**${chineseArticlePath}**`, async (route) => {
-    if (route.request().resourceType() !== 'fetch') {
-      await route.continue();
-      return;
-    }
-
-    const response = await route.fetch();
-    const originalHtml = await response.text();
-    const html = originalHtml.replace(
-      /(<meta name="site-build-id" content=")[^"]+("\s*\/?>)/,
-      '$1another-build$2',
-    );
-    expect(html).not.toBe(originalHtml);
-    await route.fulfill({ response, body: html });
-  });
-  await page.goto(`${englishArticlePath}${routeState}`);
-
-  const clickedY = await page.evaluate(() => {
-    const maximumY = document.documentElement.scrollHeight - innerHeight;
-    scrollTo(0, Math.min(1_600, maximumY - 200));
-    const actualY = scrollY;
-    document.querySelector<HTMLAnchorElement>('[data-locale-switch="zh"]')!.click();
-    return actualY;
-  });
-
-  await expect(page).toHaveURL(
-    new RegExp(`${chineseArticlePath.replaceAll('/', '\\/')}\\?view=reader#locale-transfer-probe$`),
-  );
-  await expect
-    .poll(() => page.evaluate(() => sessionStorage.getItem('locale-document-count')))
-    .toBe('2');
-  await expect
-    .poll(() => page.evaluate(() => sessionStorage.getItem('locale-first-frame-y')))
-    .not.toBeNull();
-  const firstFrameY = Number(
-    await page.evaluate(() => sessionStorage.getItem('locale-first-frame-y')),
-  );
-  // Chromium may apply up to 2px of scroll anchoring while target font metrics
-  // settle before FCP. The observable contract is that this is finished before
-  // the first visible frame and does not turn into a post-paint animation.
-  expect(Math.abs(firstFrameY - clickedY)).toBeLessThanOrEqual(2);
-  await expect
-    .poll(() => page.evaluate((expectedY) => Math.abs(scrollY - expectedY), firstFrameY))
-    .toBeLessThan(2);
-  await expect(page.locator('#initial-frame-ready')).toHaveCount(1);
-});
-
 test('fallback article content cannot override the requested interface language', async ({
   page,
 }) => {

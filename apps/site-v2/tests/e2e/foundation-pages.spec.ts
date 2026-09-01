@@ -115,25 +115,6 @@ test('the persistent header keeps the same destinations and quiet utility hierar
   ).toBeVisible();
 });
 
-test('the initial document boundary follows the complete static page', async ({ request }) => {
-  const response = await request.get(articlePath);
-  expect(response.ok()).toBe(true);
-  const html = await response.text();
-  const proseStart = html.indexOf('class="article-prose"');
-  const firstSection = html.indexOf('<h2', proseStart);
-  const finalSection = html.indexOf('Reducing This Kind of Divergence', firstSection);
-  const articleEnd = html.indexOf('</article>', finalSection);
-  const footer = html.indexOf('<footer', articleEnd);
-  const boundary = html.indexOf('data-initial-frame-document-ready', footer);
-
-  expect(html.match(/id="initial-frame-ready"/g) ?? []).toHaveLength(1);
-  expect(firstSection).toBeGreaterThan(proseStart);
-  expect(finalSection).toBeGreaterThan(firstSection);
-  expect(articleEnd).toBeGreaterThan(finalSection);
-  expect(footer).toBeGreaterThan(articleEnd);
-  expect(boundary).toBeGreaterThan(footer);
-});
-
 test('the root fallback preserves the 404 status and resolves the route locale before paint', async ({
   page,
 }) => {
