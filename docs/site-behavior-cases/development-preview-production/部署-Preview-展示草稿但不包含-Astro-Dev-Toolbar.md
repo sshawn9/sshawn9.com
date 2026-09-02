@@ -20,4 +20,4 @@
 
 1. 运行实际 Worker Preview 或访问部署 Preview。
 2. 确认草稿路由和列表可用，同时检查页面源和网络资源无 Dev Toolbar。
-3. 与 just dev 并排比较，明确两者工具边界。
+3. 与 `npm run dev` 并排比较，明确两者工具边界。
