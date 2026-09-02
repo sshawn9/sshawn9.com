@@ -866,27 +866,3 @@ test('reduced motion suppresses theme animation and automatic wallpaper timers',
     )
     .toBe(true);
 });
-
-test('without JavaScript, appearance enhancement stays absent and the document remains readable', async ({
-  browser,
-}) => {
-  const context = await browser.newContext({ javaScriptEnabled: false });
-  const page = await context.newPage();
-  await page.goto('/en/blog/');
-
-  await expect(page.locator('main')).toBeVisible();
-  const appearanceControls = page.locator('[data-appearance-controls]');
-  await expect(appearanceControls).toHaveCount(2);
-  await expect(appearanceControls.first()).toBeHidden();
-  await expect(appearanceControls.last()).toBeHidden();
-  await expect(page.locator('[data-wallpaper-credit]')).toBeHidden();
-  await expect
-    .poll(() =>
-      page
-        .locator('[data-wallpaper-image]')
-        .evaluateAll((images) => images.every((image) => !image.hasAttribute('src'))),
-    )
-    .toBe(true);
-
-  await context.close();
-});

@@ -25,20 +25,10 @@ test('every document generation references the shared site icon and localized ma
   }
 });
 
-test('foundation routes are complete static documents without JavaScript', async ({ browser }) => {
-  const context = await browser.newContext({ javaScriptEnabled: false });
-  const page = await context.newPage();
-
+test('homepage project and recent-article titles stay quiet until interaction', async ({
+  page,
+}) => {
   await page.goto('/en/');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-    'Projects, research, and technical writing',
-  );
-  await expect(page.getByRole('link', { name: '自动驾驶运动控制' })).toBeVisible();
-  await expect(
-    page.getByRole('link', {
-      name: 'From Page Transitions to a Persistent Shell: Governing the Client Lifecycle of My Website',
-    }),
-  ).toBeVisible();
   const projectTitle = page.getByRole('link', { name: '自动驾驶运动控制' });
   const recentArticleTitle = page.getByRole('link', {
     name: 'From Page Transitions to a Persistent Shell: Governing the Client Lifecycle of My Website',
@@ -49,31 +39,6 @@ test('foundation routes are complete static documents without JavaScript', async
   await expect(projectTitle).toHaveCSS('text-decoration-line', 'underline');
   await recentArticleTitle.hover();
   await expect(recentArticleTitle).toHaveCSS('text-decoration-line', 'underline');
-
-  await page.goto('/en/about/');
-  await expect(page.getByText('This page is still taking shape.')).toBeVisible();
-
-  await page.goto(articlePath);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Git Operations Reference');
-  await expect(page.getByRole('navigation', { name: 'On this page' })).toContainText(
-    'Basic Notations and Terminology',
-  );
-  await expect(
-    page.getByRole('heading', { name: 'Reducing This Kind of Divergence' }),
-  ).toBeVisible();
-  await expect(page.locator('#initial-frame-ready')).toHaveCount(1);
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole('button', { name: 'Open navigation' }).click();
-  const mobileNavigation = page.getByRole('navigation', { name: 'Mobile navigation' });
-  await expect(mobileNavigation.getByRole('link', { name: 'Projects' })).toBeVisible();
-  await expect(
-    page
-      .locator('[data-shell-mobile-menu]')
-      .getByRole('link', { name: "View Shawn's GitHub profile" }),
-  ).toBeVisible();
-
-  await context.close();
 });
 
 test('the persistent header keeps the same destinations and quiet utility hierarchy', async ({

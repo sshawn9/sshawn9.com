@@ -22,11 +22,12 @@
     "build:v2": "npm run build --workspace @sshawn9/site-v2",
     "build:v2:preview": "SITE_MODE=preview npm run build:v2",
     "test:e2e:v2": "npm run test:e2e --workspace @sshawn9/site-v2",
+    "test:e2e:legacy": "playwright test",
     "preview": "astro preview",
     "preview:worker": "npm run build && wrangler dev",
     "preview:worker:v2": "npm run build:v2:preview && wrangler dev --assets apps/site-v2/dist",
     "test": "vitest run",
-    "test:e2e": "playwright test",
+    "test:e2e": "npm run test:e2e:v2",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "astro": "astro"

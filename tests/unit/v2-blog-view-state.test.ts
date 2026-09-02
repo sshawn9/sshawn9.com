@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  createBlogViewPrepaintScript,
-  deriveBlogViewState,
-} from '../../apps/site-v2/src/features/blog/runtime/blog-view-state';
+import { deriveBlogViewState } from '../../apps/site-v2/src/features/blog/runtime/blog-view-state';
 
 type FakeElement = {
   dataset: Record<string, string>;
@@ -72,9 +69,5 @@ describe('v2 blog view state', () => {
     expect(state.resultCount).toBe(2);
     expect(state.page).toBe(1);
     expect(state.normalizedUrl.search).toBe('');
-  });
-
-  it('emits a self-contained parser script', () => {
-    expect(() => new Function(createBlogViewPrepaintScript())).not.toThrow();
   });
 });

@@ -39,7 +39,7 @@ jobs:
           SITE_MODE: preview
       - run: npx playwright install --with-deps chromium
       - name: Test preview site
-        run: npm run test:e2e
+        run: npm run test:e2e:legacy
         env:
           SITE_MODE: preview
       - name: Upload verified preview site
@@ -57,7 +57,7 @@ jobs:
           SITE_MODE: production
       - name: Test production site
         if: ${{ inputs.upload_production }}
-        run: npm run test:e2e
+        run: npm run test:e2e:legacy
         env:
           SITE_MODE: production
       - name: Upload verified production site
