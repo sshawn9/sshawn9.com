@@ -169,7 +169,7 @@ M4.7 保留现有 Plotly、Vega、Solid、数学模型与图形效果，只修�
 
 ## 当前不改变的事实
 
-- `docs/site-behavior-cases/` 中的 198 个案例全部生效。
+- `docs/site-behavior-cases/` 中的 190 个案例全部生效。
 - 当前生产站继续使用现有实现；本目录中的设计不会自动启用任何代码路径。
 - 页面视觉、动画、交互和内容语义没有获得变更授权。
 - Cloudflare Static Assets 仍是优先部署目标，普通 HTML 和静态资源不得无理由进入 Worker。
