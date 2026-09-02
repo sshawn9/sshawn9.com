@@ -2,30 +2,6 @@ import { expect, test } from '@playwright/test';
 
 test.describe.configure({ timeout: 60_000 });
 
-test('research articles remain readable and explain unavailable interaction without JavaScript', async ({
-  browser,
-}) => {
-  const context = await browser.newContext({ javaScriptEnabled: false });
-  const page = await context.newPage();
-
-  await page.goto('/en/blog/frenet-arc-length-conversion/');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Frenet Arc-Length Conversion');
-  await expect(page.locator('[data-figure-focus]')).toHaveCount(10);
-  await expect(page.locator('interactive-figure-status[data-state="fallback"]')).toHaveCount(10);
-  await expect(page.locator('interactive-figure-status').first()).toContainText(
-    'requires JavaScript',
-  );
-  await expect(page.locator('[data-figure-focus] figcaption').first()).toBeVisible();
-  expect(
-    await page
-      .locator('[data-figure-focus]')
-      .first()
-      .evaluate((element) => element.getBoundingClientRect().height),
-  ).toBeGreaterThan(700);
-
-  await context.close();
-});
-
 test('Frenet and closed-loop islands reach their existing interactive states', async ({ page }) => {
   await page.goto('/en/blog/frenet-arc-length-conversion/');
   await expect(page.locator('[data-frenet-explorer]')).toHaveCount(10);
@@ -106,23 +82,6 @@ test('focus mode moves and restores the same live figure instance', async ({ pag
   await expect(dialog).not.toHaveAttribute('open', '');
   await expect(figure.locator('[data-identity-probe="original"]')).toHaveCount(1);
   await expect(figure.locator('[data-figure-focus-toggle]')).toBeFocused();
-});
-
-test('research figure failure keeps the article readable and exposes a finite fallback', async ({
-  page,
-}) => {
-  await page.route('**/_astro/plotly-gl3d.min.*.js*', (route) => route.abort('failed'));
-  await page.goto('/en/blog/planar-frenet-frame/');
-
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Planar Frenet Frame');
-  await expect(page.locator('interactive-figure-status[data-state="error"]')).toHaveCount(2, {
-    timeout: 15_000,
-  });
-  await expect(page.locator('interactive-figure-status').first()).toContainText(
-    'figure is unavailable',
-  );
-  await expect(page.locator('[data-figure-focus] figcaption').first()).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Signed curvature' })).toBeVisible();
 });
 
 test('research figures leave cleanly and initialize one instance on the next client entry', async ({

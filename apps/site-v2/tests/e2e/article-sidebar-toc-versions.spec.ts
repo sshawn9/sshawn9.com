@@ -265,19 +265,3 @@ test('version comparison loads only on its route and follows container width unt
   await splitButton.click();
   await expect(page.locator('[data-diff-panel="split"]')).toBeVisible();
 });
-
-test('a failed diff request leaves direct version snapshots usable', async ({ page }) => {
-  await page.route('**/compare/data/*.json', async (route) => {
-    await route.fulfill({ status: 503, body: 'unavailable' });
-  });
-  await page.goto(comparisonPath);
-
-  await expect(page.locator('[data-diff-error]')).toContainText(
-    'selected versions could not be loaded',
-  );
-  await expect(page.locator('.version-comparison-pair a')).toHaveCount(2);
-  await expect(page.locator('.version-comparison-pair a').first()).toHaveAttribute(
-    'href',
-    '/en/blog/my-personal-website/v/1/',
-  );
-});

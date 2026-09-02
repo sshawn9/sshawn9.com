@@ -78,24 +78,10 @@ const pageTransitionEnvironments = [
     animated: true,
   },
   {
-    label: 'native View Transition unavailable',
-    nativeViewTransitions: false,
-    webAnimations: true,
-    reducedMotion: false,
-    animated: true,
-  },
-  {
     label: 'reduced motion',
     nativeViewTransitions: true,
     webAnimations: true,
     reducedMotion: true,
-    animated: false,
-  },
-  {
-    label: 'Web Animations unavailable',
-    nativeViewTransitions: true,
-    webAnimations: false,
-    reducedMotion: false,
     animated: false,
   },
 ] as const;

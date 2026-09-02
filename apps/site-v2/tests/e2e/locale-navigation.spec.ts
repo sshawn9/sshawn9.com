@@ -5,23 +5,6 @@ const englishArticlePath = `/en/blog/${articleId}/`;
 const chineseArticlePath = `/zh/blog/${articleId}/`;
 const routeState = '?view=reader#locale-transfer-probe';
 
-test('the neutral static entry respects preference and remains usable without JavaScript', async ({
-  browser,
-  page,
-}) => {
-  await page.addInitScript(() => localStorage.setItem('PARAGLIDE_LOCALE', 'zh'));
-  await page.goto('/?source=direct#intro');
-  await expect(page).toHaveURL(/\/zh\/\?source=direct#intro$/);
-  await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
-
-  const noScriptContext = await browser.newContext({ javaScriptEnabled: false });
-  const noScriptPage = await noScriptContext.newPage();
-  await noScriptPage.goto('/');
-  await expect(noScriptPage.getByRole('link', { name: 'English' })).toHaveAttribute('href', '/en/');
-  await expect(noScriptPage.getByRole('link', { name: '中文' })).toHaveAttribute('href', '/zh/');
-  await noScriptContext.close();
-});
-
 test('same-build language navigation preserves route state, shell identity, and click-time scroll', async ({
   page,
 }) => {

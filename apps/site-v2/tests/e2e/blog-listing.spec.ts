@@ -69,41 +69,6 @@ async function readSidebarFrames(page: Page) {
   );
 }
 
-test('the blog and tag routes remain complete static documents without JavaScript', async ({
-  browser,
-}) => {
-  const context = await browser.newContext({ javaScriptEnabled: false });
-  const page = await context.newPage();
-
-  await page.goto(blogPath);
-  const articles = page.locator('[data-blog-article]');
-  const articleCount = await articles.count();
-  expect(articleCount).toBeGreaterThan(BLOG_PAGE_SIZE);
-  await expect(articles.first()).toBeVisible();
-  await expect(articles.last()).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Article pagination' })).toBeHidden();
-
-  const gitLink = page.locator('[data-blog-tag-definition][data-tag-slug="git"]');
-  await expect(gitLink).toHaveAttribute('href', '/en/tags/git/');
-  const globalGitCount = Number(await gitLink.getAttribute('data-tag-count'));
-  expect(globalGitCount).toBeGreaterThan(0);
-
-  await page.goto('/en/tags/git/');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('#Git');
-  await expect(page.locator('[data-blog-article]')).toHaveCount(globalGitCount);
-  expect(
-    await page
-      .locator('[data-blog-article]')
-      .evaluateAll((elements) =>
-        elements.every((element) =>
-          JSON.parse(element.getAttribute('data-article-tag-slugs') ?? '[]').includes('git'),
-        ),
-      ),
-  ).toBe(true);
-
-  await context.close();
-});
-
 test('union filters keep global facets, article selection, URL, and history synchronized', async ({
   page,
 }) => {

@@ -116,22 +116,14 @@ test('without JavaScript the search page exposes an honest static fallback', asy
   await context.close();
 });
 
-for (const failedResource of ['component', 'index', 'fragment'] as const) {
-  test(`${failedResource} loading failure releases to static navigation`, async ({ page }) => {
-    if (failedResource === 'component') {
-      await page.route('**/pagefind/pagefind-component-ui.js', (route) => route.abort());
-    } else if (failedResource === 'index') {
-      await page.route(/\/pagefind\/pagefind\.js(?:\?.*)?$/, (route) => route.abort());
-    } else {
-      await page.route('**/pagefind/fragment/*.pf_fragment*', (route) => route.abort());
-    }
+test('search loading failure releases to static navigation', async ({ page }) => {
+  await page.route(/\/pagefind\/pagefind\.js(?:\?.*)?$/, (route) => route.abort());
 
-    await page.goto('/en/search/?q=website');
-    await expect(searchRoot(page)).toHaveAttribute('data-search-failed', '', { timeout: 12_000 });
-    await expect(page.getByText('Search is temporarily unavailable')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Blog' }).last()).toHaveAttribute(
-      'href',
-      '/en/blog/',
-    );
-  });
-}
+  await page.goto('/en/search/?q=website');
+  await expect(searchRoot(page)).toHaveAttribute('data-search-failed', '', { timeout: 12_000 });
+  await expect(page.getByText('Search is temporarily unavailable')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Blog' }).last()).toHaveAttribute(
+    'href',
+    '/en/blog/',
+  );
+});

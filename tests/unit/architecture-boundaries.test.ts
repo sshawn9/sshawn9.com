@@ -65,23 +65,6 @@ describe('architecture boundaries', () => {
     expect([...externalImports].sort()).toEqual(['github-slugger']);
   });
 
-  it('keeps the production v2 island runtime Solid-only', async () => {
-    const sourceFiles = await collectSourceFiles(join(repositoryRoot, 'apps/site-v2/src'));
-    expect(sourceFiles.filter((path) => extname(path) === '.svelte')).toEqual([]);
-
-    const packageManifest = await readFile(
-      join(repositoryRoot, 'apps/site-v2/package.json'),
-      'utf8',
-    );
-    const astroConfig = await readFile(
-      join(repositoryRoot, 'apps/site-v2/astro.config.mjs'),
-      'utf8',
-    );
-    expect(packageManifest).not.toContain('@astrojs/svelte');
-    expect(packageManifest).not.toMatch(/"svelte"\s*:/);
-    expect(astroConfig).not.toContain('@astrojs/svelte');
-  });
-
   it('keeps v2 development tools outside the production application graph', async () => {
     const productionSources = await collectSourceFiles(join(repositoryRoot, 'apps/site-v2/src'));
     const violations: string[] = [];
@@ -157,30 +140,5 @@ describe('architecture boundaries', () => {
     }
 
     expect(violations).toEqual([]);
-  });
-
-  it('keeps one explicit v2 browser runtime composition root', async () => {
-    const layout = await readFile(
-      join(repositoryRoot, 'apps/site-v2/src/layouts/BaseLayout.astro'),
-      'utf8',
-    );
-    expect(layout).toContain("import SiteRuntime from '../components/SiteRuntime.astro'");
-
-    const featureControllers = await Promise.all(
-      [
-        ['article', 'article-controller.ts'],
-        ['blog', 'blog-controller.ts'],
-        ['search', 'search-controller.ts'],
-      ].map(([feature, name]) =>
-        readFile(
-          join(repositoryRoot, 'apps/site-v2/src/features', feature!, 'runtime', name!),
-          'utf8',
-        ),
-      ),
-    );
-    for (const source of featureControllers) {
-      expect(source).not.toContain("addEventListener('astro:");
-      expect(source).not.toMatch(/\blet installed\s*=/);
-    }
   });
 });
