@@ -9,7 +9,7 @@
 - [较新版本为草稿时，Production 继续发布该文章最新的已发布版本](./较新版本为草稿时，Production-继续发布该文章最新的已发布版本.md)
 - [草稿过滤统一作用于文章路由、列表、标签、项目、搜索与站点地图](./草稿过滤统一作用于文章路由、列表、标签、项目、搜索与站点地图.md)
 - [草稿不是标签，草稿工具不得进入正式页面结构](./草稿不是标签，草稿工具不得进入正式页面结构.md)
-- [just dev 提供 Astro Dev Toolbar 草稿入口，可直接查看全部草稿](./just-dev-提供-Astro-Dev-Toolbar-草稿入口，可直接查看全部草稿.md)
+- [本地开发提供草稿和单语文章工具，生产构建完全隔离](./本地开发提供草稿和单语文章工具，生产构建完全隔离.md)
 - [部署 Preview 展示草稿但不包含 Astro Dev Toolbar](./部署-Preview-展示草稿但不包含-Astro-Dev-Toolbar.md)
 - [Production 产物不得包含草稿内容、草稿路由或 Dev Toolbar 资源](./Production-产物不得包含草稿内容、草稿路由或-Dev-Toolbar-资源.md)
 - [Preview 同时使用 HTML 与 HTTP noindex，并且不生成可索引站点地图](./Preview-同时使用-HTML-与-HTTP-noindex，并且不生成可索引站点地图.md)

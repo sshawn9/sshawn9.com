@@ -1,90 +1,53 @@
 # 正式站点 v2
 
-本目录是全站重构的正式应用，不是 POC。它与当前生产应用拥有独立入口和构建输出，迁移完成前不得绑定生产域名。
+本目录是重构后的正式静态站点应用。M1–M4 已完成，当前处于 M4R 基座收口；在 M5 平台验收和 M6 生产切换完成前，它与现有生产应用保持独立。
 
-## M3.1（已完成）
+## 应用边界
 
-- 使用仓库中真实的文章内容与共享类型化 schema；
-- 用 `git-operations-reference` 建立列表 → 长文章 → 返回列表的首个纵切；
-- 由 Astro 输出完整静态 HTML，ClientRouter 是唯一客户端导航器；
-- SiteShell 是静态 Astro HTML，不建立 UI 框架根；
-- 暂不迁移视觉系统、Sidebar、搜索、壁纸或研究交互。
+- Astro 生成每个 URL 的完整 HTML；正文、导航和核心链接不依赖 JavaScript 才出现。
+- Astro ClientRouter 是唯一文档导航器；站点代码只协调状态、滚动、字体和页面生命周期。
+- SiteShell 是持久的静态 Astro HTML，由小型 TypeScript 控制器增强，不建立全站 UI 框架根。
+- 普通页面交互使用局部 DOM 控制器；复杂研究交互使用隔离的 Solid 岛。
+- 内容源位于仓库根目录 `src/content/`，界面文案位于 `messages/`。
+- 领域、构建、i18n 与内容交互分别由 `packages/site-domain`、`site-build`、`site-i18n` 和 `content-ui` 提供。
+- 普通 HTML 和静态资源由 Cloudflare Static Assets 直接提供；根目录 `worker/` 只负责壁纸 API、KV 与 Cron。
 
-当前纵切只证明正式应用边界和真实内容接入，不能作为功能完整的公开 Preview。后续功能必须按行为领域迁移，不得从 `experiments/rearchitecture` 整目录复制代码。
+具体决策见 `docs/rearchitecture/ADR-001-static-document-application.md` 和 `ADR-002-client-runtime-and-state-ownership.md`。
 
-## M3.2（已完成）
+## 本地开发
 
-- `StateLedger` 在 `history.state.sshawn9` 内校验并合并页面与命名滚动区状态，不覆盖 Astro 字段；
-- `FontCoordinator` 读取目标文档声明的精确 CSS font query，复用路由信号并提供有限超时；
-- `NavigationCoordinator` 包装官方 loader，负责代际门、准备事务、进度语义与嵌套滚动恢复，不实现第二套路由；
-- 静态 SiteShell 在同代导航保持节点身份，并在交换前从目标静态外壳同步语言、链接和当前项语义；
-- 正式 Chromium 测试覆盖同代持久、慢导航、跨代完整文档导航和快速取消。
+从仓库根目录运行：
 
-## M3.3（已完成）
+```bash
+npm run dev
+```
 
-- 首页、About 和普通文章均输出完整静态 HTML，无 JavaScript 时仍可读、可导航；
-- 绘制前入口直接由类型化的主题、StateLedger、滚动和 FontCoordinator 实现生成，不维护第二份无类型算法；
-- 初始文档在 `SiteRuntime` 前提供固定的文档末端 marker；支持 `rel=expect` 的浏览器只等待完整静态 HTML 解析，不等待网络资源；
-- 主题、布局和保存状态同步 prepaint，字体独立后台准备；页面不使用全局可见性门，完整正文始终保留在同一静态文档中；
-- 正式 Chromium 测试覆盖无脚本文档、构建产物边界、首个可见帧主题与几何稳定、深滚动硬刷新，以及 M3.2 的全部导航事务。
+该命令同时启动本应用的 Astro 开发服务器和本地 Worker API。开发配置注册 `Drafts` 与 `Single-language` Toolbar，并代理 `/api`；preview 和 production 配置不导入这些开发能力。
 
-## M4.1（已完成）
+只启动 Astro 页面与 Toolbar：
 
-- 博客首页输出完整的时间顺序文章 HTML；禁用脚本时不分页隐藏，所有文章和真实标签链接仍可使用；
-- 每个标签均有静态 `/{locale}/tags/{slug}/` 页面，标签 slug、全局计数和文章选择来自共享领域层；
-- 小型 DOM 控制器只增强并集筛选、分页、URL 历史、移动 disclosure 和左侧 Sidebar，不建立 UI 框架根或第二套路由；
-- 查询状态、Sidebar 宽度、折叠状态和标签滚动在目标文档显示前恢复，正常加载不依赖水合占位或任意计时；
-- 正式 Chromium 测试覆盖无脚本回退、筛选和历史、筛选与分页冷进入连续帧、指针与键盘调宽、折叠、首帧几何、独立滚动和移动端同树。
+```bash
+npm run dev --workspace @sshawn9/site-v2 -- --background
+```
 
-## M4.2（已完成）
+常用验证命令：
 
-- 稳定文章 URL、永久历史版本 URL、版本内语言选择、发布日期与构建期 Git 最后更新时间来自共享领域层；
-- 文章头、支持信息、正文按批准的 `BCP-002` 排列；桌面用 Grid 保持正文左、Sidebar 右，移动端在正文前提供紧凑支持模块；
-- 文章信息、完整目录和全部版本链接均为静态 HTML；小型控制器只增强 Sidebar 几何、目录当前章节、Popover 和嵌套滚动状态；
-- 比较页只在该路由加载 Svelte、diff 与 diff2html；默认布局取比较主区域的实际宽度，用户手动选择在当前页面存活期间优先；
-- 禁用 JavaScript 或比较资源失败时仍保留两个完整版本的永久链接；历史版本使用自身标题、描述和标签快照；
-- 正式 Chromium 测试覆盖无脚本与 DOM 顺序、首帧 Sidebar 几何、深滚动目录恢复、版本永久链接、比较懒加载/容器响应/手动覆盖和失败回退。
+```bash
+npm run check:v2
+npm run build:v2
+npm run test:e2e:v2
+```
 
-## M4.3（已完成）
+## 目录
 
-- 中立 `/` 仍是 Static Assets 文档，head 同步解析 `PARAGLIDE_LOCALE`、系统语言和英语默认值；无 JavaScript 时提供两个真实语言入口；
-- 当前界面语言只由 URL 决定；持久外壳的语言链接在点击同步阶段保留 query/hash 并保存目标偏好；
-- `NavigationCoordinator` 以点击瞬间的实际滚动位置创建一次性 session transfer，同构建在 swap 后消费，跨构建由 head 初始文档协调器在静态文档解析完成后消费；
-- `<html lang>` 始终表达请求的界面语言，回退正文只在 `<article lang>` 标明实际内容语言；
-- 正式 Chromium 证据覆盖中立入口与无脚本、同构建持久外壳、跨构建首帧滚动和回退正文语言边界。
+```text
+config/       生产与开发共享的 Astro 配置工厂
+devtools/     仅开发环境导入的内容健康工具
+src/content/  应用侧内容发现、解析和路由适配
+src/features/ 页面功能、局部控制器与所属样式
+src/runtime/  跨页面浏览器组合根和基础设施
+src/styles/   token、基础元素和持久外壳样式
+tests/e2e/    只能由真实浏览器证明的关键行为证据
+```
 
-完整 Pagefind 搜索移至项目迁移后的 M4.6，一次接入完整页面集合；届时使用官方输入、摘要、结果、Escape 与骨架语义，只保留 URL、历史、代际和失败边界的薄接线。
-
-## M4.4（已完成）
-
-- 主题和景观背景由持久 SiteShell 内的独立控制器拥有，不随同构建导航重建；
-- 当前标签页保存浏览器实际选择的 Unsplash 压缩响应、署名和队列原子快照，不重新编码、不下载原始大图，也不写入 Worker/KV；
-- 正常同图刷新由本地首帧副本直接绘制且不重复淡入；副本真实失败时正文立即使用完整默认背景，照片恢复后只过渡一次；字体与壁纸均不阻塞页面；
-- Worker 只读取定时任务写入的 KV 清单，访客请求不会触发 Unsplash 刷新；
-- 正式 Chromium 测试覆盖主题首帧、同壳持久、保存照片、超时降级、单次过渡和下载上报边界。
-
-## M4.5（已完成）
-
-- 项目 schema、语言回退、正文存在性、排序和文章关联由共享领域层统一解析；未知项目引用在构建期失败；
-- 项目列表和详情均为完整静态文档；有正文时以正文为主体，无正文时提供描述、标签和关联文章组成的诚实内容入口；
-- 项目预览成为显式可选能力；当前运动控制项目保留静态首帧，并由 M4.7 恢复连续二维拖动；
-- 普通说明图片保持正文流；显式附件保留无脚本原图链接，并仅在页面实际包含附件时按需加载大图查看器；
-- 正式 Chromium 测试覆盖无脚本项目页、语言回退、自动文章关联、持久外壳和媒体查看器生命周期。
-
-## M4.6（已完成）
-
-- Pagefind 与 HTML 由同一次构建产生，索引 38 个批准页面并按语言隔离；
-- 使用 Pagefind 官方 UI，只由薄接线拥有 URL、历史恢复、入口同步和有限失败边界；
-- 无 JavaScript 或组件、索引、分片失败时释放到完整静态页面与导航。
-
-## M4.7（已完成）
-
-- 研究岛只观察文档级字体状态，不再等待旧生产运行时；
-- Plotly、Vega、Solid、数学模型和既有图形效果保持不变；
-- 图表聚焦由局部自定义元素拥有连接、断开和导航清理，项目静态 SVG 恢复原有二维拖动；
-- 无 JavaScript 和图形资源失败时保留正文、图注、稳定几何与有限说明；
-- 正式 Chromium 测试覆盖真实控件、主题状态、聚焦、失败、离场清理和再次进入单实例。
-
-## 当前：M4R
-
-先完成 v2 基座体验回归与主观验收；随后在 M5 使用独立 Cloudflare Preview 验证 Static Assets、Access、缓存、不可变版本、真实网络和回滚路径，并且不在部署步骤重新构建产物。
+用户可见行为以 `docs/site-behavior-cases/` 为准。实现不得用本 README、历史里程碑或测试细节反向修改行为。
