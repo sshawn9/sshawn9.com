@@ -4,11 +4,11 @@
 
 ## 当前基线
 
-198 个案例当前全部处于生效状态。按约束对象分为三类：
+190 个案例当前全部处于生效状态。按约束对象分为三类：
 
 | 类型               | 目录范围                                                                                                                                                                                                                            | 数量 | 含义                                                       |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---: | ---------------------------------------------------------- |
-| 产品与用户体验契约 | `refresh-navigation-lifecycle`、`site-structure-responsive-visual`、`locale-theme-fonts`、`scenic-wallpaper`、`blog-tags-sidebar`、`article-sidebar-toc-versions`、`content-tags-projects-media`、`search`、`research-interactions` |  163 | 用户能观察到的内容、视觉、交互、可访问性和性能边界         |
+| 产品与用户体验契约 | `refresh-navigation-lifecycle`、`site-structure-responsive-visual`、`locale-theme-fonts`、`scenic-wallpaper`、`blog-tags-sidebar`、`article-sidebar-toc-versions`、`content-tags-projects-media`、`search`、`research-interactions` |  155 | 用户能观察到的内容、视觉、交互、可访问性和性能边界         |
 | 交付与运行契约     | `development-preview-production`、`browser-cache-artifacts`                                                                                                                                                                         |   27 | 构建、预览、发布、缓存、隔离、回滚及生产安全边界           |
 | 验证协议           | `validation-failure-classification`                                                                                                                                                                                                 |    8 | 怎样取得证据、怎样区分故障，以及什么证据不足以宣称行为正确 |
 
