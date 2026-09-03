@@ -18,8 +18,6 @@ export type FoundationCopy = {
   searchPlaceholder: string;
   searchEmptyTitle: string;
   searchEmptyDescription: string;
-  searchNoScriptTitle: string;
-  searchNoScriptDescription: string;
   searchUnavailableTitle: string;
   searchUnavailableDescription: string;
   searchResultTypePage: string;
@@ -122,8 +120,6 @@ export function getFoundationCopy(locale: Locale): FoundationCopy {
     searchPlaceholder: staticMessage(m.search_placeholder),
     searchEmptyTitle: staticMessage(m.search_empty_title),
     searchEmptyDescription: staticMessage(m.search_empty_description),
-    searchNoScriptTitle: staticMessage(m.search_no_script_title),
-    searchNoScriptDescription: staticMessage(m.search_no_script_description),
     searchUnavailableTitle: staticMessage(m.search_unavailable_title),
     searchUnavailableDescription: staticMessage(m.search_unavailable_description),
     searchResultTypePage: staticMessage(m.search_result_type_page),

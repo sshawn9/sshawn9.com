@@ -9,8 +9,8 @@ import SiteShellController from '../components/SiteShellController.astro';
 import { getFoundationCopy } from '@sshawn9/site-i18n/copy';
 import { BUILD_ID_META_NAME } from '../runtime/build-generation';
 import { CURRENT_BUILD_ID } from '../runtime/build-identity';
-import { FONT_QUERY_META_NAME } from '../runtime/font-coordinator';
 import { createInitialFrameScript, INITIAL_FRAME_READY_ID } from '../runtime/initial-frame';
+import { REQUIRED_FONT_META_NAME } from '../runtime/required-fonts';
 import { SITE_CONTEXT } from '../config/site-context';
 import '../styles/index.css';
 
@@ -59,7 +59,6 @@ const documentTitle = title === 'SHAWN' ? title : `${title} · SHAWN`;
 const declaredFontQueries = [
   '400 1em var(--font-source-sans-3)',
   '700 1em var(--font-manrope)',
-  '400 1em "Noto Sans SC Variable"',
   ...fontQueries,
 ].filter((query, index, queries) => queries.indexOf(query) === index);
 const prepaintScript = prepaintScripts.join('\n');
@@ -77,9 +76,10 @@ const documentNoIndex = noIndex || SITE_CONTEXT.noIndex;
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href={`/site.${locale}.webmanifest`} />
     <meta name={BUILD_ID_META_NAME} content={CURRENT_BUILD_ID} />
-    {declaredFontQueries.map((query) => <meta name={FONT_QUERY_META_NAME} content={query} />)}
+    {declaredFontQueries.map((query) => <meta name={REQUIRED_FONT_META_NAME} content={query} />)}
     <Font cssVariable="--font-manrope" preload={[{ weight: '200 800', style: 'normal' }]} />
     <Font cssVariable="--font-source-sans-3" preload={[{ weight: '200 900', style: 'normal' }]} />
+    <Font cssVariable="--font-jetbrains-mono" preload={[{ weight: '100 800', style: 'normal' }]} />
     {description && <meta name="description" content={description} />}
     {searchable && <meta data-pagefind-meta="title[content]" content={title} />}
     {
@@ -111,17 +111,6 @@ const documentNoIndex = noIndex || SITE_CONTEXT.noIndex;
     <title>{documentTitle}</title>
     <link rel="expect" href={`#${INITIAL_FRAME_READY_ID}`} blocking="render" />
     {prepaintScript && <script is:inline set:html={prepaintScript} />}
-    <noscript>
-      <style is:global>
-        [data-font-surface] {
-          visibility: visible !important;
-          --font-display: var(--font-display-fallback);
-          --font-sans: var(--font-sans-fallback);
-          --font-mono: var(--font-mono-fallback);
-          font-family: var(--font-sans-fallback);
-        }
-      </style>
-    </noscript>
     <ClientRouter fallback="swap" />
   </head>
   <body>

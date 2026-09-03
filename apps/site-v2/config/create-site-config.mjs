@@ -4,6 +4,7 @@ import { createSiteParaglidePlugin } from '@sshawn9/site-i18n/paraglide';
 import solid from '@astrojs/solid-js';
 import { envField, fontProviders } from 'astro/config';
 import { fileURLToPath } from 'node:url';
+import { developmentFontAssets } from './development-font-assets.mjs';
 
 const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const publicDirectory = fileURLToPath(new URL('../../../public', import.meta.url));
@@ -35,7 +36,7 @@ export function createSiteConfig({ integrations = [], viteServer = {} } = {}) {
         weights: ['200 800'],
         styles: ['normal'],
         subsets: ['latin'],
-        fallbacks: ['Noto Sans SC Variable', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
+        fallbacks: ['Noto Sans SC Variable'],
         optimizedFallbacks: false,
       },
       {
@@ -64,7 +65,29 @@ export function createSiteConfig({ integrations = [], viteServer = {} } = {}) {
         weights: ['200 900'],
         styles: ['normal', 'italic'],
         subsets: ['latin'],
-        fallbacks: ['Noto Sans SC Variable', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
+        fallbacks: ['Noto Sans SC Variable'],
+        optimizedFallbacks: false,
+      },
+      {
+        provider: localFonts,
+        name: 'JetBrains Mono Variable',
+        cssVariable: '--font-jetbrains-mono',
+        display: 'block',
+        options: {
+          variants: [
+            {
+              src: [
+                '@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2',
+              ],
+              weight: '100 800',
+              style: 'normal',
+            },
+          ],
+        },
+        weights: ['100 800'],
+        styles: ['normal'],
+        subsets: ['latin'],
+        fallbacks: ['Noto Sans SC Variable'],
         optimizedFallbacks: false,
       },
     ],
@@ -91,7 +114,7 @@ export function createSiteConfig({ integrations = [], viteServer = {} } = {}) {
       },
     },
     vite: {
-      plugins: [createSiteParaglidePlugin()],
+      plugins: [...developmentFontAssets(), createSiteParaglidePlugin()],
       define: {
         'import.meta.env.V2_BUILD_ID': JSON.stringify(buildId),
       },

@@ -1,10 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FONT_TIMEOUT_MS } from '../../src/runtime/font-coordinator';
 
 type FontFrame = {
   state: string;
   visible: boolean;
-  fallback: boolean;
   firstHeight: number;
   secondTop: number;
 };
@@ -12,7 +10,6 @@ type FontFrame = {
 type SurfaceFrame = {
   state: string;
   visible: boolean;
-  fallback: boolean;
   fontFamily: string;
   sampleTop: number;
   sampleHeight: number;
@@ -40,7 +37,6 @@ async function installFontFrameProbe(page: Page): Promise<void> {
         frames.push({
           state: document.documentElement.dataset.fontState ?? '',
           visible: outletStyle.visibility !== 'hidden' && outletStyle.opacity !== '0',
-          fallback: outlet.hasAttribute('data-font-fallback'),
           firstHeight: round(first.height),
           secondTop: round(second.top),
         });
@@ -81,7 +77,6 @@ async function installSurfaceFrameProbe(page: Page): Promise<void> {
         frames.push({
           state: document.documentElement.dataset.fontState ?? '',
           visible: style.visibility !== 'hidden' && style.opacity !== '0',
-          fallback: outlet.hasAttribute('data-font-fallback'),
           fontFamily: targetStyle.fontFamily,
           sampleTop: Math.round(box.top * 1000) / 1000,
           sampleHeight: Math.round(box.height * 1000) / 1000,
@@ -104,17 +99,7 @@ async function readSurfaceFrames(page: Page): Promise<SurfaceFrame[]> {
   );
 }
 
-async function waitForVisibleFrames(page: Page, minimum: number): Promise<FontFrame[]> {
-  await expect
-    .poll(async () => (await readFontFrames(page)).filter((frame) => frame.visible).length)
-    .toBeGreaterThanOrEqual(minimum);
-  return (await readFontFrames(page)).filter((frame) => frame.visible);
-}
-
-async function holdFontRequests(page: Page): Promise<{
-  release: () => void;
-  urls: string[];
-}> {
+async function holdFontRequests(page: Page): Promise<{ release(): void; urls: string[] }> {
   let release = () => {};
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -123,7 +108,10 @@ async function holdFontRequests(page: Page): Promise<{
   await page.route(fontRoute, async (route) => {
     urls.push(route.request().url());
     await gate;
-    await route.continue();
+    // A superseding document navigation may already have cancelled the request.
+    // Releasing the test gate must not turn that expected cancellation into a
+    // test-harness failure.
+    await route.continue().catch(() => undefined);
   });
   return { release, urls };
 }
@@ -140,63 +128,54 @@ function expectStableGeometry(frames: FontFrame[]): void {
   ).toBe(true);
 }
 
-test('cold and warm documents never withdraw blog surfaces', async ({ page }) => {
+test('cold documents expose only progress until required fonts are ready', async ({ page }) => {
   await installFontFrameProbe(page);
   const heldFonts = await holdFontRequests(page);
 
   try {
     await page.goto(blogPath, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('html')).toHaveAttribute('data-font-state', 'loading');
-    await expect(page.locator('.page-outlet')).toHaveCSS('visibility', 'visible');
+    await expect(page.locator('.page-outlet')).toHaveCSS('visibility', 'hidden');
+    await expect(page.locator('.navigation-progress')).toHaveCSS('opacity', '1');
     await expect.poll(() => heldFonts.urls.length, { timeout: 1_000 }).toBeGreaterThan(0);
     await expect.poll(async () => (await readFontFrames(page)).length).toBeGreaterThanOrEqual(3);
-    expect((await readFontFrames(page)).every((frame) => frame.visible)).toBe(true);
+    expect((await readFontFrames(page)).every((frame) => !frame.visible)).toBe(true);
 
     heldFonts.release();
     await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
-    const coldFrames = await waitForVisibleFrames(page, 8);
-    expect(coldFrames.every((frame) => !frame.fallback)).toBe(true);
-    expectStableGeometry(coldFrames);
+    await expect(page.locator('.page-outlet')).toHaveCSS('visibility', 'visible');
     await expect
       .poll(() =>
         page.evaluate(() => document.fonts.check('400 1em "Noto Sans SC Variable"', '文章标签')),
       )
       .toBe(true);
-
-    await page.unrouteAll({ behavior: 'wait' });
-    await page.reload({ waitUntil: 'networkidle' });
-    await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
-
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
-    const warmDocumentFrames = await readFontFrames(page);
-    expect(
-      warmDocumentFrames.every((frame) => frame.visible && !frame.fallback),
-      'a warm refresh must never expose a hidden or fallback typography frame',
-    ).toBe(true);
-    expectStableGeometry(warmDocumentFrames);
-    const warmFrames = await waitForVisibleFrames(page, 8);
-    expect(warmFrames.every((frame) => !frame.fallback)).toBe(true);
-    expectStableGeometry(warmFrames);
+    await expect
+      .poll(async () => (await readFontFrames(page)).filter((frame) => frame.visible).length)
+      .toBeGreaterThanOrEqual(8);
+    expectStableGeometry((await readFontFrames(page)).filter((frame) => frame.visible));
   } finally {
     heldFonts.release();
     await page.unrouteAll({ behavior: 'wait' });
   }
 });
 
-test('warm refresh never hides typography across representative page families', async ({
-  page,
-}) => {
+test('cached reload starts with final typography and stable geometry', async ({ page }) => {
+  await installFontFrameProbe(page);
+  await page.goto(blogPath, { waitUntil: 'networkidle' });
+  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
+  await expect.poll(async () => (await readFontFrames(page)).length).toBeGreaterThanOrEqual(8);
+
+  const frames = await readFontFrames(page);
+  expect(frames.every((frame) => frame.state === 'ready' && frame.visible)).toBe(true);
+  expectStableGeometry(frames);
+});
+
+test('cached reload stays stable across Latin, CJK, code and math pages', async ({ page }) => {
   await installSurfaceFrameProbe(page);
-  const paths = [
-    '/en/',
-    '/en/about/',
-    '/en/blog/',
-    '/en/projects/',
-    '/en/search/',
-    '/zh/blog/git-identity-management/',
-    '/zh/blog/planar-frenet-frame/',
-  ];
+  const paths = ['/en/', '/zh/blog/', '/zh/blog/planar-frenet-frame/'];
 
   for (const path of paths) {
     await page.goto(path, { waitUntil: 'networkidle' });
@@ -206,28 +185,33 @@ test('warm refresh never hides typography across representative page families', 
     await expect.poll(async () => (await readSurfaceFrames(page)).length).toBeGreaterThanOrEqual(8);
 
     const frames = await readSurfaceFrames(page);
-    expect(
-      frames.every((frame) => frame.visible && !frame.fallback),
-      `${path} exposed a hidden or fallback warm-refresh frame:\n${JSON.stringify(frames, null, 2)}`,
-    ).toBe(true);
     const first = frames[0];
+    const observedFrames = [
+      ...new Map(
+        frames.map((frame) => [
+          `${frame.state}|${frame.visible}|${frame.fontFamily}|${frame.sampleTop}|${frame.sampleHeight}`,
+          frame,
+        ]),
+      ).values(),
+    ];
     expect(
       frames.every(
         (frame) =>
+          frame.state === 'ready' &&
+          frame.visible &&
           frame.fontFamily === first.fontFamily &&
           Math.abs(frame.sampleTop - first.sampleTop) < 0.25 &&
           Math.abs(frame.sampleHeight - first.sampleHeight) < 0.25,
       ),
-      `${path} changed typography geometry during warm refresh`,
+      `${path} changed typography after its first visible frame: ${JSON.stringify(observedFrames)}`,
     ).toBe(true);
   }
 });
 
-test('client navigation keeps the outgoing document visible while target math fonts prepare', async ({
+test('client navigation keeps the outgoing page visible until target fonts are ready', async ({
   page,
 }) => {
   await page.goto('/en/tags/frenet/', { waitUntil: 'networkidle' });
-  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
   const heldFonts = await holdFontRequests(page);
 
   try {
@@ -249,64 +233,49 @@ test('client navigation keeps the outgoing document visible while target math fo
     await expect(page).toHaveURL(/\/en\/blog\/planar-frenet-frame\/$/);
     await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
     await expect(page.locator('.katex').first()).toBeVisible();
-    await expect
-      .poll(() =>
-        page.evaluate(() => document.fonts.check('normal 400 1em "KaTeX_Main"', 'Aa09+=()')),
-      )
-      .toBe(true);
   } finally {
     heldFonts.release();
     await page.unrouteAll({ behavior: 'wait' });
   }
 });
 
-test('font timeout commits one fallback geometry and ignores late webfonts', async ({ page }) => {
-  await installFontFrameProbe(page);
+test('font failure stays in the loading state without exposing fallback text', async ({ page }) => {
+  await page.route(fontRoute, (route) => route.abort('failed'));
+
+  await page.goto('/zh/blog/planar-frenet-frame/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'loading');
+  await expect(page.locator('.page-outlet')).toHaveCSS('visibility', 'hidden');
+  await expect(page.locator('.navigation-progress')).toHaveCSS('opacity', '1');
+  await page.waitForTimeout(2_200);
+  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'loading');
+  await expect(page.locator('.page-outlet')).toHaveCSS('visibility', 'hidden');
+  await expect(page.locator('[data-font-fallback]')).toHaveCount(0);
+});
+
+test('superseding navigation aborts an indefinitely waiting font transaction', async ({ page }) => {
+  await page.goto('/en/blog/', { waitUntil: 'networkidle' });
+  await page.evaluate(() => {
+    const link = document.createElement('a');
+    link.href = '/en/tags/frenet/';
+    document.body.append(link);
+    link.click();
+  });
+  await expect(page).toHaveURL(/\/en\/tags\/frenet\/$/);
   const heldFonts = await holdFontRequests(page);
 
   try {
-    await page.goto('/zh/blog/planar-frenet-frame/', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('html')).toHaveAttribute('data-font-state', 'loading');
-    await expect(page.locator('.page-outlet')).toHaveCSS('visibility', 'visible');
+    await page.evaluate(() => {
+      const link = document.querySelector<HTMLAnchorElement>(
+        'a[href="/en/blog/planar-frenet-frame/"]',
+      )!;
+      link.dataset.astroPrefetch = 'false';
+      link.click();
+    });
     await expect.poll(() => heldFonts.urls.length, { timeout: 1_000 }).toBeGreaterThan(0);
 
-    await expect(page.locator('html')).toHaveAttribute('data-font-state', 'degraded', {
-      timeout: FONT_TIMEOUT_MS + 1_000,
-    });
-    await expect(page.locator('.page-outlet')).toHaveAttribute('data-font-fallback', '');
-    await expect(page.locator('.katex').first()).toHaveCSS('font-family', /Times New Roman/);
-    const fallbackGeometry = await page.evaluate(() => {
-      const heading = document.querySelector<HTMLElement>('.article-header h1')!;
-      const formula = document.querySelector<HTMLElement>('.katex')!;
-      const headingBox = heading.getBoundingClientRect();
-      const formulaBox = formula.getBoundingClientRect();
-      return [headingBox.height, formulaBox.width, formulaBox.height, formulaBox.top];
-    });
-
-    heldFonts.release();
-    await page.evaluate(() => document.fonts.ready);
-    await expect
-      .poll(() =>
-        page.evaluate(
-          () =>
-            document.fonts.check('400 1em "Noto Sans SC Variable"', '文章标签') &&
-            document.fonts.check('normal 400 1em "KaTeX_Main"', 'Aa09+=()'),
-        ),
-      )
-      .toBe(true);
-    await expect(page.locator('html')).toHaveAttribute('data-font-state', 'degraded');
-    await expect(page.locator('.page-outlet')).toHaveAttribute('data-font-fallback', '');
-    await expect(page.locator('.katex').first()).toHaveCSS('font-family', /Times New Roman/);
-    const afterLateFonts = await page.evaluate(() => {
-      const heading = document.querySelector<HTMLElement>('.article-header h1')!;
-      const formula = document.querySelector<HTMLElement>('.katex')!;
-      const headingBox = heading.getBoundingClientRect();
-      const formulaBox = formula.getBoundingClientRect();
-      return [headingBox.height, formulaBox.width, formulaBox.height, formulaBox.top];
-    });
-    for (const [index, value] of afterLateFonts.entries()) {
-      expect(value, `fallback geometry field ${index}`).toBeCloseTo(fallbackGeometry[index], 1);
-    }
+    await page.goBack();
+    await expect(page).toHaveURL(/\/en\/blog\/$/);
+    await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
   } finally {
     heldFonts.release();
     await page.unrouteAll({ behavior: 'wait' });

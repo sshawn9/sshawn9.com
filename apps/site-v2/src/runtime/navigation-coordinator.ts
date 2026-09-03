@@ -7,7 +7,6 @@ import { prepareTargetBlogSidebarState } from '../features/blog/runtime/blog-sid
 import { prepareTargetBlogView } from '../features/blog/runtime/blog-view-state';
 import { decideBuildNavigation, readDocumentBuildId } from './build-generation';
 import { CURRENT_BUILD_ID } from './build-identity';
-import { prepareTargetFonts, reflectFontPreparation } from './font-coordinator';
 import {
   consumeLocaleNavigationTransfer,
   discardLocaleNavigationTransfer,
@@ -21,6 +20,7 @@ import {
   reflectNavigationFeedback,
 } from './navigation-feedback';
 import { PageOutletTransition } from './page-outlet-transition';
+import { waitForRequiredFonts } from './required-fonts';
 import {
   persistCurrentScroll,
   readCurrentScroll,
@@ -208,15 +208,14 @@ export function installNavigationCoordinator(
       prepareTargetBlogSidebarState(event.newDocument, sourceWindow);
       prepareTargetArticleSidebarState(event.newDocument, sourceWindow);
 
-      let fontResult;
       try {
-        fontResult = await prepareTargetFonts(sourceDocument, event.newDocument, event.signal);
+        await waitForRequiredFonts(sourceDocument, event.newDocument, { signal: event.signal });
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
         throw error;
       }
       if (!event.signal.aborted && isCurrentTransaction(id)) {
-        reflectFontPreparation(event.newDocument, fontResult);
+        event.newDocument.documentElement.dataset.fontState = 'ready';
         await pageTransition.prepareOutgoing(event.signal);
       }
     };

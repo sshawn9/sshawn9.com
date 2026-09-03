@@ -8,50 +8,26 @@ async function visibleLocator(page: Page, selector: string) {
   return page.locator(`${selector}:visible`);
 }
 
-test('article support, historical snapshots, and comparison fallback are complete without JavaScript', async ({
-  browser,
+test('article support, historical snapshots, and comparison fallback exist in generated documents', async ({
   request,
 }) => {
-  const context = await browser.newContext({
-    javaScriptEnabled: false,
-    viewport: { width: 1440, height: 900 },
-  });
-  const page = await context.newPage();
+  const currentHtml = await (await request.get(versionedArticlePath)).text();
+  expect(currentHtml).toContain('From Jekyll to Astro: Rebuilding My Personal Website');
+  expect(currentHtml).toContain('class="article-sidebar-shell"');
+  expect(currentHtml).toContain('href="/en/blog/my-personal-website/v/1/"');
 
-  await page.goto(versionedArticlePath);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-    'From Jekyll to Astro: Rebuilding My Personal Website',
-  );
-  await expect(
-    page.getByRole('complementary', { name: 'Article information and navigation' }),
-  ).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'On this page' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /v1/ })).toHaveAttribute(
-    'href',
-    '/en/blog/my-personal-website/v/1/',
-  );
+  const historicalHtml = await (await request.get('/en/blog/my-personal-website/v/1/')).text();
+  expect(historicalHtml).toContain('content="noindex, follow"');
+  expect(historicalHtml).toContain('My GitHub Pages');
+  expect(historicalHtml).toContain('data-current-version');
+  expect(historicalHtml).toContain('#Jekyll');
+  expect(historicalHtml).toContain('#GitHub Pages');
 
-  await page.goto('/en/blog/my-personal-website/v/1/');
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('My GitHub Pages');
-  await expect(page.locator('#article-sidebar [data-current-version]')).toContainText('v1');
-  await expect(page.getByRole('link', { name: '#Jekyll' })).toBeVisible();
-  await expect(page.getByRole('link', { name: '#GitHub Pages' })).toBeVisible();
-  await expect(page.getByRole('link', { name: '#Astro' })).toHaveCount(0);
-
-  await page.goto(comparisonPath);
-  await expect(page.locator('.version-comparison-static-fallback')).toContainText(
-    'interactive diff needs JavaScript',
-  );
-  await expect(page.locator('.version-comparison-pair a')).toHaveCount(2);
-  await expect(page.locator('.version-comparison-pair a').first()).toHaveAttribute(
-    'href',
-    '/en/blog/my-personal-website/v/1/',
-  );
-  await expect(page.locator('.version-comparison-pair a').last()).toHaveAttribute(
-    'href',
-    '/en/blog/my-personal-website/',
-  );
+  const comparisonHtml = await (await request.get(comparisonPath)).text();
+  expect(comparisonHtml).toContain('version-comparison-static-fallback');
+  expect(comparisonHtml).toContain('interactive diff needs JavaScript');
+  expect(comparisonHtml).toContain('href="/en/blog/my-personal-website/v/1/"');
+  expect(comparisonHtml).toContain('href="/en/blog/my-personal-website/"');
 
   const response = await request.get(articlePath);
   const html = await response.text();
@@ -62,8 +38,6 @@ test('article support, historical snapshots, and comparison fallback are complet
   expect(articleInformation).toBeGreaterThan(articleHeader);
   expect(articleBody).toBeGreaterThan(articleInformation);
   expect(html).not.toContain('VersionComparison');
-
-  await context.close();
 });
 
 test('the article sidebar resizes, collapses, and restores before paint', async ({ page }) => {

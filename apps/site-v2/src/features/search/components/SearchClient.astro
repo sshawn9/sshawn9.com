@@ -101,16 +101,11 @@ const placeholderTemplate = `
   </div>
 
   <div data-search-fallback hidden>
-    <SearchFallback {locale} reason="unavailable" />
-  </div>
-
-  <div data-search-no-script-fallback>
-    <SearchFallback {locale} reason="no-script" />
+    <SearchFallback {locale} />
   </div>
 
   <script is:inline>
     const searchRoot = document.currentScript?.closest('[data-site-search]');
-    searchRoot?.querySelector('[data-search-no-script-fallback]')?.setAttribute('hidden', '');
     searchRoot?.querySelector('[data-search-loading]')?.removeAttribute('hidden');
   </script>
 </div>

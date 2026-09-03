@@ -100,22 +100,6 @@ test('returning from a result restores the query, results, and search-page scrol
     .toBeGreaterThan(Math.max(300, savedY - 100));
 });
 
-test('without JavaScript the search page exposes an honest static fallback', async ({
-  browser,
-}) => {
-  const context = await browser.newContext({ javaScriptEnabled: false });
-  const page = await context.newPage();
-  await page.goto('/zh/search/');
-
-  await expect(page.getByText('搜索需要 JavaScript')).toBeVisible();
-  await expect(page.getByRole('searchbox')).toBeDisabled();
-  await expect(page.getByRole('link', { name: '项目' }).last()).toHaveAttribute(
-    'href',
-    '/zh/projects/',
-  );
-  await context.close();
-});
-
 test('search loading failure releases to static navigation', async ({ page }) => {
   await page.route(/\/pagefind\/pagefind\.js(?:\?.*)?$/, (route) => route.abort());
 

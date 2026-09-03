@@ -420,6 +420,7 @@ html[data-appearance-script='enabled'] [data-appearance-controls] {
   background: var(--text-accent-hover);
 }
 
+html[data-font-state='loading'] .navigation-progress,
 html[data-navigation-progress='active'] .navigation-progress {
   animation: navigation-progress 1.1s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   opacity: 1;

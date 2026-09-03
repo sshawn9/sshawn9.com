@@ -1,6 +1,6 @@
 import { createArticleTocInitialFrameSource } from '../features/article/runtime/article-toc-state';
-import { createDeclaredFontPreparationSource, FONT_TIMEOUT_MS } from './font-coordinator';
 import { createLocaleNavigationTransferSource } from './locale-navigation-transfer';
+import { createRequiredFontsInlineSource } from './required-fonts';
 import { createScrollRestorationSource } from './scroll-state';
 import { createScrollSnapshotDecoderSource } from './state-ledger';
 
@@ -48,16 +48,16 @@ export function synchronizeClientRouterInitialScrollState(
 }
 
 /**
- * Generates the document-state coordinator installed immediately before the
- * end-of-body render boundary. At that point CSS and every typography surface
- * are known, so this document's FontFaceSet can prepare its exact requirements
- * before any typography surface is allowed to paint.
+ * Generates the document-state entry installed immediately before the
+ * end-of-body render boundary. A warm document commits synchronously before
+ * first paint; a cold document keeps typography hidden until its exact fonts
+ * and final scroll placement are both ready.
  */
 export function createInitialFrameScript(): string {
   const stateDecoderSource = createScrollSnapshotDecoderSource();
   const scrollRestorationSource = createScrollRestorationSource();
   const localeNavigationTransferSource = createLocaleNavigationTransferSource();
-  const fontPreparationSource = createDeclaredFontPreparationSource();
+  const fontPreparationSource = createRequiredFontsInlineSource();
   const articleTocSource = createArticleTocInitialFrameSource();
   const clientRouterScrollSource = synchronizeClientRouterInitialScrollState.toString();
   const initialScrollRestorationSource = armInitialScrollRestoration.toString();
@@ -93,27 +93,16 @@ export function createInitialFrameScript(): string {
         else if (snapshot) restorePageAndNestedScroll(document, window, snapshot);
         synchronizeArticleToc(document, window);
       };
-      if (areDeclaredFontsReady(document, document)) {
-        reflectFontPreparation(document, 'ready');
+      const commitReadyDocument = () => {
         commitPlacement();
+        document.documentElement.dataset.fontState = 'ready';
+      };
+
+      if (areRequiredFontsReady(document)) {
+        commitReadyDocument();
         return;
       }
-      let settled = false;
-      const finish = (result) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        reflectFontPreparation(document, result);
-        commitPlacement();
-      };
-      const timeout = setTimeout(() => finish('timeout'), ${FONT_TIMEOUT_MS});
-      prepareDeclaredFonts(document, document).then(finish, () => finish('degraded'));
-    } catch {
-      const release = () => {
-        reflectFontPreparation(document, 'degraded');
-      };
-      if (document.body) release();
-      else document.addEventListener('DOMContentLoaded', release, { once: true });
-    }
+      void waitForRequiredFonts(document).then(commitReadyDocument).catch(() => undefined);
+    } catch {}
   })();`;
 }
