@@ -1,20 +1,51 @@
 import mdx from '@astrojs/mdx';
+import sitemap from '@astrojs/sitemap';
 import { createMarkdownProcessor } from '@sshawn9/site-build/markdown';
 import { createSiteParaglidePlugin } from '@sshawn9/site-i18n/paraglide';
 import solid from '@astrojs/solid-js';
 import { envField, fontProviders } from 'astro/config';
+import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { developmentFontAssets } from './development-font-assets.mjs';
 
 const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const publicDirectory = fileURLToPath(new URL('../../../public', import.meta.url));
+const outputDirectory = new URL('../dist/', import.meta.url);
+const site = 'https://sshawn9.com';
+
+function createIndexabilityResolver() {
+  const results = new Map();
+
+  return async (pageUrl) => {
+    if (results.has(pageUrl)) return results.get(pageUrl);
+
+    const result = (async () => {
+      const pathname = new URL(pageUrl).pathname;
+      const relativePath = `${pathname.replace(/^\//, '')}${pathname.endsWith('/') ? 'index.html' : ''}`;
+      try {
+        const html = await readFile(new URL(relativePath, outputDirectory), 'utf8');
+        return !/<meta name="robots" content="[^"]*\bnoindex\b/.test(html);
+      } catch (error) {
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+          return true;
+        }
+        throw error;
+      }
+    })();
+
+    results.set(pageUrl, result);
+    return result;
+  };
+}
 
 export function createSiteConfig({ integrations = [], viteServer = {} } = {}) {
   const buildId = process.env.V2_BUILD_ID ?? '';
+  const previewBuild = process.env.SITE_MODE === 'preview';
   const localFonts = fontProviders.local();
+  const isIndexablePage = createIndexabilityResolver();
 
   return {
-    site: 'https://sshawn9.com',
+    site,
     publicDir: publicDirectory,
     output: 'static',
     trailingSlash: 'always',
@@ -104,7 +135,39 @@ export function createSiteConfig({ integrations = [], viteServer = {} } = {}) {
     markdown: {
       processor: createMarkdownProcessor(),
     },
-    integrations: [...integrations, solid(), mdx({ processor: createMarkdownProcessor() })],
+    integrations: [
+      ...integrations,
+      solid(),
+      mdx({ processor: createMarkdownProcessor() }),
+      ...(previewBuild
+        ? []
+        : [
+            sitemap({
+              filter: (page) =>
+                page !== `${site}/` &&
+                !page.includes('/compare/') &&
+                !page.includes('/v/') &&
+                !page.endsWith('/search/'),
+              i18n: {
+                defaultLocale: 'en',
+                locales: { en: 'en', zh: 'zh-CN' },
+              },
+              serialize: async (item) => {
+                if (!(await isIndexablePage(item.url))) return undefined;
+                if (item.links) {
+                  const links = await Promise.all(
+                    item.links.map(async (link) => ({
+                      link,
+                      indexable: await isIndexablePage(link.url),
+                    })),
+                  );
+                  item.links = links.filter(({ indexable }) => indexable).map(({ link }) => link);
+                }
+                return item;
+              },
+            }),
+          ]),
+    ],
     i18n: {
       defaultLocale: 'en',
       locales: ['en', 'zh'],

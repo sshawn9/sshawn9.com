@@ -22,15 +22,13 @@ describe('architecture boundaries', () => {
   it('consumers use package exports instead of package source paths', async () => {
     const sourceFiles = (
       await Promise.all(
-        ['apps/site-v2/src', 'src', 'tests/unit', 'worker'].map((directory) =>
+        ['apps/site-v2/src', 'tests/unit', 'worker'].map((directory) =>
           collectSourceFiles(join(repositoryRoot, directory)),
         ),
       )
     )
       .flat()
       .filter((path) => !path.endsWith('architecture-boundaries.test.ts'));
-    sourceFiles.push(join(repositoryRoot, 'astro.config.mjs'));
-
     const forbiddenImports = [
       'packages/content-ui/src',
       'packages/site-build/src',
@@ -65,7 +63,7 @@ describe('architecture boundaries', () => {
     expect([...externalImports].sort()).toEqual(['github-slugger']);
   });
 
-  it('keeps v2 development tools outside the production application graph', async () => {
+  it('keeps development tools outside the production application graph', async () => {
     const productionSources = await collectSourceFiles(join(repositoryRoot, 'apps/site-v2/src'));
     const violations: string[] = [];
 
@@ -136,14 +134,14 @@ describe('architecture boundaries', () => {
         .map((path) => relative(repositoryRoot, path)),
     ).toEqual([]);
 
-    const legacyImports: string[] = [];
+    const applicationImports: string[] = [];
     for (const path of contentFiles.filter((path) => extname(path) === '.mdx')) {
       const source = await readFile(path, 'utf8');
       if (/from\s+["'](?:\.\.\/)+(?:components|i18n|lib|paraglide|styles)\//.test(source)) {
-        legacyImports.push(relative(repositoryRoot, path));
+        applicationImports.push(relative(repositoryRoot, path));
       }
     }
-    expect(legacyImports).toEqual([]);
+    expect(applicationImports).toEqual([]);
   });
 
   it('keeps shared packages from reaching back into application source', async () => {

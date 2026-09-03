@@ -2,9 +2,9 @@
 dist
 node_modules
 package-lock.json
-public/pagefind
+docs/site-behavior-cases
+packages/site-i18n/generated
 project.inlang/.gitignore
 project.inlang/.meta.json
 project.inlang/README.md
 project.inlang/cache
-src/paraglide

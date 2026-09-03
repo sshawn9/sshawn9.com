@@ -7,12 +7,7 @@ import {
 export const THEME_KEY = 'theme';
 export const ENABLED_KEY = 'wallpaper-enabled';
 export const AUTO_ROTATION_KEY = 'wallpaper-auto-rotation';
-export const LEGACY_ROTATION_KEY = 'wallpaper-rotation-mode';
 export const TAB_STATE_KEY = 'wallpaper-tab-state-v3';
-export const LEGACY_SESSION_KEYS = ['wallpaper-session-v2', 'wallpaper-session-v1'] as const;
-export const LEGACY_PHOTO_KEY = 'wallpaper-current-photo';
-export const LEGACY_BACKGROUND_KEY = 'wallpaper-current-background';
-export const LEGACY_QUEUE_KEY = 'wallpaper-photo-queue';
 export const MANIFEST_ENDPOINT = '/api/wallpapers';
 export const DOWNLOAD_ENDPOINT = '/api/wallpapers/download';
 export const SLOT_NAMES = ['a', 'b'] as const;
@@ -73,11 +68,10 @@ export function isWallpaperImageUrl(value: unknown): value is string {
   return isUnsplashImageUrl(value);
 }
 
-export function isWallpaperDataUrl(value: unknown, allowLegacySize = false): value is string {
-  const maximum = allowLegacySize ? 3_400_000 : MAX_DATA_URL_LENGTH;
+export function isWallpaperDataUrl(value: unknown): value is string {
   return (
     typeof value === 'string' &&
-    value.length <= maximum &&
+    value.length <= MAX_DATA_URL_LENGTH &&
     /^data:image\/(?:avif|jpe?g|png|webp);base64,[a-zA-Z0-9+/]+={0,2}$/.test(value)
   );
 }
@@ -112,9 +106,7 @@ export function readPreferences(
   try {
     storedTheme = local?.getItem(THEME_KEY);
     enabled = local?.getItem(ENABLED_KEY) !== 'false';
-    const storedAuto = local?.getItem(AUTO_ROTATION_KEY);
-    autoRotation =
-      storedAuto == null ? local?.getItem(LEGACY_ROTATION_KEY) !== 'fixed' : storedAuto !== 'false';
+    autoRotation = local?.getItem(AUTO_ROTATION_KEY) !== 'false';
   } catch {}
   const hasExplicitTheme = storedTheme === 'light' || storedTheme === 'dark';
   const theme: Theme = hasExplicitTheme ? (storedTheme as Theme) : prefersDark ? 'dark' : 'light';

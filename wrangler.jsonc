@@ -17,7 +17,7 @@
     "crons": ["0 */3 * * *"],
   },
   "assets": {
-    "directory": "./dist",
+    "directory": "./apps/site-v2/dist",
     "binding": "ASSETS",
     "run_worker_first": ["/api/wallpapers", "/api/wallpapers/download"],
     "not_found_handling": "404-page",

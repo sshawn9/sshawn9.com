@@ -39,7 +39,7 @@ jobs:
           SITE_MODE: preview
       - run: npx playwright install --with-deps chromium
       - name: Test preview site
-        run: npm run test:e2e:legacy
+        run: npm run test:e2e
         env:
           SITE_MODE: preview
       - name: Upload verified preview site
@@ -47,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: site-preview-${{ github.sha }}
-          path: dist/
+          path: apps/site-v2/dist/
           if-no-files-found: error
           retention-days: 1
       - name: Build production site
@@ -57,7 +57,7 @@ jobs:
           SITE_MODE: production
       - name: Test production site
         if: ${{ inputs.upload_production }}
-        run: npm run test:e2e:legacy
+        run: npm run test:e2e
         env:
           SITE_MODE: production
       - name: Upload verified production site
@@ -65,7 +65,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: site-production-${{ github.sha }}
-          path: dist/
+          path: apps/site-v2/dist/
           if-no-files-found: error
           retention-days: 1
       - name: Upload Playwright traces
@@ -73,6 +73,6 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-traces
-          path: test-results/
+          path: apps/site-v2/test-results/
           retention-days: 7
           if-no-files-found: ignore

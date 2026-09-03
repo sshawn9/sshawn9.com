@@ -6,7 +6,6 @@ import {
   type Locale,
 } from '@sshawn9/site-domain/locales';
 
-/** Kept compatible with the current production site across the v2 cutover. */
 export const LOCALE_PREFERENCE_KEY = 'PARAGLIDE_LOCALE';
 
 export function saveLocalePreference(storage: Storage, locale: Locale): boolean {

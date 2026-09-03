@@ -1,21 +1,19 @@
 # sshawn9.com
 
-Shawn 的个人网站，用于展示项目、发布博客和进行个人介绍。当前文案有意保持简短，便于决定最终保留哪些内容。
+Shawn 的个人网站，用于展示项目、发布博客和个人介绍。当前分支只有一套站点应用；历史实现不再留在工作树中，需要对照时从 Git 历史读取。
 
 ## 技术栈
 
-- Astro 7：静态生成与官方客户端视图过渡
-- Tailwind CSS 4：设计系统与响应式界面
+- Astro 7：静态生成与官方 ClientRouter
 - Astro Content Collections：具有类型约束的文章与项目内容
 - Paraglide JS：类型安全的中英文界面文案
-- Expressive Code：代码块渲染
 - Pagefind Component UI：构建时生成的多语言全站搜索
-- 基于 Kobalte 原语的小型 SolidJS 岛：文章筛选与分页
-- Tocbot：文章目录及当前章节高亮
+- 按功能归属的 CSS 与 TypeScript 控制器：布局、导航、列表和目录增强
+- 隔离的 SolidJS 岛：研究图形与复杂局部交互
 - Diff2Html 与 jsdiff：按需比较文章的完整历史版本
-- `astro-seo`、`astro-seo-schema` 与 Astro 官方 sitemap 集成：页面元信息
+- PhotoSwipe：文章图片查看器
+- Astro 官方 sitemap 集成：生产站点地图
 - 浏览器原生 Popover API：菜单与展开面板
-- Motion：渐进增强且尊重“减少动态效果”偏好的动画
 - Cloudflare Workers Static Assets：生产环境托管
 - Cloudflare Cron Triggers 与 Workers KV：定时更新 Unsplash 背景照片池
 
@@ -26,7 +24,7 @@ npm ci
 npm run dev
 ```
 
-`npm run dev` 是 v2 的完整开发入口：Astro 在 `127.0.0.1:4332` 提供页面、HMR 和 Dev Toolbar，Wrangler 在 `127.0.0.1:8787` 提供 Worker API。Astro 仅在开发配置中把 `/api` 代理到 Wrangler；生产配置不导入 Toolbar 或开发代理。
+`npm run dev` 是完整开发入口：Astro 在 `127.0.0.1:4332` 提供页面、HMR 和 Dev Toolbar，Wrangler 在 `127.0.0.1:8787` 提供 Worker API。Astro 仅在开发配置中把 `/api` 代理到 Wrangler；生产配置不导入 Toolbar 或开发代理。
 
 Toolbar 中的 `Drafts` 会列出草稿，`Single-language` 会列出缺少某种语言的文章版本。若只需页面与 Toolbar，也可单独后台运行 Astro：
 
@@ -34,16 +32,14 @@ Toolbar 中的 `Drafts` 会列出草稿，`Single-language` 会列出缺少某�
 npm run dev --workspace @sshawn9/site-v2 -- --background
 ```
 
-旧站开发入口暂时保留为 `npm run dev:legacy`，只用于迁移对照。
-
 完整的本地验证流程：
 
 ```bash
-npm run check:v2
+npm run check
 npm test
 npm run format:check
-npm run build:v2
-npm run test:e2e:v2
+npm run build
+npm run test:e2e
 ```
 
 测试完整的动态背景前，将 Unsplash Access Key 写入本地密钥文件；完整的 `npm run dev` 会由 Wrangler 自动读取它：
@@ -54,9 +50,9 @@ cp .dev.vars.example .dev.vars
 npm run dev
 ```
 
-需要验证接近部署形态、包含草稿并带 `noindex` 的静态预览时，运行 `npm run preview:worker:v2`。
+需要验证接近部署形态、包含草稿并带 `noindex` 的静态预览时，运行 `npm run preview`。
 
-本仓库使用 Node 24 作为经过测试的开发运行时，`.nvmrc` 记录了这一建议版本。`npm run build:v2` 会生成静态网站及其 Pagefind 多语言全站索引。v2 浏览器测试使用独立端口，因此不会干扰 4332 上的常规开发服务器。
+本仓库使用 Node 24 作为经过测试的开发运行时，`.nvmrc` 记录了这一建议版本。`npm run build` 会在 `apps/site-v2/dist/` 生成静态网站及其 Pagefind 多语言全站索引。浏览器测试使用独立端口，因此不会干扰 4332 上的常规开发服务器。
 
 ## 国际化
 
@@ -155,7 +151,7 @@ projects:
 
 仓库刻意不提供修改内容目录的自动化脚本。当文章第一次发生实质性修订时，将原文章及其元信息完整保留为 `v1/` 快照，并将 `v2/` 创建为一份完整的新快照。后续修订依次增加 `v3/`、`v4/` 等目录。所有版本专属资源都应复制到对应版本目录，已经发布的旧版本目录保持不变。
 
-`src/lib/article-convention.ts` 中的路径解析器和 `src/lib/articles.ts` 中的小型适配器是仅有的理解这套约定的代码。路由和组件消费规范化后的 `Article` 与 `ArticleVersion` 数据，而不会自行解析路径。
+`packages/site-domain/src/article-convention.ts` 定义路径约定，`apps/site-v2/src/content/` 负责把 Astro 内容条目适配成页面所需的数据。路由和组件消费规范化后的文章与版本数据，不自行解析路径。
 
 每篇文章只有一个规范的版本比较页面。访客打开该页面时，网站只下载当前选中的两份不可变 Markdown 快照。
 
@@ -171,13 +167,13 @@ src/content/projects/my-project/
 └── images/
 ```
 
-`src/lib/projects.ts` 使用与文章相同的“请求语言优先、其他语言回退”规则。项目详情页首先渲染人工编写的项目正文，然后根据最新已发布文章的元信息生成相关文章列表。因此，文章标题和可选描述会遵循当前语言及其常规回退规则，不需要复制到项目 Markdown 中。
+`packages/site-domain/src/projects.ts` 定义项目解析规则，`apps/site-v2/src/content/project-catalog.ts` 负责当前应用的数据适配。项目详情页首先渲染人工编写的项目正文，然后根据最新已发布文章的元信息生成相关文章列表。
 
 Paraglide 负责页面级文案和界面文案，长篇文章与项目记录仍由 Content Collections 管理。
 
 ## 质量验证
 
-Vitest 覆盖文章路径、版本、语言回退和标签计数约定。Playwright 覆盖静态检查无法证明的行为，包括语言偏好、ClientRouter 下的语言与主题切换、固定标签筛选项以及按需版本比较。GitHub Actions 验证任务会执行格式检查、类型检查、单元测试、预览构建和浏览器测试。`main` 分支部署还会在发布前重新构建并测试生产版本。
+Vitest 覆盖纯领域规则和窄模块边界；Playwright 只覆盖必须由真实浏览器证明的用户行为。测试从当前需求和行为契约派生：需求改变时测试随之修改或删除，测试本身不得成为保留旧实现或兼容分支的理由。GitHub Actions 会验证格式、类型、单元测试、构建和浏览器行为，并部署同一套站点产物。
 
 ## 部署
 

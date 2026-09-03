@@ -1,6 +1,6 @@
-# 正式站点 v2
+# 正式站点应用
 
-本目录是重构后的正式静态站点应用。M1–M4 已完成，当前处于 M4R 基座收口；在 M5 平台验收和 M6 生产切换完成前，它与现有生产应用保持独立。
+本目录是当前分支唯一的正式静态站点应用。M1–M4 已完成，当前处于 M4R 基座收口；历史实现只保留在 Git 历史和已部署的 Cloudflare 版本中。
 
 ## 应用边界
 
@@ -33,9 +33,9 @@ npm run dev --workspace @sshawn9/site-v2 -- --background
 常用验证命令：
 
 ```bash
-npm run check:v2
-npm run build:v2
-npm run test:e2e:v2
+npm run check
+npm run build
+npm run test:e2e
 ```
 
 ## 目录

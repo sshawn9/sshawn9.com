@@ -4,8 +4,8 @@ import {
   getArticleTags,
   getArticleUpdatedAt,
   resolveArticles,
-  type BlogEntry,
-} from '../../src/lib/articles';
+  type ResolvableArticleEntry,
+} from '@sshawn9/site-domain/articles';
 
 type EntryOptions = {
   publishedAt?: string;
@@ -15,27 +15,20 @@ type EntryOptions = {
   projects?: string[];
 };
 
-function entry(id: string, options: EntryOptions = {}): BlogEntry {
+function entry(id: string, options: EntryOptions = {}): ResolvableArticleEntry {
   return {
     id,
-    collection: 'blog',
-    body: `Body for ${id}`,
     sourceLastModifiedAt: options.sourceLastModifiedAt
       ? new Date(options.sourceLastModifiedAt)
       : undefined,
     data: {
-      title: id,
-      description: id,
       publishedAt: new Date(options.publishedAt ?? '2024-01-01T00:00:00Z'),
       revisedAt: options.revisedAt ? new Date(options.revisedAt) : undefined,
       tags: options.tags ?? [],
-      projects: (options.projects ?? []).map((id) => ({
-        collection: 'projectMetadata' as const,
-        id,
-      })),
+      projects: (options.projects ?? []).map((id) => ({ id })),
       draft: false,
     },
-  } as BlogEntry;
+  };
 }
 
 describe('article resolution', () => {

@@ -1,7 +1,11 @@
 {
   "extends": "astro/tsconfigs/strict",
-  "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist", "apps", "experiments", "packages/site-i18n/generated"],
+  "include": [
+    "apps/site-v2/.astro/types.d.ts",
+    "worker/**/*.ts",
+    "tests/unit/**/*.ts",
+    "vitest.config.ts"
+  ],
   "compilerOptions": {
     "jsx": "preserve",
     "jsxImportSource": "solid-js"

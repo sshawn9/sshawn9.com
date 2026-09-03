@@ -1,26 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { resolveArticles, type BlogEntry } from '../../src/lib/articles';
-import { getArticlesForTag, getTagDefinitions, getTagHref, getTagSlug } from '../../src/lib/tags';
+import { resolveArticles, type ResolvableArticleEntry } from '@sshawn9/site-domain/articles';
+import { getArticlesForTag, getTagDefinitions, getTagSlug } from '@sshawn9/site-domain/tags';
 
-function entry(id: string, tags: string[]): BlogEntry {
+function entry(id: string, tags: string[]): ResolvableArticleEntry {
   return {
     id,
-    collection: 'blog',
-    body: id,
     data: {
-      title: id,
-      description: id,
       publishedAt: new Date('2024-01-01T00:00:00Z'),
       tags,
+      projects: [],
       draft: false,
     },
-  } as BlogEntry;
+  };
 }
 
 describe('tag routes', () => {
-  it('creates localized, URL-safe tag links with the maintained slugger', () => {
+  it('creates URL-safe tag slugs with the maintained slugger', () => {
     expect(getTagSlug('Control Systems')).toBe('control-systems');
-    expect(getTagHref('Control Systems', 'zh')).toBe('/zh/tags/control-systems/');
   });
 
   it('counts each article once and uses only its latest version', () => {
