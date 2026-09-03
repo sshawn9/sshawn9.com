@@ -12,7 +12,6 @@ interface Props {
 }
 
 const { locale, targetLocale, otherLocaleHref, copy, mobile = false } = Astro.props;
-const prefix = mobile ? 'mobile-' : '';
 const searchIsCurrent = Astro.url.pathname.startsWith(`/${locale}/search/`);
 ---
 
@@ -21,8 +20,6 @@ const searchIsCurrent = Astro.url.pathname.startsWith(`/${locale}/search/`);
     !mobile && (
       <a
         class="site-header__icon-control site-header__search"
-        data-shell-sync-key="search"
-        data-shell-nav-prefix={`/${locale}/search/`}
         href={`/${locale}/search/`}
         aria-label={copy.navSearch}
         title={copy.navSearch}
@@ -38,7 +35,6 @@ const searchIsCurrent = Astro.url.pathname.startsWith(`/${locale}/search/`);
 
   <a
     class="site-header__icon-control"
-    data-shell-sync-key={`${prefix}locale`}
     data-locale-switch={targetLocale}
     href={otherLocaleHref}
     hreflang={targetLocale}
@@ -55,7 +51,6 @@ const searchIsCurrent = Astro.url.pathname.startsWith(`/${locale}/search/`);
     <button
       type="button"
       class="site-header__icon-control site-header__theme"
-      data-shell-sync-key={`${prefix}theme-toggle`}
       data-theme-toggle
       data-theme-to-light-label={copy.themeToLight}
       data-theme-to-dark-label={copy.themeToDark}
@@ -79,7 +74,6 @@ const searchIsCurrent = Astro.url.pathname.startsWith(`/${locale}/search/`);
         <button
           type="button"
           class="site-header__icon-control"
-          data-shell-sync-key="wallpaper-trigger"
           aria-label={copy.wallpaperControls}
           title={copy.wallpaperControls}
           popovertarget="wallpaper-settings"

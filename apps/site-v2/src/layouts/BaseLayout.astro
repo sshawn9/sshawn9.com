@@ -5,7 +5,6 @@ import type { Locale } from '@sshawn9/site-domain/locales';
 import SiteFooter from '../components/SiteFooter.astro';
 import SiteRuntime from '../components/SiteRuntime.astro';
 import SiteShell from '../components/SiteShell.astro';
-import SiteShellController from '../components/SiteShellController.astro';
 import { getFoundationCopy } from '@sshawn9/site-i18n/copy';
 import { BUILD_ID_META_NAME } from '../runtime/build-generation';
 import { CURRENT_BUILD_ID } from '../runtime/build-identity';
@@ -116,7 +115,6 @@ const documentNoIndex = noIndex || SITE_CONTEXT.noIndex;
   <body>
     <a class="skip-link" href="#main-content" data-font-surface>{copy.skipToContent}</a>
     <SiteShell {locale} />
-    <SiteShellController />
     <div
       class="page-outlet"
       data-font-surface

@@ -5,13 +5,14 @@ const englishArticlePath = `/en/blog/${articleId}/`;
 const chineseArticlePath = `/zh/blog/${articleId}/`;
 const routeState = '?view=reader#locale-transfer-probe';
 
-test('same-build language navigation preserves route state, shell identity, and click-time scroll', async ({
+test('same-build language navigation preserves route state, wallpaper visual, and click-time scroll', async ({
   page,
 }) => {
   await page.goto(`${englishArticlePath}${routeState}`);
 
   const clickedY = await page.evaluate(() => {
-    document.querySelector<HTMLElement>('[data-site-shell]')!.dataset.identityProbe = 'original';
+    document.querySelector<HTMLElement>('[data-wallpaper-visual]')!.dataset.identityProbe =
+      'original';
     const maximumY = document.documentElement.scrollHeight - innerHeight;
     scrollTo(0, Math.min(1_800, maximumY - 200));
     const actualY = scrollY;
@@ -37,7 +38,7 @@ test('same-build language navigation preserves route state, shell identity, and 
   await expect(page).toHaveURL(
     new RegExp(`${chineseArticlePath.replaceAll('/', '\\/')}\\?view=reader#locale-transfer-probe$`),
   );
-  await expect(page.locator('[data-site-shell]')).toHaveAttribute(
+  await expect(page.locator('[data-wallpaper-visual]')).toHaveAttribute(
     'data-identity-probe',
     'original',
   );
@@ -55,9 +56,6 @@ test('fallback article content cannot override the requested interface language'
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.locator('article[data-article-page]')).toHaveAttribute('lang', 'zh-CN');
-  await expect(page.locator('[data-shell-sync-key="primary-navigation"]')).toHaveAttribute(
-    'aria-label',
-    'Main navigation',
-  );
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
   await expect(page.locator('.article-fallback-notice')).toBeVisible();
 });

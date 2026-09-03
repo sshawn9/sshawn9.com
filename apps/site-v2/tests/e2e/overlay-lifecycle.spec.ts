@@ -39,14 +39,14 @@ test('transient popovers stay exclusive and close when their invoking layout dis
     .poll(() =>
       page.evaluate(() => {
         const active = document.activeElement as HTMLElement | null;
-        return active?.dataset.shellSyncKey ?? active?.tagName ?? 'none';
+        return active?.hasAttribute('data-site-identity') ? 'home' : (active?.tagName ?? 'none');
       }),
     )
     .toBe('home');
 
   const versionToggle = page.locator('#article-sidebar [data-article-popover-toggle]');
   const comparison = page.locator('#article-version-comparison-desktop');
-  await page.locator('[data-shell-sync-key="wallpaper-trigger"]').click();
+  await page.locator('[data-wallpaper-menu-trigger]').click();
   await expect(wallpaperSettings).toHaveCSS('display', 'block');
   await versionToggle.evaluate((toggle) => {
     (toggle as HTMLButtonElement).focus();
@@ -57,7 +57,7 @@ test('transient popovers stay exclusive and close when their invoking layout dis
 
   await page.setViewportSize({ width: 800, height: 900 });
   await expect(comparison).not.toHaveCSS('display', 'block');
-  await expect(page.locator('[data-shell-sync-key="home"]')).toBeFocused();
+  await expect(page.locator('[data-site-identity]')).toBeFocused();
 });
 
 test('persistent popovers close at navigation start instead of surviving until page swap', async ({
@@ -78,12 +78,14 @@ test('persistent popovers close at navigation start instead of surviving until p
   });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/en/blog/');
-  await page.locator('[data-shell-sync-key="wallpaper-trigger"]').click();
+  await page.locator('[data-wallpaper-menu-trigger]').click();
   await expect(page.locator('#wallpaper-settings')).toHaveCSS('display', 'block');
 
   await page.evaluate(() => {
-    const link = document.querySelector<HTMLAnchorElement>('[data-shell-sync-key="projects"]');
-    if (!link) throw new Error('Missing persistent Projects navigation link.');
+    const link = document.querySelector<HTMLAnchorElement>(
+      '.site-header__nav-link[href="/en/projects/"]',
+    );
+    if (!link) throw new Error('Missing Projects navigation link.');
     link.dataset.astroPrefetch = 'false';
     link.click();
   });
@@ -126,8 +128,10 @@ test('modal figure and media viewers close while navigation is preparing', async
 
   gateBlogResponse = true;
   await page.evaluate(() => {
-    const link = document.querySelector<HTMLAnchorElement>('[data-shell-sync-key="blog"]');
-    if (!link) throw new Error('Missing persistent Blog navigation link.');
+    const link = document.querySelector<HTMLAnchorElement>(
+      '.site-header__nav-link[href="/en/blog/"]',
+    );
+    if (!link) throw new Error('Missing Blog navigation link.');
     link.dataset.astroPrefetch = 'false';
     link.click();
   });
@@ -166,8 +170,10 @@ test('modal figure and media viewers close while navigation is preparing', async
   expect(mediaViewerGeometry.scrollY).toBeCloseTo(mediaPageGeometry.scrollY, 1);
 
   await page.evaluate(() => {
-    const link = document.querySelector<HTMLAnchorElement>('[data-shell-sync-key="blog"]');
-    if (!link) throw new Error('Missing persistent Blog navigation link.');
+    const link = document.querySelector<HTMLAnchorElement>(
+      '.site-header__nav-link[href="/en/blog/"]',
+    );
+    if (!link) throw new Error('Missing Blog navigation link.');
     link.dataset.astroPrefetch = 'false';
     link.click();
   });

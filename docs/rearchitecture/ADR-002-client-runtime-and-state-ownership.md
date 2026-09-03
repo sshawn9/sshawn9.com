@@ -22,18 +22,19 @@
 BaseLayout（Astro 静态文档）
   ├── WallpaperSystem（head 启动并独立持续运行）
   ├── 页面状态 prepaint IIFE
-  ├── SiteShell.astro（持久静态 HTML）
-  ├── SiteShellController（解析期尽早启用外壳语义）
+  ├── SiteShell.astro（目标文档权威 Header）
+  ├── BackdropVisual（唯一持久 DOM 子树）
   ├── SiteRuntime（唯一的正常浏览器运行时组合根）
-  │   ├── NavigationCoordinator（导航、代际和滚动事务）
-  │   ├── PageRuntime（当前页面唯一的挂载/销毁所有者）
+  │   ├── NavigationCoordinator（代际、进度、字体门槛、转场和焦点）
+  │   ├── PageRuntime（页面准备与当前页面挂载/销毁）
+  │   ├── TransientOverlayController（短暂浮层）
   │   └── Content UI custom-element definitions
   └── 页面交互岛（各自拥有 mount/unmount）
 ```
 
-SiteShellController 作为自包含经典脚本紧邻静态外壳执行，并把安装状态记在持久 shell 自身；独立 WallpaperSystem 则从 head 的同一个入口完成同步状态投影并继续异步维护双槽位。其余长期控制器只由 SiteRuntime 安装，组合根持有每个销毁函数，不再由模块级 `installed` 标志或字符串事件互相抢占。
+目标文档是 Header 文案、链接、当前项和可访问语义的唯一权威来源。独立 WallpaperSystem 从 head 的同一个入口运行，在交换前投影主题、壁纸、署名和控件状态；跨页只移动纯壁纸视觉层，不再保留旧 Header 并手工复制目标属性。其余长期控制器只由 SiteRuntime 安装，组合根持有每个销毁函数。
 
-PageRuntime 是博客、文章和搜索页面唯一的 `before-swap → page-load` 所有者；各功能模块只返回与当前服务端 DOM 绑定的控制器。旧页面在 swap 前销毁，新页面在 `page-load` 挂载，同一 `main` 不重复挂载。普通文档离开时 SiteRuntime 统一释放监听、动画帧和计时器；进入浏览器 back-forward cache 时保留实例，让冻结文档恢复后继续工作。
+PageRuntime 是博客、文章和搜索页面的准备、挂载与销毁所有者；它通过显式类型化函数向 NavigationCoordinator 提供目标文档准备能力，后者只负责把这一步排在字体门槛和离场动画之前。旧页面在 swap 前销毁，新页面在 `page-load` 挂载，同一 `main` 不重复挂载。普通文档离开时 SiteRuntime 统一释放监听、动画帧和计时器；进入浏览器 back-forward cache 时保留实例，让冻结文档恢复后继续工作。
 
 所有入口都只使用 Astro 的公开生命周期事件和明确 DOM 语义，不读取 `window.swup`、`window.__...`，也不按名称查找全局 controller。页面级资源仍必须自行提供精确的 `destroy()`；Solid 岛继续由框架拥有 mount/unmount。
 
@@ -46,7 +47,7 @@ PageRuntime 是博客、文章和搜索页面唯一的 `before-swap → page-loa
 ```text
 before-preparation
   └── loader(): fetch → parse target document → preload target styles
-      └── local preparation: generation check → target font preparation
+      └── local preparation: generation check → page preparation → target font preparation → outgoing transition
 after-preparation
 before-swap
   └── framework swap
@@ -73,7 +74,7 @@ type NavigationPhase =
 
 ### `before-preparation`
 
-1. StateLedger 保存当前历史项的主滚动和嵌套滚动状态。
+1. StateLedger 只为硬刷新首帧和嵌套滚动保存快照，不参与普通目标页面主滚动决策。
 2. 导航状态进入 `preparing`，沿用现有进度提示延时和最短显示时间。
 3. 包装原始 `loader()` 并等待它完成。
 4. loader 失败、非 HTML、目标不支持客户端导航或事务被取消时，交给框架原生回退。
@@ -82,15 +83,15 @@ type NavigationPhase =
 
 ### `before-swap`
 
-- 各状态所有者分别把主题、背景模式、Sidebar 几何和其他持久偏好写入 `newDocument.documentElement`；
+- WallpaperSystem 把主题、背景模式、署名和控件状态投影到目标文档；
 - 不删除旧样式，不手写 head 合并；
 - 不自行替换 DOM，只允许框架 `swap()` 执行一次；
 - 导航状态进入 `swapping`。
 
 ### `after-swap` 与 `page-load`
 
-- 框架完成主滚动恢复后，StateLedger 恢复目标历史项的嵌套滚动区；
-- SiteShell 已持久存在；控制器根据目标 URL 同步 `aria-current` 等语义，不解析 JSON context 或重建组件实例；
+- 框架完成普通主滚动恢复后，本站只处理语言切换位置转移和目标历史项的嵌套滚动区；
+- 目标 Header 直接携带正确的 `aria-current`、语言和链接语义，不再执行客户端属性对账；
 - 页面岛通过自身 mount/unmount 接管，不扫描并重放所有页面脚本；
 - `page-load` 后结束进度策略，进入 `idle`。
 
@@ -101,7 +102,8 @@ type NavigationPhase =
 | 状态                                          | 权威来源                                     | 原因                                 |
 | --------------------------------------------- | -------------------------------------------- | ------------------------------------ |
 | locale、route、tag、page、query、version      | URL                                          | 可分享、可刷新、可由服务端独立重建   |
-| 当前历史项主滚动与嵌套滚动                    | `history.state.sshawn9`                      | 同一路径的多个历史项必须拥有不同快照 |
+| 普通客户端导航的主滚动                        | Astro ClientRouter 的历史状态                | 避免两个运行时同时恢复窗口位置       |
+| 硬刷新首帧快照与嵌套滚动                      | `history.state.sshawn9`                      | 浏览器不管理嵌套区；刷新必须首帧稳定 |
 | 主题、壁纸开关、语言偏好、Sidebar 几何        | `localStorage`                               | 跨标签页会话或跨会话的用户偏好       |
 | 当前/下一张壁纸、随机队列、一次性导航状态转移 | `sessionStorage`                             | 固定双槽位，只在当前标签页存活       |
 | 导航进度、打开的全局浮层                      | 对应文档级控制器内存与语义 DOM               | 瞬时 UI，不应写入存储                |
@@ -142,7 +144,7 @@ type SiteHistoryStateV1 = {
 - WallpaperSystem 的状态入口只有 `reload()` 和 `advance()`：配置、环境和恢复变化统一重载投影，手动与自动换图统一执行完整换图事务；换图后的备用槽补齐不属于 `advance()` 的等待范围。
 - 下载响应通过校验、解码并成功写入槽位后才能成为当前或下一张；有效同图刷新直接恢复同一份字节，不重新请求或播放淡入。
 - 新文档只更新下一张所用的图片策略，绝不以视口策略变化替换正在显示的当前照片。
-- 同构建导航由持久 SiteShell 保持画面实例；WallpaperSystem 自己把主题和背景模式投影到目标文档，导航协调器不依赖壁纸模块。
+- 同构建导航只持久化壁纸视觉层；WallpaperSystem 自己把主题、背景模式和控件状态投影到目标文档，导航协调器不依赖壁纸模块。
 - Worker 只读取 Cron 维护的 KV 清单、代理明确的下载上报并持有密钥；访客读取不得隐式刷新清单，普通 HTML 不进入 Worker。
 
 ## 绘制前恢复

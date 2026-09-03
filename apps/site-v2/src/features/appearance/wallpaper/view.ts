@@ -14,6 +14,14 @@ const ROOT_IMAGE_PROPERTIES = {
   b: '--wallpaper-slot-b-image',
 } as const;
 
+export interface WallpaperControls {
+  preferences: AppearancePreferences;
+  hasCurrent: boolean;
+  canAdvance: boolean;
+  advancing: boolean;
+  downloading: boolean;
+}
+
 function cssImage(dataUrl: string): string {
   return `url(${JSON.stringify(dataUrl)})`;
 }
@@ -56,12 +64,81 @@ function projectIdentity(
   root.dataset.wallpaperHasCurrent = 'true';
 }
 
+function projectSurfaceIdentity(
+  surface: HTMLElement,
+  slot: SlotName | null,
+  asset: WallpaperAsset | undefined,
+): void {
+  if (!slot || !asset) {
+    delete surface.dataset.wallpaperActiveSlot;
+    delete surface.dataset.wallpaperPhotoId;
+    delete surface.dataset.wallpaperHasCurrent;
+    return;
+  }
+  surface.dataset.wallpaperActiveSlot = slot;
+  surface.dataset.wallpaperPhotoId = asset.photo.id;
+  surface.dataset.wallpaperHasCurrent = 'true';
+}
+
+function projectCredit(target: Document, photo: WallpaperPhoto | undefined): void {
+  const surface = target.querySelector<HTMLElement>('[data-backdrop-surface]');
+  if (!surface) return;
+  const credit = surface.querySelector<HTMLElement>('[data-wallpaper-credit]');
+  const photographer = surface.querySelector<HTMLAnchorElement>(
+    '[data-wallpaper-credit-photographer]',
+  );
+  const photoLink = surface.querySelector<HTMLAnchorElement>('[data-wallpaper-credit-photo]');
+  if (!credit || !photographer || !photoLink) return;
+
+  if (photo) {
+    photographer.textContent = photo.photographerName;
+    photographer.href = photo.photographerUrl;
+    photoLink.href = photo.photoUrl;
+    credit.dataset.wallpaperPhotoId = photo.id;
+  }
+  credit.hidden = !photo || target.documentElement.dataset.wallpaperMode !== 'scenic';
+}
+
+function projectControls(target: Document, options: WallpaperControls): void {
+  const { preferences, hasCurrent, canAdvance, advancing, downloading } = options;
+  for (const input of target.querySelectorAll<HTMLInputElement>('[data-wallpaper-enabled]')) {
+    input.checked = preferences.enabled;
+  }
+  for (const input of target.querySelectorAll<HTMLInputElement>('[data-wallpaper-auto-rotation]')) {
+    input.checked = preferences.autoRotation;
+    input.disabled = !preferences.enabled || !hasCurrent;
+    input
+      .closest<HTMLElement>('[data-wallpaper-auto-rotation-control]')
+      ?.toggleAttribute('data-disabled', input.disabled);
+  }
+  for (const button of target.querySelectorAll<HTMLButtonElement>('[data-wallpaper-next]')) {
+    button.disabled = !preferences.enabled || !canAdvance || advancing;
+    button.ariaBusy = String(advancing);
+  }
+  for (const button of target.querySelectorAll<HTMLButtonElement>('[data-wallpaper-download]')) {
+    button.disabled = !preferences.enabled || !hasCurrent || downloading;
+    button.ariaBusy = String(downloading);
+  }
+  for (const button of target.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]')) {
+    const label =
+      preferences.theme === 'dark'
+        ? button.dataset.themeToLightLabel
+        : button.dataset.themeToDarkLabel;
+    if (label) {
+      button.ariaLabel = label;
+      button.title = label;
+    }
+    button.setAttribute('aria-pressed', String(preferences.theme === 'dark'));
+  }
+}
+
 /**
  * Projects wallpaper state into the DOM. It never selects, downloads or stores
  * a photo; the system owns those decisions and passes complete values in.
  */
 export class WallpaperView {
   private surface?: HTMLElement;
+  private visual?: HTMLElement;
   private surfaceObserver?: MutationObserver;
   private themeTimer?: number;
   private modeTimer?: number;
@@ -103,12 +180,13 @@ export class WallpaperView {
     }
   }
 
-  /** Keeps the persistent shell's appearance when Astro prepares a new document. */
+  /** Projects current appearance into Astro's target document before its atomic swap. */
   projectTargetDocument(
     target: Document,
     preferences: AppearancePreferences,
     currentSlot: SlotName | null,
     current: WallpaperAsset | undefined,
+    controls: WallpaperControls,
   ): void {
     target.documentElement.dataset.wallpaperSystemStarted = 'true';
     target.documentElement.dataset.appearanceScript = 'enabled';
@@ -116,6 +194,10 @@ export class WallpaperView {
     projectTheme(target, preferences.theme);
     projectMode(target, preferences.enabled);
     projectIdentity(target, currentSlot, current);
+    const surface = target.querySelector<HTMLElement>('[data-backdrop-surface]');
+    if (surface) projectSurfaceIdentity(surface, currentSlot, current);
+    projectCredit(target, current?.photo);
+    projectControls(target, controls);
   }
 
   connectSurface(): void {
@@ -124,12 +206,12 @@ export class WallpaperView {
     if (!candidate) return;
 
     this.surface = candidate;
+    this.visual = candidate.querySelector<HTMLElement>('[data-wallpaper-visual]') ?? undefined;
     this.surfaceObserver?.disconnect();
     this.surfaceObserver = undefined;
     if (this.activeSlot && this.activeAsset) {
       this.setSlotImage(this.activeSlot, this.activeAsset.dataUrl);
       this.reflectActive(this.activeSlot, this.activeAsset.photo);
-      candidate.dataset.wallpaperHasCurrent = 'true';
       // The root value existed only so the body could paint correctly before
       // this persistent surface was parsed. The surface owns it from here on.
       this.target.documentElement.style.removeProperty(ROOT_IMAGE_PROPERTIES[this.activeSlot]);
@@ -232,52 +314,11 @@ export class WallpaperView {
       });
     }
     surface.removeAttribute('data-wallpaper-image-transition');
-    surface.style.removeProperty(ROOT_IMAGE_PROPERTIES[previousSlot]);
+    this.clearSlotImage(previousSlot);
   }
 
-  renderControls(options: {
-    preferences: AppearancePreferences;
-    hasCurrent: boolean;
-    canAdvance: boolean;
-    advancing: boolean;
-    downloading: boolean;
-  }): void {
-    const { preferences, hasCurrent, canAdvance, advancing, downloading } = options;
-    for (const input of this.target.querySelectorAll<HTMLInputElement>(
-      '[data-wallpaper-enabled]',
-    )) {
-      input.checked = preferences.enabled;
-    }
-    for (const input of this.target.querySelectorAll<HTMLInputElement>(
-      '[data-wallpaper-auto-rotation]',
-    )) {
-      input.checked = preferences.autoRotation;
-      input.disabled = !preferences.enabled || !hasCurrent;
-      input
-        .closest<HTMLElement>('[data-wallpaper-auto-rotation-control]')
-        ?.toggleAttribute('data-disabled', input.disabled);
-    }
-    for (const button of this.target.querySelectorAll<HTMLButtonElement>('[data-wallpaper-next]')) {
-      button.disabled = !preferences.enabled || !canAdvance || advancing;
-      button.ariaBusy = String(advancing);
-    }
-    for (const button of this.target.querySelectorAll<HTMLButtonElement>(
-      '[data-wallpaper-download]',
-    )) {
-      button.disabled = !preferences.enabled || !hasCurrent || downloading;
-      button.ariaBusy = String(downloading);
-    }
-    for (const button of this.target.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]')) {
-      const label =
-        preferences.theme === 'dark'
-          ? button.dataset.themeToLightLabel
-          : button.dataset.themeToDarkLabel;
-      if (label) {
-        button.ariaLabel = label;
-        button.title = label;
-      }
-      button.setAttribute('aria-pressed', String(preferences.theme === 'dark'));
-    }
+  renderControls(options: WallpaperControls): void {
+    projectControls(this.target, options);
     this.updateCredit(this.activeAsset?.photo);
   }
 
@@ -289,8 +330,13 @@ export class WallpaperView {
   }
 
   private setSlotImage(slot: SlotName, dataUrl: string): void {
-    const owner = this.surface ?? this.target.documentElement;
+    const owner = this.visual ?? this.surface ?? this.target.documentElement;
     owner.style.setProperty(ROOT_IMAGE_PROPERTIES[slot], cssImage(dataUrl));
+  }
+
+  private clearSlotImage(slot: SlotName): void {
+    const owner = this.visual ?? this.surface ?? this.target.documentElement;
+    owner.style.removeProperty(ROOT_IMAGE_PROPERTIES[slot]);
   }
 
   private reflectActive(slot: SlotName, photo: WallpaperPhoto): void {
@@ -299,32 +345,13 @@ export class WallpaperView {
     root.dataset.wallpaperPhotoId = photo.id;
     root.dataset.wallpaperHasCurrent = 'true';
     if (this.surface) {
-      this.surface.dataset.wallpaperActiveSlot = slot;
-      this.surface.dataset.wallpaperPhotoId = photo.id;
-      this.surface.dataset.wallpaperHasCurrent = 'true';
+      projectSurfaceIdentity(this.surface, slot, this.activeAsset);
     }
     this.updateCredit(photo);
   }
 
   private updateCredit(photo: WallpaperPhoto | undefined): void {
-    const surface = this.surface;
-    if (!surface) return;
-    const credit = surface.querySelector<HTMLElement>('[data-wallpaper-credit]');
-    const photographer = surface.querySelector<HTMLAnchorElement>(
-      '[data-wallpaper-credit-photographer]',
-    );
-    const photoLink = surface.querySelector<HTMLAnchorElement>('[data-wallpaper-credit-photo]');
-    if (!credit || !photographer || !photoLink) return;
-
-    if (photo) {
-      if (photographer.textContent !== photo.photographerName) {
-        photographer.textContent = photo.photographerName;
-      }
-      if (photographer.href !== photo.photographerUrl) photographer.href = photo.photographerUrl;
-      if (photoLink.href !== photo.photoUrl) photoLink.href = photo.photoUrl;
-      credit.dataset.wallpaperPhotoId = photo.id;
-    }
-    credit.hidden = !photo || this.target.documentElement.dataset.wallpaperMode !== 'scenic';
+    projectCredit(this.target, photo);
   }
 
   private clearThemeTimer(): void {

@@ -18,13 +18,7 @@ const homeIsCurrent = Astro.url.pathname === `/${locale}/`;
 const copy = getFoundationCopy(locale);
 ---
 
-<div
-  class="site-shell"
-  lang={locale === 'zh' ? 'zh-CN' : 'en'}
-  data-site-shell
-  data-shell-locale={locale}
-  transition:persist="site-shell"
->
+<div class="site-shell">
   <BackdropSurface {locale} />
 
   <header class="site-header" transition:name="site-header" transition:animate="none">
@@ -32,7 +26,7 @@ const copy = getFoundationCopy(locale);
     <div class="content-shell site-header__inner" data-font-surface>
       <a
         class="site-identity"
-        data-shell-sync-key="home"
+        data-site-identity
         href={`/${locale}/`}
         aria-label={`${copy.home} · Shawn`}
         aria-current={homeIsCurrent ? 'page' : undefined}
@@ -49,7 +43,6 @@ const copy = getFoundationCopy(locale);
       <button
         type="button"
         class="site-header__menu-button"
-        data-shell-sync-key="mobile-menu-trigger"
         data-mobile-menu-trigger
         data-open-label={copy.openNavigation}
         data-close-label={copy.closeNavigation}
