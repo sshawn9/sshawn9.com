@@ -184,7 +184,8 @@ test('cached reload stays stable across Latin, CJK, code and math pages', async 
     await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
     await expect.poll(async () => (await readSurfaceFrames(page)).length).toBeGreaterThanOrEqual(8);
 
-    const frames = await readSurfaceFrames(page);
+    const frames = (await readSurfaceFrames(page)).filter((frame) => frame.visible);
+    expect(frames.length).toBeGreaterThan(0);
     const first = frames[0];
     const observedFrames = [
       ...new Map(

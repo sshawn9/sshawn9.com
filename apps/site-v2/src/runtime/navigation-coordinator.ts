@@ -18,7 +18,7 @@ import {
   reflectNavigationFeedback,
 } from './navigation-feedback';
 import { PageOutletTransition } from './page-outlet-transition';
-import { waitForRequiredFonts } from './required-fonts';
+import { prepareRequiredFonts } from './required-fonts';
 import {
   persistCurrentScroll,
   readCurrentScroll,
@@ -205,7 +205,10 @@ export function installNavigationCoordinator(
       prepareTargetDocument(event.newDocument, event.to);
 
       try {
-        await waitForRequiredFonts(sourceDocument, event.newDocument, { signal: event.signal });
+        const fontPreparation = prepareRequiredFonts(sourceDocument, event.newDocument, {
+          signal: event.signal,
+        });
+        if (fontPreparation) await fontPreparation;
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
         throw error;

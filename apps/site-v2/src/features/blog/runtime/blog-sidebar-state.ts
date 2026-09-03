@@ -43,7 +43,7 @@ export function prepareTargetBlogSidebarState(
   targetDocument: Document,
   sourceWindow: Window,
 ): void {
-  if (!targetDocument.querySelector('[data-blog-listing]')) return;
+  if (!targetDocument.querySelector('[data-blog-sidebar-layout]')) return;
   let state = decodeBlogSidebarState(null);
   try {
     state = readBlogSidebarState(sourceWindow.localStorage);
@@ -51,23 +51,4 @@ export function prepareTargetBlogSidebarState(
     // Sandboxed documents can reject access to the Storage object itself.
   }
   applyBlogSidebarBootstrap(targetDocument.documentElement, state);
-}
-
-/** Serializes the exact decoder and applier used by the interactive controller. */
-export function createBlogSidebarPrepaintScript(): string {
-  return `(() => {
-    const BLOG_SIDEBAR_STORAGE_KEY = ${JSON.stringify(BLOG_SIDEBAR_STORAGE_KEY)};
-    const BLOG_SIDEBAR_LIMITS = ${JSON.stringify(BLOG_SIDEBAR_LIMITS)};
-    const isRecord = ${isRecord.toString()};
-    const decodeBlogSidebarState = ${decodeBlogSidebarState.toString()};
-    const readBlogSidebarState = ${readBlogSidebarState.toString()};
-    const applyBlogSidebarBootstrap = ${applyBlogSidebarBootstrap.toString()};
-    let state = decodeBlogSidebarState(null);
-    try {
-      state = readBlogSidebarState(localStorage);
-    } catch {
-      // The default state remains usable when Storage itself is unavailable.
-    }
-    applyBlogSidebarBootstrap(document.documentElement, state);
-  })();`;
 }

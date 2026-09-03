@@ -113,15 +113,3 @@ export function discardLocaleNavigationTransfer(
     } catch {}
   }
 }
-
-/** Serializes the decoder used by the parser-executed initial-frame coordinator. */
-export function createLocaleNavigationTransferSource(): string {
-  return [
-    `const LOCALE_NAVIGATION_TRANSFER_KEY = ${JSON.stringify(LOCALE_NAVIGATION_TRANSFER_KEY)};`,
-    `const LOCALE_NAVIGATION_TRANSFER_VERSION = ${LOCALE_NAVIGATION_TRANSFER_VERSION};`,
-    localeNavigationRouteKey.toString(),
-    safeCoordinate.toString(),
-    decodeLocaleNavigationTransfer.toString(),
-    consumeLocaleNavigationTransfer.toString(),
-  ].join('\n');
-}

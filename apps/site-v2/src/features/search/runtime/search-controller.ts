@@ -3,7 +3,7 @@ import {
   readCurrentScroll,
   restorePageScroll,
 } from '../../../runtime/scroll-state';
-import { waitForRequiredFonts } from '../../../runtime/required-fonts';
+import { prepareRequiredFonts } from '../../../runtime/required-fonts';
 import { createSearchQueryUrl, readSearchQuery } from './search-query-state';
 
 type PagefindComponent = HTMLElement;
@@ -198,21 +198,25 @@ function createSearchPageController(
           if (!pagefindResults.querySelector('.site-search-result__link')) return;
           preparingFragments = true;
           clearResultWait();
-          void waitForRequiredFonts(sourceDocument, sourceDocument, {
+          const fontPreparation = prepareRequiredFonts(sourceDocument, sourceDocument, {
             contentRoot: pagefindResults,
             signal: fonts.signal,
-          })
-            .then(() => {
-              if (destroyed || failed || revision !== resultRevision) return;
-              resultFontWait = undefined;
-              pagefindResults.removeAttribute('data-required-fonts-loading');
-              pagefindResults.removeAttribute('aria-busy');
-              restorePendingScroll();
-            })
-            .catch((error: unknown) => {
-              if (error instanceof DOMException && error.name === 'AbortError') return;
-              // A real font failure intentionally leaves these results pending.
-            });
+          });
+          const revealResults = () => {
+            if (destroyed || failed || revision !== resultRevision) return;
+            resultFontWait = undefined;
+            pagefindResults.removeAttribute('data-required-fonts-loading');
+            pagefindResults.removeAttribute('aria-busy');
+            restorePendingScroll();
+          };
+          if (!fontPreparation) {
+            revealResults();
+            return;
+          }
+          void fontPreparation.then(revealResults).catch((error: unknown) => {
+            if (error instanceof DOMException && error.name === 'AbortError') return;
+            // A real font failure intentionally leaves these results pending.
+          });
         };
         const BrowserMutationObserver = (sourceWindow as Window & typeof globalThis)
           .MutationObserver;

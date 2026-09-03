@@ -144,20 +144,3 @@ export function prepareTargetBlogView(targetDocument: Document, targetUrl: URL):
   const listing = targetDocument.querySelector<HTMLElement>('[data-blog-listing]');
   if (listing) applyBlogViewState(listing, targetUrl);
 }
-
-/** Emits the same state derivation and DOM transaction used after hydration. */
-export function createBlogViewPrepaintScript(): string {
-  return `(() => {
-    const BLOG_PAGE_SIZE = ${BLOG_PAGE_SIZE};
-    const BLOG_TAG_PARAMETER = ${JSON.stringify(BLOG_TAG_PARAMETER)};
-    const BLOG_PAGE_PARAMETER = ${JSON.stringify(BLOG_PAGE_PARAMETER)};
-    const readArticleTagSlugs = ${readArticleTagSlugs.toString()};
-    const interpolate = ${interpolate.toString()};
-    const createBlogViewUrl = ${createBlogViewUrl.toString()};
-    const readTagRecords = ${readTagRecords.toString()};
-    const deriveBlogViewState = ${deriveBlogViewState.toString()};
-    const applyBlogViewState = ${applyBlogViewState.toString()};
-    const listing = document.currentScript?.closest('[data-blog-listing]');
-    if (listing) applyBlogViewState(listing, new URL(location.href));
-  })();`;
-}

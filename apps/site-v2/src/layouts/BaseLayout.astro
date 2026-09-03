@@ -8,9 +8,10 @@ import SiteShell from '../components/SiteShell.astro';
 import { getFoundationCopy } from '@sshawn9/site-i18n/copy';
 import { BUILD_ID_META_NAME } from '../runtime/build-generation';
 import { CURRENT_BUILD_ID } from '../runtime/build-identity';
-import { createInitialFrameScript, INITIAL_FRAME_READY_ID } from '../runtime/initial-frame';
+import { INITIAL_FRAME_READY_ID } from '../runtime/initial-frame';
 import { REQUIRED_FONT_META_NAME, SITE_FONT_QUERIES } from '../runtime/required-fonts';
 import { SITE_CONTEXT } from '../config/site-context';
+import initialDocumentScript from 'virtual:site-initial-document-script';
 import '../styles/index.css';
 
 interface Props {
@@ -18,7 +19,6 @@ interface Props {
   description?: string;
   locale: Locale;
   fontQueries?: readonly string[];
-  prepaintScripts?: readonly string[];
   canonical?: string;
   noIndex?: boolean;
   searchable?: boolean;
@@ -32,7 +32,6 @@ const {
   description,
   locale,
   fontQueries = [],
-  prepaintScripts = [],
   canonical,
   noIndex = false,
   searchable = false,
@@ -60,8 +59,6 @@ const declaredFontQueries = [
   SITE_FONT_QUERIES.displayBold,
   ...fontQueries,
 ].filter((query, index, queries) => queries.indexOf(query) === index);
-const prepaintScript = prepaintScripts.join('\n');
-const initialFrameScript = createInitialFrameScript();
 const documentNoIndex = noIndex || SITE_CONTEXT.noIndex;
 ---
 
@@ -109,7 +106,6 @@ const documentNoIndex = noIndex || SITE_CONTEXT.noIndex;
     }
     <title>{documentTitle}</title>
     <link rel="expect" href={`#${INITIAL_FRAME_READY_ID}`} blocking="render" />
-    {prepaintScript && <script is:inline set:html={prepaintScript} />}
     <ClientRouter fallback="swap" />
   </head>
   <body>
@@ -131,7 +127,7 @@ const documentNoIndex = noIndex || SITE_CONTEXT.noIndex;
       </main>
       <SiteFooter {locale} />
     </div>
-    <script is:inline set:html={initialFrameScript} />
+    <script is:inline set:html={initialDocumentScript} />
     <span id={INITIAL_FRAME_READY_ID} data-initial-frame-document-ready aria-hidden="true"></span>
     <SiteRuntime />
   </body>

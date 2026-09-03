@@ -77,12 +77,3 @@ export function restorePageAndNestedScroll(
   restorePageScroll(sourceDocument, sourceWindow, snapshot.page);
   restoreNestedScroll(sourceDocument, snapshot);
 }
-
-/** Serializes the normal runtime's restoration functions for first paint. */
-export function createScrollRestorationSource(): string {
-  return [
-    restoreNestedScroll.toString(),
-    restorePageScroll.toString(),
-    restorePageAndNestedScroll.toString(),
-  ].join('\n');
-}

@@ -7,6 +7,7 @@ import { envField, fontProviders } from 'astro/config';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { developmentFontAssets } from './development-font-assets.mjs';
+import { inlineScriptBundles } from './inline-script-bundles.mjs';
 
 const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const publicDirectory = fileURLToPath(new URL('../../../public', import.meta.url));
@@ -177,7 +178,7 @@ export function createSiteConfig({ integrations = [], viteServer = {} } = {}) {
       },
     },
     vite: {
-      plugins: [...developmentFontAssets(), createSiteParaglidePlugin()],
+      plugins: [inlineScriptBundles(), ...developmentFontAssets(), createSiteParaglidePlugin()],
       define: {
         'import.meta.env.V2_BUILD_ID': JSON.stringify(buildId),
       },

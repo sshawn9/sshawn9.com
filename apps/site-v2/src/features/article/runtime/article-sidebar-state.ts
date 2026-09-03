@@ -57,22 +57,3 @@ export function prepareTargetArticleSidebarState(
   }
   applyArticleSidebarBootstrap(targetDocument.documentElement, state);
 }
-
-/** Serializes the exact decoder and applier used by the interactive controller. */
-export function createArticleSidebarPrepaintScript(): string {
-  return `(() => {
-    const ARTICLE_SIDEBAR_STORAGE_KEY = ${JSON.stringify(ARTICLE_SIDEBAR_STORAGE_KEY)};
-    const ARTICLE_SIDEBAR_LIMITS = ${JSON.stringify(ARTICLE_SIDEBAR_LIMITS)};
-    const isRecord = ${isRecord.toString()};
-    const decodeArticleSidebarState = ${decodeArticleSidebarState.toString()};
-    const readArticleSidebarState = ${readArticleSidebarState.toString()};
-    const applyArticleSidebarBootstrap = ${applyArticleSidebarBootstrap.toString()};
-    let state = decodeArticleSidebarState(null);
-    try {
-      state = readArticleSidebarState(localStorage);
-    } catch {
-      // The default state remains usable when Storage itself is unavailable.
-    }
-    applyArticleSidebarBootstrap(document.documentElement, state);
-  })();`;
-}

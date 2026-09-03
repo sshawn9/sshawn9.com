@@ -12,7 +12,7 @@
 2. 每类状态只有一个所有者和一个持久化位置。
 3. 客户端运行时按职责拆成小型 TypeScript 模块；可复用逻辑使用显式类型化参数，不使用全局注册表或字符串事件总线。
 4. 页面行为由其岛屿或自定义元素生命周期拥有，离开 DOM 即释放。
-5. 首帧恢复代码与运行时代码共享同一份类型、schema 和纯函数源码。
+5. 首帧恢复代码通过构建期入口直接导入运行时的类型、schema 和纯函数，不复制实现或序列化函数源码。
 
 ## 组合根
 
@@ -21,9 +21,9 @@
 ```text
 BaseLayout（Astro 静态文档）
   ├── WallpaperSystem（head 启动并独立持续运行）
-  ├── 页面状态 prepaint IIFE
   ├── SiteShell.astro（目标文档权威 Header）
   ├── BackdropVisual（唯一持久 DOM 子树）
+  ├── InitialDocument（末端 marker 前同步准备当前文档）
   ├── SiteRuntime（唯一的正常浏览器运行时组合根）
   │   ├── NavigationCoordinator（代际、进度、字体门槛、转场和焦点）
   │   ├── PageRuntime（页面准备与当前页面挂载/销毁）
@@ -149,16 +149,15 @@ type SiteHistoryStateV1 = {
 
 ## 绘制前恢复
 
-初始文档保留四个职责明确的小入口：
+初始文档保留三个职责明确的入口：
 
 1. head 中的 WallpaperSystem 单一入口：读取偏好和当前槽位并立即投影，随后由同一实例异步检查下一槽位；
-2. head 中按页面生成的 prepaint：只恢复该页面自己的可计算布局状态；
-3. head 中的 `<link rel="expect" href="#initial-frame-ready" blocking="render">`：目标是 `SiteRuntime` 前固定的文档末端 marker，只在支持的浏览器中等待静态 HTML 解析到该处，不等待字体、图片或客户端模块；
-4. marker 前的初始文档入口：此时完整 DOM 和 CSS 已登记；它先用 `FontFaceSet.check()` 同步处理温缓存，再以唯一 RequiredFonts 接口等待冷缓存，最后提交滚动位置和文字表面。
+2. head 中的 `<link rel="expect" href="#initial-frame-ready" blocking="render">`：目标是 `SiteRuntime` 前固定的文档末端 marker，只在支持的浏览器中等待静态 HTML 解析到该处，不等待字体、图片或客户端模块；
+3. marker 前的 InitialDocument 入口：此时完整 DOM 和 CSS 已登记；它先恢复当前页面可计算状态，再用 `FontFaceSet.check()` 同步处理温缓存，以唯一 RequiredFonts 接口等待冷缓存，最后提交滚动位置和文字表面。
 
 固定末端 marker 使支持 `rel=expect` 的浏览器在首次提交前拥有完整静态布局，也给字体请求一个可靠的内容边界。冷缓存期间只保留独立壁纸/底色与进度线；`[data-font-surface]` 在所有必需字体成功后一次显示。温缓存由同步检查在 render boundary 前直接提交，不产生加载帧。
 
-WallpaperSystem 由可维护 TypeScript 模块构建成同源 classic script；构建产物不作为第二份源码维护。页面 prepaint 使用各自的小型 codec。约束如下：
+WallpaperSystem 与 InitialDocument 都由可维护 TypeScript 入口构建成同源 classic script；构建产物不作为第二份源码维护。InitialDocument 在构建期直接打包业务函数，所有普通页面嵌入完全相同的脚本，不使用 `Function.prototype.toString()` 或页面专属源码模板。约束如下：
 
 - 无动态 import、无框架初始化，所有存储读取都经过共享 codec；
 - 主题、语言、布局和可计算的滚动状态必须同步准备；
@@ -174,7 +173,7 @@ WallpaperSystem 由可维护 TypeScript 模块构建成同源 classic script；�
 RequiredFonts 是无持久状态的独立资源边界：
 
 - 全站字体声明稳定存在于全局样式；Latin 字体自托管并预加载，中文继续按 unicode-range 分片；
-- 唯一接口 `waitForRequiredFonts(fontDocument, declarationDocument, options)` 只返回就绪 Promise，不拥有导航、进度、滚动、壁纸或页面动画；
+- 唯一接口 `prepareRequiredFonts(fontDocument, declarationDocument, options)` 在温路径同步返回，在冷路径返回就绪 Promise；它不拥有导航、进度、滚动、壁纸或页面动画；
 - 不使用 localStorage 推测缓存；温刷新只相信当前文档的 `FontFaceSet.check()`，并在 render boundary 前同步提交；
 - 初始文档、目标文档和动态结果都从自身真实字符推导所需的 Latin、CJK、斜体、等宽与 KaTeX 字体；
 - 冷初始文档等待时隐藏已登记文字表面；客户端导航等待时保留完整旧页；动态内容只约束自身提交边界；

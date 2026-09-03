@@ -1,8 +1,6 @@
 ---
-import { createLocaleEntryRedirectScript } from '../runtime/locale-preference';
 import { SITE_CONTEXT } from '../config/site-context';
-
-const localeRedirectScript = createLocaleEntryRedirectScript();
+import localeRedirectScript from 'virtual:site-locale-entry-script';
 ---
 
 <!doctype html>

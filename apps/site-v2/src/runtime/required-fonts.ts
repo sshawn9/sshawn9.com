@@ -267,43 +267,17 @@ async function waitForRequiredFontRequests(
 }
 
 /**
- * Resolves only when every font needed by the supplied content is available.
- * Failure intentionally remains pending; an AbortSignal is the sole escape for
- * superseded client-navigation or dynamic-content transactions.
+ * Returns synchronously when every required face is already available.
+ * A cold request resolves only after all fonts are ready; failure intentionally
+ * remains pending, with AbortSignal as the sole escape for superseded work.
  */
-export async function waitForRequiredFonts(
+export function prepareRequiredFonts(
   fontDocument: FontDocument,
   declarationDocument: Document = fontDocument,
   options: RequiredFontOptions = {},
-): Promise<void> {
+): void | Promise<void> {
   const { contentRoot = declarationDocument, signal } = options;
   const requests = readRequiredFontRequests(declarationDocument, fontDocument, contentRoot);
+  if (areRequiredFontRequestsReady(fontDocument, requests)) return;
   return waitForRequiredFontRequests(fontDocument, requests, signal);
-}
-
-/**
- * The parser-executed initial-frame seam uses the same functions as navigation.
- * Serialization avoids a second handwritten bootstrap implementation.
- */
-export function createRequiredFontsInlineSource(): string {
-  return [
-    `const REQUIRED_FONT_META_NAME = ${JSON.stringify(REQUIRED_FONT_META_NAME)};`,
-    `const FONT_SURFACE_ATTRIBUTE = ${JSON.stringify(FONT_SURFACE_ATTRIBUTE)};`,
-    `const FONT_PROBE_SEED = ${JSON.stringify(FONT_PROBE_SEED)};`,
-    `const REQUIRED_CHINESE_CHARACTER_PATTERN = ${REQUIRED_CHINESE_CHARACTER_PATTERN.toString()};`,
-    `const NOTO_SANS_SC_FONT_REQUEST = ${JSON.stringify(NOTO_SANS_SC_FONT_REQUEST)};`,
-    `const CONDITIONAL_FONT_REQUEST_GROUPS = ${JSON.stringify(CONDITIONAL_FONT_REQUEST_GROUPS)};`,
-    abortError.toString(),
-    waitForAbort.toString(),
-    withAbort.toString(),
-    resolveRequiredFontQuery.toString(),
-    readRequiredFontQueries.toString(),
-    readRequiredFontText.toString(),
-    readRequiredChineseFontText.toString(),
-    readRequiredFontRequests.toString(),
-    requestedFontFamily.toString(),
-    areRequiredFontFamiliesDeclared.toString(),
-    areRequiredFontRequestsReady.toString(),
-    waitForRequiredFontRequests.toString(),
-  ].join('\n');
 }
