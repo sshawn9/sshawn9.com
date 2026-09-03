@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { localeFromLanguageTag, resolvePreferredLocale } from '@sshawn9/site-domain/locales';
 import {
   getLocaleSwitchHref,
@@ -10,8 +10,6 @@ import {
   persistLocaleNavigationTransfer,
 } from '../../apps/site-v2/src/runtime/locale-navigation-transfer';
 import {
-  createFallbackDocumentLocaleScript,
-  createLocaleEntryRedirectScript,
   LOCALE_PREFERENCE_KEY,
   saveLocalePreference,
 } from '../../apps/site-v2/src/runtime/locale-preference';
@@ -67,39 +65,10 @@ describe('v2 locale routing and preference', () => {
     expect(replaceRouteLocale('/', 'zh')).toBe('/zh/');
   });
 
-  it('keeps the production preference key and emits a self-contained neutral redirect', () => {
+  it('stores the locale under the production preference key', () => {
     const storage = new MemoryStorage();
     expect(saveLocalePreference(storage, 'zh')).toBe(true);
     expect(storage.getItem(LOCALE_PREFERENCE_KEY)).toBe('zh');
-
-    const replace = vi.fn();
-    const run = new Function(
-      'localStorage',
-      'navigator',
-      'location',
-      createLocaleEntryRedirectScript(),
-    );
-    run(storage, { languages: ['en-US'] }, { replace, search: '?source=direct', hash: '#intro' });
-    expect(replace).toHaveBeenCalledWith('/zh/?source=direct#intro');
-  });
-
-  it('resolves a localized fallback document from its preserved request path', () => {
-    const storage = new MemoryStorage();
-    storage.setItem(LOCALE_PREFERENCE_KEY, 'en');
-    const root = { dataset: {}, lang: '' };
-    const targetDocument = { documentElement: root, title: '' };
-    const run = new Function(
-      'localStorage',
-      'navigator',
-      'location',
-      'document',
-      createFallbackDocumentLocaleScript({ en: 'Missing · SHAWN', zh: '未找到 · SHAWN' }),
-    );
-
-    run(storage, { languages: ['en-US'] }, { pathname: '/zh/missing/' }, targetDocument);
-
-    expect(root).toEqual({ dataset: { locale: 'zh' }, lang: 'zh-CN' });
-    expect(targetDocument.title).toBe('未找到 · SHAWN');
   });
 });
 

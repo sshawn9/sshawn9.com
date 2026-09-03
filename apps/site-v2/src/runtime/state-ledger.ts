@@ -68,17 +68,3 @@ export function mergeScrollSnapshot(
   const base = isRecord(historyState) ? historyState : {};
   return { ...base, [SITE_HISTORY_KEY]: snapshot };
 }
-
-/** Serializes the exact decoder used by the parser-executed first-frame entry. */
-export function createScrollSnapshotDecoderSource(): string {
-  return [
-    `const SITE_HISTORY_KEY = ${JSON.stringify(SITE_HISTORY_KEY)};`,
-    `const SITE_HISTORY_VERSION = ${SITE_HISTORY_VERSION};`,
-    `const MAX_SCROLL_OFFSET = ${MAX_SCROLL_OFFSET};`,
-    `const MAX_REGION_KEY_LENGTH = ${MAX_REGION_KEY_LENGTH};`,
-    isRecord.toString(),
-    normalizeOffset.toString(),
-    decodePoint.toString(),
-    decodeScrollSnapshot.toString(),
-  ].join('\n');
-}

@@ -44,15 +44,3 @@ export function synchronizeArticleToc(
   setActiveArticleToc(sourceDocument, heading.id);
   return heading.id;
 }
-
-/** Serializes the exact current-section algorithm used by the normal runtime. */
-export function createArticleTocInitialFrameSource(): string {
-  return [
-    `const ARTICLE_HEADING_SELECTOR = ${JSON.stringify(ARTICLE_HEADING_SELECTOR)};`,
-    `const ARTICLE_TOC_LINK_SELECTOR = ${JSON.stringify(ARTICLE_TOC_LINK_SELECTOR)};`,
-    readArticleHeadingOffset.toString(),
-    findCurrentArticleHeading.toString(),
-    setActiveArticleToc.toString(),
-    synchronizeArticleToc.toString(),
-  ].join('\n');
-}

@@ -1,9 +1,11 @@
 ---
 import { Font } from 'astro:assets';
 import * as m from '@sshawn9/site-i18n/messages';
-import { createInitialFrameScript, INITIAL_FRAME_READY_ID } from '../runtime/initial-frame';
-import { createFallbackDocumentLocaleScript } from '../runtime/locale-preference';
+import { INITIAL_FRAME_READY_ID } from '../runtime/initial-frame';
 import { REQUIRED_FONT_META_NAME, SITE_FONT_QUERIES } from '../runtime/required-fonts';
+import fallbackLocaleScript from 'virtual:site-fallback-locale-script';
+import initialDocumentScript from 'virtual:site-initial-document-script';
+import '../features/foundation/home.css';
 import '../styles/index.css';
 
 const copy = {
@@ -24,11 +26,10 @@ const copy = {
     search: m.not_found_search({}, { locale: 'zh' }),
   },
 } as const;
-const localeScript = createFallbackDocumentLocaleScript({
+const localeTitles = JSON.stringify({
   en: copy.en.title,
   zh: copy.zh.title,
 });
-const initialFrameScript = createInitialFrameScript();
 ---
 
 <!doctype html>
@@ -63,7 +64,7 @@ const initialFrameScript = createInitialFrameScript();
           ?.setAttribute('content', dark ? '#070a12' : '#f7f8fb');
       })();
     </script>
-    <script is:inline set:html={localeScript} />
+    <script is:inline data-locale-titles={localeTitles} set:html={fallbackLocaleScript} />
     <link rel="expect" href={`#${INITIAL_FRAME_READY_ID}`} blocking="render" />
   </head>
   <body>
@@ -130,7 +131,7 @@ const initialFrameScript = createInitialFrameScript();
       </div>
     </footer>
 
-    <script is:inline set:html={initialFrameScript} />
+    <script is:inline set:html={initialDocumentScript} />
     <span id={INITIAL_FRAME_READY_ID} data-initial-frame-document-ready aria-hidden="true"></span>
   </body>
 </html>
