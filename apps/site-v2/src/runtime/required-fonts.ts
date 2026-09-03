@@ -1,10 +1,22 @@
 export const REQUIRED_FONT_META_NAME = 'site-font-query';
 export const FONT_SURFACE_ATTRIBUTE = 'data-font-surface';
 
+export const SITE_FONT_QUERIES = {
+  bodyRegular: '400 1em var(--font-source-sans-3)',
+  bodyItalic: 'italic 400 1em var(--font-source-sans-3)',
+  displayBold: '700 1em var(--font-manrope)',
+  monoRegular: '400 1em var(--font-jetbrains-mono)',
+} as const;
+
 const FONT_PROBE_SEED = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-const CJK_CHARACTER_PATTERN = /\p{Script=Han}/u;
-const CJK_FONT_REQUEST = {
+const REQUIRED_CHINESE_CHARACTER_PATTERN =
+  /[\p{Script=Han}\u3000-\u303f\ufe10-\ufe1f\ufe30-\ufe4f\uff01-\uff0f\uff1a-\uff20\uff3b-\uff40\uff5b-\uff60\uffe0-\uffe6]/u;
+const NOTO_SANS_SC_FONT_REQUEST = {
   query: '400 1em "Noto Sans SC Variable"',
+} as const;
+const SOURCE_SANS_ITALIC_FONT_REQUEST = {
+  query: SITE_FONT_QUERIES.bodyItalic,
+  text: FONT_PROBE_SEED,
 } as const;
 const KATEX_CORE_FONT_REQUESTS = [
   { query: 'normal 400 1em "KaTeX_AMS"', text: 'ABΓ∫' },
@@ -46,6 +58,17 @@ const KATEX_OPTIONAL_FONT_REQUESTS = [
     selector: '.mathtt, .texttt',
     requests: [{ query: 'normal 400 1em "KaTeX_Typewriter"', text: 'ABC123' }],
   },
+] as const;
+const CONDITIONAL_FONT_REQUEST_GROUPS = [
+  {
+    selector: 'address, cite, dfn, em, i, var',
+    requests: [SOURCE_SANS_ITALIC_FONT_REQUEST],
+  },
+  {
+    selector: '.katex',
+    requests: KATEX_CORE_FONT_REQUESTS,
+  },
+  ...KATEX_OPTIONAL_FONT_REQUESTS,
 ] as const;
 
 export type RequiredFontRequest = { query: string; text: string };
@@ -139,26 +162,39 @@ export function readRequiredFontText(contentRoot: ParentNode): string {
   return [...characters].join('');
 }
 
+/** Keeps only glyphs intentionally provided by the site's Simplified Chinese face. */
+export function readRequiredChineseFontText(text: string): string {
+  const characters = new Set<string>();
+  for (const character of text.normalize('NFC')) {
+    if (REQUIRED_CHINESE_CHARACTER_PATTERN.test(character)) characters.add(character);
+  }
+  return [...characters].join('');
+}
+
 export function readRequiredFontRequests(
   declarationDocument: Document,
   fontDocument: Document = declarationDocument,
   contentRoot: ParentNode = declarationDocument,
 ): RequiredFontRequest[] {
   const pageText = readRequiredFontText(contentRoot);
+  const chineseText = readRequiredChineseFontText(pageText);
   const requests = readRequiredFontQueries(declarationDocument, fontDocument).map((query) => ({
     query,
     text: pageText,
   }));
 
-  if (CJK_CHARACTER_PATTERN.test(pageText)) {
-    requests.push({ ...CJK_FONT_REQUEST, text: pageText });
+  if (chineseText) {
+    requests.push({ ...NOTO_SANS_SC_FONT_REQUEST, text: chineseText });
   }
 
-  if (contentRoot.querySelector('.katex')) {
-    requests.push(...KATEX_CORE_FONT_REQUESTS);
-    for (const optional of KATEX_OPTIONAL_FONT_REQUESTS) {
-      if (contentRoot.querySelector(optional.selector)) requests.push(...optional.requests);
-    }
+  for (const group of CONDITIONAL_FONT_REQUEST_GROUPS) {
+    if (!contentRoot.querySelector(group.selector)) continue;
+    requests.push(
+      ...group.requests.map((request) => ({
+        ...request,
+        query: resolveRequiredFontQuery(fontDocument, request.query),
+      })),
+    );
   }
 
   return [
@@ -190,42 +226,29 @@ function areRequiredFontFamiliesDeclared(
 }
 
 /** The synchronous warm path prevents a cached reload from exposing a loading frame. */
-export function areRequiredFontsReady(
+function areRequiredFontRequestsReady(
   fontDocument: FontDocument,
-  declarationDocument: Document = fontDocument,
-  contentRoot: ParentNode = declarationDocument,
+  requests: readonly RequiredFontRequest[],
 ): boolean {
   const fonts = fontDocument.fonts;
   if (!fonts || typeof fonts.check !== 'function') return false;
 
-  try {
-    const requests = readRequiredFontRequests(declarationDocument, fontDocument, contentRoot);
-    return (
-      areRequiredFontFamiliesDeclared(fonts, requests) &&
-      requests.every(({ query, text }) => fonts.check(query, text))
-    );
-  } catch {
-    return false;
-  }
+  return (
+    areRequiredFontFamiliesDeclared(fonts, requests) &&
+    requests.every(({ query, text }) => fonts.check(query, text))
+  );
 }
 
-/**
- * Resolves only when every font needed by the supplied content is available.
- * Failure intentionally remains pending; an AbortSignal is the sole escape for
- * superseded client-navigation or dynamic-content transactions.
- */
-export async function waitForRequiredFonts(
+async function waitForRequiredFontRequests(
   fontDocument: FontDocument,
-  declarationDocument: Document = fontDocument,
-  options: RequiredFontOptions = {},
+  requests: readonly RequiredFontRequest[],
+  signal?: AbortSignal,
 ): Promise<void> {
-  const { contentRoot = declarationDocument, signal } = options;
   if (signal?.aborted) throw abortError();
-  if (areRequiredFontsReady(fontDocument, declarationDocument, contentRoot)) return;
+  if (areRequiredFontRequestsReady(fontDocument, requests)) return;
 
   const fonts = fontDocument.fonts;
   if (!fonts || typeof fonts.load !== 'function') return waitForAbort(signal);
-  const requests = readRequiredFontRequests(declarationDocument, fontDocument, contentRoot);
   if (requests.length === 0) return;
 
   try {
@@ -244,6 +267,21 @@ export async function waitForRequiredFonts(
 }
 
 /**
+ * Resolves only when every font needed by the supplied content is available.
+ * Failure intentionally remains pending; an AbortSignal is the sole escape for
+ * superseded client-navigation or dynamic-content transactions.
+ */
+export async function waitForRequiredFonts(
+  fontDocument: FontDocument,
+  declarationDocument: Document = fontDocument,
+  options: RequiredFontOptions = {},
+): Promise<void> {
+  const { contentRoot = declarationDocument, signal } = options;
+  const requests = readRequiredFontRequests(declarationDocument, fontDocument, contentRoot);
+  return waitForRequiredFontRequests(fontDocument, requests, signal);
+}
+
+/**
  * The parser-executed initial-frame seam uses the same functions as navigation.
  * Serialization avoids a second handwritten bootstrap implementation.
  */
@@ -252,20 +290,20 @@ export function createRequiredFontsInlineSource(): string {
     `const REQUIRED_FONT_META_NAME = ${JSON.stringify(REQUIRED_FONT_META_NAME)};`,
     `const FONT_SURFACE_ATTRIBUTE = ${JSON.stringify(FONT_SURFACE_ATTRIBUTE)};`,
     `const FONT_PROBE_SEED = ${JSON.stringify(FONT_PROBE_SEED)};`,
-    `const CJK_CHARACTER_PATTERN = ${CJK_CHARACTER_PATTERN.toString()};`,
-    `const CJK_FONT_REQUEST = ${JSON.stringify(CJK_FONT_REQUEST)};`,
-    `const KATEX_CORE_FONT_REQUESTS = ${JSON.stringify(KATEX_CORE_FONT_REQUESTS)};`,
-    `const KATEX_OPTIONAL_FONT_REQUESTS = ${JSON.stringify(KATEX_OPTIONAL_FONT_REQUESTS)};`,
+    `const REQUIRED_CHINESE_CHARACTER_PATTERN = ${REQUIRED_CHINESE_CHARACTER_PATTERN.toString()};`,
+    `const NOTO_SANS_SC_FONT_REQUEST = ${JSON.stringify(NOTO_SANS_SC_FONT_REQUEST)};`,
+    `const CONDITIONAL_FONT_REQUEST_GROUPS = ${JSON.stringify(CONDITIONAL_FONT_REQUEST_GROUPS)};`,
     abortError.toString(),
     waitForAbort.toString(),
     withAbort.toString(),
     resolveRequiredFontQuery.toString(),
     readRequiredFontQueries.toString(),
     readRequiredFontText.toString(),
+    readRequiredChineseFontText.toString(),
     readRequiredFontRequests.toString(),
     requestedFontFamily.toString(),
     areRequiredFontFamiliesDeclared.toString(),
-    areRequiredFontsReady.toString(),
-    waitForRequiredFonts.toString(),
+    areRequiredFontRequestsReady.toString(),
+    waitForRequiredFontRequests.toString(),
   ].join('\n');
 }

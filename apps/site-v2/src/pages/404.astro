@@ -3,7 +3,7 @@ import { Font } from 'astro:assets';
 import * as m from '@sshawn9/site-i18n/messages';
 import { createInitialFrameScript, INITIAL_FRAME_READY_ID } from '../runtime/initial-frame';
 import { createFallbackDocumentLocaleScript } from '../runtime/locale-preference';
-import { REQUIRED_FONT_META_NAME } from '../runtime/required-fonts';
+import { REQUIRED_FONT_META_NAME, SITE_FONT_QUERIES } from '../runtime/required-fonts';
 import '../styles/index.css';
 
 const copy = {
@@ -39,9 +39,9 @@ const initialFrameScript = createInitialFrameScript();
     <meta name="robots" content="noindex, follow" />
     <meta name="theme-color" content="#f7f8fb" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name={REQUIRED_FONT_META_NAME} content="400 1em var(--font-source-sans-3)" />
-    <meta name={REQUIRED_FONT_META_NAME} content="700 1em var(--font-manrope)" />
-    <meta name={REQUIRED_FONT_META_NAME} content="400 1em var(--font-jetbrains-mono)" />
+    <meta name={REQUIRED_FONT_META_NAME} content={SITE_FONT_QUERIES.bodyRegular} />
+    <meta name={REQUIRED_FONT_META_NAME} content={SITE_FONT_QUERIES.displayBold} />
+    <meta name={REQUIRED_FONT_META_NAME} content={SITE_FONT_QUERIES.monoRegular} />
     <Font cssVariable="--font-manrope" preload={[{ weight: '200 800', style: 'normal' }]} />
     <Font cssVariable="--font-source-sans-3" preload={[{ weight: '200 900', style: 'normal' }]} />
     <Font cssVariable="--font-jetbrains-mono" preload={[{ weight: '100 800', style: 'normal' }]} />

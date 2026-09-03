@@ -98,11 +98,14 @@ export function createInitialFrameScript(): string {
         document.documentElement.dataset.fontState = 'ready';
       };
 
-      if (areRequiredFontsReady(document)) {
+      const requiredFontRequests = readRequiredFontRequests(document);
+      if (areRequiredFontRequestsReady(document, requiredFontRequests)) {
         commitReadyDocument();
         return;
       }
-      void waitForRequiredFonts(document).then(commitReadyDocument).catch(() => undefined);
+      void waitForRequiredFontRequests(document, requiredFontRequests)
+        .then(commitReadyDocument)
+        .catch(() => undefined);
     } catch {}
   })();`;
 }

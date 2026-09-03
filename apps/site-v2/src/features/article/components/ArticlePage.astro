@@ -8,6 +8,7 @@ import type { SiteArticle, SiteArticleEntry } from '../../../content/article-cat
 import { getArticleHref, getArticleVersionHref } from '../../../content/article-routes';
 import { formatUiCopy, getFoundationCopy } from '@sshawn9/site-i18n/copy';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { SITE_FONT_QUERIES } from '../../../runtime/required-fonts';
 import { createArticleSidebarPrepaintScript } from '../runtime/article-sidebar-state';
 import ArticleToc from './ArticleToc.astro';
 import ArticleVersionSwitcher from './ArticleVersionSwitcher.astro';
@@ -65,11 +66,7 @@ const fallbackNotice = formatUiCopy(copy.articleFallbackNoticeTemplate, {
   searchPublishedAt={firstPublished}
   {alternateLinks}
   prepaintScripts={[createArticleSidebarPrepaintScript()]}
-  fontQueries={[
-    '400 1em var(--font-jetbrains-mono)',
-    '400 1em var(--font-source-sans-3)',
-    'italic 400 1em var(--font-source-sans-3)',
-  ]}
+  fontQueries={[SITE_FONT_QUERIES.monoRegular]}
 >
   <article
     class="content-shell article-page"
