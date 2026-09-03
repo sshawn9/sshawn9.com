@@ -85,6 +85,34 @@ describe('architecture boundaries', () => {
     expect(productionConfig).not.toContain('content-health');
   });
 
+  it('keeps the wallpaper application independent from page and navigation runtimes', async () => {
+    const sourceRoot = join(repositoryRoot, 'apps/site-v2/src');
+    const wallpaperRoot = join(sourceRoot, 'features/appearance/wallpaper');
+    const applicationSources = (await collectSourceFiles(sourceRoot)).filter(
+      (path) => !path.startsWith(`${wallpaperRoot}/`),
+    );
+    const consumers: string[] = [];
+
+    for (const path of applicationSources) {
+      const source = await readFile(path, 'utf8');
+      if (/from\s+['"][^'"]*appearance\/wallpaper\//.test(source)) {
+        consumers.push(relative(repositoryRoot, path));
+      }
+    }
+
+    const wallpaperSources = await collectSourceFiles(wallpaperRoot);
+    const forbiddenDependencies: string[] = [];
+    for (const path of wallpaperSources) {
+      const source = await readFile(path, 'utf8');
+      if (/from\s+['"][^'"]*(?:runtime|components|pages|layouts)\//.test(source)) {
+        forbiddenDependencies.push(relative(repositoryRoot, path));
+      }
+    }
+
+    expect(consumers).toEqual([]);
+    expect(forbiddenDependencies).toEqual([]);
+  });
+
   it('keeps content as data and imports interactive behavior through content-ui', async () => {
     const contentRoot = join(repositoryRoot, 'src/content');
     const implementationExtensions = new Set(['.astro', '.css', '.ts', '.tsx']);

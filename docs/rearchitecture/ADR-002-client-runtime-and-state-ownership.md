@@ -20,18 +20,18 @@
 
 ```text
 BaseLayout（Astro 静态文档）
-  ├── head prepaint IIFE
+  ├── WallpaperSystem（head 启动并独立持续运行）
+  ├── 页面状态 prepaint IIFE
   ├── SiteShell.astro（持久静态 HTML）
   ├── SiteShellController（解析期尽早启用外壳语义）
   ├── SiteRuntime（唯一的正常浏览器运行时组合根）
-  │   ├── AppearanceController（主题和壁纸）
   │   ├── NavigationCoordinator（导航、代际、字体和滚动事务）
   │   ├── PageRuntime（当前页面唯一的挂载/销毁所有者）
   │   └── Content UI custom-element definitions
   └── 页面交互岛（各自拥有 mount/unmount）
 ```
 
-SiteShellController 是唯一的解析期长期入口：它作为自包含经典脚本紧邻静态外壳执行，并把安装状态记在持久 shell 自身；这使按钮在长正文继续解析前即可用，同时避免同文档导航重复注册。其余长期控制器只由 SiteRuntime 安装，组合根持有每个销毁函数，不再由模块级 `installed` 标志或 DOM 安装标志互相抢占。
+SiteShellController 作为自包含经典脚本紧邻静态外壳执行，并把安装状态记在持久 shell 自身；独立 WallpaperSystem 则从 head 的同一个入口完成同步状态投影并继续异步维护双槽位。其余长期控制器只由 SiteRuntime 安装，组合根持有每个销毁函数，不再由模块级 `installed` 标志或字符串事件互相抢占。
 
 PageRuntime 是博客、文章和搜索页面唯一的 `before-swap → page-load` 所有者；各功能模块只返回与当前服务端 DOM 绑定的控制器。旧页面在 swap 前销毁，新页面在 `page-load` 挂载，同一 `main` 不重复挂载。普通文档离开时 SiteRuntime 统一释放监听、动画帧和计时器；进入浏览器 back-forward cache 时保留实例，让冻结文档恢复后继续工作。
 
@@ -82,7 +82,7 @@ type NavigationPhase =
 
 ### `before-swap`
 
-- 把主题、背景模式、Sidebar 几何和其他持久偏好写入 `newDocument.documentElement`；
+- 各状态所有者分别把主题、背景模式、Sidebar 几何和其他持久偏好写入 `newDocument.documentElement`；
 - 不删除旧样式，不手写 head 合并；
 - 不自行替换 DOM，只允许框架 `swap()` 执行一次；
 - 导航状态进入 `swapping`。
@@ -98,16 +98,16 @@ type NavigationPhase =
 
 ### 状态所有权表
 
-| 状态                                     | 权威来源                                     | 原因                                 |
-| ---------------------------------------- | -------------------------------------------- | ------------------------------------ |
-| locale、route、tag、page、query、version | URL                                          | 可分享、可刷新、可由服务端独立重建   |
-| 当前历史项主滚动与嵌套滚动               | `history.state.sshawn9`                      | 同一路径的多个历史项必须拥有不同快照 |
-| 主题、壁纸开关、语言偏好、Sidebar 几何   | `localStorage`                               | 跨标签页会话或跨会话的用户偏好       |
-| 当前壁纸、随机队列、一次性导航状态转移   | `sessionStorage`                             | 只在当前标签页存活，不污染其他标签页 |
-| 导航进度、打开的全局浮层                 | 对应文档级控制器内存与语义 DOM               | 瞬时 UI，不应写入存储                |
-| 页面内交互参数                           | 交互岛本地状态；需要历史恢复时写命名 channel | 不把所有组件状态塞进一个全局 store   |
-| 文章、语言、版本、标签和项目关系         | 构建期领域模型                               | 内容事实，不由浏览器推断             |
-| 构建代际                                 | HTML meta + 构建常量                         | 检测目标文档与当前运行时是否匹配     |
+| 状态                                          | 权威来源                                     | 原因                                 |
+| --------------------------------------------- | -------------------------------------------- | ------------------------------------ |
+| locale、route、tag、page、query、version      | URL                                          | 可分享、可刷新、可由服务端独立重建   |
+| 当前历史项主滚动与嵌套滚动                    | `history.state.sshawn9`                      | 同一路径的多个历史项必须拥有不同快照 |
+| 主题、壁纸开关、语言偏好、Sidebar 几何        | `localStorage`                               | 跨标签页会话或跨会话的用户偏好       |
+| 当前/下一张壁纸、随机队列、一次性导航状态转移 | `sessionStorage`                             | 固定双槽位，只在当前标签页存活       |
+| 导航进度、打开的全局浮层                      | 对应文档级控制器内存与语义 DOM               | 瞬时 UI，不应写入存储                |
+| 页面内交互参数                                | 交互岛本地状态；需要历史恢复时写命名 channel | 不把所有组件状态塞进一个全局 store   |
+| 文章、语言、版本、标签和项目关系              | 构建期领域模型                               | 内容事实，不由浏览器推断             |
+| 构建代际                                      | HTML meta + 构建常量                         | 检测目标文档与当前运行时是否匹配     |
 
 ### History schema
 
@@ -138,23 +138,25 @@ type SiteHistoryStateV1 = {
 
 ### 主题与景观背景边界
 
-- 主题、景观开关、当前照片和随机队列分别使用状态表规定的唯一持久位置；可见 DOM 只是状态投影。
-- 当前照片成为可见状态前必须原子准备其有限会话快照；有效同图刷新不重新经历远程图片接管，真实副本失败则立即保留可读正文和默认背景。
-- 同构建导航由持久 SiteShell 保持外观控制器和画面实例；完整文档导航从经过验证的持久状态恢复。
+- 主题与景观开关使用共享偏好；当前照片、下一张照片和队列使用每标签页固定双槽位；可见 DOM 只是状态投影。
+- WallpaperSystem 的状态入口只有 `reload()` 和 `advance()`：配置、环境和恢复变化统一重载投影，手动与自动换图统一执行完整换图事务；换图后的备用槽补齐不属于 `advance()` 的等待范围。
+- 下载响应通过校验、解码并成功写入槽位后才能成为当前或下一张；有效同图刷新直接恢复同一份字节，不重新请求或播放淡入。
+- 新文档只更新下一张所用的图片策略，绝不以视口策略变化替换正在显示的当前照片。
+- 同构建导航由持久 SiteShell 保持画面实例；WallpaperSystem 自己把主题和背景模式投影到目标文档，导航协调器不依赖壁纸模块。
 - Worker 只读取 Cron 维护的 KV 清单、代理明确的下载上报并持有密钥；访客读取不得隐式刷新清单，普通 HTML 不进入 Worker。
 
 ## 绘制前恢复
 
 首帧稳定不能以隐藏整个页面或无界等待网络资源为代价。初始文档保留四个职责明确的小入口：
 
-1. head 中的同步 prepaint：读取主题、背景和布局偏好，只写根属性、class 和 CSS 变量；
-2. head 中的 `<link rel="expect" href="#initial-frame-ready" blocking="render">`：目标是 `SiteRuntime` 前固定的文档末端 marker，只在支持的浏览器中等待静态 HTML 解析到该处，不等待字体、图片或客户端模块；
-3. marker 前的初始文档协调器：此时完整 DOM 和 CSS 已登记；它以当前文档 `FontFaceSet.check()` 和页面实际字形同步判定字体是否已经就绪，再负责字体准备、滚动和文字表面的最终提交；
-4. 持久 `BackdropSurface` 内直接编写的解析期 bootstrap：消费 head 已验证的恢复种子，在首帧前提交可用照片，并通过显式 owner 标记把未完成任务一次性交给 `BackdropPresenter`。
+1. head 中的 WallpaperSystem 单一入口：读取偏好和当前槽位并立即投影，随后由同一实例异步检查下一槽位；
+2. head 中按页面生成的 prepaint：只恢复该页面自己的可计算布局状态；
+3. head 中的 `<link rel="expect" href="#initial-frame-ready" blocking="render">`：目标是 `SiteRuntime` 前固定的文档末端 marker，只在支持的浏览器中等待静态 HTML 解析到该处，不等待字体、图片或客户端模块；
+4. marker 前的初始文档协调器：此时完整 DOM 和 CSS 已登记；它以当前文档 `FontFaceSet.check()` 和页面实际字形同步判定字体是否已经就绪，再负责字体准备、滚动和文字表面的最终提交。
 
 固定末端 marker 使支持 `rel=expect` 的浏览器在首次提交前拥有完整静态布局，也给字体协调器一个可靠的文档边界。字体状态只协调依赖排版的测量消费者，不控制 `[data-font-surface]` 的可见性；正文、导航和页脚在字体准备及降级期间始终保留在画面中。
 
-head 入口使用共享 codec 生成自包含脚本；依赖 DOM 解析顺序的壁纸入口直接写成无依赖 classic script，禁止通过 `Function#toString` 序列化含模块依赖的函数。约束如下：
+WallpaperSystem 由可维护 TypeScript 模块构建成同源 classic script；构建产物不作为第二份源码维护。页面 prepaint 使用各自的小型 codec。约束如下：
 
 - 无动态 import、无框架初始化，所有存储读取都经过共享 codec；
 - 主题、语言、布局和可计算的滚动状态必须同步准备；
