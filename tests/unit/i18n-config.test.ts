@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import projectSettings from '../../project.inlang/settings.json';
-import { BASE_LOCALE, LOCALES } from '../../src/i18n/config';
+import { BASE_LOCALE, LOCALES } from '@sshawn9/site-domain/locales';
 import { baseLocale, locales } from '@sshawn9/site-i18n/runtime';
 
 describe('locale configuration', () => {

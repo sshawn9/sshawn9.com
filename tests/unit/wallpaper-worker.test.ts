@@ -4,7 +4,7 @@ import {
   handleWallpaperRequest,
   refreshWallpaperManifest,
 } from '../../worker/index';
-import type { WallpaperManifest } from '../../src/lib/wallpaper';
+import type { WallpaperManifest } from '@sshawn9/site-domain/wallpaper';
 
 class MemoryKv {
   values = new Map<string, string>();

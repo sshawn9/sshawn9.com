@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { developmentFontAssets } from '../../apps/site-v2/config/development-font-assets.mjs';
 
-describe('v2 development font assets', () => {
+describe('development font assets', () => {
   it('gives dependency fonts a versioned identity and caches only identified font URLs', () => {
     const [versionUrls, cacheResponses] = developmentFontAssets();
     const originalUrl =
@@ -24,7 +24,7 @@ describe('v2 development font assets', () => {
       | undefined;
     cacheResponses.configureServer?.({
       middlewares: {
-        use(value) {
+        use(value: Exclude<typeof middleware, undefined>) {
           middleware = value;
         },
       },

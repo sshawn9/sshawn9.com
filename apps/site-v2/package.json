@@ -14,6 +14,7 @@
     "@sshawn9/content-ui": "0.0.0",
     "@astrojs/markdown-remark": "7.2.2",
     "@astrojs/mdx": "7.0.5",
+    "@astrojs/sitemap": "3.7.3",
     "@astrojs/solid-js": "7.0.1",
     "@fontsource-variable/jetbrains-mono": "5.2.8",
     "@fontsource-variable/manrope": "5.2.8",

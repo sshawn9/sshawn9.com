@@ -4,7 +4,6 @@ import { downloadWallpaper } from './download';
 import {
   AUTO_ROTATION_KEY,
   ENABLED_KEY,
-  LEGACY_ROTATION_KEY,
   MANIFEST_REFRESH_MS,
   MANIFEST_RETRY_MS,
   MAX_CANDIDATE_ATTEMPTS,
@@ -72,7 +71,6 @@ export class WallpaperSystem {
   }
 
   start(): () => void {
-    this.store.migrateLegacyState();
     this.installEvents();
     if (this.target.readyState === 'loading') {
       this.target.addEventListener('DOMContentLoaded', this.handleDocumentReady, { once: true });
@@ -129,12 +127,12 @@ export class WallpaperSystem {
   private restoreCurrent(): void {
     const stored = this.store.readState();
     let currentSlot = stored.currentSlot;
-    let current = currentSlot ? this.store.readAsset(currentSlot, true) : undefined;
+    let current = currentSlot ? this.store.readAsset(currentSlot) : undefined;
 
     if (!current) {
       if (currentSlot) this.store.clearAsset(currentSlot);
       const fallbackSlot = (['a', 'b'] as const).find((slot) => this.store.readMeta(slot));
-      const fallback = fallbackSlot ? this.store.readAsset(fallbackSlot, true) : undefined;
+      const fallback = fallbackSlot ? this.store.readAsset(fallbackSlot) : undefined;
       currentSlot = fallback ? fallbackSlot! : null;
       current = fallback;
     }
@@ -243,11 +241,6 @@ export class WallpaperSystem {
     this.persistPreferenceChange('theme', THEME_KEY, changes.theme);
     this.persistPreferenceChange('enabled', ENABLED_KEY, changes.enabled);
     this.persistPreferenceChange('autoRotation', AUTO_ROTATION_KEY, changes.autoRotation);
-    if (changes.autoRotation !== undefined) {
-      try {
-        this.local?.removeItem(LEGACY_ROTATION_KEY);
-      } catch {}
-    }
   }
 
   private persistPreferenceChange<Key extends keyof PreferenceChanges>(
@@ -311,7 +304,7 @@ export class WallpaperSystem {
 
   private readNextAsset(): WallpaperAsset | undefined {
     if (!this.state.currentSlot) return undefined;
-    const next = this.store.readAsset(otherSlot(this.state.currentSlot), true);
+    const next = this.store.readAsset(otherSlot(this.state.currentSlot));
     return next?.photo.id === this.current?.photo.id ? undefined : next;
   }
 
@@ -485,7 +478,7 @@ export class WallpaperSystem {
     const previousSlot = this.state.currentSlot;
     if (!previousSlot) return;
     const nextSlot = otherSlot(previousSlot);
-    const stored = this.store.readAsset(nextSlot, true);
+    const stored = this.store.readAsset(nextSlot);
     if (!stored || stored.photo.id !== candidate.photo.id) return;
     if (!(await decodeDataUrl(this.sourceWindow, stored.dataUrl))) return;
     if (
