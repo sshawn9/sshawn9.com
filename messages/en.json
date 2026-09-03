@@ -121,8 +121,6 @@
   "search_placeholder": "Search titles, topics, or keywords…",
   "search_empty_title": "Start with a keyword",
   "search_empty_description": "Results appear as you type, with titles and matching sections prioritized.",
-  "search_no_script_title": "Search requires JavaScript",
-  "search_no_script_description": "Enable JavaScript to use site search.",
   "search_unavailable_title": "Search is temporarily unavailable",
   "search_unavailable_description": "The search engine could not be loaded. You can still browse the main sections below.",
   "search_result_type_page": "Page",

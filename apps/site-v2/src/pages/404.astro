@@ -1,9 +1,9 @@
 ---
 import { Font } from 'astro:assets';
 import * as m from '@sshawn9/site-i18n/messages';
-import { FONT_QUERY_META_NAME } from '../runtime/font-coordinator';
 import { createInitialFrameScript, INITIAL_FRAME_READY_ID } from '../runtime/initial-frame';
 import { createFallbackDocumentLocaleScript } from '../runtime/locale-preference';
+import { REQUIRED_FONT_META_NAME } from '../runtime/required-fonts';
 import '../styles/index.css';
 
 const copy = {
@@ -39,11 +39,12 @@ const initialFrameScript = createInitialFrameScript();
     <meta name="robots" content="noindex, follow" />
     <meta name="theme-color" content="#f7f8fb" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name={FONT_QUERY_META_NAME} content="400 1em var(--font-source-sans-3)" />
-    <meta name={FONT_QUERY_META_NAME} content="700 1em var(--font-manrope)" />
-    <meta name={FONT_QUERY_META_NAME} content={'400 1em "Noto Sans SC Variable"'} />
+    <meta name={REQUIRED_FONT_META_NAME} content="400 1em var(--font-source-sans-3)" />
+    <meta name={REQUIRED_FONT_META_NAME} content="700 1em var(--font-manrope)" />
+    <meta name={REQUIRED_FONT_META_NAME} content="400 1em var(--font-jetbrains-mono)" />
     <Font cssVariable="--font-manrope" preload={[{ weight: '200 800', style: 'normal' }]} />
     <Font cssVariable="--font-source-sans-3" preload={[{ weight: '200 900', style: 'normal' }]} />
+    <Font cssVariable="--font-jetbrains-mono" preload={[{ weight: '100 800', style: 'normal' }]} />
     <title>{copy.en.title}</title>
     <script is:inline>
       (() => {
@@ -64,20 +65,10 @@ const initialFrameScript = createInitialFrameScript();
     </script>
     <script is:inline set:html={localeScript} />
     <link rel="expect" href={`#${INITIAL_FRAME_READY_ID}`} blocking="render" />
-    <noscript>
-      <style is:global>
-        [data-font-surface] {
-          visibility: visible !important;
-          --font-display: var(--font-display-fallback);
-          --font-sans: var(--font-sans-fallback);
-          --font-mono: var(--font-mono-fallback);
-          font-family: var(--font-sans-fallback);
-        }
-      </style>
-    </noscript>
   </head>
   <body>
     <header class="site-header">
+      <div class="navigation-progress" aria-hidden="true"></div>
       <div class="content-shell site-header__inner" data-font-surface>
         {
           (['en', 'zh'] as const).map((locale) => (
@@ -141,8 +132,6 @@ const initialFrameScript = createInitialFrameScript();
 
     <script is:inline set:html={initialFrameScript} />
     <span id={INITIAL_FRAME_READY_ID} data-initial-frame-document-ready aria-hidden="true"></span>
-
-
   </body>
 </html>
 

@@ -121,8 +121,6 @@
   "search_placeholder": "搜索标题、主题或关键词…",
   "search_empty_title": "从一个关键词开始",
   "search_empty_description": "结果会在输入时显示，并优先呈现标题和相关章节。",
-  "search_no_script_title": "搜索需要 JavaScript",
-  "search_no_script_description": "启用 JavaScript 后即可使用站内搜索。",
   "search_unavailable_title": "搜索暂时不可用",
   "search_unavailable_description": "搜索引擎未能加载，你仍可通过下方入口浏览主要内容。",
   "search_result_type_page": "页面",

@@ -132,6 +132,10 @@
   min-width: 0;
 }
 
+pagefind-results[data-required-fonts-loading] {
+  visibility: hidden;
+}
+
 .site-search-result {
   display: flex;
   flex-direction: column;

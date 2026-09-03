@@ -1,6 +1,4 @@
 @import '@fontsource-variable/noto-sans-sc/wght.css';
-@import '@fontsource-variable/jetbrains-mono/wght.css';
-@import '@fontsource-variable/jetbrains-mono/wght-italic.css';
 @import 'katex/dist/katex.min.css';
 
 /*
@@ -154,14 +152,9 @@
 
 :root {
   color-scheme: light;
-  --font-display-fallback: system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  --font-sans-fallback: system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  --font-mono-fallback:
-    ui-monospace, 'SFMono-Regular', 'Cascadia Code', 'Roboto Mono', Consolas, 'PingFang SC',
-    'Microsoft YaHei', monospace;
   --font-display: var(--font-manrope);
   --font-sans: var(--font-source-sans-3);
-  --font-mono: 'JetBrains Mono Variable', 'Noto Sans SC Variable', var(--font-mono-fallback);
+  --font-mono: var(--font-jetbrains-mono), 'Noto Sans SC Variable';
   --page: #f7f8fb;
   --page-muted: #eef1f7;
   --scenic-text-strong: #090d14;
@@ -223,22 +216,13 @@
 }
 
 /*
- * Font readiness coordinates geometry consumers; it never owns document
- * visibility. Document surfaces stay painted while a cold document prepares
- * fonts, and a warm refresh cannot remove and reinsert an already visible page.
+ * Typography is one required page resource. The wallpaper remains visible,
+ * while every surface that could expose fallback glyphs waits for the exact
+ * fonts used by this document. A warm document clears this state synchronously
+ * before the render boundary and therefore never exposes a loading frame.
  */
-
-[data-font-surface][data-font-fallback] {
-  --font-display: var(--font-display-fallback);
-  --font-sans: var(--font-sans-fallback);
-  --font-mono: var(--font-mono-fallback);
-  font-family: var(--font-sans-fallback);
-}
-
-/* KaTeX names its faces directly instead of using the site font variables. */
-[data-font-surface][data-font-fallback] .katex,
-[data-font-surface][data-font-fallback] .katex * {
-  font-family: 'Times New Roman', serif !important;
+:root[data-font-state='loading'] [data-font-surface] {
+  visibility: hidden;
 }
 
 :root.dark {

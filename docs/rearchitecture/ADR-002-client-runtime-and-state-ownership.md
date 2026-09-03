@@ -25,7 +25,7 @@ BaseLayout（Astro 静态文档）
   ├── SiteShell.astro（持久静态 HTML）
   ├── SiteShellController（解析期尽早启用外壳语义）
   ├── SiteRuntime（唯一的正常浏览器运行时组合根）
-  │   ├── NavigationCoordinator（导航、代际、字体和滚动事务）
+  │   ├── NavigationCoordinator（导航、代际和滚动事务）
   │   ├── PageRuntime（当前页面唯一的挂载/销毁所有者）
   │   └── Content UI custom-element definitions
   └── 页面交互岛（各自拥有 mount/unmount）
@@ -78,7 +78,7 @@ type NavigationPhase =
 3. 包装原始 `loader()` 并等待它完成。
 4. loader 失败、非 HTML、目标不支持客户端导航或事务被取消时，交给框架原生回退。
 5. loader 成功后读取目标构建 ID；跨代际按已批准的 `BCP-001` 保存状态并执行完整文档导航。
-6. FontCoordinator 根据目标文档准备字体；等待期间旧页面完整、可读且控件仍可操作。
+6. NavigationCoordinator 仅在交换边界等待目标文档的 RequiredFonts Promise；字体模块不读取导航状态，等待期间旧页面完整、可读且控件仍可操作。
 
 ### `before-swap`
 
@@ -147,38 +147,37 @@ type SiteHistoryStateV1 = {
 
 ## 绘制前恢复
 
-首帧稳定不能以隐藏整个页面或无界等待网络资源为代价。初始文档保留四个职责明确的小入口：
+初始文档保留四个职责明确的小入口：
 
 1. head 中的 WallpaperSystem 单一入口：读取偏好和当前槽位并立即投影，随后由同一实例异步检查下一槽位；
 2. head 中按页面生成的 prepaint：只恢复该页面自己的可计算布局状态；
 3. head 中的 `<link rel="expect" href="#initial-frame-ready" blocking="render">`：目标是 `SiteRuntime` 前固定的文档末端 marker，只在支持的浏览器中等待静态 HTML 解析到该处，不等待字体、图片或客户端模块；
-4. marker 前的初始文档协调器：此时完整 DOM 和 CSS 已登记；它以当前文档 `FontFaceSet.check()` 和页面实际字形同步判定字体是否已经就绪，再负责字体准备、滚动和文字表面的最终提交。
+4. marker 前的初始文档入口：此时完整 DOM 和 CSS 已登记；它先用 `FontFaceSet.check()` 同步处理温缓存，再以唯一 RequiredFonts 接口等待冷缓存，最后提交滚动位置和文字表面。
 
-固定末端 marker 使支持 `rel=expect` 的浏览器在首次提交前拥有完整静态布局，也给字体协调器一个可靠的文档边界。字体状态只协调依赖排版的测量消费者，不控制 `[data-font-surface]` 的可见性；正文、导航和页脚在字体准备及降级期间始终保留在画面中。
+固定末端 marker 使支持 `rel=expect` 的浏览器在首次提交前拥有完整静态布局，也给字体请求一个可靠的内容边界。冷缓存期间只保留独立壁纸/底色与进度线；`[data-font-surface]` 在所有必需字体成功后一次显示。温缓存由同步检查在 render boundary 前直接提交，不产生加载帧。
 
 WallpaperSystem 由可维护 TypeScript 模块构建成同源 classic script；构建产物不作为第二份源码维护。页面 prepaint 使用各自的小型 codec。约束如下：
 
 - 无动态 import、无框架初始化，所有存储读取都经过共享 codec；
 - 主题、语言、布局和可计算的滚动状态必须同步准备；
-- 字体准备使用当前文档实际字符选中 unicode-range 分片；1.8 秒是提交固定本地回退的 degraded 上限；
-- 图片、字体或第三方资源不得拥有 `body` 或页面根节点的可见性；字体只能控制经登记的文字表面；
+- 字体准备使用当前内容实际字符选中 unicode-range 分片；不设置超时或回退提交；
+- 字体只能控制经登记的文字表面，不能隐藏壁纸、底色或进度反馈；图片和第三方资源不能控制正文可见性；
 - 初始文档不播放揭示动画；运行时接管只能确认同一状态，不能再做一次可见修正；
 - 体积设置构建预算。
 
 此前的 CSS 全局可见性门把壁纸、装饰与正文绑在同一个异步期限内，是刷新暗帧和慢资源放大的根源。当前边界只管理文字表面，不遮挡壁纸和页面底色，也不等待图片或客户端模块。
 
-## 字体协调
+## 必需字体
 
-FontCoordinator 是唯一字体就绪所有者：
+RequiredFonts 是无持久状态的独立资源边界：
 
-- 全站字体声明稳定存在于全局样式，关键 Latin 字体由 Astro Fonts 自托管并在 head 预加载；
-- 热刷新不信任历史存储标记；只有当前文档的 `FontFaceSet.check()` 确认本页精确查询和实际字形均已加载，才在异步边界前同步提交 `ready`；
-- 初始文档在完整 DOM/CSS 边界后准备实际页面字形，与滚动恢复一次提交 `ready` 或 `degraded`；
-- 客户端导航在 swap 前扫描目标文字需求，包括 CJK unicode-range、斜体、等宽与 KaTeX 字形；
-- 字体准备发生在 swap 前，旧页面继续显示，不能让目标正文以回退字体先出现；
-- 新导航复用 ClientRouter 的 `AbortSignal` 取消旧字体等待；
-- 字体失败只降级字体，不取消内容导航；迟到字体不得再换入 degraded 文档；
-- 热缓存不得重放 reveal 或引起几何变化。
+- 全站字体声明稳定存在于全局样式；Latin 字体自托管并预加载，中文继续按 unicode-range 分片；
+- 唯一接口 `waitForRequiredFonts(fontDocument, declarationDocument, options)` 只返回就绪 Promise，不拥有导航、进度、滚动、壁纸或页面动画；
+- 不使用 localStorage 推测缓存；温刷新只相信当前文档的 `FontFaceSet.check()`，并在 render boundary 前同步提交；
+- 初始文档、目标文档和动态结果都从自身真实字符推导所需的 Latin、CJK、斜体、等宽与 KaTeX 字体；
+- 冷初始文档等待时隐藏已登记文字表面；客户端导航等待时保留完整旧页；动态内容只约束自身提交边界；
+- 所有必需字体成功才解析 Promise；失败保持 pending，不显示 fallback，也不循环重试；
+- 可被替代的导航或动态内容复用所属事务的 `AbortSignal`，取消只终止等待，不建立第二套状态机。
 
 生成 HTML 曾在 SiteShell 之后、首屏静态区域完成之前插入并执行 island bootstrap，产生“只有部分静态 DOM”的真实中间帧。静态 SiteShell 与固定文档末端 marker 消除了该解析窗口。字体协调器之前又在 CSS 登记前执行，并且 `FontFaceSet.load()` 未传实际文字，导致 CJK 分片未准备却错误放行；随后所有文档无条件进入异步准备，让热刷新也暴露一帧隐藏文字。现在初始文档与客户端导航共用同一请求推导；当前文档已加载的精确字形同步提交，冷文档才进入有限异步准备。
 
@@ -194,17 +193,17 @@ FontCoordinator 是唯一字体就绪所有者：
 
 ## 错误与降级
 
-| 故障                         | 行为                                                              |
-| ---------------------------- | ----------------------------------------------------------------- |
-| ClientRouter 获取/解析失败   | 原生文档导航                                                      |
-| 新导航覆盖旧导航             | 框架 signal 取消旧准备，旧事务不能提交                            |
-| 字体失败或超时               | 进入可读 degraded，页面仍导航                                     |
-| local/session/history 不可用 | 使用安全默认值，不阻塞完整 HTML                                   |
-| 页面岛加载失败               | 保留 SSR 正文、图注、链接和明确静态回退                           |
-| 构建代际不一致               | 按已批准的 `BCP-001` 保存状态并执行完整文档导航                   |
-| 首帧字体失败、超时或脚本异常 | 壁纸/底色始终可见；文字表面一次提交固定本地回退，迟到字体不再换入 |
-| 浏览器不支持 `rel=expect`    | 按普通静态 HTML 渐进解析与绘制；生产前完成该浏览器连续帧验收      |
-| View Transition 不可用       | 使用经过行为测试的动画 fallback；不得擅自改成无过渡整页突变       |
+| 故障                         | 行为                                                         |
+| ---------------------------- | ------------------------------------------------------------ |
+| ClientRouter 获取/解析失败   | 原生文档导航                                                 |
+| 新导航覆盖旧导航             | 框架 signal 取消旧准备，旧事务不能提交                       |
+| 必需字体失败                 | 背景和进度线保留，文字不提交；可替代事务仍可取消             |
+| local/session/history 不可用 | 使用安全默认值，不阻塞完整 HTML                              |
+| 页面岛加载失败               | 保留 SSR 正文、图注、链接和明确静态回退                      |
+| 构建代际不一致               | 按已批准的 `BCP-001` 保存状态并执行完整文档导航              |
+| 首帧字体或必要脚本失败       | 壁纸/底色与进度线始终可见；文字表面保持未提交                |
+| 浏览器不支持 `rel=expect`    | 按普通静态 HTML 渐进解析与绘制；生产前完成该浏览器连续帧验收 |
+| View Transition 不可用       | 使用经过行为测试的动画 fallback；不得擅自改成无过渡整页突变  |
 
 ## 禁止重新引入的模式
 
@@ -212,8 +211,8 @@ FontCoordinator 是唯一字体就绪所有者：
 - 以字符串名称连接的全站事件总线；
 - 同一状态同时存在 URL、store、DOM dataset 和 storage 四个相互回写的权威副本；
 - 页面级巨型 controller 扫描整个文档并认领所有组件；
-- 用固定 timeout 代替 CSS、字体、水合或图形的真实就绪信号；安全超时只能作为明确的 degraded 上限；
-- 用 `visibility`、`opacity` 或覆盖层建立等待异步资源的全局页面门；
+- 用固定 timeout 代替字体的真实就绪信号；
+- 用 `visibility`、`opacity` 或覆盖层建立跨资源的全局页面门；字体只可约束显式登记的文字表面；
 - 为测试方便暴露生产全局对象；
 - 为少量复用提前建立插件系统、service locator 或通用状态框架。
 

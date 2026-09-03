@@ -23,19 +23,7 @@ test('the server-rendered project preview gains its existing two-dimensional dra
   await expect.poll(() => figure.getAttribute('data-vehicle-x')).not.toBe(initialX);
 });
 
-test('explicit image attachments keep a no-script link and gain an accessible viewer', async ({
-  browser,
-  page,
-}) => {
-  const noScriptContext = await browser.newContext({ javaScriptEnabled: false });
-  const noScriptPage = await noScriptContext.newPage();
-  await noScriptPage.goto(mediaArticlePath);
-  const fallback = noScriptPage.locator('a[data-article-media-item]');
-  await expect(fallback).toHaveAttribute('target', '_blank');
-  await expect(fallback).toHaveAttribute('rel', 'noopener noreferrer');
-  await expect(fallback.locator('img')).toHaveAttribute('width', '512');
-  await noScriptContext.close();
-
+test('explicit image attachments gain an accessible viewer', async ({ page }) => {
   await page.goto(mediaArticlePath);
   const attachment = page.locator('a[data-article-media-item]');
   await expect(page.locator('.article-prose')).toHaveAttribute(

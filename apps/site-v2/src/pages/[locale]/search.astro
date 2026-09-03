@@ -21,7 +21,7 @@ const hasGeneratedIndex = import.meta.env.PROD;
   description={copy.searchPageDescription}
   {locale}
   noIndex
-  fontQueries={['400 1em "JetBrains Mono Variable"']}
+  fontQueries={['400 1em var(--font-jetbrains-mono)']}
 >
   {
     hasGeneratedIndex && (
@@ -35,7 +35,7 @@ const hasGeneratedIndex = import.meta.env.PROD;
         <SearchClient {locale} />
       ) : (
         <div class="site-search-panel">
-          <SearchFallback {locale} reason="unavailable" />
+          <SearchFallback {locale} />
           <p class="site-search-dev-note">
             {copy.searchDevTitle} {copy.searchDevDescription}
           </p>

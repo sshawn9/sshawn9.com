@@ -3,6 +3,7 @@ import {
   readCurrentScroll,
   restorePageScroll,
 } from '../../../runtime/scroll-state';
+import { waitForRequiredFonts } from '../../../runtime/required-fonts';
 import { createSearchQueryUrl, readSearchQuery } from './search-query-state';
 
 type PagefindComponent = HTMLElement;
@@ -51,13 +52,15 @@ function createSearchPageController(
   const loading = root.querySelector<HTMLElement>('[data-search-loading]');
   const interactive = root.querySelector<HTMLElement>('[data-search-interactive]');
   const fallback = root.querySelector<HTMLElement>('[data-search-fallback]');
-  const noScriptFallback = root.querySelector<HTMLElement>('[data-search-no-script-fallback]');
   const emptyState = root.querySelector<HTMLElement>('[data-search-empty]');
+  const pagefindResults = root.querySelector<HTMLElement>('pagefind-results');
   let instanceManager: PagefindInstanceManager | undefined;
   let destroyed = false;
   let failed = false;
   let responseTimer = 0;
   let resultObserver: MutationObserver | undefined;
+  let resultFontWait: AbortController | undefined;
+  let resultRevision = 0;
   let pendingScrollRestoration = initialScrollRestoration ?? readCurrentScroll(sourceWindow);
 
   const clearResultWait = () => {
@@ -65,6 +68,14 @@ function createSearchPageController(
     responseTimer = 0;
     resultObserver?.disconnect();
     resultObserver = undefined;
+  };
+
+  const cancelResultFontWait = () => {
+    resultRevision += 1;
+    resultFontWait?.abort();
+    resultFontWait = undefined;
+    pagefindResults?.removeAttribute('data-required-fonts-loading');
+    pagefindResults?.removeAttribute('aria-busy');
   };
 
   const restorePendingScroll = () => {
@@ -88,11 +99,11 @@ function createSearchPageController(
     if (destroyed || failed) return;
     failed = true;
     clearResultWait();
+    cancelResultFontWait();
     listeners.abort();
     removeInstance();
     loading?.setAttribute('hidden', '');
     interactive?.setAttribute('hidden', '');
-    noScriptFallback?.setAttribute('hidden', '');
     fallback?.removeAttribute('hidden');
     root.removeAttribute('data-search-ready');
     root.setAttribute('data-search-failed', '');
@@ -122,7 +133,6 @@ function createSearchPageController(
     sourceWindow.clearTimeout(connectionTimer);
     const components = searchWindow.PagefindComponents;
     const pagefindInput = root.querySelector<HTMLElement>('pagefind-input');
-    const pagefindResults = root.querySelector<HTMLElement>('pagefind-results');
     const input = pagefindInput?.querySelector<HTMLInputElement>('input');
     if (!components || !pagefindInput || !pagefindResults || !input) {
       showFailure();
@@ -148,6 +158,7 @@ function createSearchPageController(
       'loading',
       () => {
         clearResultWait();
+        cancelResultFontWait();
         responseTimer = sourceWindow.setTimeout(showFailure, SEARCH_RESPONSE_TIMEOUT_MS);
       },
       root,
@@ -164,19 +175,44 @@ function createSearchPageController(
             ? result.results.length
             : 0;
         if (count === 0) {
+          cancelResultFontWait();
           restorePendingScroll();
           return;
         }
+
+        const revision = ++resultRevision;
+        const fonts = new AbortController();
+        resultFontWait?.abort();
+        resultFontWait = fonts;
+        pagefindResults.setAttribute('data-required-fonts-loading', '');
+        pagefindResults.setAttribute('aria-busy', 'true');
 
         // Result fragments are loaded lazily after the public search result
         // event. Wait for our public result template before restoring scroll;
         // otherwise the short placeholder document clamps a deep history
         // position. Pagefind 1.5.2 does not expose fragment errors, so this same
         // finite wait also releases a failed fragment load to static navigation.
+        let preparingFragments = false;
         const finishFragments = () => {
+          if (preparingFragments) return;
           if (!pagefindResults.querySelector('.site-search-result__link')) return;
+          preparingFragments = true;
           clearResultWait();
-          restorePendingScroll();
+          void waitForRequiredFonts(sourceDocument, sourceDocument, {
+            contentRoot: pagefindResults,
+            signal: fonts.signal,
+          })
+            .then(() => {
+              if (destroyed || failed || revision !== resultRevision) return;
+              resultFontWait = undefined;
+              pagefindResults.removeAttribute('data-required-fonts-loading');
+              pagefindResults.removeAttribute('aria-busy');
+              restorePendingScroll();
+            })
+            .catch((error: unknown) => {
+              if (error instanceof DOMException && error.name === 'AbortError') return;
+              // A real font failure intentionally leaves these results pending.
+            });
         };
         const BrowserMutationObserver = (sourceWindow as Window & typeof globalThis)
           .MutationObserver;
@@ -206,7 +242,6 @@ function createSearchPageController(
     restoreFromUrl();
     loading?.setAttribute('hidden', '');
     fallback?.setAttribute('hidden', '');
-    noScriptFallback?.setAttribute('hidden', '');
     interactive?.removeAttribute('hidden');
     root.setAttribute('data-search-ready', '');
   };
@@ -219,6 +254,7 @@ function createSearchPageController(
       destroyed = true;
       sourceWindow.clearTimeout(connectionTimer);
       clearResultWait();
+      cancelResultFontWait();
       listeners.abort();
       removeInstance();
     },
