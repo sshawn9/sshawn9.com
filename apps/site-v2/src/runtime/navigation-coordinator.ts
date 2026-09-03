@@ -7,7 +7,6 @@ import { prepareTargetBlogSidebarState } from '../features/blog/runtime/blog-sid
 import { prepareTargetBlogView } from '../features/blog/runtime/blog-view-state';
 import { decideBuildNavigation, readDocumentBuildId } from './build-generation';
 import { CURRENT_BUILD_ID } from './build-identity';
-import { prepareTargetDocumentPreferences } from '../features/appearance/runtime/document-preferences';
 import { prepareTargetFonts, reflectFontPreparation } from './font-coordinator';
 import {
   consumeLocaleNavigationTransfer,
@@ -227,7 +226,6 @@ export function installNavigationCoordinator(
     const event = rawEvent as TransitionBeforeSwapEvent;
     if (phase.kind !== 'preparing') return;
 
-    prepareTargetDocumentPreferences(sourceDocument, event.newDocument);
     reflectNavigationFeedback(event.newDocument, feedback.current());
     pageTransition.prepareSwap(event);
     if (phase.pageScrollPlacement) {

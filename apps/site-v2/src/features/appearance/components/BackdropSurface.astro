@@ -11,39 +11,14 @@ const copy = getFoundationCopy(locale);
 ---
 
 <div class="wallpaper" data-wallpaper data-backdrop-surface>
-  <div class="wallpaper__boot" data-wallpaper-boot aria-hidden="true">
-    <div class="wallpaper__boot-image"></div>
-    <div class="wallpaper__scrim"></div>
-  </div>
-  <div class="wallpaper__media" data-wallpaper-media aria-hidden="true">
+  <div class="wallpaper__stage" aria-hidden="true">
     <div class="wallpaper__images">
-      <div class="wallpaper__image" data-wallpaper-image></div>
-      <div class="wallpaper__image" data-wallpaper-image></div>
-      <img
-        class="wallpaper__loader"
-        data-wallpaper-loader
-        alt=""
-        decoding="async"
-        fetchpriority="low"
-        draggable="false"
-      />
-      <img
-        class="wallpaper__loader"
-        data-wallpaper-loader
-        alt=""
-        decoding="async"
-        fetchpriority="low"
-        draggable="false"
-      />
+      <div class="wallpaper__image" data-wallpaper-slot="a"></div>
+      <div class="wallpaper__image" data-wallpaper-slot="b"></div>
     </div>
     <div class="wallpaper__scrim"></div>
   </div>
 
-  <!--
-    Attribution is fixed chrome, not document typography. Its geometry is
-    independent of the page outlet, so waiting for every font required by the
-    current article only makes an already-complete credit appear late.
-  -->
   <div class="wallpaper__credit" data-wallpaper-credit hidden>
     <span data-shell-sync-key="wallpaper-photo-by" data-shell-copy-text
       >{copy.wallpaperPhotoBy}</span
@@ -59,129 +34,4 @@ const copy = getFoundationCopy(locale);
       >Unsplash</a
     >
   </div>
-
-  <!--
-    This classic script is deliberately authored inline. It runs while the
-    surface is being parsed and consumes only the validated seed published by
-    the head bootstrap. Do not replace it with Function#toString codegen: dev
-    transforms can leak server-only import identifiers into the browser.
-  -->
-  <script is:inline>
-    (() => {
-      const root = document.documentElement;
-      if (root.dataset.wallpaperMode !== 'scenic' || root.dataset.wallpaperCompositor === 'ready') {
-        return;
-      }
-
-      const script = document.currentScript;
-      const surface = script?.closest('[data-backdrop-surface]');
-      const media = surface?.querySelector('[data-wallpaper-media]');
-      const credit = surface?.querySelector('[data-wallpaper-credit]');
-      const photographer = surface?.querySelector('[data-wallpaper-credit-photographer]');
-      const photo = surface?.querySelector('[data-wallpaper-credit-photo]');
-      if (
-        !(media instanceof HTMLElement) ||
-        !(credit instanceof HTMLElement) ||
-        !(photographer instanceof HTMLAnchorElement) ||
-        !(photo instanceof HTMLAnchorElement)
-      ) {
-        return;
-      }
-
-      // The head bootstrap validates session storage and publishes this inert
-      // handoff before the body is parsed. Consume it synchronously so a saved
-      // boot image and its attribution share the same first visible frame.
-      const seedElement = document.querySelector('script[data-wallpaper-boot-seed]');
-      let bootSeed;
-      try {
-        bootSeed = seedElement?.textContent ? JSON.parse(seedElement.textContent) : undefined;
-      } catch {}
-      seedElement?.remove();
-      const seededPhoto = bootSeed?.version === 1 ? bootSeed.photo : undefined;
-      const seededPhotoId = seededPhoto?.id;
-      const photographerName = seededPhoto?.photographerName;
-      const photographerUrl = seededPhoto?.photographerUrl;
-      const photoUrl = seededPhoto?.photoUrl;
-      const validUrl = (value, host) => {
-        if (typeof value !== 'string') return false;
-        try {
-          const url = new URL(value);
-          return (
-            url.protocol === 'https:' &&
-            (url.hostname === host || url.hostname.endsWith(`.${host}`))
-          );
-        } catch {
-          return false;
-        }
-      };
-      const seedMatchesCurrentPhoto =
-        typeof seededPhotoId === 'string' &&
-        seededPhotoId.length > 0 &&
-        seededPhotoId === root.dataset.wallpaperPhotoId &&
-        typeof photographerName === 'string' &&
-        photographerName.length > 0 &&
-        validUrl(photographerUrl, 'unsplash.com') &&
-        validUrl(photoUrl, 'unsplash.com');
-      if (seedMatchesCurrentPhoto) {
-        photographer.textContent = photographerName;
-        photographer.href = photographerUrl;
-        photo.href = photoUrl;
-        credit.dataset.wallpaperPhotoId = seededPhotoId;
-        credit.hidden = root.dataset.wallpaperBootPhotoId !== seededPhotoId;
-      }
-
-      // A validated boot image is already the current wallpaper. It remains
-      // the sole visual owner for this document, so the same remote asset is
-      // neither preloaded nor decoded into a second compositor layer.
-      if (root.dataset.wallpaperBootPhotoId) {
-        media.dataset.wallpaperOwner = 'boot';
-        media.dataset.wallpaperFirstFrame = 'boot';
-        return;
-      }
-
-      const preload = document.querySelector('link[data-wallpaper-preload]');
-      const loader = surface?.querySelector('[data-wallpaper-loader]');
-      if (
-        !(preload instanceof HTMLLinkElement) ||
-        !(loader instanceof HTMLImageElement) ||
-        !seedMatchesCurrentPhoto
-      ) {
-        return;
-      }
-
-      const photoId = preload.dataset.wallpaperPreload;
-      if (!photoId || photoId !== seededPhotoId) return;
-      root.dataset.wallpaperInitial = 'deferred';
-
-      loader.crossOrigin = 'anonymous';
-      loader.decoding = 'sync';
-      loader.fetchPriority = 'high';
-      loader.dataset.wallpaperPhotoId = photoId;
-      loader.dataset.wallpaperInitialCandidate = photoId;
-      loader.src = preload.href;
-      media.dataset.wallpaperCandidate = photoId;
-      media.dataset.wallpaperOwner = 'bootstrap';
-      media.dataset.wallpaperFirstFrame = 'pending';
-
-      const markFirstFramePresented = () => {
-        if (media.dataset.wallpaperFirstFrame === 'pending') {
-          media.dataset.wallpaperFirstFrame = 'presented';
-        }
-      };
-      const supportsPaintTiming =
-        typeof PerformanceObserver !== 'undefined' &&
-        PerformanceObserver.supportedEntryTypes.includes('paint');
-      if (supportsPaintTiming) {
-        const paintObserver = new PerformanceObserver((entries, observer) => {
-          if (!entries.getEntries().some((entry) => entry.name === 'first-contentful-paint'))
-            return;
-          observer.disconnect();
-          markFirstFramePresented();
-        });
-        paintObserver.observe({ type: 'paint', buffered: true });
-      } else {
-        requestAnimationFrame(() => setTimeout(markFirstFramePresented, 0));
-      }
-    })();
-  </script>
 </div>

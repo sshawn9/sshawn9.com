@@ -1,8 +1,9 @@
-import { WALLPAPER_DOWNLOAD_ENDPOINT, type WallpaperPhoto } from '@sshawn9/site-domain/wallpaper';
+import type { WallpaperPhoto } from '@sshawn9/site-domain/wallpaper';
+import { DOWNLOAD_ENDPOINT } from './model';
 
 const DOWNLOAD_WIDTH = 2400;
 
-function createDownloadImageUrl(rawUrl: string): string {
+function downloadUrl(rawUrl: string): string {
   const url = new URL(rawUrl);
   url.searchParams.delete('auto');
   url.searchParams.set('fit', 'max');
@@ -12,19 +13,13 @@ function createDownloadImageUrl(rawUrl: string): string {
   return url.toString();
 }
 
-type WallpaperDownloadDependencies = {
-  target: Document;
-  sourceWindow: Window;
-  photo: WallpaperPhoto;
-};
-
-/** Downloads one explicit photo and reports only that user-initiated file transfer. */
-export async function downloadWallpaperPhoto({
-  target,
-  sourceWindow,
-  photo,
-}: WallpaperDownloadDependencies): Promise<void> {
-  const response = await sourceWindow.fetch(createDownloadImageUrl(photo.rawUrl));
+/** Performs only the visitor's explicit file download and its Unsplash report. */
+export async function downloadWallpaper(
+  target: Document,
+  sourceWindow: Window,
+  photo: WallpaperPhoto,
+): Promise<void> {
+  const response = await sourceWindow.fetch(downloadUrl(photo.rawUrl));
   if (!response.ok) return;
 
   const blob = await response.blob();
@@ -40,7 +35,7 @@ export async function downloadWallpaperPhoto({
   sourceWindow.setTimeout(() => URLConstructor.revokeObjectURL(objectUrl), 1000);
 
   void sourceWindow
-    .fetch(WALLPAPER_DOWNLOAD_ENDPOINT, {
+    .fetch(DOWNLOAD_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ photoId: photo.id }),
