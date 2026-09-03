@@ -57,7 +57,7 @@ export function installTransientOverlayController(
   const focusFallback = (overlay: HTMLElement): void => {
     const target =
       visibleInvokerFor(overlay) ??
-      sourceDocument.querySelector<HTMLElement>('[data-shell-sync-key="home"]') ??
+      sourceDocument.querySelector<HTMLElement>('[data-site-identity]') ??
       sourceDocument.querySelector<HTMLElement>('#main-content');
     if (target && isRendered(target)) target.focus({ preventScroll: true });
   };
@@ -113,7 +113,15 @@ export function installTransientOverlayController(
   const handleToggle = (rawEvent: Event): void => {
     const overlay = rawEvent.target;
     if (!(overlay instanceof HTMLElement) || !overlay.matches(TRANSIENT_OVERLAY_SELECTOR)) return;
-    if (isPopoverOpen(overlay)) {
+    const open = isPopoverOpen(overlay);
+    overlay.toggleAttribute('data-open', open);
+    const invoker = visibleInvokerFor(overlay);
+    const label = open ? invoker?.dataset.closeLabel : invoker?.dataset.openLabel;
+    if (invoker && label) {
+      invoker.ariaLabel = label;
+      invoker.title = label;
+    }
+    if (open) {
       scheduleValidation();
       return;
     }

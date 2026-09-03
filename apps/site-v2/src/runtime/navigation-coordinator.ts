@@ -2,9 +2,6 @@ import type {
   TransitionBeforePreparationEvent,
   TransitionBeforeSwapEvent,
 } from 'astro:transitions/client';
-import { prepareTargetArticleSidebarState } from '../features/article/runtime/article-sidebar-state';
-import { prepareTargetBlogSidebarState } from '../features/blog/runtime/blog-sidebar-state';
-import { prepareTargetBlogView } from '../features/blog/runtime/blog-view-state';
 import { decideBuildNavigation, readDocumentBuildId } from './build-generation';
 import { CURRENT_BUILD_ID } from './build-identity';
 import {
@@ -14,6 +11,7 @@ import {
   persistLocaleNavigationTransfer,
   type LocaleNavigationPoint,
 } from './locale-navigation-transfer';
+import { saveLocalePreference } from './locale-preference';
 import {
   createBrowserFeedbackClock,
   NavigationFeedback,
@@ -34,10 +32,8 @@ type NavigationPhase =
       kind: 'preparing';
       id: number;
       feedbackId: number;
-      to: URL;
       navigationType: string;
       focusMainContent: boolean;
-      pageScrollPlacement?: LocaleNavigationPoint;
     }
   | {
       kind: 'swapping';
@@ -45,7 +41,6 @@ type NavigationPhase =
       feedbackId: number;
       navigationType: string;
       focusMainContent: boolean;
-      pageScrollPlacement?: LocaleNavigationPoint;
     }
   | {
       kind: 'settling';
@@ -56,14 +51,17 @@ type NavigationPhase =
     };
 
 interface InternalNavigation {
-  href: string;
-  localeSwitch: boolean;
+  link: HTMLAnchorElement;
+  target: URL;
+  targetLocale?: 'en' | 'zh';
 }
 
 interface PendingLocaleTransfer {
   target: URL;
   point: LocaleNavigationPoint;
 }
+
+export type TargetDocumentPreparer = (targetDocument: Document, targetUrl: URL) => void;
 
 function internalNavigation(
   sourceWindow: Window,
@@ -83,7 +81,12 @@ function internalNavigation(
   const url = new URL(source.href, sourceWindow.location.href);
   if (url.origin !== sourceWindow.location.origin) return undefined;
 
-  return { href: url.href, localeSwitch: source.hasAttribute('data-locale-switch') };
+  const locale = source.dataset.localeSwitch;
+  return {
+    link: source,
+    target: url,
+    targetLocale: locale === 'en' || locale === 'zh' ? locale : undefined,
+  };
 }
 
 function readableSessionStorage(sourceWindow: Window): Storage | undefined {
@@ -97,6 +100,7 @@ function readableSessionStorage(sourceWindow: Window): Storage | undefined {
 export function installNavigationCoordinator(
   sourceDocument: Document = document,
   sourceWindow: Window = window,
+  prepareTargetDocument: TargetDocumentPreparer = () => undefined,
 ): () => void {
   const feedback = new NavigationFeedback(createBrowserFeedbackClock(sourceWindow), (state) =>
     reflectNavigationFeedback(sourceDocument, state),
@@ -153,18 +157,12 @@ export function installNavigationCoordinator(
     let handingOffToDocument = false;
 
     restoringTraversal = navigationType === 'traverse';
-    const traversalScroll = restoringTraversal
-      ? readCurrentScroll(sourceWindow, event.to)?.page
-      : undefined;
     phase = {
       kind: 'preparing',
       id,
       feedbackId,
-      to: event.to,
       navigationType,
       focusMainContent,
-      pageScrollPlacement:
-        localeTransfer?.point ?? traversalScroll ?? (!event.to.hash ? { x: 0, y: 0 } : undefined),
     };
     if (restoringTraversal) cancelScheduledScrollSave();
     else persistCurrentScroll(sourceDocument, sourceWindow);
@@ -204,9 +202,7 @@ export function installNavigationCoordinator(
         return;
       }
 
-      prepareTargetBlogView(event.newDocument, event.to);
-      prepareTargetBlogSidebarState(event.newDocument, sourceWindow);
-      prepareTargetArticleSidebarState(event.newDocument, sourceWindow);
+      prepareTargetDocument(event.newDocument, event.to);
 
       try {
         await waitForRequiredFonts(sourceDocument, event.newDocument, { signal: event.signal });
@@ -227,24 +223,12 @@ export function installNavigationCoordinator(
 
     reflectNavigationFeedback(event.newDocument, feedback.current());
     pageTransition.prepareSwap(event);
-    if (phase.pageScrollPlacement) {
-      const frameworkSwap = event.swap;
-      const placement = phase.pageScrollPlacement;
-      event.swap = () => {
-        frameworkSwap();
-        // Placement belongs to the target document transaction. Doing it in
-        // the swap keeps an ordinary route, a history entry, and a locale
-        // transfer from ever exposing the outgoing route's scroll position.
-        restorePageScroll(sourceDocument, sourceWindow, placement);
-      };
-    }
     phase = {
       kind: 'swapping',
       id: phase.id,
       feedbackId: phase.feedbackId,
       navigationType: phase.navigationType,
       focusMainContent: phase.focusMainContent,
-      pageScrollPlacement: phase.pageScrollPlacement,
     };
   }
 
@@ -286,19 +270,32 @@ export function installNavigationCoordinator(
     const navigation = internalNavigation(sourceWindow, rawEvent as MouseEvent);
     if (!navigation) return;
 
+    if (navigation.targetLocale) {
+      // Static route generation cannot include the current query or fragment.
+      // Complete the locale destination before ClientRouter reads the link.
+      navigation.target.search = sourceWindow.location.search;
+      navigation.target.hash = sourceWindow.location.hash;
+      navigation.link.href = navigation.target.href;
+      try {
+        saveLocalePreference(sourceWindow.localStorage, navigation.targetLocale);
+      } catch {}
+    }
+
+    const href = navigation.target.href;
+
     const state = feedback.current();
-    if (state.pending && navigation.href === state.href) {
+    if (state.pending && href === state.href) {
       rawEvent.preventDefault();
       return;
     }
 
-    const localeTransfer = navigation.localeSwitch
+    const localeTransfer = navigation.targetLocale
       ? {
-          target: new URL(navigation.href),
+          target: navigation.target,
           point: { x: sourceWindow.scrollX, y: sourceWindow.scrollY },
         }
       : undefined;
-    const mainFocus = (rawEvent as MouseEvent).detail === 0 ? new URL(navigation.href) : undefined;
+    const mainFocus = (rawEvent as MouseEvent).detail === 0 ? new URL(href) : undefined;
     pendingLocaleTransfer = localeTransfer;
     pendingMainFocus = mainFocus;
 
@@ -315,7 +312,6 @@ export function installNavigationCoordinator(
     // During an active traversal, history already points at the destination;
     // writing the outgoing DOM's position would corrupt that entry.
     if (phase.kind === 'idle') persistCurrentScroll(sourceDocument, sourceWindow);
-    sourceWindow.history.scrollRestoration = 'auto';
   }
 
   sourceDocument.addEventListener('astro:before-preparation', prepareNavigation);
@@ -343,6 +339,5 @@ export function installNavigationCoordinator(
     sourceDocument.removeEventListener('click', inspectNavigationClick, true);
     sourceDocument.removeEventListener('scroll', scheduleScrollSave, true);
     sourceWindow.removeEventListener('pagehide', persistBeforeDocumentLeaves);
-    sourceWindow.history.scrollRestoration = 'auto';
   };
 }

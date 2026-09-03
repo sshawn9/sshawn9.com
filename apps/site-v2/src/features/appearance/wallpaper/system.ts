@@ -221,6 +221,7 @@ export class WallpaperSystem {
       this.preferences,
       this.state.currentSlot,
       this.current,
+      this.controlState(),
     );
   };
 
@@ -262,19 +263,23 @@ export class WallpaperSystem {
   }
 
   private render(): void {
+    this.view.renderControls(this.controlState());
+  }
+
+  private controlState() {
     const canAdvance = Boolean(
       this.current &&
       (this.next ||
         !this.manifest ||
         this.manifest.photos.some((photo) => photo.id !== this.current?.photo.id)),
     );
-    this.view.renderControls({
+    return {
       preferences: this.preferences,
       hasCurrent: Boolean(this.current),
       canAdvance,
       advancing: Boolean(this.advancePromise),
       downloading: this.downloading,
-    });
+    };
   }
 
   private async loadManifest(revalidate = false): Promise<WallpaperManifest | undefined> {

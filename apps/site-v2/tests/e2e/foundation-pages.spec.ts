@@ -61,16 +61,14 @@ test('homepage project and recent-article titles stay quiet until interaction', 
   await expect(recentArticleTitle).toHaveCSS('text-decoration-line', 'underline');
 });
 
-test('the persistent header keeps the same destinations and quiet utility hierarchy', async ({
-  page,
-}) => {
+test('the header keeps the same destinations and quiet utility hierarchy', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/en/blog/');
 
   const header = page.locator('.site-header');
   const github = header.getByRole('link', { name: "View Shawn's GitHub profile" }).first();
   const locale = header.getByRole('link', { name: 'Switch to 中文' }).first();
-  const theme = header.locator('[data-shell-sync-key="theme-toggle"]');
+  const theme = header.locator('[data-theme-toggle]').first();
   await expect(github).toBeVisible();
   await expect(locale).toBeVisible();
   await expect(theme).toBeVisible();

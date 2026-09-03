@@ -153,7 +153,7 @@ test('filtered and paginated cold entries are correct in every observable frame'
     const sample = () => {
       probe.attempts += 1;
       const listing = document.querySelector<HTMLElement>('[data-blog-listing]');
-      const shell = document.querySelector<HTMLElement>('[data-site-shell]');
+      const shell = document.querySelector<HTMLElement>('.site-shell');
       if (listing && shell) {
         probe.frames.push({
           articleCount: listing.querySelectorAll('[data-blog-article]:not([hidden])').length,

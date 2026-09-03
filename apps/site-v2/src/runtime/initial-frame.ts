@@ -14,6 +14,8 @@ export const INITIAL_SCROLL_RESTORATION_ATTRIBUTE = 'data-initial-scroll-restora
  * interaction, so user-initiated anchors retain their existing behavior.
  */
 export function armInitialScrollRestoration(sourceDocument: Document): void {
+  // Keep this literal inside the serialized function; the generated head
+  // script cannot close over module constants.
   const attribute = 'data-initial-scroll-restoration';
   const events = ['pointerdown', 'keydown', 'click'] as const;
   const root = sourceDocument.documentElement;

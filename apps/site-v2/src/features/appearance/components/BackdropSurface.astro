@@ -11,7 +11,13 @@ const copy = getFoundationCopy(locale);
 ---
 
 <div class="wallpaper" data-wallpaper data-backdrop-surface>
-  <div class="wallpaper__stage" aria-hidden="true">
+  <div
+    class="wallpaper__stage"
+    aria-hidden="true"
+    data-wallpaper-visual
+    transition:persist="wallpaper-visual"
+    transition:animate="none"
+  >
     <div class="wallpaper__images">
       <div class="wallpaper__image" data-wallpaper-slot="a"></div>
       <div class="wallpaper__image" data-wallpaper-slot="b"></div>
@@ -20,16 +26,14 @@ const copy = getFoundationCopy(locale);
   </div>
 
   <div class="wallpaper__credit" data-wallpaper-credit data-font-surface hidden>
-    <span data-shell-sync-key="wallpaper-photo-by" data-shell-copy-text
-      >{copy.wallpaperPhotoBy}</span
-    >
+    <span>{copy.wallpaperPhotoBy}</span>
     {' '}
     <a
       href="https://unsplash.com"
       target="_blank"
       rel="noreferrer"
       data-wallpaper-credit-photographer></a>{' '}
-    <span data-shell-sync-key="wallpaper-on" data-shell-copy-text>{copy.wallpaperOn}</span>{' '}
+    <span>{copy.wallpaperOn}</span>{' '}
     <a href="https://unsplash.com" target="_blank" rel="noreferrer" data-wallpaper-credit-photo
       >Unsplash</a
     >

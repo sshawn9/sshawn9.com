@@ -18,7 +18,7 @@ test('Frenet and closed-loop islands reach their existing interactive states', a
   });
 });
 
-test('research controls remain live through unrelated shell state changes', async ({ page }) => {
+test('research controls remain live through unrelated appearance changes', async ({ page }) => {
   await page.goto('/en/blog/frenet-arc-length-conversion/');
   const explorer = page.locator('[data-frenet-explorer="phi"]').first();
   await explorer.scrollIntoViewIfNeeded();
@@ -35,7 +35,7 @@ test('research controls remain live through unrelated shell state changes', asyn
 
   const root = page.locator('html');
   const previousTheme = await root.getAttribute('data-theme');
-  await page.locator('[data-shell-sync-key="theme-toggle"]').click();
+  await page.locator('[data-theme-toggle]').first().click();
   if (previousTheme) await expect(root).not.toHaveAttribute('data-theme', previousTheme);
   await expect(explorer.locator('[data-frenet-status]')).toContainText('d=0.0010');
   await expect(explorer.locator('.plot-container')).toHaveCount(2);
@@ -109,7 +109,7 @@ test('research figures leave cleanly and initialize one instance on the next cli
 
   await page.evaluate(() => {
     const blogLink = document.querySelector<HTMLAnchorElement>('a[href="/en/blog/"]');
-    if (!blogLink) throw new Error('Missing persistent Blog navigation link.');
+    if (!blogLink) throw new Error('Missing Blog navigation link.');
     blogLink.click();
   });
   await expect(page).toHaveURL(/\/en\/blog\/$/);

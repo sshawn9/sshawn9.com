@@ -22,8 +22,12 @@ export function installSiteRuntime(
 
   let disposed = false;
   const disposeTransientOverlays = installTransientOverlayController(ownerDocument, ownerWindow);
-  const disposeNavigation = installNavigationCoordinator(ownerDocument, ownerWindow);
-  const disposePages = installPageRuntime(ownerDocument, ownerWindow);
+  const pages = installPageRuntime(ownerDocument, ownerWindow);
+  const disposeNavigation = installNavigationCoordinator(
+    ownerDocument,
+    ownerWindow,
+    pages.prepareTargetDocument,
+  );
 
   const handlePageHide = (event: PageTransitionEvent): void => {
     // A persisted page is frozen in the browser back-forward cache and must
@@ -37,7 +41,7 @@ export function installSiteRuntime(
       if (disposed) return;
       disposed = true;
       ownerWindow.removeEventListener('pagehide', handlePageHide);
-      disposePages();
+      pages.dispose();
       disposeNavigation();
       disposeTransientOverlays();
       if (activeRuntime === installation) activeRuntime = undefined;

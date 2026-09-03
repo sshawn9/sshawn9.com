@@ -8,12 +8,13 @@ import { PAGE_OUTLET_FADE_MS } from '../../src/runtime/page-outlet-transition';
 
 const articlePath = '/en/blog/git-operations-reference/';
 
-test('same-build navigation preserves the shell and synchronizes locale semantics', async ({
+test('same-build navigation preserves the wallpaper visual and uses target locale semantics', async ({
   page,
 }) => {
   await page.goto('/en/blog/');
   await page.evaluate(() => {
-    document.querySelector<HTMLElement>('[data-site-shell]')!.dataset.identityProbe = 'original';
+    document.querySelector<HTMLElement>('[data-wallpaper-visual]')!.dataset.identityProbe =
+      'original';
     for (const link of document.querySelectorAll<HTMLAnchorElement>('a')) {
       link.dataset.astroPrefetch = 'false';
     }
@@ -21,7 +22,7 @@ test('same-build navigation preserves the shell and synchronizes locale semantic
 
   await page.getByRole('link', { name: 'Git Operations Reference' }).click();
   await expect(page).toHaveURL(new RegExp(`${articlePath}$`));
-  await expect(page.locator('[data-site-shell]')).toHaveAttribute(
+  await expect(page.locator('[data-wallpaper-visual]')).toHaveAttribute(
     'data-identity-probe',
     'original',
   );
@@ -31,23 +32,17 @@ test('same-build navigation preserves the shell and synchronizes locale semantic
   await localeLink.click();
 
   await expect(page).toHaveURL(/\/zh\/blog\/git-operations-reference\/$/);
-  await expect(page.locator('[data-site-shell]')).toHaveAttribute(
+  await expect(page.locator('[data-wallpaper-visual]')).toHaveAttribute(
     'data-identity-probe',
     'original',
   );
-  await expect(page.locator('[data-site-shell]')).toHaveAttribute('data-shell-locale', 'zh');
-  await expect(page.locator('[data-shell-sync-key="primary-navigation"]')).toHaveAttribute(
-    'aria-label',
-    '主导航',
-  );
-  await expect(page.locator('[data-shell-sync-key="blog"]')).toHaveText('博客');
-  await expect(page.locator('[data-shell-sync-key="blog"]')).toHaveAttribute(
-    'aria-current',
-    'page',
-  );
+  await expect(page.getByRole('navigation', { name: '主导航' })).toBeVisible();
+  await expect(
+    page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '博客' }),
+  ).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('html')).toHaveAttribute('data-appearance-script', 'enabled');
-  await expect(page.locator('[data-shell-sync-key="theme-toggle"]')).toBeVisible();
-  await expect(page.locator('[data-shell-sync-key="wallpaper-trigger"]')).toBeVisible();
+  await expect(page.locator('[data-theme-toggle]').first()).toBeVisible();
+  await expect(page.locator('[data-wallpaper-menu-trigger]')).toBeVisible();
 });
 
 test('keyboard navigation focuses target content while pointer navigation preserves focus semantics', async ({
@@ -132,8 +127,9 @@ for (const environment of pageTransitionEnvironments) {
             ? 'projects'
             : 'other';
         const currentNavigation =
-          document.querySelector<HTMLElement>('[data-shell-nav-prefix][aria-current="page"]')
-            ?.dataset.shellSyncKey ?? '';
+          document
+            .querySelector<HTMLElement>('.site-header__nav-link[aria-current="page"]')
+            ?.textContent?.trim() ?? '';
         const snapshotAnimation = document.getAnimations().some((animation) => {
           const effect = animation.effect as
             (KeyframeEffect & { pseudoElement?: string | null }) | null;
@@ -207,9 +203,9 @@ for (const environment of pageTransitionEnvironments) {
     } else {
       expect(frames.every((frame) => frame.opacity === 1)).toBe(true);
     }
-    expect(outgoingFrames.every((frame) => frame.currentNavigation === 'blog')).toBe(true);
+    expect(outgoingFrames.every((frame) => frame.currentNavigation === 'Blog')).toBe(true);
     expect(targetFrames.every((frame) => frame.scrollY === 0)).toBe(true);
-    expect(targetFrames.every((frame) => frame.currentNavigation === 'projects')).toBe(true);
+    expect(targetFrames.every((frame) => frame.currentNavigation === 'Projects')).toBe(true);
     expect(frames.every((frame) => !frame.snapshotAnimation)).toBe(true);
     expect(PAGE_OUTLET_FADE_MS).toBe(180);
   });
@@ -313,7 +309,7 @@ test('a navigation superseded during its outgoing fade cannot swap or leave visu
 
   await expect(page).toHaveURL(/\/en\/about\/$/);
   await expect(page.locator('.about-page')).toBeVisible();
-  await expect(page.locator('[data-shell-sync-key="about"]')).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'About', exact: true })).toHaveAttribute(
     'aria-current',
     'page',
   );
@@ -349,7 +345,10 @@ test('history traversal restores its scroll before the target route becomes visi
         if (samples.length < 8) requestAnimationFrame(sample);
         else root.dataset.traversalScrollSamples = JSON.stringify(samples);
       };
-      sample();
+      // MutationObserver runs inside the framework's atomic swap before its
+      // saved scroll is applied. The first render opportunity is the behavior
+      // boundary: no intermediate synchronous DOM state can reach the screen.
+      requestAnimationFrame(sample);
     });
     observer.observe(root, { childList: true, subtree: true });
   });
@@ -361,10 +360,13 @@ test('history traversal restores its scroll before the target route becomes visi
     .locator('html')
     .evaluate((root) => JSON.parse((root as HTMLElement).dataset.traversalScrollSamples ?? '[]'));
   expect(samples).toHaveLength(8);
-  expect(samples.every((sample: number) => Math.abs(sample - savedY) < 2)).toBe(true);
+  expect(
+    samples.every((sample: number) => Math.abs(sample - savedY) < 2),
+    `saved=${savedY}; samples=${samples.join(',')}`,
+  ).toBe(true);
 });
 
-test('slow same-build navigation exposes feedback without replacing the shell', async ({
+test('slow same-build navigation exposes feedback without replacing the wallpaper visual', async ({
   page,
 }) => {
   let releaseResponse = () => {};
@@ -385,7 +387,8 @@ test('slow same-build navigation exposes feedback without replacing the shell', 
     document.querySelector<HTMLAnchorElement>(
       'a[href="/en/blog/git-operations-reference/"]',
     )!.dataset.astroPrefetch = 'false';
-    document.querySelector<HTMLElement>('[data-site-shell]')!.dataset.identityProbe = 'original';
+    document.querySelector<HTMLElement>('[data-wallpaper-visual]')!.dataset.identityProbe =
+      'original';
   });
 
   const click = page.getByRole('link', { name: 'Git Operations Reference' }).click();
@@ -407,7 +410,7 @@ test('slow same-build navigation exposes feedback without replacing the shell', 
   releaseResponse();
   await click;
   await expect(page).toHaveURL(new RegExp(`${articlePath}$`));
-  await expect(page.locator('[data-site-shell]')).toHaveAttribute(
+  await expect(page.locator('[data-wallpaper-visual]')).toHaveAttribute(
     'data-identity-probe',
     'original',
   );
@@ -441,7 +444,8 @@ test('a newer navigation cancels stale preparation without a late error or swap'
     for (const link of document.querySelectorAll<HTMLAnchorElement>('a')) {
       link.dataset.astroPrefetch = 'false';
     }
-    document.querySelector<HTMLElement>('[data-site-shell]')!.dataset.identityProbe = 'original';
+    document.querySelector<HTMLElement>('[data-wallpaper-visual]')!.dataset.identityProbe =
+      'original';
   });
 
   const staleClick = page.getByRole('link', { name: 'Git Operations Reference' }).click();
@@ -451,11 +455,11 @@ test('a newer navigation cancels stale preparation without a late error or swap'
   releaseFirstResponse();
   await staleClick;
 
-  await expect(page.locator('[data-site-shell]')).toHaveAttribute(
+  await expect(page.locator('[data-wallpaper-visual]')).toHaveAttribute(
     'data-identity-probe',
     'original',
   );
-  await expect(page.locator('[data-site-shell]')).toHaveAttribute('data-shell-locale', 'zh');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
   await page.waitForTimeout(50);
   expect(pageErrors).toEqual([]);
 });

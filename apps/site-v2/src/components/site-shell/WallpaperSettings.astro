@@ -7,7 +7,6 @@ interface Props {
 }
 
 const { copy, inline = false } = Astro.props;
-const syncPrefix = inline ? 'mobile-' : '';
 ---
 
 <div
@@ -16,21 +15,16 @@ const syncPrefix = inline ? 'mobile-' : '';
   popover={inline ? undefined : 'auto'}
   role={inline ? 'group' : 'dialog'}
   aria-label={copy.wallpaperControls}
-  data-shell-sync-key={`${syncPrefix}wallpaper-settings`}
   data-transient-overlay={inline ? undefined : ''}
 >
   <label class="wallpaper-settings__row" data-wallpaper-enabled-control>
-    <span data-shell-sync-key={`${syncPrefix}wallpaper-enabled-label`} data-shell-copy-text>
-      {copy.wallpaperUseRandom}
-    </span>
+    <span>{copy.wallpaperUseRandom}</span>
     <input class="sr-only" type="checkbox" data-wallpaper-enabled checked />
     <span class="wallpaper-switch" aria-hidden="true"><span></span></span>
   </label>
 
   <label class="wallpaper-settings__row" data-wallpaper-auto-rotation-control>
-    <span data-shell-sync-key={`${syncPrefix}wallpaper-auto-label`} data-shell-copy-text>
-      {copy.wallpaperAutoRotation}
-    </span>
+    <span>{copy.wallpaperAutoRotation}</span>
     <input class="sr-only" type="checkbox" data-wallpaper-auto-rotation checked />
     <span class="wallpaper-switch" aria-hidden="true"><span></span></span>
   </label>
@@ -40,17 +34,13 @@ const syncPrefix = inline ? 'mobile-' : '';
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"></path>
       </svg>
-      <span data-shell-sync-key={`${syncPrefix}wallpaper-next-label`} data-shell-copy-text>
-        {copy.wallpaperNext}
-      </span>
+      <span>{copy.wallpaperNext}</span>
     </button>
     <button type="button" data-wallpaper-download disabled>
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M12 3v12M7 10l5 5 5-5M5 21h14"></path>
       </svg>
-      <span data-shell-sync-key={`${syncPrefix}wallpaper-download-label`} data-shell-copy-text>
-        {copy.wallpaperDownload}
-      </span>
+      <span>{copy.wallpaperDownload}</span>
     </button>
   </div>
 </div>
