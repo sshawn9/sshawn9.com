@@ -49,7 +49,7 @@ test('every document generation references the shared site icon and localized ma
 
   for (const asset of ['/favicon.svg', '/site.en.webmanifest', '/site.zh.webmanifest']) {
     const response = await request.get(asset);
-    expect(response.ok(), `${asset} must be emitted by the v2 build`).toBe(true);
+    expect(response.ok(), `${asset} must be emitted by the site build`).toBe(true);
   }
 });
 
@@ -218,11 +218,11 @@ test('a deep hard refresh restores the matching history entry before the first f
   page,
 }) => {
   await page.addInitScript(() => {
-    if (sessionStorage.getItem('capture-v2-reload-frame') !== 'true') return;
+    if (sessionStorage.getItem('capture-reload-frame') !== 'true') return;
     const paintObserver = new PerformanceObserver((entries, observer) => {
       if (!entries.getEntries().some((entry) => entry.name === 'first-contentful-paint')) return;
       observer.disconnect();
-      sessionStorage.setItem('v2-reload-first-frame-y', String(scrollY));
+      sessionStorage.setItem('reload-first-frame-y', String(scrollY));
     });
     paintObserver.observe({ type: 'paint', buffered: true });
   });
@@ -240,14 +240,14 @@ test('a deep hard refresh restores the matching history entry before the first f
   const savedY = await page.evaluate(
     () => (history.state as { sshawn9: { page: { y: number } } }).sshawn9.page.y,
   );
-  await page.evaluate(() => sessionStorage.setItem('capture-v2-reload-frame', 'true'));
+  await page.evaluate(() => sessionStorage.setItem('capture-reload-frame', 'true'));
 
   await page.reload();
   await expect
-    .poll(() => page.evaluate(() => sessionStorage.getItem('v2-reload-first-frame-y')))
+    .poll(() => page.evaluate(() => sessionStorage.getItem('reload-first-frame-y')))
     .not.toBeNull();
   const firstFrameY = Number(
-    await page.evaluate(() => sessionStorage.getItem('v2-reload-first-frame-y')),
+    await page.evaluate(() => sessionStorage.getItem('reload-first-frame-y')),
   );
 
   expect(Math.abs(firstFrameY - savedY)).toBeLessThan(2);

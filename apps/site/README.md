@@ -27,7 +27,7 @@ npm run dev
 只启动 Astro 页面与 Toolbar：
 
 ```bash
-npm run dev --workspace @sshawn9/site-v2 -- --background
+npm run dev --workspace @sshawn9/site -- --background
 ```
 
 常用验证命令：

@@ -12,14 +12,14 @@
   ],
   "scripts": {
     "dev": "concurrently --kill-others --kill-others-on-fail --names site,worker --prefix-colors cyan,magenta \"npm:dev:site\" \"npm:dev:worker\"",
-    "dev:site": "npm run dev --workspace @sshawn9/site-v2",
+    "dev:site": "npm run dev --workspace @sshawn9/site",
     "dev:worker": "wrangler dev --assets public --ip 127.0.0.1 --port 8787 --local --show-interactive-dev-session=false",
     "check": "npm run check --workspaces --if-present && tsc --noEmit --project tsconfig.json",
-    "build": "npm run build --workspace @sshawn9/site-v2",
+    "build": "npm run build --workspace @sshawn9/site",
     "build:preview": "SITE_MODE=preview npm run build",
-    "preview": "npm run build:preview && wrangler dev --assets apps/site-v2/dist",
+    "preview": "npm run build:preview && wrangler dev --assets apps/site/dist",
     "test": "vitest run",
-    "test:e2e": "npm run test:e2e --workspace @sshawn9/site-v2",
+    "test:e2e": "npm run test:e2e --workspace @sshawn9/site",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

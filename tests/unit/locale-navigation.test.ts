@@ -1,18 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { localeFromLanguageTag, resolvePreferredLocale } from '@sshawn9/site-domain/locales';
-import {
-  getLocaleSwitchHref,
-  replaceRouteLocale,
-} from '../../apps/site-v2/src/content/locale-routes';
+import { getLocaleSwitchHref, replaceRouteLocale } from '../../apps/site/src/content/locale-routes';
 import {
   consumeLocaleNavigationTransfer,
   LOCALE_NAVIGATION_TRANSFER_KEY,
   persistLocaleNavigationTransfer,
-} from '../../apps/site-v2/src/runtime/locale-navigation-transfer';
+} from '../../apps/site/src/runtime/locale-navigation-transfer';
 import {
   LOCALE_PREFERENCE_KEY,
   saveLocalePreference,
-} from '../../apps/site-v2/src/runtime/locale-preference';
+} from '../../apps/site/src/runtime/locale-preference';
 
 class MemoryStorage implements Storage {
   readonly values = new Map<string, string>();
@@ -42,7 +39,7 @@ class MemoryStorage implements Storage {
   }
 }
 
-describe('v2 locale routing and preference', () => {
+describe('locale routing and preference', () => {
   it('resolves a supported stored preference before browser languages', () => {
     expect(localeFromLanguageTag('ZH-hans')).toBe('zh');
     expect(resolvePreferredLocale('en', ['zh-CN'])).toBe('en');
@@ -72,7 +69,7 @@ describe('v2 locale routing and preference', () => {
   });
 });
 
-describe('v2 locale navigation transfer', () => {
+describe('locale navigation transfer', () => {
   const target = {
     pathname: '/zh/blog/article/',
     search: '?version=2',

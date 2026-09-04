@@ -1,4 +1,4 @@
-export const LOCALE_NAVIGATION_TRANSFER_KEY = 'site-v2:locale-navigation-transfer';
+export const LOCALE_NAVIGATION_TRANSFER_KEY = 'site:locale-navigation-transfer';
 export const LOCALE_NAVIGATION_TRANSFER_VERSION = 1;
 
 export interface LocaleNavigationTarget {

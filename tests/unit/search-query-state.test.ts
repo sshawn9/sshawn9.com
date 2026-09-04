@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   createSearchQueryUrl,
   readSearchQuery,
-} from '../../apps/site-v2/src/features/search/runtime/search-query-state';
+} from '../../apps/site/src/features/search/runtime/search-query-state';
 
-describe('v2 search query state', () => {
+describe('search query state', () => {
   it('normalizes the query without dropping unrelated URL state', () => {
     const url = createSearchQueryUrl(
       new URL('https://sshawn9.com/en/search/?source=header#results'),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeArticleEntries } from '../../apps/site-v2/devtools/content-health/diagnostics';
-import type { SiteArticleEntry } from '../../apps/site-v2/src/content/article-source';
+import { analyzeArticleEntries } from '../../apps/site/devtools/content-health/diagnostics';
+import type { SiteArticleEntry } from '../../apps/site/src/content/article-source';
 
 function entry(id: string, title: string, draft = false): SiteArticleEntry {
   return {
@@ -17,7 +17,7 @@ function entry(id: string, title: string, draft = false): SiteArticleEntry {
   } as SiteArticleEntry;
 }
 
-describe('v2 content health diagnostics', () => {
+describe('content health diagnostics', () => {
   it('reports drafts and locale gaps before locale fallback hides them', () => {
     const report = analyzeArticleEntries([
       entry('guide/v1/index.en', 'Guide'),

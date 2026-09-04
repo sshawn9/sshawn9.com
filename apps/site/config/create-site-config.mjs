@@ -40,7 +40,7 @@ function createIndexabilityResolver() {
 }
 
 export function createSiteConfig({ integrations = [], viteServer = {} } = {}) {
-  const buildId = process.env.V2_BUILD_ID ?? '';
+  const buildId = process.env.SITE_BUILD_ID ?? '';
   const previewBuild = process.env.SITE_MODE === 'preview';
   const localFonts = fontProviders.local();
   const isIndexablePage = createIndexabilityResolver();
@@ -180,7 +180,7 @@ export function createSiteConfig({ integrations = [], viteServer = {} } = {}) {
     vite: {
       plugins: [inlineScriptBundles(), ...developmentFontAssets(), createSiteParaglidePlugin()],
       define: {
-        'import.meta.env.V2_BUILD_ID': JSON.stringify(buildId),
+        'import.meta.env.SITE_BUILD_ID': JSON.stringify(buildId),
       },
       server: {
         ...viteServer,

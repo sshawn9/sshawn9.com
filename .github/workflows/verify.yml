@@ -47,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: site-preview-${{ github.sha }}
-          path: apps/site-v2/dist/
+          path: apps/site/dist/
           if-no-files-found: error
           retention-days: 1
       - name: Build production site
@@ -65,7 +65,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: site-production-${{ github.sha }}
-          path: apps/site-v2/dist/
+          path: apps/site/dist/
           if-no-files-found: error
           retention-days: 1
       - name: Upload Playwright traces
@@ -73,6 +73,6 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-traces
-          path: apps/site-v2/test-results/
+          path: apps/site/test-results/
           retention-days: 7
           if-no-files-found: ignore

@@ -3,8 +3,8 @@ import {
   reconcileQueue,
   resolveImagePolicy,
   type WallpaperAsset,
-} from '../../apps/site-v2/src/features/appearance/wallpaper/model';
-import { TabWallpaperStore } from '../../apps/site-v2/src/features/appearance/wallpaper/tab-store';
+} from '../../apps/site/src/features/appearance/wallpaper/model';
+import { TabWallpaperStore } from '../../apps/site/src/features/appearance/wallpaper/tab-store';
 
 const photos = ['one', 'two', 'three', 'four'].map((id) => ({
   id,
@@ -60,7 +60,7 @@ function asset(index: number): WallpaperAsset {
   };
 }
 
-describe('v2 wallpaper state', () => {
+describe('wallpaper state', () => {
   it('chooses one bounded image policy for a full-document viewport', () => {
     expect(resolveImagePolicy(720, 1).width).toBe(960);
     expect(resolveImagePolicy(1000, 1.5).width).toBe(1600);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { developmentFontAssets } from '../../apps/site-v2/config/development-font-assets.mjs';
+import { developmentFontAssets } from '../../apps/site/config/development-font-assets.mjs';
 
 describe('development font assets', () => {
   it('gives dependency fonts a versioned identity and caches only identified font URLs', () => {

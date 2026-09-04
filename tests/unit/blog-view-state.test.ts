@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveBlogViewState } from '../../apps/site-v2/src/features/blog/runtime/blog-view-state';
+import { deriveBlogViewState } from '../../apps/site/src/features/blog/runtime/blog-view-state';
 
 type FakeElement = {
   dataset: Record<string, string>;
@@ -26,7 +26,7 @@ function createListing(options: {
   } as unknown as HTMLElement;
 }
 
-describe('v2 blog view state', () => {
+describe('blog view state', () => {
   it('uses ordered union filtering and clamps pagination into one normalized URL', () => {
     const listing = createListing({
       tags: [
