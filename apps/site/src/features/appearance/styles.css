@@ -25,6 +25,10 @@
   inset: 0;
 }
 
+.wallpaper__images {
+  opacity: var(--wallpaper-image-opacity);
+}
+
 .wallpaper__image {
   background-position: center;
   background-size: cover;
@@ -48,8 +52,9 @@
   .wallpaper:not([data-wallpaper-has-current])
   .wallpaper__image[data-wallpaper-slot='b'],
 .wallpaper[data-wallpaper-active-slot='a'] .wallpaper__image[data-wallpaper-slot='a'],
-.wallpaper[data-wallpaper-active-slot='b'] .wallpaper__image[data-wallpaper-slot='b'] {
-  opacity: var(--wallpaper-image-opacity);
+.wallpaper[data-wallpaper-active-slot='b'] .wallpaper__image[data-wallpaper-slot='b'],
+.wallpaper__image[data-wallpaper-current] {
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -57,7 +62,7 @@
     transition: opacity 720ms ease;
   }
 
-  .wallpaper[data-wallpaper-image-transition='active'] .wallpaper__image {
+  .wallpaper__image[data-wallpaper-transitioning] {
     transition: opacity 1.4s ease;
   }
 }
