@@ -1,6 +1,7 @@
 import type { WallpaperPhoto } from '@sshawn9/site-domain/wallpaper';
 import {
-  IMAGE_TRANSITION_MS,
+  IMAGE_TRANSITION_SETTLE_WATCHDOG_MS,
+  IMAGE_TRANSITION_START_WATCHDOG_MS,
   MODE_TRANSITION_MS,
   THEME_TRANSITION_MS,
   type AppearancePreferences,
@@ -13,6 +14,8 @@ const ROOT_IMAGE_PROPERTIES = {
   a: '--wallpaper-slot-a-image',
   b: '--wallpaper-slot-b-image',
 } as const;
+
+type OpacityTransitionEvent = 'transitionstart' | 'transitionend' | 'transitioncancel';
 
 export interface WallpaperControls {
   preferences: AppearancePreferences;
@@ -142,6 +145,7 @@ export class WallpaperView {
   private surfaceObserver?: MutationObserver;
   private themeTimer?: number;
   private modeTimer?: number;
+  private readonly imageTransitionFinishes = new Set<() => void>();
   private activeSlot: SlotName | null = null;
   private activeAsset?: WallpaperAsset;
 
@@ -202,6 +206,8 @@ export class WallpaperView {
 
   connectSurface(): void {
     if (this.surface?.isConnected) return;
+    this.surface = undefined;
+    this.visual = undefined;
     const candidate = this.target.querySelector<HTMLElement>('[data-backdrop-surface]');
     if (!candidate) return;
 
@@ -210,7 +216,11 @@ export class WallpaperView {
     this.surfaceObserver?.disconnect();
     this.surfaceObserver = undefined;
     if (this.activeSlot && this.activeAsset) {
-      this.setSlotImage(this.activeSlot, this.activeAsset.dataUrl);
+      if (!this.currentImageLayer()) {
+        this.setSlotImage(this.activeSlot, this.activeAsset.dataUrl);
+        const current = this.slotImageLayer(this.activeSlot);
+        if (current) current.dataset.wallpaperCurrent = '';
+      }
       this.reflectActive(this.activeSlot, this.activeAsset.photo);
       // The root value existed only so the body could paint correctly before
       // this persistent surface was parsed. The surface owns it from here on.
@@ -271,6 +281,8 @@ export class WallpaperView {
     }
 
     this.setSlotImage(slot, asset.dataUrl);
+    const current = this.slotImageLayer(slot);
+    if (current) current.dataset.wallpaperCurrent = '';
     surface.dataset.wallpaperActiveSlot = slot;
     if (animate) {
       surface.dataset.wallpaperModeTransition = 'active';
@@ -287,34 +299,83 @@ export class WallpaperView {
     }
   }
 
-  async presentAdvance(
+  presentAdvance(
     previousSlot: SlotName,
     nextSlot: SlotName,
     next: WallpaperAsset,
     animate: boolean,
   ): Promise<void> {
+    const previous = this.activeAsset;
+    this.connectSurface();
     this.activeSlot = nextSlot;
     this.activeAsset = next;
-    this.connectSurface();
-    const surface = this.surface;
-    if (!surface) {
-      projectIdentity(this.target, nextSlot, next);
-      return;
+    const images = this.imageContainer();
+    if (!images) {
+      this.setSlotImage(nextSlot, next.dataUrl);
+      this.reflectActive(nextSlot, next.photo);
+      this.clearSlotImage(previousSlot);
+      return Promise.resolve();
     }
 
-    this.setSlotImage(nextSlot, next.dataUrl);
-    if (animate) {
-      surface.dataset.wallpaperImageTransition = 'active';
-      this.sourceWindow.getComputedStyle(surface).opacity;
+    const outgoingLayer = this.currentImageLayer() ?? this.slotImageLayer(previousSlot);
+    // Storage slots can be reused as soon as the next presentation starts.
+    // Retiring pixels therefore become independent DOM layers with no slot identity.
+    for (const slotLayer of images.querySelectorAll<HTMLElement>('[data-wallpaper-slot]')) {
+      if (slotLayer !== outgoingLayer) slotLayer.remove();
     }
-    this.reflectActive(nextSlot, next.photo);
+    if (outgoingLayer) {
+      if (outgoingLayer.hasAttribute('data-wallpaper-slot')) {
+        if (previous) {
+          outgoingLayer.style.backgroundImage = cssImage(previous.dataUrl);
+        }
+        outgoingLayer.removeAttribute('data-wallpaper-slot');
+        this.clearSlotImage(previousSlot);
+      }
+    }
+
+    const incomingLayer = this.target.createElement('div');
+    incomingLayer.className = 'wallpaper__image';
+    incomingLayer.style.backgroundImage = cssImage(next.dataUrl);
+    if (animate) incomingLayer.dataset.wallpaperTransitioning = '';
+    images.append(incomingLayer);
+
+    let outgoingOpacity = 0;
+    let transitionStarted: Promise<void> | undefined;
     if (animate) {
-      await new Promise<void>((resolve) => {
-        this.sourceWindow.setTimeout(resolve, IMAGE_TRANSITION_MS);
+      if (outgoingLayer) {
+        outgoingLayer.dataset.wallpaperTransitioning = '';
+        outgoingOpacity = Number.parseFloat(
+          this.sourceWindow.getComputedStyle(outgoingLayer).opacity,
+        );
+      }
+      this.sourceWindow.getComputedStyle(incomingLayer).opacity;
+      transitionStarted = this.waitForOpacityTransition(
+        incomingLayer,
+        ['transitionstart'],
+        IMAGE_TRANSITION_START_WATCHDOG_MS,
+      );
+      void this.waitForOpacityTransition(
+        incomingLayer,
+        ['transitionend'],
+        IMAGE_TRANSITION_SETTLE_WATCHDOG_MS,
+      ).then(() => {
+        if (incomingLayer.hasAttribute('data-wallpaper-current')) {
+          incomingLayer.removeAttribute('data-wallpaper-transitioning');
+        }
       });
+      if (outgoingLayer && outgoingOpacity > 0) this.retireImageLayer(outgoingLayer);
     }
-    surface.removeAttribute('data-wallpaper-image-transition');
-    this.clearSlotImage(previousSlot);
+    outgoingLayer?.removeAttribute('data-wallpaper-current');
+    incomingLayer.dataset.wallpaperCurrent = '';
+    this.reflectActive(nextSlot, next.photo);
+
+    if (!animate) {
+      this.finishImageTransitions();
+      outgoingLayer?.remove();
+    } else if (!outgoingLayer || outgoingOpacity <= 0) {
+      outgoingLayer?.remove();
+    }
+    return transitionStarted ?? Promise.resolve();
   }
 
   renderControls(options: WallpaperControls): void {
@@ -325,6 +386,7 @@ export class WallpaperView {
   dispose(): void {
     this.clearThemeTimer();
     this.clearModeTimer();
+    this.finishImageTransitions();
     this.surfaceObserver?.disconnect();
     this.surfaceObserver = undefined;
   }
@@ -337,6 +399,70 @@ export class WallpaperView {
   private clearSlotImage(slot: SlotName): void {
     const owner = this.visual ?? this.surface ?? this.target.documentElement;
     owner.style.removeProperty(ROOT_IMAGE_PROPERTIES[slot]);
+  }
+
+  private imageContainer(): HTMLElement | undefined {
+    return this.visual?.querySelector<HTMLElement>('.wallpaper__images') ?? undefined;
+  }
+
+  private currentImageLayer(): HTMLElement | undefined {
+    return this.visual?.querySelector<HTMLElement>('[data-wallpaper-current]') ?? undefined;
+  }
+
+  private slotImageLayer(slot: SlotName): HTMLElement | undefined {
+    return (
+      (this.visual ?? this.surface)?.querySelector<HTMLElement>(
+        `.wallpaper__image[data-wallpaper-slot="${slot}"]`,
+      ) ?? undefined
+    );
+  }
+
+  private waitForOpacityTransition(
+    layer: HTMLElement,
+    eventNames: readonly OpacityTransitionEvent[],
+    watchdogMs: number,
+    accepts: (event: TransitionEvent) => boolean = () => true,
+  ): Promise<void> {
+    return new Promise((resolve) => {
+      let settled = false;
+      let watchdog: number | undefined;
+      const finish = (): void => {
+        if (settled) return;
+        settled = true;
+        if (watchdog !== undefined) this.sourceWindow.clearTimeout(watchdog);
+        for (const eventName of eventNames) {
+          layer.removeEventListener(eventName, handleTransition);
+        }
+        this.imageTransitionFinishes.delete(finish);
+        resolve();
+      };
+      const handleTransition = (event: TransitionEvent): void => {
+        if (event.target !== layer || event.propertyName !== 'opacity' || !accepts(event)) return;
+        finish();
+      };
+
+      for (const eventName of eventNames) {
+        layer.addEventListener(eventName, handleTransition);
+      }
+      this.imageTransitionFinishes.add(finish);
+      watchdog = this.sourceWindow.setTimeout(finish, watchdogMs);
+    });
+  }
+
+  private retireImageLayer(layer: HTMLElement): void {
+    void this.waitForOpacityTransition(
+      layer,
+      ['transitionend', 'transitioncancel'],
+      IMAGE_TRANSITION_SETTLE_WATCHDOG_MS,
+      () => Number.parseFloat(this.sourceWindow.getComputedStyle(layer).opacity) <= 0,
+    ).then(() => {
+      layer.removeAttribute('data-wallpaper-transitioning');
+      if (!layer.hasAttribute('data-wallpaper-current')) layer.remove();
+    });
+  }
+
+  private finishImageTransitions(): void {
+    for (const finish of [...this.imageTransitionFinishes]) finish();
   }
 
   private reflectActive(slot: SlotName, photo: WallpaperPhoto): void {

@@ -445,7 +445,7 @@ export class WallpaperSystem {
 
   /**
    * The only photo-change entry. Its promise covers candidate readiness and
-   * the complete visual transition, but never the following spare-slot refill.
+   * the commit that starts presentation; retiring visual layers do not lock it.
    */
   advance(): Promise<void> {
     if (this.advancePromise) return this.advancePromise;
@@ -501,14 +501,8 @@ export class WallpaperSystem {
     this.state = nextState;
     this.current = stored;
     this.next = undefined;
-    const presentation = this.view.presentAdvance(
-      previousSlot,
-      nextSlot,
-      stored,
-      !this.reducedMotion.matches,
-    );
+    await this.view.presentAdvance(previousSlot, nextSlot, stored, !this.reducedMotion.matches);
     this.store.clearAsset(previousSlot);
-    await presentation;
   }
 
   private clearRotationTimer(): void {
