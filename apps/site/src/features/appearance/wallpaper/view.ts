@@ -25,6 +25,11 @@ export interface WallpaperControls {
   downloading: boolean;
 }
 
+export interface WallpaperAdvancePresentation {
+  started: Promise<void>;
+  finished: Promise<void>;
+}
+
 function cssImage(dataUrl: string): string {
   return `url(${JSON.stringify(dataUrl)})`;
 }
@@ -304,7 +309,8 @@ export class WallpaperView {
     nextSlot: SlotName,
     next: WallpaperAsset,
     animate: boolean,
-  ): Promise<void> {
+  ): WallpaperAdvancePresentation {
+    const immediate = Promise.resolve();
     const previous = this.activeAsset;
     this.connectSurface();
     this.activeSlot = nextSlot;
@@ -314,7 +320,7 @@ export class WallpaperView {
       this.setSlotImage(nextSlot, next.dataUrl);
       this.reflectActive(nextSlot, next.photo);
       this.clearSlotImage(previousSlot);
-      return Promise.resolve();
+      return { started: immediate, finished: immediate };
     }
 
     const outgoingLayer = this.currentImageLayer() ?? this.slotImageLayer(previousSlot);
@@ -340,7 +346,8 @@ export class WallpaperView {
     images.append(incomingLayer);
 
     let outgoingOpacity = 0;
-    let transitionStarted: Promise<void> | undefined;
+    let started = immediate;
+    let finished = immediate;
     if (animate) {
       if (outgoingLayer) {
         outgoingLayer.dataset.wallpaperTransitioning = '';
@@ -349,12 +356,12 @@ export class WallpaperView {
         );
       }
       this.sourceWindow.getComputedStyle(incomingLayer).opacity;
-      transitionStarted = this.waitForOpacityTransition(
+      started = this.waitForOpacityTransition(
         incomingLayer,
         ['transitionstart'],
         IMAGE_TRANSITION_START_WATCHDOG_MS,
       );
-      void this.waitForOpacityTransition(
+      finished = this.waitForOpacityTransition(
         incomingLayer,
         ['transitionend'],
         IMAGE_TRANSITION_SETTLE_WATCHDOG_MS,
@@ -375,7 +382,7 @@ export class WallpaperView {
     } else if (!outgoingLayer || outgoingOpacity <= 0) {
       outgoingLayer?.remove();
     }
-    return transitionStarted ?? Promise.resolve();
+    return { started, finished };
   }
 
   renderControls(options: WallpaperControls): void {
