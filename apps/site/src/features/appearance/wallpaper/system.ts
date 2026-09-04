@@ -52,6 +52,7 @@ export class WallpaperSystem {
   private downloading = false;
   private slotRevision = 0;
   private rotationTimer?: number;
+  private presentationPending = false;
   private manifestTimer?: number;
   private started = false;
   private disposed = false;
@@ -117,7 +118,7 @@ export class WallpaperSystem {
     }
 
     this.render();
-    this.scheduleRotation();
+    this.syncRotationTimer();
     this.scheduleManifestRefresh();
     // Current presentation never waits for the spare slot. This also runs
     // while scenic mode is off so the next manual enable/advance stays ready.
@@ -360,7 +361,6 @@ export class WallpaperSystem {
     this.bufferPromise = this.drainBuffer().finally(() => {
       this.bufferPromise = undefined;
       this.render();
-      this.scheduleRotation();
       this.scheduleManifestRefresh();
     });
     return this.bufferPromise;
@@ -381,7 +381,6 @@ export class WallpaperSystem {
     if (this.current && this.state.currentSlot) {
       this.next = this.readNextAsset();
       this.render();
-      this.scheduleRotation();
     }
 
     const manifest = await this.loadManifest();
@@ -402,7 +401,6 @@ export class WallpaperSystem {
     const storedNext = this.readNextAsset();
     this.next = storedNext;
     this.render();
-    this.scheduleRotation();
     if (storedNext?.policyKey === this.policy.key) return;
 
     const manifestVersion = storedNext
@@ -440,6 +438,7 @@ export class WallpaperSystem {
       this.preferences.enabled && !this.reducedMotion.matches,
     );
     this.render();
+    this.syncRotationTimer();
     return true;
   }
 
@@ -453,13 +452,12 @@ export class WallpaperSystem {
       return Promise.resolve();
     }
 
-    this.clearRotationTimer();
     this.advancePromise = this.runAdvance()
       .catch(() => undefined)
       .finally(() => {
         this.advancePromise = undefined;
         this.render();
-        this.scheduleRotation();
+        this.syncRotationTimer();
         void this.ensureBuffer();
       });
     this.render();
@@ -498,10 +496,24 @@ export class WallpaperSystem {
 
     const nextState: WallpaperTabState = { ...this.state, currentSlot: nextSlot };
     if (!this.store.writeState(nextState)) return;
+    this.clearRotationTimer();
     this.state = nextState;
     this.current = stored;
     this.next = undefined;
-    await this.view.presentAdvance(previousSlot, nextSlot, stored, !this.reducedMotion.matches);
+    const presentation = this.view.presentAdvance(
+      previousSlot,
+      nextSlot,
+      stored,
+      !this.reducedMotion.matches,
+    );
+    this.presentationPending = true;
+    void presentation.finished.then(() => {
+      // An earlier layer may finish retiring after a newer photo was committed.
+      if (this.current !== stored) return;
+      this.presentationPending = false;
+      this.resetRotationTimer();
+    });
+    await presentation.started;
     this.store.clearAsset(previousSlot);
   }
 
@@ -510,24 +522,35 @@ export class WallpaperSystem {
     this.rotationTimer = undefined;
   }
 
-  private scheduleRotation(): void {
-    this.clearRotationTimer();
-    if (
-      this.disposed ||
-      !this.preferences.enabled ||
-      !this.preferences.autoRotation ||
-      !this.current ||
-      !this.next ||
-      this.reducedMotion.matches ||
-      this.target.hidden
-    ) {
+  private syncRotationTimer(): void {
+    if (!this.canRunRotation()) {
+      this.clearRotationTimer();
       return;
     }
+    if (this.rotationTimer === undefined && !this.advancePromise && !this.presentationPending) {
+      this.resetRotationTimer();
+    }
+  }
+
+  private resetRotationTimer(): void {
+    this.clearRotationTimer();
+    if (!this.canRunRotation()) return;
     const delay = MIN_ROTATION_MS + Math.random() * (MAX_ROTATION_MS - MIN_ROTATION_MS);
     this.rotationTimer = this.sourceWindow.setTimeout(() => {
       this.rotationTimer = undefined;
       void this.advance();
     }, delay);
+  }
+
+  private canRunRotation(): boolean {
+    return Boolean(
+      !this.disposed &&
+      this.preferences.enabled &&
+      this.preferences.autoRotation &&
+      this.current &&
+      !this.reducedMotion.matches &&
+      !this.target.hidden,
+    );
   }
 
   private clearManifestTimer(): void {
