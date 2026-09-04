@@ -47,8 +47,6 @@ class FigureFocusController extends HTMLElement {
     this.ownerDocument.addEventListener('click', this.#handleClick);
     this.ownerDocument.addEventListener('astro:before-preparation', this.#handleBeforeSwap);
     this.ownerDocument.addEventListener('astro:before-swap', this.#handleBeforeSwap);
-    // The production app keeps this event until the v2 cutover.
-    this.ownerDocument.addEventListener('site:before-swap', this.#handleBeforeSwap);
   }
 
   disconnectedCallback(): void {
@@ -58,7 +56,6 @@ class FigureFocusController extends HTMLElement {
     this.ownerDocument.removeEventListener('click', this.#handleClick);
     this.ownerDocument.removeEventListener('astro:before-preparation', this.#handleBeforeSwap);
     this.ownerDocument.removeEventListener('astro:before-swap', this.#handleBeforeSwap);
-    this.ownerDocument.removeEventListener('site:before-swap', this.#handleBeforeSwap);
     this.#dialog = undefined;
     this.#active = false;
   }

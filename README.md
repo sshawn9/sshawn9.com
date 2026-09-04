@@ -29,7 +29,7 @@ npm run dev
 Toolbar 中的 `Drafts` 会列出草稿，`Single-language` 会列出缺少某种语言的文章版本。若只需页面与 Toolbar，也可单独后台运行 Astro：
 
 ```bash
-npm run dev --workspace @sshawn9/site-v2 -- --background
+npm run dev --workspace @sshawn9/site -- --background
 ```
 
 完整的本地验证流程：
@@ -52,7 +52,7 @@ npm run dev
 
 需要验证接近部署形态、包含草稿并带 `noindex` 的静态预览时，运行 `npm run preview`。
 
-本仓库使用 Node 24 作为经过测试的开发运行时，`.nvmrc` 记录了这一建议版本。`npm run build` 会在 `apps/site-v2/dist/` 生成静态网站及其 Pagefind 多语言全站索引。浏览器测试使用独立端口，因此不会干扰 4332 上的常规开发服务器。
+本仓库使用 Node 24 作为经过测试的开发运行时，`.nvmrc` 记录了这一建议版本。`npm run build` 会在 `apps/site/dist/` 生成静态网站及其 Pagefind 多语言全站索引。浏览器测试使用独立端口，因此不会干扰 4332 上的常规开发服务器。
 
 ## 国际化
 
@@ -151,7 +151,7 @@ projects:
 
 仓库刻意不提供修改内容目录的自动化脚本。当文章第一次发生实质性修订时，将原文章及其元信息完整保留为 `v1/` 快照，并将 `v2/` 创建为一份完整的新快照。后续修订依次增加 `v3/`、`v4/` 等目录。所有版本专属资源都应复制到对应版本目录，已经发布的旧版本目录保持不变。
 
-`packages/site-domain/src/article-convention.ts` 定义路径约定，`apps/site-v2/src/content/` 负责把 Astro 内容条目适配成页面所需的数据。路由和组件消费规范化后的文章与版本数据，不自行解析路径。
+`packages/site-domain/src/article-convention.ts` 定义路径约定，`apps/site/src/content/` 负责把 Astro 内容条目适配成页面所需的数据。路由和组件消费规范化后的文章与版本数据，不自行解析路径。
 
 每篇文章只有一个规范的版本比较页面。访客打开该页面时，网站只下载当前选中的两份不可变 Markdown 快照。
 
@@ -167,7 +167,7 @@ src/content/projects/my-project/
 └── images/
 ```
 
-`packages/site-domain/src/projects.ts` 定义项目解析规则，`apps/site-v2/src/content/project-catalog.ts` 负责当前应用的数据适配。项目详情页首先渲染人工编写的项目正文，然后根据最新已发布文章的元信息生成相关文章列表。
+`packages/site-domain/src/projects.ts` 定义项目解析规则，`apps/site/src/content/project-catalog.ts` 负责当前应用的数据适配。项目详情页首先渲染人工编写的项目正文，然后根据最新已发布文章的元信息生成相关文章列表。
 
 Paraglide 负责页面级文案和界面文案，长篇文章与项目记录仍由 Content Collections 管理。
 

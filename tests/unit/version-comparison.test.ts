@@ -3,7 +3,7 @@ import {
   getAutomaticVersionComparisonMode,
   resolveVersionComparisonSelection,
   type VersionComparisonVersion,
-} from '../../apps/site-v2/src/content/version-comparison';
+} from '../../apps/site/src/content/version-comparison';
 
 function version(number: number): VersionComparisonVersion {
   return {
@@ -17,7 +17,7 @@ function version(number: number): VersionComparisonVersion {
 
 const versions = [version(3), version(2), version(1)];
 
-describe('v2 version comparison', () => {
+describe('version comparison', () => {
   it('defaults to the latest version and the first distinct alternative', () => {
     const selection = resolveVersionComparisonSelection(versions);
 

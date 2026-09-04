@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { decodeArticleSidebarState } from '../../apps/site-v2/src/features/article/runtime/article-sidebar-state';
+import { decodeArticleSidebarState } from '../../apps/site/src/features/article/runtime/article-sidebar-state';
 
-describe('v2 article sidebar state', () => {
+describe('article sidebar state', () => {
   it('validates persisted values and clamps width at the domain boundary', () => {
     expect(decodeArticleSidebarState(null)).toEqual({ collapsed: false, width: 224 });
     expect(decodeArticleSidebarState({ collapsed: true, width: 999 })).toEqual({

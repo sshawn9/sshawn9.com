@@ -28,7 +28,7 @@
 
 ### 2. 新应用骨架
 
-- 创建独立 v2 应用和构建输出；
+- 创建独立站点应用和构建输出；
 - 建立纯领域层、内容适配层、基础 layout、SiteShell、StateLedger 和 RequiredFonts；
 - 先实现首页、About 和普通文章的完整静态 HTML；
 - 部署到独立预览 Worker/alias，不绑定生产域名。

@@ -22,7 +22,7 @@ describe('architecture boundaries', () => {
   it('consumers use package exports instead of package source paths', async () => {
     const sourceFiles = (
       await Promise.all(
-        ['apps/site-v2/src', 'tests/unit', 'worker'].map((directory) =>
+        ['apps/site/src', 'tests/unit', 'worker'].map((directory) =>
           collectSourceFiles(join(repositoryRoot, directory)),
         ),
       )
@@ -64,7 +64,7 @@ describe('architecture boundaries', () => {
   });
 
   it('keeps development tools outside the production application graph', async () => {
-    const productionSources = await collectSourceFiles(join(repositoryRoot, 'apps/site-v2/src'));
+    const productionSources = await collectSourceFiles(join(repositoryRoot, 'apps/site/src'));
     const violations: string[] = [];
 
     for (const path of productionSources) {
@@ -75,7 +75,7 @@ describe('architecture boundaries', () => {
     }
 
     const productionConfig = await readFile(
-      join(repositoryRoot, 'apps/site-v2/astro.config.mjs'),
+      join(repositoryRoot, 'apps/site/astro.config.mjs'),
       'utf8',
     );
     expect(violations).toEqual([]);
@@ -84,7 +84,7 @@ describe('architecture boundaries', () => {
   });
 
   it('keeps the wallpaper application independent from page and navigation runtimes', async () => {
-    const sourceRoot = join(repositoryRoot, 'apps/site-v2/src');
+    const sourceRoot = join(repositoryRoot, 'apps/site/src');
     const wallpaperRoot = join(sourceRoot, 'features/appearance/wallpaper');
     const applicationSources = (await collectSourceFiles(sourceRoot)).filter(
       (path) => !path.startsWith(`${wallpaperRoot}/`),
