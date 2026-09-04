@@ -140,7 +140,7 @@ export function getFoundationCopy(locale: Locale): FoundationCopy {
     wallpaperPhotoBy: staticMessage(m.wallpaper_photo_by),
     wallpaperOn: staticMessage(m.wallpaper_on),
     wallpaperControls: staticMessage(m.wallpaper_controls),
-    wallpaperNext: staticMessage(m.wallpaper_refresh),
+    wallpaperNext: staticMessage(m.wallpaper_next),
     wallpaperDownload: staticMessage(m.wallpaper_download),
     wallpaperUseRandom: staticMessage(m.wallpaper_use_random),
     wallpaperAutoRotation: staticMessage(m.wallpaper_auto_rotation),
