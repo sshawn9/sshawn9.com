@@ -7,6 +7,7 @@
 | [ADR-001：静态文档应用](./ADR-001-static-document-application.md)                    | 已接受 | 渲染模型、框架职责、目录依赖和托管边界     |
 | [ADR-002：客户端运行时与状态所有权](./ADR-002-client-runtime-and-state-ownership.md) | 已接受 | 导航、状态、首帧、字体、外观和生命周期边界 |
 | [M4R.6：视觉基座复审](./M4R.6-visual-foundation-audit.md)                            | 实施中 | 当前已知体验回归、根因、修正与集中验收     |
+| [局部导航边界复审与自动化回归待办](./navigation-boundary-regression-followup.md) | 待主观验收 | 三项修复、回归证据与可复用发现方法 |
 | [迁移与回滚计划](./MIGRATION.md)                                                     | 执行中 | 平台验收、生产切换和平台版本回滚           |
 
 ## 主线

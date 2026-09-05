@@ -20,7 +20,7 @@ function isPopoverOpen(overlay: HTMLElement): boolean {
 export function installTransientOverlayController(
   sourceDocument: Document = document,
   sourceWindow: Window = window,
-): () => void {
+): { closeForNavigation(): void; dispose(): void } {
   const listeners = new AbortController();
   const openingInvokers = new WeakMap<HTMLElement, HTMLElement>();
   const pendingFocusRestoration = new WeakSet<HTMLElement>();
@@ -142,21 +142,18 @@ export function installTransientOverlayController(
     capture: true,
     signal: listeners.signal,
   });
-  sourceDocument.addEventListener('astro:before-preparation', closeForNavigation, {
-    signal: listeners.signal,
-  });
-  sourceDocument.addEventListener('astro:before-swap', closeForNavigation, {
-    signal: listeners.signal,
-  });
   sourceWindow.addEventListener('resize', scheduleValidation, { signal: listeners.signal });
   sourceWindow.addEventListener('orientationchange', scheduleValidation, {
     signal: listeners.signal,
   });
 
-  return () => {
-    listeners.abort();
-    if (validationFrame !== 0) sourceWindow.cancelAnimationFrame(validationFrame);
-    validationFrame = 0;
-    closeAll(false);
+  return {
+    closeForNavigation,
+    dispose() {
+      listeners.abort();
+      if (validationFrame !== 0) sourceWindow.cancelAnimationFrame(validationFrame);
+      validationFrame = 0;
+      closeAll(false);
+    },
   };
 }

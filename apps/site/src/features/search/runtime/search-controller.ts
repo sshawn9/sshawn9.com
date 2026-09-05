@@ -1,8 +1,5 @@
-import {
-  persistCurrentScroll,
-  readCurrentScroll,
-  restorePageScroll,
-} from '../../../runtime/scroll-state';
+import { readCurrentScroll, restorePageScroll } from '../../../runtime/scroll-state';
+import type { PageController, PageNavigation, PageView } from '../../../runtime/page-navigation';
 import { prepareRequiredFonts } from '../../../runtime/required-fonts';
 import { createSearchQueryUrl, normalizeSearchQuery, readSearchQuery } from './search-query-state';
 import { createSearchResultsView, type SearchResultsView } from './search-results-view';
@@ -41,7 +38,6 @@ type PagefindInstanceManager = {
 type SearchWindow = Window & {
   PagefindComponents?: { getInstanceManager(): PagefindInstanceManager };
 };
-type SearchPageController = { destroy(): void };
 type SearchJob = {
   query: string;
   controller: AbortController;
@@ -59,11 +55,11 @@ function createSearchPageController(
   root: HTMLElement,
   sourceDocument: Document,
   sourceWindow: Window,
+  navigation: PageNavigation,
   initialScrollRestoration?: ReturnType<typeof readCurrentScroll>,
-): SearchPageController {
+): PageController {
   const listeners = new AbortController();
   const instanceName = root.dataset.searchInstance ?? 'default';
-  const searchPath = root.dataset.searchPath;
   const loading = root.querySelector<HTMLElement>('[data-search-loading]');
   const interactive = root.querySelector<HTMLElement>('[data-search-interactive]');
   const fallback = root.querySelector<HTMLElement>('[data-search-fallback]');
@@ -78,6 +74,16 @@ function createSearchPageController(
   let currentJob: SearchJob | undefined;
   let submittedJob: SearchJob | undefined;
   let pendingScrollRestoration = initialScrollRestoration ?? readCurrentScroll(sourceWindow);
+  let applyViewUrl: ((url: URL) => void) | undefined;
+  const pageView: PageView = {
+    resourceUrl: new URL(sourceWindow.location.href),
+    queryParameters: ['q'],
+    normalize: (url) => createSearchQueryUrl(url, readSearchQuery(url)),
+    apply(url, context) {
+      pendingScrollRestoration = context.scroll;
+      applyViewUrl?.(url);
+    },
+  };
 
   const isCurrent = (job: SearchJob | undefined): job is SearchJob =>
     Boolean(job && job === currentJob && !job.controller.signal.aborted && !destroyed && !failed);
@@ -118,9 +124,7 @@ function createSearchPageController(
   const reflectQuery = (query: string) => {
     const nextUrl = createSearchQueryUrl(new URL(sourceWindow.location.href), query);
     if (nextUrl.href === sourceWindow.location.href) return;
-    persistCurrentScroll(sourceDocument, sourceWindow);
-    sourceWindow.history.replaceState(sourceWindow.history.state, '', nextUrl);
-    persistCurrentScroll(sourceDocument, sourceWindow);
+    navigation.replaceViewUrl(nextUrl);
   };
 
   const restorePendingScroll = () => {
@@ -185,6 +189,7 @@ function createSearchPageController(
     };
 
     const selectQuery = (rawQuery: string, preserveScroll = false) => {
+      if (destroyed || failed) return;
       const query = normalizeSearchQuery(rawQuery);
       reflectQuery(query);
       if (isCurrent(currentJob) && currentJob.query === query) return;
@@ -316,17 +321,15 @@ function createSearchPageController(
       { signal: listeners.signal },
     );
 
-    const restoreFromUrl = () => {
-      if (searchPath && sourceWindow.location.pathname !== searchPath) return;
-      const query = readSearchQuery(new URL(sourceWindow.location.href));
+    applyViewUrl = (url) => {
+      const query = readSearchQuery(url);
       input.value = query;
       selectQuery(query, true);
       instance.triggerSearch(query);
     };
-    sourceWindow.addEventListener('popstate', restoreFromUrl, { signal: listeners.signal });
 
     sourceWindow.clearTimeout(connectionTimer);
-    restoreFromUrl();
+    applyViewUrl(new URL(sourceWindow.location.href));
     loading?.setAttribute('hidden', '');
     fallback?.setAttribute('hidden', '');
     interactive?.removeAttribute('hidden');
@@ -336,6 +339,7 @@ function createSearchPageController(
   void connect().catch(showFailure);
 
   return {
+    view: pageView,
     destroy() {
       if (destroyed) return;
       destroyed = true;
@@ -349,12 +353,19 @@ function createSearchPageController(
 }
 
 export function mountSearchPage(
-  sourceDocument: Document = document,
-  sourceWindow: Window = window,
+  sourceDocument: Document,
+  sourceWindow: Window,
+  navigation: PageNavigation,
   initialScrollRestoration?: ReturnType<typeof readCurrentScroll>,
-): SearchPageController | undefined {
+): PageController | undefined {
   const root = sourceDocument.querySelector<HTMLElement>('[data-site-search]');
   return root
-    ? createSearchPageController(root, sourceDocument, sourceWindow, initialScrollRestoration)
+    ? createSearchPageController(
+        root,
+        sourceDocument,
+        sourceWindow,
+        navigation,
+        initialScrollRestoration,
+      )
     : undefined;
 }
