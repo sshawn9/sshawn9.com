@@ -165,10 +165,12 @@
 }
 
 .site-search-result {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
   list-style: none;
+  overflow-wrap: anywhere;
 }
 
 .site-search-result__card {
