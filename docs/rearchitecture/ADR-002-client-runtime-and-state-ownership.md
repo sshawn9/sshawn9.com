@@ -81,6 +81,8 @@ type NavigationPhase =
 5. loader 成功后读取目标构建 ID；跨代际按已批准的 `BCP-001` 保存状态并执行完整文档导航。
 6. NavigationCoordinator 仅在交换边界等待目标文档的 RequiredFonts Promise；字体模块不读取导航状态，等待期间旧页面完整、可读且控件仍可操作。
 
+CI 为每种模式注入唯一的 `SITE_BUILD_ID`，格式为 `<preview|production>-<run_id>-<run_attempt>`；同一提交重跑也使用新标识。每种模式只构建一次，E2E 验证后上传原产物，不在部署阶段重建。HTML meta、客户端构建常量与 Pagefind `meta-cache-tag` 共用该输入；发布 E2E 禁止缺失、非法或 `site-development` 标识，并检查同代导航、跨代文档切换和真实搜索入口请求。本地开发允许使用 `site-development`。
+
 ### `before-swap`
 
 - WallpaperSystem 把主题、背景模式、署名和控件状态投影到目标文档；
