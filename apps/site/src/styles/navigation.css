@@ -5,6 +5,13 @@
   overflow: hidden;
 }
 
+/* Astro 7.1.6 announces every router commit, including custom local swaps.
+ * Keep those out of the accessibility tree; a real document swap replaces
+ * the root attributes and restores its normal route announcement. */
+html[data-navigation-scope='view'] .astro-route-announcer {
+  display: none !important;
+}
+
 /*
  * Native View Transitions still provide Astro's atomic DOM swap, but page
  * motion belongs to PageOutletTransition's live elements. Both snapshots are

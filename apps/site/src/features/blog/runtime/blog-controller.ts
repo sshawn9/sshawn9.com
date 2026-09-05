@@ -1,28 +1,9 @@
 import { createBlogSidebarController, type BlogSidebarController } from './blog-sidebar-controller';
-import { applyBlogViewState, createBlogViewUrl } from './blog-view-state';
-import {
-  persistCurrentScroll,
-  readCurrentScroll,
-  restoreNestedScroll,
-} from '../../../runtime/scroll-state';
-
-type BlogPageController = {
-  destroy(): void;
-};
+import { applyBlogViewState, createBlogViewUrl, deriveBlogViewState } from './blog-view-state';
+import type { PageController, PageNavigation } from '../../../runtime/page-navigation';
 
 function isUnmodifiedPrimaryClick(event: MouseEvent): boolean {
   return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
-}
-
-function readSelectedSlugs(listing: HTMLElement): string[] {
-  try {
-    const value: unknown = JSON.parse(listing.dataset.selectedTags ?? '[]');
-    return Array.isArray(value)
-      ? value.filter((slug): slug is string => typeof slug === 'string')
-      : [];
-  } catch {
-    return [];
-  }
 }
 
 function orderSelectedSlugs(listing: HTMLElement, selected: ReadonlySet<string>): string[] {
@@ -33,9 +14,9 @@ function orderSelectedSlugs(listing: HTMLElement, selected: ReadonlySet<string>)
 
 function createBlogPageController(
   listing: HTMLElement,
-  sourceDocument: Document,
   sourceWindow: Window,
-): BlogPageController {
+  navigation: PageNavigation,
+): PageController {
   const listeners = new AbortController();
   const layout = listing.querySelector<HTMLElement>('[data-blog-sidebar-layout]');
   const sidebarController: BlogSidebarController | undefined = layout
@@ -46,33 +27,6 @@ function createBlogPageController(
   const mobileMedia = sourceWindow.matchMedia('(max-width: 63.999rem)');
   let mobileExpanded = true;
 
-  const normalizeCurrentUrl = () => {
-    const state = applyBlogViewState(listing, new URL(sourceWindow.location.href));
-    const current = `${sourceWindow.location.pathname}${sourceWindow.location.search}`;
-    const normalized = `${state.normalizedUrl.pathname}${state.normalizedUrl.search}`;
-    if (current !== normalized) {
-      sourceWindow.history.replaceState(sourceWindow.history.state, '', state.normalizedUrl);
-    }
-    persistCurrentScroll(sourceDocument, sourceWindow);
-  };
-
-  const commitView = (url: URL, scrollToResults: boolean) => {
-    persistCurrentScroll(sourceDocument, sourceWindow);
-    sourceWindow.history.pushState(sourceWindow.history.state, '', url);
-    applyBlogViewState(listing, url);
-    persistCurrentScroll(sourceDocument, sourceWindow);
-    if (scrollToResults) {
-      sourceWindow.requestAnimationFrame(() => {
-        listing.querySelector('[data-blog-results]')?.scrollIntoView({
-          behavior: sourceWindow.matchMedia('(prefers-reduced-motion: reduce)').matches
-            ? 'auto'
-            : 'smooth',
-          block: 'start',
-        });
-      });
-    }
-  };
-
   const handleClick = (event: MouseEvent) => {
     if (!isUnmodifiedPrimaryClick(event)) return;
     const source = event.target instanceof Element ? event.target : undefined;
@@ -81,26 +35,25 @@ function createBlogPageController(
       const slug = filterLink.dataset.tagSlug;
       if (!slug) return;
       event.preventDefault();
-      const selected = new Set(readSelectedSlugs(listing));
-      if (selected.has(slug)) selected.delete(slug);
-      else selected.add(slug);
-      const ordered = orderSelectedSlugs(listing, selected);
-      commitView(createBlogViewUrl(new URL(sourceWindow.location.href), ordered, 1), false);
+      navigation.requestViewUpdate(
+        (url) => {
+          const selected = new Set(deriveBlogViewState(listing, url).selectedSlugs);
+          if (selected.has(slug)) selected.delete(slug);
+          else selected.add(slug);
+          return createBlogViewUrl(url, orderSelectedSlugs(listing, selected), 1);
+        },
+        { sourceElement: filterLink },
+      );
       return;
     }
 
     const pageLink = source?.closest<HTMLAnchorElement>('[data-blog-page]');
     if (!pageLink || !listing.contains(pageLink) || pageLink.hidden) return;
     event.preventDefault();
-    commitView(new URL(pageLink.href), true);
-  };
-
-  const handleTraversal = () => {
-    applyBlogViewState(listing, new URL(sourceWindow.location.href));
-    const snapshot = readCurrentScroll(sourceWindow);
-    if (snapshot) {
-      sourceWindow.requestAnimationFrame(() => restoreNestedScroll(sourceDocument, snapshot));
-    }
+    navigation.requestViewUpdate(() => new URL(pageLink.href), {
+      sourceElement: pageLink,
+      scrollTarget: listing.querySelector<HTMLElement>('[data-blog-results]') ?? undefined,
+    });
   };
 
   const applyMobileDisclosure = () => {
@@ -114,7 +67,6 @@ function createBlogPageController(
   };
 
   listing.addEventListener('click', handleClick, { signal: listeners.signal });
-  sourceWindow.addEventListener('popstate', handleTraversal, { signal: listeners.signal });
   mobileDisclosure?.addEventListener(
     'click',
     () => {
@@ -125,11 +77,20 @@ function createBlogPageController(
   );
   mobileMedia.addEventListener('change', applyMobileDisclosure, { signal: listeners.signal });
 
-  normalizeCurrentUrl();
+  applyBlogViewState(listing, new URL(sourceWindow.location.href));
   applyMobileDisclosure();
   listing.setAttribute('data-blog-runtime-ready', '');
 
   return {
+    view: {
+      resourceUrl: new URL(sourceWindow.location.href),
+      // Static tag pages also own `tag`: their existing normalizer removes it.
+      queryParameters: ['tag', 'page'],
+      normalize: (url) => deriveBlogViewState(listing, url).normalizedUrl,
+      apply: (url) => {
+        applyBlogViewState(listing, url);
+      },
+    },
     destroy() {
       listeners.abort();
       sidebarController?.destroy();
@@ -139,9 +100,10 @@ function createBlogPageController(
 }
 
 export function mountBlogPage(
-  sourceDocument: Document = document,
-  sourceWindow: Window = window,
-): BlogPageController | undefined {
+  sourceDocument: Document,
+  sourceWindow: Window,
+  navigation: PageNavigation,
+): PageController | undefined {
   const listing = sourceDocument.querySelector<HTMLElement>('[data-blog-listing]');
-  return listing ? createBlogPageController(listing, sourceDocument, sourceWindow) : undefined;
+  return listing ? createBlogPageController(listing, sourceWindow, navigation) : undefined;
 }

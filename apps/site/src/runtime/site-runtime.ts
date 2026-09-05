@@ -1,6 +1,6 @@
 import { installContentUiRuntime } from '@sshawn9/content-ui/runtime';
 import { installNavigationCoordinator } from './navigation-coordinator';
-import { installPageRuntime } from './page-runtime';
+import { createPageRuntime } from './page-runtime';
 import { installTransientOverlayController } from './transient-overlay-controller';
 
 type RuntimeInstallation = {
@@ -21,13 +21,14 @@ export function installSiteRuntime(
   installContentUiRuntime();
 
   let disposed = false;
-  const disposeTransientOverlays = installTransientOverlayController(ownerDocument, ownerWindow);
-  const pages = installPageRuntime(ownerDocument, ownerWindow);
-  const disposeNavigation = installNavigationCoordinator(
-    ownerDocument,
-    ownerWindow,
-    pages.prepareTargetDocument,
-  );
+  const overlays = installTransientOverlayController(ownerDocument, ownerWindow);
+  const pages = createPageRuntime(ownerDocument, ownerWindow);
+  const navigation = installNavigationCoordinator(ownerDocument, ownerWindow, {
+    pages,
+    closeDocumentOverlays: overlays.closeForNavigation,
+    documentReady: () => pages.mountCurrentPage(navigation),
+  });
+  pages.mountCurrentPage(navigation);
 
   const handlePageHide = (event: PageTransitionEvent): void => {
     // A persisted page is frozen in the browser back-forward cache and must
@@ -42,8 +43,8 @@ export function installSiteRuntime(
       disposed = true;
       ownerWindow.removeEventListener('pagehide', handlePageHide);
       pages.dispose();
-      disposeNavigation();
-      disposeTransientOverlays();
+      navigation.dispose();
+      overlays.dispose();
       if (activeRuntime === installation) activeRuntime = undefined;
     },
   };
