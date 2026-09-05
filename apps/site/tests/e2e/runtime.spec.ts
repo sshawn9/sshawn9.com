@@ -215,6 +215,21 @@ test('cross-page fragment placement is complete before the target begins to appe
   page,
 }) => {
   const targetId = 'maintenance-maintain-repository-data';
+  type FragmentPlacementSample = {
+    scrollY: number;
+    targetTop: number;
+    expectedTargetTop: number;
+    opacity: number;
+  };
+  type FragmentPlacementProbe = {
+    initial?: FragmentPlacementSample;
+    animation?: Animation;
+    failure?: string;
+  };
+  type FragmentPlacementWindow = Window & {
+    __fragmentPlacementProbe?: FragmentPlacementProbe;
+  };
+
   await page.goto('/en/blog/');
   await page.evaluate((fragment) => {
     const link = document.querySelector<HTMLAnchorElement>(
@@ -223,34 +238,41 @@ test('cross-page fragment placement is complete before the target begins to appe
     if (!link) throw new Error('Article link was not found');
     link.href = `${link.href}#${fragment}`;
     link.dataset.astroPrefetch = 'false';
-    Object.defineProperty(window, '__fragmentPlacementFrames', {
+    const probe: FragmentPlacementProbe = {};
+    Object.defineProperty(window, '__fragmentPlacementProbe', {
       configurable: true,
-      value: [] as Array<{ scrollY: number; targetTop: number; opacity: number }>,
+      value: probe,
     });
     document.addEventListener(
       'astro:after-swap',
       () => {
-        let remaining = 16;
-        const sample = () => {
-          const target = document.getElementById(fragment);
-          const outlet = document.querySelector<HTMLElement>('.page-outlet');
-          (
-            window as Window & {
-              __fragmentPlacementFrames?: Array<{
-                scrollY: number;
-                targetTop: number;
-                opacity: number;
-              }>;
-            }
-          ).__fragmentPlacementFrames?.push({
-            scrollY,
-            targetTop: target?.getBoundingClientRect().top ?? Number.NaN,
-            opacity: Number.parseFloat(outlet ? getComputedStyle(outlet).opacity : '1'),
-          });
-          remaining -= 1;
-          if (remaining > 0) requestAnimationFrame(sample);
+        const target = document.getElementById(fragment);
+        const outlet = document.querySelector<HTMLElement>('.page-outlet');
+        if (!target || !outlet) {
+          probe.failure = 'Fragment target or outlet was not found after the swap';
+          return;
+        }
+        probe.initial = {
+          scrollY,
+          targetTop: target.getBoundingClientRect().top,
+          expectedTargetTop: Number.parseFloat(getComputedStyle(target).scrollMarginTop),
+          opacity: Number.parseFloat(getComputedStyle(outlet).opacity),
         };
-        sample();
+        const animation = outlet.matches('[data-page-outlet-entering]')
+          ? outlet
+              .getAnimations()
+              .find(
+                (candidate) =>
+                  candidate.effect instanceof KeyframeEffect && candidate.effect.target === outlet,
+              )
+          : undefined;
+        if (!animation) {
+          probe.failure = 'Target outlet animation was not available after the swap';
+          return;
+        }
+        animation.pause();
+        animation.currentTime = 0;
+        probe.animation = animation;
       },
       { once: true },
     );
@@ -258,36 +280,60 @@ test('cross-page fragment placement is complete before the target begins to appe
 
   await page.getByRole('link', { name: 'Git Operations Reference' }).click();
   await expect(page).toHaveURL(new RegExp(`${articlePath}#${targetId}$`));
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          (
-            window as Window & {
-              __fragmentPlacementFrames?: Array<unknown>;
-            }
-          ).__fragmentPlacementFrames?.length ?? 0,
-      ),
-    )
-    .toBe(16);
+  await page.waitForFunction(() => {
+    const probe = (window as FragmentPlacementWindow).__fragmentPlacementProbe;
+    return Boolean(probe?.initial || probe?.failure);
+  });
+  const samples = await page.evaluate(
+    ({ duration, targetId }) => {
+      const probe = (window as FragmentPlacementWindow).__fragmentPlacementProbe;
+      if (!probe?.initial) throw new Error(probe?.failure ?? 'Fragment placement was not sampled');
+      if (probe.failure || !probe.animation)
+        throw new Error(probe.failure ?? 'Animation was not paused');
 
-  const frames = await page.evaluate(
-    () =>
-      (
-        window as Window & {
-          __fragmentPlacementFrames?: Array<{
-            scrollY: number;
-            targetTop: number;
-            opacity: number;
-          }>;
-        }
-      ).__fragmentPlacementFrames ?? [],
+      const target = document.getElementById(targetId);
+      const outlet = document.querySelector<HTMLElement>('.page-outlet');
+      if (!target || !outlet) throw new Error('Fragment target or outlet was not found');
+      const sample = (time: number) => {
+        probe.animation!.currentTime = time;
+        return {
+          scrollY,
+          targetTop: target.getBoundingClientRect().top,
+          expectedTargetTop: Number.parseFloat(getComputedStyle(target).scrollMarginTop),
+          opacity: Number.parseFloat(getComputedStyle(outlet).opacity),
+        };
+      };
+      return [probe.initial, sample(0), sample(duration / 2), sample(duration)];
+    },
+    { duration: PAGE_OUTLET_FADE_MS, targetId },
   );
-  const finalFrame = frames.at(-1)!;
-  expect(finalFrame.scrollY).toBeGreaterThan(0);
-  expect(frames.some((frame) => frame.opacity > 0.05 && frame.opacity < 0.95)).toBe(true);
-  expect(frames.every((frame) => Math.abs(frame.scrollY - finalFrame.scrollY) < 2)).toBe(true);
-  expect(frames.every((frame) => Math.abs(frame.targetTop - finalFrame.targetTop) < 2)).toBe(true);
+
+  const [initial, transparent, halfway, complete] = samples;
+  expect(initial.scrollY).toBeGreaterThan(0);
+  expect(initial.opacity).toBeCloseTo(0, 5);
+  expect(transparent.opacity).toBeCloseTo(0, 5);
+  expect(halfway.opacity).toBeGreaterThan(0);
+  expect(halfway.opacity).toBeLessThan(1);
+  expect(complete.opacity).toBeCloseTo(1, 5);
+  expect(samples.every((sample) => Math.abs(sample.scrollY - initial.scrollY) < 2)).toBe(true);
+  expect(samples.every((sample) => Math.abs(sample.targetTop - initial.targetTop) < 2)).toBe(true);
+  expect(Math.abs(initial.targetTop - initial.expectedTargetTop)).toBeLessThan(2);
+
+  const finalFrame = await page.evaluate(async (fragment) => {
+    const animation = (window as FragmentPlacementWindow).__fragmentPlacementProbe?.animation;
+    const target = document.getElementById(fragment);
+    if (!animation || !target) throw new Error('Animation cleanup could not be observed');
+    animation.currentTime = 0;
+    animation.play();
+    await animation.finished;
+    return { scrollY, targetTop: target.getBoundingClientRect().top };
+  }, targetId);
+  expect(Math.abs(finalFrame.scrollY - initial.scrollY)).toBeLessThan(2);
+  expect(Math.abs(finalFrame.targetTop - initial.targetTop)).toBeLessThan(2);
+  const outlet = page.locator('.page-outlet');
+  await expect(outlet).toHaveCSS('opacity', '1');
+  await expect(outlet).not.toHaveAttribute('data-page-outlet-entering', '');
+  expect(await outlet.evaluate((element) => element.style.opacity)).toBe('');
 });
 
 test('a navigation superseded during its outgoing fade cannot swap or leave visual state behind', async ({

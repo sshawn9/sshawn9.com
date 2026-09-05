@@ -33,15 +33,13 @@ jobs:
       - run: npm run format:check
       - run: npm run check
       - run: npm test
-      - name: Build preview site
-        run: npm run build
-        env:
-          SITE_MODE: preview
       - run: npx playwright install --with-deps chromium
-      - name: Test preview site
+      # test:e2e includes the build; do not rebuild between verification and upload.
+      - name: Build and test preview site
         run: npm run test:e2e
         env:
           SITE_MODE: preview
+          SITE_BUILD_ID: preview-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Upload verified preview site
         if: ${{ inputs.upload_preview }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -50,16 +48,12 @@ jobs:
           path: apps/site/dist/
           if-no-files-found: error
           retention-days: 1
-      - name: Build production site
-        if: ${{ inputs.upload_production }}
-        run: npm run build
-        env:
-          SITE_MODE: production
-      - name: Test production site
+      - name: Build and test production site
         if: ${{ inputs.upload_production }}
         run: npm run test:e2e
         env:
           SITE_MODE: production
+          SITE_BUILD_ID: production-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Upload verified production site
         if: ${{ inputs.upload_production }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
