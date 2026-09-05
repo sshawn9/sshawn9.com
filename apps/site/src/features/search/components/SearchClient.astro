@@ -12,41 +12,6 @@ const { locale } = Astro.props;
 const copy = getFoundationCopy(locale);
 const instanceName = `site-${locale}`;
 const languageTag = locale === 'zh' ? 'zh-cn' : 'en';
-const resultTemplate = `
-  <li class="site-search-result">
-    <article class="site-search-result__card">
-      <div class="site-search-result__primary">
-        <div class="site-search-result__meta">
-          {{#if meta.type}}<span class="site-search-result__type">{{ meta.type }}</span>{{/if}}
-          {{#if meta.published}}<span>{{ meta.published }}</span>{{/if}}
-        </div>
-        <h2 class="site-search-result__title">
-          <a class="site-search-result__link" href="{{ meta.url | default(url) | safeUrl }}">{{ meta.title }}</a>
-        </h2>
-        {{#if excerpt}}<p class="site-search-result__excerpt">{{+ excerpt +}}</p>{{/if}}
-      </div>
-      {{#if sub_results}}
-      <ul class="site-search-result__sections">
-        {{#each sub_results as sub}}
-        <li>
-          <a class="site-search-result__section-link" href="{{ sub.url | safeUrl }}">{{ sub.title }}</a>
-          <p class="site-search-result__section-excerpt">{{+ sub.excerpt +}}</p>
-        </li>
-        {{/each}}
-      </ul>
-      {{/if}}
-    </article>
-  </li>
-`;
-const placeholderTemplate = `
-  <li class="site-search-result" aria-hidden="true">
-    <div class="site-search-result__card">
-      <p class="pf-skeleton site-search-result__skeleton-meta"></p>
-      <p class="pf-skeleton site-search-result__skeleton-title"></p>
-      <p class="pf-skeleton site-search-result__skeleton-excerpt"></p>
-    </div>
-  </li>
-`;
 ---
 
 <div
@@ -79,7 +44,8 @@ const placeholderTemplate = `
     <pagefind-input instance={instanceName} placeholder={copy.searchPlaceholder}></pagefind-input>
 
     <div class="site-search__context">
-      <pagefind-summary instance={instanceName}></pagefind-summary>
+      <p class="site-search__summary" data-search-summary></p>
+      <span class="site-search__status" data-search-status role="status" hidden></span>
     </div>
 
     <div class="site-search-empty" data-search-empty hidden>
@@ -87,18 +53,59 @@ const placeholderTemplate = `
       <p class="site-search-fallback__description">{copy.searchEmptyDescription}</p>
     </div>
 
-    <div class="site-search-results">
-      <pagefind-results instance={instanceName} max-sub-results="3">
-        <script is:inline type="text/pagefind-template" set:html={resultTemplate} />
-        <script
-          is:inline
-          type="text/pagefind-template"
-          data-template="placeholder"
-          set:html={placeholderTemplate}
-        />
-      </pagefind-results>
+    <div
+      class="site-search-results"
+      id={`search-results-${locale}`}
+      data-search-results
+      role="region"
+      aria-label={copy.searchPageTitle}
+    >
+      <ol class="site-search-list" data-search-list></ol>
+      <ol class="site-search-list" data-search-placeholder aria-hidden="true" hidden>
+        {
+          [0, 1, 2].map(() => (
+            <li>
+              <div class="site-search-result__card">
+                <p class="site-search-skeleton site-search-result__skeleton-meta" />
+                <p class="site-search-skeleton site-search-result__skeleton-title" />
+                <p class="site-search-skeleton site-search-result__skeleton-excerpt" />
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+      <div class="site-search-more" data-search-more aria-hidden="true" hidden>
+        <div class="site-search-result__card">
+          <p class="site-search-skeleton site-search-result__skeleton-title"></p>
+          <p class="site-search-skeleton site-search-result__skeleton-excerpt"></p>
+        </div>
+      </div>
     </div>
   </div>
+
+  <template data-search-card-template>
+    <li class="site-search-result">
+      <article class="site-search-result__card">
+        <div class="site-search-result__primary">
+          <div class="site-search-result__meta">
+            <span class="site-search-result__type" data-result-type></span>
+            <span data-result-published></span>
+          </div>
+          <h2 class="site-search-result__title">
+            <a class="site-search-result__link"></a>
+          </h2>
+          <p class="site-search-result__excerpt"></p>
+        </div>
+        <ul class="site-search-result__sections"></ul>
+      </article>
+    </li>
+  </template>
+  <template data-search-section-template>
+    <li>
+      <a class="site-search-result__section-link"></a>
+      <p class="site-search-result__section-excerpt"></p>
+    </li>
+  </template>
 
   <div data-search-fallback hidden>
     <SearchFallback {locale} />
