@@ -1,37 +1,15 @@
-## Development
+# 协作约定
 
-When starting the dev server, use background mode:
+目标：良好的用户体验与视觉交互、正确的功能、清晰易维护的代码。
 
-```
-astro dev --background
-```
+- 按当前请求交付：讨论不改代码，伪代码不写成完整实现；已授权的实施直接推进，遵守用户限定的范围。
+- 从当前代码和实际操作复现问题，用证据区分事实与猜测。用户反馈问题仍未解决时，重新定位，不继续猜改，不以测试通过代替问题解决。
+- 旧规范、实现和测试均可重新评价，取舍必须明确告知。超出已确认目标的功能、交互变化或范围扩张，说明收益与代价并取得同意。
+- 选择总复杂度低的可行方案，明确状态所有权、重复操作、完成和取消边界。必要时可调整整体设计，不为少改几行或套用抽象牺牲结构；结构恶化就停下重想。
+- 测试失败时，先区分实现错误与测试问题，修正对应一方；无价值的测试说明理由后删除。按风险验证，只更新必要的测试和文档。
+- 如实报告验证结果和盲区，不宣称“绝对最优”。主观验证持续进行，只补充本次受影响的交互。
 
-Manage the background server with `astro dev stop`, `astro dev status`, and `astro dev logs`.
+## 执行约定
 
-## Engineering quality
-
-- Human readability and long-term maintainability are acceptance criteria, not optional cleanup.
-- Design ownership, module boundaries, state flow, and lifecycle before implementation. Keep one authoritative source for each fact.
-- Prefer small cohesive modules, explicit typed dependencies, intention-revealing names, and comments that explain decisions rather than restate code.
-- Do not introduce hidden mutable globals, stringly typed event buses, duplicated state, timing-dependent workarounds, speculative abstractions, or monolithic controllers.
-- Unavoidable complexity must be tied to a documented behavior contract, isolated behind a narrow interface, and covered at the lowest practical test level.
-- A user-visible behavior, interaction, or visual change requires prior discussion and explicit approval. Update the relevant behavior cases and tests in the same change as its implementation.
-
-## Mainline control
-
-- Keep the current mainline and its active branch explicit before implementation work. Stop a branch as soon as it has answered the question that justified it; do not expand a proof of concept into a parallel product.
-- Before implementing a material tradeoff, proactively pause and present the current behavior, viable options, user-visible differences, advantages, disadvantages, and a recommendation. Wait for explicit approval.
-- After completing implementation work, report the complete mainline list and complete active-branch/substep list, marking the current position and next step. Do not append this progress report to ordinary discussion or question answering.
-
-## Documentation
-
-Full documentation: https://docs.astro.build
-
-Consult these guides before working on related tasks:
-
-- [Adding pages, dynamic routes, or middleware](https://docs.astro.build/en/guides/routing/)
-- [Working with Astro components](https://docs.astro.build/en/basics/astro-components/)
-- [Using React, Vue, Svelte, or other framework components](https://docs.astro.build/en/guides/framework-components/)
-- [Adding or managing content](https://docs.astro.build/en/guides/content-collections/)
-- [Adding styles or using Tailwind](https://docs.astro.build/en/guides/styling/)
-- [Supporting multiple languages](https://docs.astro.build/en/guides/internationalization/)
+- 命令以当前 `package.json` 为准；`test:e2e` 已包含构建，避免重复。涉及框架或库的行为，按需核对当前版本源码及官方文档。
+- 自己启动的服务器，在使用结束后负责停止；除非用户明确要求保留，不得遗留进程，也不得停止用户原有的服务。
