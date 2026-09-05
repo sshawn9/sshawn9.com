@@ -171,10 +171,6 @@ src/content/projects/my-project/
 
 Paraglide 负责页面级文案和界面文案，长篇文章与项目记录仍由 Content Collections 管理。
 
-## 质量验证
-
-Vitest 覆盖纯领域规则和窄模块边界；Playwright 只覆盖必须由真实浏览器证明的用户行为。测试从当前需求和行为契约派生：需求改变时测试随之修改或删除，测试本身不得成为保留旧实现或兼容分支的理由。GitHub Actions 会验证格式、类型、单元测试、构建和浏览器行为，并部署同一套站点产物。
-
 ## 部署
 
 每个已推送分支都有稳定的 Worker Preview URL。`main` 分支拥有已部署的 `sshawn9-com-preview` Worker URL；其他分支使用稳定别名，且不会改变该部署。预览构建包含草稿文章、不生成 sitemap，并同时通过 HTML 与 HTTP 响应头声明 `noindex`。拉取请求执行相同的预览模式验证，但不会使用部署密钥。每次部署摘要都会提供稳定分支 URL 和不可变版本 URL。分支删除后不会主动删除其别名，旧版本也不会主动删除；它们最终由 Cloudflare 的 Preview URL 保留策略清理。
@@ -195,7 +191,3 @@ Vitest 覆盖纯领域规则和窄模块边界；Playwright 只覆盖必须由�
 `wrangler.jsonc` 是两个隔离 Worker 环境的唯一配置来源。默认的 `sshawn9-com` Worker 通过 `sshawn9.com` 提供生产服务，不开放 `workers.dev` 或 Preview URL。`preview` 环境将包含草稿的 `main` 构建部署到 `sshawn9-com-preview`；其他分支上传带有稳定别名但不设为当前部署的版本。每次构建也会获得一个不可变版本 URL。稳定的生产自定义域映射由独立的长期 Terraform 基础设施管理。本方案不使用 Cloudflare Pages 项目，也不为每个分支创建 DNS 记录。
 
 首次迁移资源所有权时，应先应用 `actions-private/cf-dns` 配置，并确认它已经导入现有的 `sshawn9.com` 自定义域，然后再部署本仓库中不含路由的 Wrangler 配置。
-
-## 当前边界
-
-- 表单、评论、身份验证及其他动态功能只在出现真实需求时添加。
