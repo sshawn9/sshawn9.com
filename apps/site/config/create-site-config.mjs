@@ -4,6 +4,7 @@ import { createMarkdownProcessor } from '@sshawn9/site-build/markdown';
 import { createSiteParaglidePlugin } from '@sshawn9/site-i18n/paraglide';
 import solid from '@astrojs/solid-js';
 import { envField, fontProviders } from 'astro/config';
+import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { developmentFontAssets } from './development-font-assets.mjs';
@@ -40,7 +41,7 @@ function createIndexabilityResolver() {
 }
 
 export function createSiteConfig({ integrations = [], viteServer = {} } = {}) {
-  const buildId = process.env.SITE_BUILD_ID ?? '';
+  const buildId = randomUUID();
   const previewBuild = process.env.SITE_MODE === 'preview';
   const localFonts = fontProviders.local();
   const isIndexablePage = createIndexabilityResolver();
@@ -180,7 +181,8 @@ export function createSiteConfig({ integrations = [], viteServer = {} } = {}) {
     vite: {
       plugins: [inlineScriptBundles(), ...developmentFontAssets(), createSiteParaglidePlugin()],
       define: {
-        'import.meta.env.SITE_BUILD_ID': JSON.stringify(buildId),
+        // Astro can replace import.meta.env keys from private env before Vite's define runs.
+        __SITE_BUILD_ID__: JSON.stringify(buildId),
       },
       server: {
         ...viteServer,

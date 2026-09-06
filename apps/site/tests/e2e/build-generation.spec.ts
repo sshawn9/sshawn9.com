@@ -1,17 +1,21 @@
 import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 import { BUILD_ID_META_NAME, normalizeBuildId } from '../../src/runtime/build-generation';
 
-test('HTML, the live client, and search metadata share the expected build identity', async ({
+test('HTML, the live client, and search metadata share the built artifact identity', async ({
   page,
 }) => {
-  const configuredId = normalizeBuildId(process.env.SITE_BUILD_ID);
-  if (process.env.CI || process.env.SITE_BUILD_ID !== undefined) {
-    expect(configuredId, 'CI must provide a valid SITE_BUILD_ID').toBeDefined();
-    expect(configuredId, 'Published builds must not use the development identity').not.toBe(
-      'site-development',
-    );
-  }
-  const expectedId = configuredId ?? 'site-development';
+  const builtHtml = await readFile(
+    new URL('../../dist/en/blog/index.html', import.meta.url),
+    'utf8',
+  );
+  const expectedId = builtHtml.match(/<meta name="site-build-id" content="([^"]+)"/)?.[1] ?? '';
+  expect(normalizeBuildId(expectedId), 'Built HTML must contain a valid build identity').toBe(
+    expectedId,
+  );
+  expect(expectedId, 'Built HTML must not use the development identity').not.toBe(
+    'site-development',
+  );
 
   for (const locale of ['en', 'zh']) {
     await page.goto(`/${locale}/blog/`);
