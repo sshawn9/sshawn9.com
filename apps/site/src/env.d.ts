@@ -1,5 +1,7 @@
 /// <reference types="astro/client" />
 
+declare const __SITE_BUILD_ID__: string;
+
 declare module 'virtual:site-initial-document-script' {
   const source: string;
   export default source;
