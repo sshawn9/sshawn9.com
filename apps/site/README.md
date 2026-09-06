@@ -42,7 +42,8 @@ src/content/  应用侧内容发现、解析和路由适配
 src/features/ 页面功能、局部控制器与所属样式
 src/runtime/  跨页面浏览器组合根和基础设施
 src/styles/   token、基础元素和持久外壳样式
-tests/e2e/    只能由真实浏览器证明的关键行为证据
 ```
+
+测试集中在根目录 `tests/<功能>/<案例>/`，每个案例的说明与单元或浏览器测试放在一起。
 
 用户可见行为以 `docs/site-behavior-cases/` 为准。实现不得用本 README、历史里程碑或测试细节反向修改行为。

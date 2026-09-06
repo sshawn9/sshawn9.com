@@ -1,6 +1,7 @@
 .astro
 dist
 node_modules
+tests/.results
 package-lock.json
 docs/site-behavior-cases
 packages/site-i18n/generated
