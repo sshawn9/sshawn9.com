@@ -3,9 +3,11 @@
   "include": [
     "apps/site/.astro/types.d.ts",
     "worker/**/*.ts",
-    "tests/unit/**/*.ts",
-    "vitest.config.ts"
+    "tests/**/*.ts",
+    "vitest.config.ts",
+    "playwright.config.ts"
   ],
+  "exclude": ["tests/.results"],
   "compilerOptions": {
     "jsx": "preserve",
     "jsxImportSource": "solid-js"
