@@ -14,7 +14,7 @@
     "check": "tsc --noEmit --project tsconfig.json"
   },
   "dependencies": {
-    "@inlang/paraglide-js": "^2.23.0",
+    "@inlang/paraglide-js": "^2.25.0",
     "@sshawn9/site-domain": "0.0.0"
   },
   "devDependencies": {

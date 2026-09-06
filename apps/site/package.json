@@ -9,26 +9,26 @@
   },
   "dependencies": {
     "@sshawn9/content-ui": "0.0.0",
-    "@astrojs/markdown-remark": "7.2.2",
-    "@astrojs/mdx": "7.0.5",
-    "@astrojs/sitemap": "3.7.3",
-    "@astrojs/solid-js": "7.0.1",
-    "@fontsource-variable/jetbrains-mono": "5.2.8",
-    "@fontsource-variable/manrope": "5.2.8",
+    "@astrojs/markdown-remark": "7.3.0",
+    "@astrojs/mdx": "8.0.0",
+    "@astrojs/sitemap": "3.7.4",
+    "@astrojs/solid-js": "7.0.2",
+    "@fontsource-variable/jetbrains-mono": "5.3.0",
+    "@fontsource-variable/manrope": "5.3.0",
     "@fontsource-variable/noto-sans-sc": "5.3.0",
     "@fontsource-variable/source-sans-3": "5.3.0",
     "@sshawn9/site-build": "0.0.0",
     "@sshawn9/site-domain": "0.0.0",
     "@sshawn9/site-i18n": "0.0.0",
-    "astro": "7.1.6",
-    "diff": "^8.0.4",
+    "astro": "7.3.1",
+    "diff": "^9.0.0",
     "diff2html": "^3.4.56",
     "photoswipe": "^5.4.4",
-    "solid-js": "1.9.14"
+    "solid-js": "1.9.15"
   },
   "devDependencies": {
-    "@astrojs/check": "0.9.9",
-    "esbuild": "0.28.1",
+    "@astrojs/check": "0.9.10",
+    "esbuild": "0.28.2",
     "pagefind": "1.5.2",
     "typescript": "6.0.3"
   }
