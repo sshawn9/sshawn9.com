@@ -22,21 +22,16 @@
 npm run dev
 ```
 
-该命令同时启动本应用的 Astro 开发服务器和本地 Worker API。开发配置注册 `Drafts` 与 `Single-language` Toolbar，并代理 `/api`；preview 和 production 配置不导入这些开发能力。
-
-只启动 Astro 页面与 Toolbar：
-
-```bash
-npm run dev --workspace @sshawn9/site -- --background
-```
+该命令启动壁纸脚本监听与 Astro 开发服务器，不启动本地 Worker。本地配置 `astro.local.config.mjs` 供 dev/preview 共用，将壁纸 API 代理到线上；`Drafts` 与 `Single-language` Toolbar 仅在 dev 启用，生产构建不导入本地配置。
 
 常用验证命令：
 
 ```bash
 npm run check
-npm run build
-npm run test:e2e
+npm test
 ```
+
+`npm test` 已包含构建。`npm run preview` 构建后提供完整搜索，并通过相同代理使用线上壁纸 API；开发模式只有搜索静态回退。修改 Worker 时才需要根目录的 `npm run worker:dev`。安装、格式化、内容模式、API 来源及端口设置见根目录 README。根 `package.json` 定义流程，`justfile` 只作可选转发；本目录不另设页面独立运行入口。
 
 ## 目录
 

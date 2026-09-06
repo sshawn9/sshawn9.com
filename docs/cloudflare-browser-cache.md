@@ -143,8 +143,8 @@ ETag: "670ce0ac5ed85d0cedb43505e64df284"
 
 ```sh
 npm run build
-test -f dist/_headers
-sed -n '1,20p' dist/_headers
+test -f apps/site/dist/_headers
+sed -n '1,20p' apps/site/dist/_headers
 ```
 
 部署后检查一个 HTML 页面：

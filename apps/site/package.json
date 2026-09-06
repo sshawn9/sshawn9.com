@@ -5,10 +5,7 @@
   "scripts": {
     "build": "npm run build:wallpaper && astro build && pagefind --site dist",
     "build:wallpaper": "node scripts/build-wallpaper-system.mjs",
-    "check": "astro check",
-    "dev": "concurrently --kill-others --kill-others-on-fail --names wallpaper,astro \"node scripts/build-wallpaper-system.mjs --watch\" \"astro dev --config astro.dev.config.mjs --host 127.0.0.1 --port 4332\"",
-    "preview": "astro preview --host 127.0.0.1 --port 4333",
-    "test:e2e": "npm run build && playwright test"
+    "check": "astro check"
   },
   "dependencies": {
     "@sshawn9/content-ui": "0.0.0",
@@ -32,7 +29,6 @@
   "devDependencies": {
     "@astrojs/check": "0.9.9",
     "@playwright/test": "1.62.1",
-    "concurrently": "10.0.5",
     "esbuild": "0.28.1",
     "pagefind": "1.5.2",
     "typescript": "6.0.3"
