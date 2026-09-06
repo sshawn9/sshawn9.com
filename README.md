@@ -19,7 +19,17 @@ Shawn 的个人网站，用于展示项目、发布博客和个人介绍。当�
 
 ## 本地开发
 
-使用 Node 24（见 `.nvmrc`）。根目录 `package.json` 定义完整日常流程，运行 `npm run` 查看命令。`justfile` 只是可选的外部快捷入口，逐项转发下表命令；不安装 just 也能完成全部操作。
+本地和 CI 共用 devenv 原生环境：`devenv.nix` 定义工具与运行库，`devenv.yaml` 沿用官方默认来源，`devenv.lock` 由 CLI 管理。机器需要安装 Nix、devenv 和 direnv，并启用 direnv 的 shell hook。当前面向 `x86_64-linux` 的 NixOS 与 Ubuntu；NixOS 还需在系统配置中启用 `programs.nix-ld.enable = true`。
+
+```sh
+direnv allow
+just install
+just browser-install
+```
+
+direnv 通过 `use devenv` 加载环境，不需要 nix-direnv。Node 大版本由 `.nvmrc` 决定；JavaScript 模块其余行为沿用默认值，包括提供 TypeScript Language Server、不自动安装项目依赖。进入目录不下载测试浏览器、不启动服务。不使用 direnv 时运行 `devenv shell`，非交互任务使用 `devenv shell npm test` 等原有 npm 命令。不使用 Nix 时仍可自行安装 Node 24 及所需系统依赖，直接使用 npm。
+
+根目录 `package.json` 定义完整日常流程，运行 `npm run` 查看命令。`justfile` 只是可选的外部快捷入口，逐项转发下表命令；不安装 just 也能完成全部操作。
 
 | npm 入口                                  | 能力                                                     | 可选快捷入口           |
 | ----------------------------------------- | -------------------------------------------------------- | ---------------------- |
@@ -44,9 +54,11 @@ Shawn 的个人网站，用于展示项目、发布博客和个人介绍。当�
 
 所有服务前台运行，用 Ctrl-C 结束；开发的壁纸脚本监听与 Astro 两个子进程由 `concurrently` 统一启停。手动调整页面端口可用 `SITE_PORT=4334 npm run dev` 或 `SITE_PORT=4335 npm run preview`。这些环境变量对 just 转发同样有效。工作区的生成目录与构建产物共享，不并行构建、测试，也不重建正在使用的预览产物；优先复用已有开发服务，谁启动谁负责停止。
 
-首次运行浏览器测试前按需安装 Chromium，或通过 `PLAYWRIGHT_CHROME_PATH` 指定已有 Chrome；`npm ci` 不隐式安装浏览器。测试内部服务器由 Playwright 启停，默认端口 `4399`（可用 `PLAYWRIGHT_PORT` 覆盖），不复用已有服务器，也不是人工预览入口。既有测试场景和数据模拟保持不变，不另设 `test:e2e` 公开命令。
+Playwright 由 npm 锁定和升级，Chromium 及 headless shell 由其官方安装器下载，不使用 nixpkgs 的 Playwright/browser 包。首次测试或升级 Playwright 后执行 `just browser-install`；`npm ci` 不隐式安装浏览器。NixOS 下，`NIX_LD`、`NIX_LD_LIBRARY_PATH` 提供加载器和运行库，devenv 的 `scripts.ldd` 让 Playwright 的依赖检查使用同一组库，不全局导出 `LD_LIBRARY_PATH`。Ubuntu CI 使用官方 `playwright install --with-deps chromium` 安装宿主系统库，`ldd` 直接委托 `/usr/bin/ldd`。需要人工对照时仍可通过 `PLAYWRIGHT_CHROME_PATH` 指定已有 Chrome，但环境验收应使用默认下载的浏览器。
 
-完整验证为 `npm run format:check`、`npm run check`、`npm test`。CI 直接调用同一套 npm 命令，不依赖 just。
+测试内部服务器由 Playwright 启停，默认端口 `4399`（可用 `PLAYWRIGHT_PORT` 覆盖），不复用已有服务器，也不是人工预览入口。既有测试场景和数据模拟保持不变，不另设 `test:e2e` 公开命令。
+
+完整验证为 `npm run format:check`、`npm run check`、`npm test`。CI 先安装 Nix 和 devenv，再通过默认 devenv shell 执行这套 npm 命令，不依赖 just，也不另建任务流程。环境依赖使用 `devenv update` 更新，JS 依赖使用 npm 更新，验证后提交对应锁文件。CLI 是宿主工具，不受项目锁文件固定；本地由系统管理，CI 使用官方安装入口 `nix profile add nixpkgs#devenv`，不要求 CLI 与模块版本号相同。
 
 构建配置自动生成 `SITE_BUILD_ID`，并将同一个 UUID 写入 HTML、客户端代码和搜索配置，不依赖外部传值，也不关联版本号。测试从待测产物读取标识；预览和部署直接使用已有产物。CI 直接上传测试过的产物，不重复构建；部署仍由现有 GitHub Actions 负责。
 

@@ -1,6 +1,9 @@
 .astro
 dist
 node_modules
+.direnv
+.devenv
+devenv.lock
 tests/.results
 package-lock.json
 docs/site-behavior-cases
