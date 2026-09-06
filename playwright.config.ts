@@ -28,6 +28,8 @@ export default defineConfig({
   ],
   webServer: {
     command: `npx astro preview --host 127.0.0.1 --port ${port}`,
+    // Playwright must own the server, including in Astro's auto-detected AI environments.
+    env: { ASTRO_PREVIEW_BACKGROUND: '0' },
     cwd: appRoot,
     url: `http://127.0.0.1:${port}/en/blog/`,
     // Never accept a dev server or a preview from another build as test evidence.

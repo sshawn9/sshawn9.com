@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "SITE_MODE=${SITE_MODE:-preview} concurrently --kill-others --names wallpaper,site \"node apps/site/scripts/build-wallpaper-system.mjs --watch\" \"cd apps/site && ASTRO_DEV_BACKGROUND=0 astro dev --config astro.local.config.mjs --host 127.0.0.1 --port ${SITE_PORT:-4332}\"",
     "build": "npm run build --workspace @sshawn9/site",
-    "preview": "export SITE_MODE=${SITE_MODE:-preview}; npm run build && cd apps/site && astro preview --config astro.local.config.mjs --host 127.0.0.1 --port ${SITE_PORT:-4333}",
+    "preview": "export SITE_MODE=${SITE_MODE:-preview}; npm run build && cd apps/site && ASTRO_PREVIEW_BACKGROUND=0 astro preview --config astro.local.config.mjs --host 127.0.0.1 --port ${SITE_PORT:-4333}",
     "worker:dev": "wrangler dev --assets public --ip 127.0.0.1 --port ${SITE_WORKER_PORT:-8787} --local --show-interactive-dev-session=false",
     "test": "export SITE_MODE=${SITE_MODE:-preview}; vitest run && npm run build && playwright test",
     "check": "npm run check --workspaces --if-present && tsc --noEmit --project tsconfig.json",
@@ -28,15 +28,16 @@
     "@sshawn9/content-ui": "0.0.0",
     "@sshawn9/site-i18n": "0.0.0",
     "concurrently": "^10.0.5",
-    "prettier": "^3.9.5",
+    "prettier": "^3.9.6",
     "prettier-plugin-astro": "^0.14.1",
     "typescript": "^6.0.3",
-    "vega": "^6.3.1",
-    "vitest": "^4.1.10",
-    "wrangler": "4.123.0"
+    "vega": "^6.4.0",
+    "vitest": "^5.0.0",
+    "wrangler": "4.129.0"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
-    "workerd@1.20260811.1": true
+    "esbuild@0.28.2": true,
+    "workerd@1.20260903.1": true
   }
 }
