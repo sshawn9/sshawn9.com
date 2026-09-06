@@ -19,40 +19,34 @@ Shawn 的个人网站，用于展示项目、发布博客和个人介绍。当�
 
 ## 本地开发
 
-```bash
-npm ci
-npm run dev
-```
+使用 Node 24（见 `.nvmrc`）。根目录 `package.json` 定义完整日常流程，运行 `npm run` 查看命令。`justfile` 只是可选的外部快捷入口，逐项转发下表命令；不安装 just 也能完成全部操作。
 
-`npm run dev` 是完整开发入口：Astro 在 `127.0.0.1:4332` 提供页面、HMR 和 Dev Toolbar，Wrangler 在 `127.0.0.1:8787` 提供 Worker API。Astro 仅在开发配置中把 `/api` 代理到 Wrangler；生产配置不导入 Toolbar 或开发代理。
+| npm 入口                                  | 能力                                                     | 可选快捷入口           |
+| ----------------------------------------- | -------------------------------------------------------- | ---------------------- |
+| `npm ci`                                  | 按锁文件安装依赖                                         | `just install`         |
+| `npm exec -- playwright install chromium` | 按需安装测试浏览器                                       | `just browser-install` |
+| `npm run dev`                             | 热更新、Dev Toolbar、线上壁纸 API；搜索使用静态回退      | `just dev`             |
+| `npm run preview`                         | 先构建，再预览完整页面与 Pagefind 搜索；壁纸使用线上 API | `just preview`         |
+| `npm run worker:dev`                      | 仅调试本地 Worker API，不启动站点                        | `just worker-dev`      |
+| `npm run build`                           | 只生成 `apps/site/dist/` 部署产物，不启动服务            | `just build`           |
+| `npm test`                                | 单测 → 一次构建 → 浏览器测试，不必先 build               | `just test`            |
+| `npm run check`                           | 工作区和根项目类型检查                                   | `just check`           |
+| `npm run format`                          | 使用项目锁定的 Prettier 格式化                           | `just fmt`             |
+| `npm run format:check`                    | 只检查格式                                               | `just fmt-check`       |
 
-Toolbar 中的 `Drafts` 会列出草稿，`Single-language` 会列出缺少某种语言的文章版本。若只需页面与 Toolbar，也可单独后台运行 Astro：
+`dev` 在 `http://127.0.0.1:4332` 提供热更新页面，`preview` 在 `http://127.0.0.1:4333` 提供构建后的页面；两者均通过 `apps/site/astro.local.config.mjs` 将 `/api/wallpapers` 及其下载上报接口代理至 `https://sshawn9.com`，真正的图片仍从 Unsplash CDN 获取。日常页面开发不启动本地 Worker，不需要本地 KV 或 Unsplash 密钥，但壁纸依赖网络和线上 API 可用性。应用目录的 npm 脚本仅承担内部构建和检查。
 
-```bash
-npm run dev --workspace @sshawn9/site -- --background
-```
+只有修改 Worker 本身时才运行 `npm run worker:dev`（默认端口 `8787`，可用 `SITE_WORKER_PORT` 覆盖）。它使用本地 Wrangler 数据与 `.dev.vars` 的 `UNSPLASH_ACCESS_KEY`；空照片池仍返回 503，不会自动填充。页面需要联调本地 Worker 时，可显式使用 `SITE_WALLPAPER_API_ORIGIN=http://127.0.0.1:8787 npm run dev`，该覆盖对 `preview` 同样有效。
 
-完整的本地验证流程：
+日常预览由 Astro 提供产物，不模拟 Cloudflare 的 `_headers`、Access 等平台规则；这些规则仍需在 Cloudflare 部署环境验证。默认构建配置不包含本地代理，也不改变线上 API 的访问权限。
 
-```bash
-npm run check
-npm test
-npm run format:check
-npm run build
-npm run test:e2e
-```
+`dev`、`preview`、`test` 默认使用 `preview` 内容模式（含草稿、`noindex`），`build` 默认使用 `production`。需要覆盖时使用同一个 `SITE_MODE` 环境变量，例如 `SITE_MODE=production npm run preview`、`SITE_MODE=production npm test` 或 `SITE_MODE=preview npm run build`；它只决定站点内容，不切换云端 Worker 环境。`dev` 独有的 `Drafts` Toolbar 列出草稿，`Single-language` 列出缺少语言版本的文章；验证完整搜索使用 `npm run preview`。
 
-测试完整的动态背景前，将 Unsplash Access Key 写入本地密钥文件；完整的 `npm run dev` 会由 Wrangler 自动读取它：
+所有服务前台运行，用 Ctrl-C 结束；开发的壁纸脚本监听与 Astro 两个子进程由 `concurrently` 统一启停。手动调整页面端口可用 `SITE_PORT=4334 npm run dev` 或 `SITE_PORT=4335 npm run preview`。这些环境变量对 just 转发同样有效。工作区的生成目录与构建产物共享，不并行构建、测试，也不重建正在使用的预览产物；优先复用已有开发服务，谁启动谁负责停止。
 
-```bash
-cp .dev.vars.example .dev.vars
-# 编辑 .dev.vars，填写 UNSPLASH_ACCESS_KEY
-npm run dev
-```
+首次运行浏览器测试前按需安装 Chromium，或通过 `PLAYWRIGHT_CHROME_PATH` 指定已有 Chrome；`npm ci` 不隐式安装浏览器。测试内部服务器由 Playwright 启停，默认端口 `4399`（可用 `PLAYWRIGHT_PORT` 覆盖），不复用已有服务器，也不是人工预览入口。既有测试场景和数据模拟保持不变，不另设 `test:e2e` 公开命令。
 
-需要验证接近部署形态、包含草稿并带 `noindex` 的静态预览时，运行 `npm run preview`。
-
-本仓库使用 Node 24 作为经过测试的开发运行时，`.nvmrc` 记录了这一建议版本。`npm run build` 会在 `apps/site/dist/` 生成静态网站及其 Pagefind 多语言全站索引。浏览器测试使用独立端口，因此不会干扰 4332 上的常规开发服务器。
+完整验证为 `npm run format:check`、`npm run check`、`npm test`。CI 直接调用同一套 npm 命令，不依赖 just。
 
 构建配置自动生成 `SITE_BUILD_ID`，并将同一个 UUID 写入 HTML、客户端代码和搜索配置，不依赖外部传值，也不关联版本号。测试从待测产物读取标识；预览和部署直接使用已有产物。CI 直接上传测试过的产物，不重复构建；部署仍由现有 GitHub Actions 负责。
 
@@ -188,7 +182,7 @@ Paraglide 负责页面级文案和界面文案，长篇文章与项目记录仍�
 
 照片始终使用 Unsplash API 返回的 CDN 地址，不转存到本站。固定在页面右下角的摄影师与 Unsplash 链接用于满足 API 署名要求。搜索条件只能提高风景题材的命中率，不能提供严格的内容保证；需要绝对控制时，应将来源改为人工维护的 Unsplash Collection。
 
-`wrangler.jsonc` 中不填写 KV ID，由 Wrangler 在生产 Worker 和预览 Worker 首次部署时分别自动配置 KV。生产环境配置每日 Cron；预览环境不创建 Cron，首次访问照片清单接口时初始化其共享照片池。
+`wrangler.jsonc` 中不填写 KV ID，由 Wrangler 在生产 Worker 和预览 Worker 首次部署时分别自动配置 KV。生产环境配置 Cron；预览环境不创建 Cron。照片池为空时接口返回 503，不会因首次或重复访问自动初始化。
 
 `wrangler.jsonc` 是两个隔离 Worker 环境的唯一配置来源。默认的 `sshawn9-com` Worker 通过 `sshawn9.com` 提供生产服务，不开放 `workers.dev` 或 Preview URL。`preview` 环境将包含草稿的 `main` 构建部署到 `sshawn9-com-preview`；其他分支上传带有稳定别名但不设为当前部署的版本。每次构建也会获得一个不可变版本 URL。稳定的生产自定义域映射由独立的长期 Terraform 基础设施管理。本方案不使用 Cloudflare Pages 项目，也不为每个分支创建 DNS 记录。
 

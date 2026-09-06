@@ -32,11 +32,10 @@ jobs:
       - run: npm ci
       - run: npm run format:check
       - run: npm run check
-      - run: npm test
-      - run: npx playwright install --with-deps chromium
-      # test:e2e includes the build; do not rebuild between verification and upload.
+      - run: npm exec -- playwright install --with-deps chromium
+      # test includes unit tests, one build, and browser tests; do not rebuild before upload.
       - name: Build and test preview site
-        run: npm run test:e2e
+        run: npm test
         env:
           SITE_MODE: preview
       - name: Upload verified preview site
@@ -49,7 +48,7 @@ jobs:
           retention-days: 1
       - name: Build and test production site
         if: ${{ inputs.upload_production }}
-        run: npm run test:e2e
+        run: npm test
         env:
           SITE_MODE: production
       - name: Upload verified production site
