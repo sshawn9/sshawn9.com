@@ -14,36 +14,36 @@ type Lightbox = {
   on(eventName: string, listener: () => void): void;
 };
 
-let stylesheetPreparation: Promise<void> | undefined;
+let stylesheetPreparation: { link: HTMLLinkElement; ready: Promise<void> } | undefined;
 
 function preparePhotoSwipeStylesheet(sourceDocument: Document): Promise<void> {
-  if (stylesheetPreparation) return stylesheetPreparation;
+  // A failed request or an Astro head swap removes the resource. A settled
+  // Promise from that old link must not stand in for the current document's CSS.
+  if (
+    stylesheetPreparation?.link.isConnected &&
+    stylesheetPreparation.link.ownerDocument === sourceDocument
+  ) {
+    return stylesheetPreparation.ready;
+  }
 
-  stylesheetPreparation = new Promise((resolve, reject) => {
-    const existing = sourceDocument.querySelector<HTMLLinkElement>(
-      'link[data-article-media-stylesheet]',
-    );
-    if (existing) {
-      resolve();
-      return;
-    }
-
-    const link = sourceDocument.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = photoSwipeStylesheetHref;
-    link.dataset.articleMediaStylesheet = '';
+  const link = sourceDocument.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = photoSwipeStylesheetHref;
+  link.dataset.articleMediaStylesheet = '';
+  const ready = new Promise<void>((resolve, reject) => {
     link.addEventListener('load', () => resolve(), { once: true });
     link.addEventListener(
       'error',
-      () => reject(new Error('PhotoSwipe stylesheet failed to load.')),
-      {
-        once: true,
+      () => {
+        link.remove();
+        reject(new Error('PhotoSwipe stylesheet failed to load.'));
       },
+      { once: true },
     );
-    sourceDocument.head.append(link);
   });
-
-  return stylesheetPreparation;
+  stylesheetPreparation = { link, ready };
+  sourceDocument.head.append(link);
+  return ready;
 }
 
 /** Enhances explicit image attachments while preserving their ordinary anchor fallback. */

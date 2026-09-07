@@ -4,6 +4,10 @@ import { fileURLToPath } from 'node:url';
 const executablePath = process.env.PLAYWRIGHT_CHROME_PATH;
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 4399);
 const appRoot = fileURLToPath(new URL('./apps/site/', import.meta.url));
+const browserEnv = { ...process.env };
+// Headless Chromium's software Vulkan backend cannot create a Wayland surface.
+// Isolate the test browser from the host desktop without changing the shell.
+delete browserEnv.WAYLAND_DISPLAY;
 
 export default defineConfig({
   testDir: './tests',
@@ -22,7 +26,7 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        ...(executablePath ? { launchOptions: { executablePath } } : {}),
+        launchOptions: { env: browserEnv, ...(executablePath ? { executablePath } : {}) },
       },
     },
   ],

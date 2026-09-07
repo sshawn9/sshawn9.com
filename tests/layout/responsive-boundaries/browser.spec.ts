@@ -156,3 +156,45 @@ test('representative page families stay within the sampled responsive geometry b
     }
   }
 });
+
+test('touch navigation stays usable when rotating a tablet-sized viewport in either locale', async ({
+  browser,
+  baseURL,
+}) => {
+  const context = await browser.newContext({
+    baseURL,
+    hasTouch: true,
+    viewport: { width: 767, height: 1024 },
+  });
+  const page = await context.newPage();
+  try {
+    for (const locale of ['en', 'zh']) {
+      await page.setViewportSize({ width: 767, height: 1024 });
+      await page.goto(`/${locale}/blog/`);
+      const menu = page.locator('[data-mobile-menu-trigger]');
+      await menu.tap();
+      const navigation = page.locator('[data-shell-mobile-menu]');
+      await expect(navigation).toBeVisible();
+      const projects = navigation.locator(`a[href="/${locale}/projects/"]`);
+      await projects.tap();
+      await expect(page).toHaveURL(new RegExp(`/${locale}/projects/$`));
+      await expect(navigation).not.toBeVisible();
+      await page.setViewportSize({ width: 1024, height: 768 });
+      await expect(menu).not.toBeVisible();
+      const theme = page.locator('.site-header [data-theme-toggle]').first();
+      const label = await theme.getAttribute('aria-label');
+      await theme.tap();
+      await expect(theme).not.toHaveAttribute('aria-label', label!);
+      const geometry = await responsiveGeometry(page);
+      expect(geometry.outsideViewport).toEqual([]);
+      expect(geometry.rootScrollWidth).toBeLessThanOrEqual(geometry.rootClientWidth + 1);
+      await page.setViewportSize({ width: 767, height: 1024 });
+      await menu.tap();
+      await expect(navigation).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(navigation).not.toBeVisible();
+    }
+  } finally {
+    await context.close();
+  }
+});

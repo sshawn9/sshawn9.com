@@ -39,9 +39,23 @@ test('research controls respond, and the Frenet control survives an appearance c
     const x = point.x + point.width / 2;
     const y = point.y + point.height / 2;
     await page.mouse.move(x, y);
+    await expect(timingFigure.locator('.closed-loop-control-timing-plot svg')).toContainText(
+      'Drag to adjust the decision offset',
+    );
     await page.mouse.down();
-    await page.mouse.move(x + 45, y, { steps: 4 });
+    await expect(timingFigure).toHaveAttribute('data-dragging', 'decision-time');
+    await page.mouse.move(x + 24, y);
+    const intermediateTime = await timingFigure.getAttribute('data-decision-time');
+    expect(intermediateTime).not.toBe('50');
+    await page.mouse.move(x + 45, y);
+    await expect
+      .poll(() => timingFigure.getAttribute('data-decision-time'))
+      .not.toBe(intermediateTime);
+    const latestTime = await timingFigure.getAttribute('data-decision-time');
     await page.mouse.up();
+    await expect(timingFigure).not.toHaveAttribute('data-dragging', /.+/);
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(null))));
+    await expect(timingFigure).toHaveAttribute('data-decision-time', latestTime ?? '');
   }
   await expect(timingFigure).not.toHaveAttribute('data-decision-time', '50');
 });

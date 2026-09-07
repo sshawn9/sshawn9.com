@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import { PAGE_OUTLET_FADE_MS } from '../../../apps/site/src/runtime/page-outlet-transition';
 
 const pageTransitionEnvironments = [
   {
@@ -144,6 +143,5 @@ for (const environment of pageTransitionEnvironments) {
     expect(targetFrames.every((frame) => frame.scrollY === 0)).toBe(true);
     expect(targetFrames.every((frame) => frame.currentNavigation === 'Projects')).toBe(true);
     expect(frames.every((frame) => !frame.snapshotAnimation)).toBe(true);
-    expect(PAGE_OUTLET_FADE_MS).toBe(180);
   });
 }

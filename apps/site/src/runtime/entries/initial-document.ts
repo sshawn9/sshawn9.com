@@ -14,6 +14,16 @@ import { prepareRequiredFonts } from '../required-fonts';
 import { restorePageAndNestedScroll, restorePageScroll } from '../scroll-state';
 import { decodeScrollSnapshot } from '../state-ledger';
 
+// Astro alone cannot prepare this site's fonts and page state. Until the site
+// runtime is installed, let its documented cancellation path load full documents.
+const requireSiteRuntime = (event: Event): void => event.preventDefault();
+document.addEventListener('astro:before-preparation', requireSiteRuntime);
+document.addEventListener(
+  'site:runtime-ready',
+  () => document.removeEventListener('astro:before-preparation', requireSiteRuntime),
+  { once: true },
+);
+
 try {
   const targetUrl = new URL(location.href);
   prepareTargetBlogView(document, targetUrl);

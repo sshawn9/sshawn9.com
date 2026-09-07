@@ -30,6 +30,8 @@ async function readBlogFrames(page: Page) {
               articleCount: number;
               totalArticleCount: number;
               selectedTags: string[];
+              currentPage: string;
+              visibleArticleHrefs: string[];
               shellVisible: boolean;
             }>;
           };
@@ -47,6 +49,8 @@ test('filtered and paginated cold entries stay consistent in the sampled frames 
         articleCount: number;
         totalArticleCount: number;
         selectedTags: string[];
+        currentPage: string;
+        visibleArticleHrefs: string[];
         shellVisible: boolean;
       }>,
       complete: false,
@@ -63,6 +67,12 @@ test('filtered and paginated cold entries stay consistent in the sampled frames 
           articleCount: listing.querySelectorAll('[data-blog-article]:not([hidden])').length,
           totalArticleCount: listing.querySelectorAll('[data-blog-article]').length,
           selectedTags: JSON.parse(listing.dataset.selectedTags ?? '[]'),
+          currentPage: listing.dataset.currentPage ?? '',
+          visibleArticleHrefs: [
+            ...listing.querySelectorAll<HTMLAnchorElement>(
+              '[data-blog-article]:not([hidden]) h2 a',
+            ),
+          ].map((link) => link.pathname),
           shellVisible:
             getComputedStyle(document.body).visibility !== 'hidden' &&
             getComputedStyle(shell).visibility !== 'hidden',
@@ -107,5 +117,26 @@ test('filtered and paginated cold entries stay consistent in the sampled frames 
     ),
   ).toBe(true);
   await expect(page.locator('[data-blog-listing]')).toHaveAttribute('data-current-page', '2');
+  await expect(page.getByRole('navigation', { name: 'Article pagination' })).toBeVisible();
+
+  const combinedTags = ['frenet', 'personal-website', 'git', 'self-hosting'];
+  const combinedQuery = combinedTags.map((tag) => `tag=${tag}`).join('&');
+  await page.goto(`${blogPath}?${combinedQuery}&page=2`);
+  const combinedFrames = await readBlogFrames(page);
+  const combinedHrefs = await visibleArticles(page)
+    .locator('h2 a')
+    .evaluateAll((links) => links.map((link) => (link as HTMLAnchorElement).pathname));
+  expect(combinedHrefs.length).toBeGreaterThan(0);
+  expect(combinedFrames).toHaveLength(8);
+  expect(
+    combinedFrames.every(
+      (frame) =>
+        frame.shellVisible &&
+        frame.currentPage === '2' &&
+        frame.selectedTags.toSorted().join(',') === combinedTags.toSorted().join(',') &&
+        frame.visibleArticleHrefs.join(',') === combinedHrefs.join(','),
+    ),
+  ).toBe(true);
+  await expect(page.locator('[data-blog-result-count]')).toHaveText(/Page 2 of \d+/);
   await expect(page.getByRole('navigation', { name: 'Article pagination' })).toBeVisible();
 });

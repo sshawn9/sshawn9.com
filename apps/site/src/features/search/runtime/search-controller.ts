@@ -139,7 +139,12 @@ function createSearchPageController(
   };
 
   const connect = async () => {
+    // A local enhancement must not block Astro's document script queue. Its
+    // existing connection timeout owns failure; the native module cache dedupes.
+    const componentUrl = new URL('/pagefind/pagefind-component-ui.js', sourceWindow.location.href)
+      .href;
     await Promise.all([
+      import(/* @vite-ignore */ componentUrl),
       sourceWindow.customElements.whenDefined('pagefind-config'),
       sourceWindow.customElements.whenDefined('pagefind-input'),
     ]);

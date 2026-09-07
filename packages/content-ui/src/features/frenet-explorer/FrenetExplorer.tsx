@@ -14,7 +14,7 @@ import {
   type Component,
 } from 'solid-js';
 import { createStore, reconcile } from 'solid-js/store';
-import type { Data, PlotlyHTMLElement, PlotMouseEvent } from 'plotly.js';
+import type { Camera, Data, PlotlyHTMLElement, PlotMouseEvent, PlotRelayoutEvent } from 'plotly.js';
 import * as m from '@sshawn9/site-i18n/messages';
 import { getLocale } from '@sshawn9/site-i18n/runtime';
 import { waitForDocumentFonts } from '../../runtime/document-font-readiness';
@@ -266,6 +266,7 @@ const FrenetExplorer: Component<Props> = (props) => {
   let pendingSelection: Parameters | undefined;
   let dirtyResize = false;
   let mainViewRevision = 0;
+  let mainCamera: Partial<Camera> | undefined;
   let observedWidth = 0;
 
   const relevantVariables =
@@ -340,6 +341,7 @@ const FrenetExplorer: Component<Props> = (props) => {
         if (dirtyMainFigure) {
           dirtyMainFigure = false;
           mainFigure = buildMainFigure(state, theme, plotLabels, mainViewRevision);
+          if (mainCamera && mainFigure.layout.scene) mainFigure.layout.scene.camera = mainCamera;
           updates.push(
             plotly.react(mainPlot, mainFigure.data, mainFigure.layout, mainFigure.config),
           );
@@ -412,7 +414,10 @@ const FrenetExplorer: Component<Props> = (props) => {
         dirtyResize = false;
         const geometryView = geometryViewRanges(state);
         await Promise.all([
-          plotly.relayout(mainPlot, { autosize: true }),
+          plotly.relayout(mainPlot, {
+            autosize: true,
+            ...(mainCamera ? { 'scene.camera': mainCamera } : {}),
+          }),
           plotly.relayout(geometryPlot, {
             autosize: true,
             ...geometryViewportLayout(geometryView),
@@ -474,6 +479,7 @@ const FrenetExplorer: Component<Props> = (props) => {
   };
 
   const reset = () => {
+    mainCamera = undefined;
     setState(reconcile(createInitialState(axes, initialStateOptions)));
     mainViewRevision += 1;
     invalidateAllFigures();
@@ -486,6 +492,13 @@ const FrenetExplorer: Component<Props> = (props) => {
     if (xVariable) setState('selected', xVariable, Number(point.x));
     if (yVariable) setState('selected', yVariable, Number(point.y));
     invalidateSelection();
+  };
+
+  // Plotly can retain an old layout object after react(). Keep the user's
+  // camera from its public event so subsequent redraws/resizes cannot reset it.
+  const rememberCamera = (event: PlotRelayoutEvent & { 'scene.camera'?: Partial<Camera> }) => {
+    const camera = event['scene.camera'];
+    if (camera) mainCamera = camera;
   };
 
   const waitUntilNearViewport = () =>
@@ -541,6 +554,7 @@ const FrenetExplorer: Component<Props> = (props) => {
 
       mainPlot.on('plotly_hover', selectFromPlot);
       mainPlot.on('plotly_click', selectFromPlot);
+      mainPlot.on('plotly_relayout', rememberCamera);
 
       resizeObserver = new ResizeObserver((entries) => {
         let plotsChangedSize = false;
@@ -587,6 +601,7 @@ const FrenetExplorer: Component<Props> = (props) => {
     if (mainPlot && plotly) {
       mainPlot.removeAllListeners('plotly_hover');
       mainPlot.removeAllListeners('plotly_click');
+      mainPlot.removeAllListeners('plotly_relayout');
       plotly.purge(mainPlot);
     }
     if (geometryPlot && plotly) plotly.purge(geometryPlot);
