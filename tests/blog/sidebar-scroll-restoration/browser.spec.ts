@@ -10,10 +10,22 @@ test('sidebar scrolling is independent and restores in sampled frames after refr
 
   const panel = page.locator('[data-blog-mobile-panel]');
   const pageY = await page.evaluate(() => scrollY);
-  await panel.evaluate((element) => element.scrollTo(0, 240));
+  await panel.hover();
+  await page.mouse.wheel(0, 240);
   await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  const savedPanelY = await panel.evaluate((element) => element.scrollTop);
   expect(await page.evaluate(() => scrollY)).toBe(pageY);
+
+  await panel.evaluate((element) => element.scrollTo(0, element.scrollHeight));
+  const pageYBeforeBoundaryWheel = await page.evaluate(() => scrollY);
+  await panel.hover();
+  await page.mouse.wheel(0, 240);
+  expect(await page.evaluate(() => scrollY)).toBe(pageYBeforeBoundaryWheel);
+
+  const savedPanelY = await panel.evaluate((element) => element.scrollTop);
+  await page.locator('[data-blog-results]').hover();
+  await page.mouse.wheel(0, 240);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(pageY);
+  expect(await panel.evaluate((element) => element.scrollTop)).toBe(savedPanelY);
   await expect
     .poll(() =>
       page.evaluate(
@@ -72,4 +84,35 @@ test('sidebar scrolling is independent and restores in sampled frames after refr
   );
   expect(restoredFrames).toHaveLength(8);
   expect(restoredFrames.every((value) => value === savedPanelY)).toBe(true);
+
+  await page.locator('[data-blog-article]:not([hidden]) h2 a').first().click();
+  await expect(page).toHaveURL(/\/en\/blog\/[^?]+\/$/);
+  await page.evaluate(() => {
+    const observer = new MutationObserver(() => {
+      if (!document.querySelector('[data-blog-listing]')) return;
+      observer.disconnect();
+      const samples: number[] = [];
+      const sample = () => {
+        const region = document.querySelector<HTMLElement>(
+          '[data-scroll-region="blog-sidebar-tags"]',
+        );
+        if (region) samples.push(region.scrollTop);
+        if (samples.length < 8) requestAnimationFrame(sample);
+        else document.documentElement.dataset.blogSidebarTraversalSamples = JSON.stringify(samples);
+      };
+      requestAnimationFrame(sample);
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  });
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/en\/blog\/$/);
+  await expect(page.locator('html')).toHaveAttribute('data-blog-sidebar-traversal-samples', /\[/);
+  const traversalSamples = await page
+    .locator('html')
+    .evaluate((root) =>
+      JSON.parse((root as HTMLElement).dataset.blogSidebarTraversalSamples ?? '[]'),
+    );
+  expect(traversalSamples).toHaveLength(8);
+  expect(traversalSamples.every((value: number) => value === savedPanelY)).toBe(true);
 });

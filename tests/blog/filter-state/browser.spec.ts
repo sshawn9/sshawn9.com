@@ -28,6 +28,8 @@ test('union filters keep global facets, article selection, URL, and history sync
       name: element.getAttribute('data-tag-name'),
       slug: element.getAttribute('data-tag-slug'),
       count: element.getAttribute('data-tag-count'),
+      top: element.parentElement?.offsetTop,
+      height: element.parentElement?.offsetHeight,
     })),
   );
   const articles = await page
@@ -59,6 +61,8 @@ test('union filters keep global facets, article selection, URL, and history sync
         name: element.getAttribute('data-tag-name'),
         slug: element.getAttribute('data-tag-slug'),
         count: element.getAttribute('data-tag-count'),
+        top: element.parentElement?.offsetTop,
+        height: element.parentElement?.offsetHeight,
       })),
     ),
   ).toEqual(initialDefinitions);

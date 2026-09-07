@@ -162,3 +162,67 @@ test('missing transition events cannot leave the next control busy indefinitely'
   await expect(next).toBeEnabled();
   await expect(page.locator('.wallpaper__image')).toHaveCount(1, { timeout: 4000 });
 });
+
+test('the current photo remains authoritative until the prepared next slot decodes', async ({
+  page,
+}) => {
+  await routeWallpaperResources(page);
+  await seedTwoSlots(page, 1600);
+  await page.addInitScript(() => {
+    const originalDecode = Image.prototype.decode;
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let held = false;
+    Object.assign(window, {
+      __wallpaperDecodeGate: {
+        get held() {
+          return held;
+        },
+        release,
+      },
+    });
+    Image.prototype.decode = function decode() {
+      const decoded = originalDecode.call(this);
+      if (held || !this.src.startsWith('data:image/')) return decoded;
+      held = true;
+      return gate.then(() => decoded);
+    };
+  });
+
+  await page.goto('/en/blog/');
+  await page.locator('[data-wallpaper-menu-trigger]').click();
+  const next = page.locator('#wallpaper-settings [data-wallpaper-next]');
+  await next.click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as Window & { __wallpaperDecodeGate?: { held: boolean } }).__wallpaperDecodeGate
+            ?.held ?? false,
+      ),
+    )
+    .toBe(true);
+
+  await expect(page.locator('html')).toHaveAttribute('data-wallpaper-photo-id', 'photo-one');
+  await expect(page.locator('[data-wallpaper-credit-photographer]')).toHaveText(
+    'First Photographer',
+  );
+  await expect(page.locator('[data-wallpaper-current]')).toHaveCount(1);
+  await expect(page.locator('[data-wallpaper-transitioning]')).toHaveCount(0);
+  await expect(next).toHaveAttribute('aria-busy', 'true');
+  await expect(next).toBeDisabled();
+
+  await page.evaluate(() => {
+    (
+      window as Window & { __wallpaperDecodeGate?: { release(): void } }
+    ).__wallpaperDecodeGate?.release();
+  });
+  await expect(page.locator('html')).toHaveAttribute('data-wallpaper-photo-id', 'photo-two');
+  await expect(page.locator('[data-wallpaper-credit-photographer]')).toHaveText(
+    'Second Photographer',
+  );
+  await expect(next).toHaveAttribute('aria-busy', 'false');
+  await expect(next).toBeEnabled();
+});

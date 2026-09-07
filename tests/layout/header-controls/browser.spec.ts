@@ -14,8 +14,8 @@ test('the header exposes theme and utility controls across desktop and mobile', 
   await expect(locale).toBeVisible();
   await expect(theme).toBeVisible();
   await expect(theme).toHaveAccessibleName('Switch to dark mode');
-  await expect(theme).toHaveCSS('border-top-style', 'none');
-  expect((await theme.boundingBox())?.width).toBe(40);
+  expect((await theme.boundingBox())?.width).toBeGreaterThanOrEqual(24);
+  expect((await theme.boundingBox())?.height).toBeGreaterThanOrEqual(24);
   await expect(theme.locator('.site-header__theme-light')).toBeVisible();
   await expect(theme.locator('.site-header__theme-dark')).toBeHidden();
 

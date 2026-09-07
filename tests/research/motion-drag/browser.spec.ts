@@ -14,11 +14,28 @@ test('the server-rendered project preview responds to two-dimensional dragging',
 
   await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
   await page.mouse.down();
-  await page.mouse.move(box!.x + box!.width / 2 + 48, box!.y + box!.height / 2 + 24, {
-    steps: 4,
-  });
+  await page.mouse.move(box!.x + box!.width / 2 + 24, box!.y + box!.height / 2 + 12);
+  const intermediate = {
+    x: await figure.getAttribute('data-vehicle-x'),
+    y: await figure.getAttribute('data-vehicle-y'),
+  };
+  await page.mouse.move(box!.x + box!.width / 2 + 72, box!.y + box!.height / 2 + 36);
+  await expect.poll(() => figure.getAttribute('data-vehicle-x')).not.toBe(intermediate.x);
+  await expect.poll(() => figure.getAttribute('data-vehicle-y')).not.toBe(intermediate.y);
+  const latest = {
+    x: await figure.getAttribute('data-vehicle-x'),
+    y: await figure.getAttribute('data-vehicle-y'),
+  };
   await page.mouse.up();
 
-  await expect.poll(() => figure.getAttribute('data-vehicle-x')).not.toBe(initialX);
-  await expect.poll(() => figure.getAttribute('data-vehicle-y')).not.toBe(initialY);
+  expect(latest.x).not.toBe(initialX);
+  expect(latest.y).not.toBe(initialY);
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve(null))),
+      ),
+  );
+  await expect(figure).toHaveAttribute('data-vehicle-x', latest.x ?? '');
+  await expect(figure).toHaveAttribute('data-vehicle-y', latest.y ?? '');
 });

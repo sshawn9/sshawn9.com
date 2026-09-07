@@ -206,6 +206,37 @@ test('a refresh fragment error leaves the previous results usable and reports th
   await expect(searchSummary(page)).toHaveText(previousSummary!);
   await expect(searchResults(page)).toHaveAttribute('data-query', 'website');
   await expect(searchRoot(page)).not.toHaveAttribute('data-search-failed', '');
+  await expect(searchResults(page)).not.toHaveAttribute('aria-busy', 'true');
+  const usableLink = previousCard.locator('.site-search-result__link');
+  const href = await usableLink.getAttribute('href');
+  await usableLink.click();
+  await expect(page).toHaveURL(new RegExp(`${href!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
+});
+
+test('a timed-out replacement keeps old results and a later query can recover', async ({
+  page,
+}) => {
+  const fragments = await deferPagefindFragments(page);
+  try {
+    await page.goto('/en/search/?q=website');
+    await expect(searchResults(page)).toHaveAttribute('data-query', 'website');
+    const previousSummary = await searchSummary(page).textContent();
+    fragments.defer();
+    await searchInput(page).fill('frenet');
+    await fragments.firstFragment;
+    await expect(searchResults(page)).not.toHaveAttribute('aria-busy', 'true', { timeout: 12_000 });
+    await expect(searchStatus(page)).toBeVisible();
+    await expect(searchSummary(page)).toHaveText(previousSummary!);
+    await expect(resultCards(page).first()).toBeVisible();
+    await searchInput(page).fill('personal website');
+    await expect(searchResults(page)).toHaveAttribute('data-query', 'personal website');
+    fragments.release();
+    await page.unrouteAll({ behavior: 'wait' });
+    await expect(searchResults(page)).toHaveAttribute('data-query', 'personal website');
+    await expect(searchStatus(page)).toBeHidden();
+  } finally {
+    fragments.release();
+  }
 });
 
 test('new result fonts are prepared while the previous result remains visible', async ({

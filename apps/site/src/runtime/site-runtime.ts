@@ -51,5 +51,6 @@ export function installSiteRuntime(
 
   ownerWindow.addEventListener('pagehide', handlePageHide);
   activeRuntime = installation;
+  ownerDocument.dispatchEvent(new Event('site:runtime-ready'));
   return installation.dispose;
 }
