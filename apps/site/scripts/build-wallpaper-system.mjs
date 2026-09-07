@@ -6,9 +6,9 @@ const siteRoot = fileURLToPath(new URL('../', import.meta.url));
 const entryPoint = fileURLToPath(
   new URL('../src/features/appearance/wallpaper/entry.ts', import.meta.url),
 );
-const outputDirectory = fileURLToPath(new URL('../../../public/_runtime/', import.meta.url));
+const outputDirectory = fileURLToPath(new URL('../public/_runtime/', import.meta.url));
 const outfile = fileURLToPath(
-  new URL('../../../public/_runtime/wallpaper-system-v3.js', import.meta.url),
+  new URL('../public/_runtime/wallpaper-system-v3.js', import.meta.url),
 );
 const watch = process.argv.includes('--watch');
 

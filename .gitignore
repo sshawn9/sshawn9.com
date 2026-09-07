@@ -1,6 +1,6 @@
 # build output
 dist/
-/public/_runtime/wallpaper-system-v3.js
+/apps/site/public/_runtime/wallpaper-system-v3.js
 # generated types
 .astro/
 

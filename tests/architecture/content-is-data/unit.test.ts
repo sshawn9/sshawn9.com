@@ -17,7 +17,7 @@ async function collectContentFiles(directory: string): Promise<string[]> {
 
 describe('content is data', () => {
   it('keeps implementation files out of content and routes interactive imports through content-ui', async () => {
-    const contentFiles = await collectContentFiles(join(repositoryRoot, 'src/content'));
+    const contentFiles = await collectContentFiles(join(repositoryRoot, 'content'));
     const implementationExtensions = new Set(['.astro', '.css', '.ts', '.tsx']);
     expect(
       contentFiles
