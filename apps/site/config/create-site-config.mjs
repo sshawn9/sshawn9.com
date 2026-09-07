@@ -11,7 +11,6 @@ import { developmentFontAssets } from './development-font-assets.mjs';
 import { inlineScriptBundles } from './inline-script-bundles.mjs';
 
 const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
-const publicDirectory = fileURLToPath(new URL('../../../public', import.meta.url));
 const outputDirectory = new URL('../dist/', import.meta.url);
 const site = 'https://sshawn9.com';
 
@@ -48,7 +47,6 @@ export function createSiteConfig({ integrations = [], viteServer = {} } = {}) {
 
   return {
     site,
-    publicDir: publicDirectory,
     output: 'static',
     trailingSlash: 'always',
     fonts: [

@@ -12,7 +12,7 @@
 
 - Markdown 和 MDX 内容在构建时生成路由对应的 HTML，例如 `index.zh.md` 最终成为某个 `dist/zh/.../index.html`。
 - 来自 `src/` 的客户端 JavaScript、CSS、字体和经过 Astro 资源管线处理的文件通常输出到 `dist/_astro/`，文件名包含内容哈希。
-- `public/` 中的普通文件按原路径复制到 `dist/`，不会因为放在 `public/` 中而自动获得内容哈希。
+- `apps/site/public/` 中的普通文件按原路径复制到 `dist/`，不会因为放在该目录中而自动获得内容哈希。
 - Pagefind 在 Astro 构建完成后生成 `dist/pagefind/`。其中包含稳定文件名，因此不能把整个目录无条件视为不可变资源。
 
 浏览器不会直接请求源文件中的 `.md`、`.mdx` 或 `.tsx` 文件。需要分别讨论最终生成的 HTML 和浏览器实际请求的构建资源。
@@ -70,7 +70,7 @@ etag: "59a5b1bcc3aab145e7285ee0d8a2567e"
 
 ### 仓库中的 `_headers`
 
-在 `public/_headers` 中只配置 Astro 的哈希资源目录：
+在 `apps/site/public/_headers` 中只配置 Astro 的哈希资源目录：
 
 ```text
 /_astro/*
@@ -102,9 +102,9 @@ Astro 默认使用内容哈希命名来自源码的构建资源。例如：
 
 - `dist/_astro/` 中共有 106 个文件；
 - 文件名全部具有哈希形式；
-- 仓库不存在人工维护的 `public/_astro/` 目录。
+- 仓库不存在人工维护的 `apps/site/public/_astro/` 目录。
 
-后续不得把没有内容哈希、但可能原地更新的文件手工放入 `public/_astro/`。如果以后自定义 Astro 的构建文件名，也必须保留内容哈希，否则一年 `immutable` 将不再安全。
+后续不得把没有内容哈希、但可能原地更新的文件手工放入 `apps/site/public/_astro/`。如果以后自定义 Astro 的构建文件名，也必须保留内容哈希，否则一年 `immutable` 将不再安全。
 
 ## Markdown 和 MDX 更新后的行为
 
@@ -175,7 +175,7 @@ Cache-Control: public, max-age=31536000, immutable
 
 ## 回退方法
 
-如果部署后响应头与预期不符，删除 `public/_headers` 中的对应规则并重新部署，即可恢复 Workers Static Assets 的默认响应头。浏览器已经缓存的哈希 URL 不需要主动清除，因为它们对应不可变内容；新的构建会使用新的 URL。
+如果部署后响应头与预期不符，删除 `apps/site/public/_headers` 中的对应规则并重新部署，即可恢复 Workers Static Assets 的默认响应头。浏览器已经缓存的哈希 URL 不需要主动清除，因为它们对应不可变内容；新的构建会使用新的 URL。
 
 ## 参考资料
 

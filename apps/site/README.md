@@ -8,7 +8,7 @@
 - Astro ClientRouter 是唯一文档导航器；站点代码只协调状态、滚动、字体和页面生命周期。
 - SiteShell 是持久的静态 Astro HTML，由小型 TypeScript 控制器增强，不建立全站 UI 框架根。
 - 普通页面交互使用局部 DOM 控制器；复杂研究交互使用隔离的 Solid 岛。
-- 内容源位于仓库根目录 `src/content/`，界面文案位于 `messages/`。
+- 内容源位于仓库根目录 `content/`，界面文案位于 `messages/`。
 - 领域、构建、i18n 与内容交互分别由 `packages/site-domain`、`site-build`、`site-i18n` 和 `content-ui` 提供。
 - 普通 HTML 和静态资源由 Cloudflare Static Assets 直接提供；根目录 `worker/` 只负责壁纸 API、KV 与 Cron。
 
@@ -38,6 +38,7 @@ npm test
 ```text
 config/       生产与开发共享的 Astro 配置工厂
 devtools/     仅开发环境导入的内容健康工具
+public/       静态资源与壁纸启动脚本的生成位置
 src/content/  应用侧内容发现、解析和路由适配
 src/features/ 页面功能、局部控制器与所属样式
 src/runtime/  跨页面浏览器组合根和基础设施

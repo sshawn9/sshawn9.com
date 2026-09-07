@@ -2,6 +2,8 @@
 
 Shawn 的个人网站，用于展示项目、发布博客和个人介绍。当前分支只有一套站点应用；历史实现不再留在工作树中，需要对照时从 Git 历史读取。
 
+架构决策见 [静态文档应用](docs/rearchitecture/ADR-001-static-document-application.md) 和 [客户端运行时与状态所有权](docs/rearchitecture/ADR-002-client-runtime-and-state-ownership.md)；平台验收与回滚门槛见 [迁移与回滚计划](docs/rearchitecture/MIGRATION.md)。
+
 ## 技术栈
 
 - Astro 7：静态生成与官方 ClientRouter
@@ -82,7 +84,7 @@ Playwright 由 npm 锁定和升级，Chromium 及 headless shell 由其官方安
 单版本文章不需要版本目录：
 
 ```text
-src/content/blog/my-article/
+content/blog/my-article/
 ├── meta.yaml         # 共享的日期、标签、所属项目与发布状态
 ├── index.md          # 英文基础版本
 ├── index.en.md       # 可选的显式英文版本
@@ -93,7 +95,7 @@ src/content/blog/my-article/
 当文章出现实质性修订后，每个不可变版本都保存为一份完整快照：
 
 ```text
-src/content/blog/my-article/
+content/blog/my-article/
 ├── v1/
 │   ├── meta.yaml
 │   ├── index.md
@@ -168,7 +170,7 @@ projects:
 本地化的页面文案和界面文案位于 `messages/<locale>.json`。每个项目将稳定元信息、本地化内容和未来资源存放在同一目录：
 
 ```text
-src/content/projects/my-project/
+content/projects/my-project/
 ├── meta.yaml       # 展示顺序与稳定的项目 ID
 ├── index.en.md     # 英文摘要与项目正文
 ├── index.zh.md     # 可选的中文摘要与项目正文

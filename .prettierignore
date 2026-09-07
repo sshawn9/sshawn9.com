@@ -6,7 +6,6 @@ node_modules
 devenv.lock
 tests/.results
 package-lock.json
-docs/site-behavior-cases
 packages/site-i18n/generated
 project.inlang/.gitignore
 project.inlang/.meta.json

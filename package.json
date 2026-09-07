@@ -14,7 +14,7 @@
     "dev": "SITE_MODE=${SITE_MODE:-preview} concurrently --kill-others --names wallpaper,site \"node apps/site/scripts/build-wallpaper-system.mjs --watch\" \"cd apps/site && ASTRO_DEV_BACKGROUND=0 astro dev --config astro.local.config.mjs --host 127.0.0.1 --port ${SITE_PORT:-4332}\"",
     "build": "npm run build --workspace @sshawn9/site",
     "preview": "export SITE_MODE=${SITE_MODE:-preview}; npm run build && cd apps/site && ASTRO_PREVIEW_BACKGROUND=0 astro preview --config astro.local.config.mjs --host 127.0.0.1 --port ${SITE_PORT:-4333}",
-    "worker:dev": "wrangler dev --assets public --ip 127.0.0.1 --port ${SITE_WORKER_PORT:-8787} --local --show-interactive-dev-session=false",
+    "worker:dev": "wrangler dev --assets apps/site/public --ip 127.0.0.1 --port ${SITE_WORKER_PORT:-8787} --local --show-interactive-dev-session=false",
     "test": "export SITE_MODE=${SITE_MODE:-preview}; vitest run && npm run build && playwright test",
     "check": "npm run check --workspaces --if-present && tsc --noEmit --project tsconfig.json",
     "format": "prettier --write .",

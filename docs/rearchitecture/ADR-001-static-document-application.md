@@ -99,17 +99,19 @@ Worker 不接管普通 HTML，仅为了页面路由或状态恢复而执行 Work
 目标代码按真实职责分层，不引入泛化的企业框架：
 
 ```text
-apps/site/src/
-  features/             页面功能的组件、浏览器行为与源样式
-  components/           跨页面静态外壳与首帧组件
-  content/              应用侧构建期内容适配
-  runtime/              跨页面浏览器基础设施与组合根
-  styles/               token、基础元素、外壳与稳定级联入口
+apps/site/
+  public/               站点静态资源
+  src/
+    features/           页面功能的组件、浏览器行为与源样式
+    components/         跨页面静态外壳与首帧组件
+    content/            应用侧构建期内容适配
+    runtime/            跨页面浏览器基础设施与组合根
+    styles/             token、基础元素、外壳与稳定级联入口
 packages/site-domain/   内容、语言、版本、标签等纯领域逻辑
 packages/site-build/    Astro 内容集合、Markdown 与构建期适配
 packages/site-i18n/     唯一消息目录、Paraglide 配置与生成运行时
 packages/content-ui/    文章/项目交互组件、模型、样式与显式安装入口
-src/content/            MD/MDX、元数据和本地媒体；不放实现代码
+content/                MD/MDX、元数据和本地媒体；不放实现代码
 worker/                 与页面运行时隔离的边缘代码
 ```
 
@@ -117,9 +119,9 @@ worker/                 与页面运行时隔离的边缘代码
 
 - `site-domain` 不导入 Astro、Solid、DOM 或 Cloudflare API；
 - `site-build` 只把领域事实接到 Astro 构建边界；
-- `site-i18n` 是两代应用唯一的消息与语言策略来源；
+- `site-i18n` 是全站唯一的消息与语言策略来源；
 - `content-ui` 可以依赖领域和 i18n 包，但不得回头导入任一应用源码；
-- `src/content` 只能通过包出口取得交互实现，不得导入旧 `components/lib/styles`；
+- `content` 只能通过包出口取得交互实现，不得导入应用内组件、库或样式实现；
 - UI 组件调用明确的领域/runtime 接口，不读取隐藏全局变量；
 - `worker/` 与浏览器 runtime 不互相导入；共享内容只能是纯类型、schema 或纯函数；
 - 框架专用适配代码停留在边界，不能渗入内容和状态模型。
@@ -150,7 +152,7 @@ worker/                 与页面运行时隔离的边缘代码
 | Nuxt 静态生成        | 内容生态成熟，但全应用运行时和 payload 对当前长文档站偏重                       |
 | Hugo / Eleventy      | 静态生成优秀，但没有本站需要的导航事务和复合历史恢复；最终仍需自建客户端路由    |
 | SolidStart           | 不把正在变化的全栈路线作为绿地核心；现有 Solid 只作为隔离 UI 运行时             |
-| 自建 SPA Router      | 会重新制造当前 Swup 外围的 head、脚本、取消、可访问性和生命周期问题             |
+| 自建 SPA Router      | 会重新制造旧 Swup 外围的 head、脚本、取消、可访问性和生命周期问题               |
 | 全站 Worker SSR      | 没有需求收益，却增加请求配额、运行时故障和缓存复杂度                            |
 | 仅依赖原生跨文档过渡 | 无法在当前目标浏览器中稳定提供完整视觉连续性和状态恢复                          |
 
@@ -162,7 +164,6 @@ Solid 只用于确实需要组件状态与生命周期的交互岛，不成为�
 - Astro ClientRouter 升级可能带来行为回归，必须精确锁定版本并通过完整契约测试后升级。
 - 交互岛统一使用 Solid；静态外壳和普通增强不得为了共享少量状态扩大 island 边界。
 - `rel=expect` 的自动化证据目前来自 Chromium；Firefox/Safari 的支持或等价降级仍是生产迁移门槛。
-- 当前大量依赖 Swup 内部对象的测试需要改写成行为断言。
 
 ## 接受依据
 
