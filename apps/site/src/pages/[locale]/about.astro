@@ -1,4 +1,5 @@
 ---
+import { execFileSync } from 'node:child_process';
 import { LOCALES, type Locale } from '@sshawn9/site-domain/locales';
 import FoundationAboutPage from '../../features/foundation/components/FoundationAboutPage.astro';
 import { getFoundationCopy } from '@sshawn9/site-i18n/copy';
@@ -12,12 +13,14 @@ export function getStaticPaths() {
 
 const { locale } = Astro.props;
 const copy = getFoundationCopy(locale);
+const commitSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 ---
 
 <BaseLayout
   title={copy.aboutPageTitle}
   description={copy.aboutUnderConstruction}
   {locale}
+  {commitSha}
   searchable
 >
   <FoundationAboutPage {locale} />
