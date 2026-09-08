@@ -19,6 +19,7 @@ interface Props {
   title: string;
   description?: string;
   locale: Locale;
+  commitSha?: string;
   fontQueries?: readonly string[];
   canonical?: string;
   noIndex?: boolean;
@@ -32,6 +33,7 @@ const {
   title,
   description,
   locale,
+  commitSha,
   fontQueries = [],
   canonical,
   noIndex = false,
@@ -126,7 +128,7 @@ const documentNoIndex = noIndex || SITE_CONTEXT.noIndex;
       >
         <slot />
       </main>
-      <SiteFooter {locale} />
+      <SiteFooter {locale} {commitSha} />
     </div>
     <script is:inline set:html={initialDocumentScript} />
     <span id={INITIAL_FRAME_READY_ID} data-initial-frame-document-ready aria-hidden="true"></span>

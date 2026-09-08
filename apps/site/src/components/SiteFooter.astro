@@ -4,14 +4,31 @@ import { getFoundationCopy } from '@sshawn9/site-i18n/copy';
 
 interface Props {
   locale: Locale;
+  commitSha?: string;
 }
 
-const { locale } = Astro.props;
+const { locale, commitSha } = Astro.props;
 const copy = getFoundationCopy(locale);
 ---
 
 <footer class="site-footer" lang={locale === 'zh' ? 'zh-CN' : 'en'}>
   <div class="content-shell">
-    <a href={`/${locale}/`} aria-label={`${copy.home} · Shawn`}>SHAWN</a>
+    {
+      commitSha ? (
+        <a
+          class="site-footer__commit"
+          href={`https://github.com/sshawn9/sshawn9.com/commit/${commitSha}`}
+          title={commitSha}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          SHAWN@{commitSha.slice(0, 7)}
+        </a>
+      ) : (
+        <a href={`/${locale}/`} aria-label={`${copy.home} · Shawn`}>
+          SHAWN
+        </a>
+      )
+    }
   </div>
 </footer>
