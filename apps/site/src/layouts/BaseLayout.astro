@@ -12,6 +12,7 @@ import { INITIAL_FRAME_READY_ID } from '../runtime/initial-frame';
 import { REQUIRED_FONT_META_NAME, SITE_FONT_QUERIES } from '../runtime/required-fonts';
 import { SITE_CONTEXT } from '../config/site-context';
 import initialDocumentScript from 'virtual:site-initial-document-script';
+import wallpaperSystemUrl from 'virtual:site-wallpaper-script-url';
 import '../styles/index.css';
 
 interface Props {
@@ -68,7 +69,7 @@ const documentNoIndex = noIndex || SITE_CONTEXT.noIndex;
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="theme-color" content="#f7f8fb" />
-    <script is:inline src="/_runtime/wallpaper-system-v3.js" data-wallpaper-system-entry></script>
+    <script is:inline src={wallpaperSystemUrl} data-wallpaper-system-entry></script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href={`/site.${locale}.webmanifest`} />
     <meta name={BUILD_ID_META_NAME} content={CURRENT_BUILD_ID} />

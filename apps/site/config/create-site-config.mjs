@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { developmentFontAssets } from './development-font-assets.mjs';
-import { inlineScriptBundles } from './inline-script-bundles.mjs';
+import { classicScriptBundles } from './classic-script-bundles.mjs';
 import { createMarkdownProcessor } from './markdown.ts';
 
 const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
@@ -177,7 +177,7 @@ export function createSiteConfig({ integrations = [], viteServer = {} } = {}) {
       },
     },
     vite: {
-      plugins: [inlineScriptBundles(), ...developmentFontAssets(), createSiteParaglidePlugin()],
+      plugins: [classicScriptBundles(), ...developmentFontAssets(), createSiteParaglidePlugin()],
       define: {
         // Astro can replace import.meta.env keys from private env before Vite's define runs.
         __SITE_BUILD_ID__: JSON.stringify(buildId),

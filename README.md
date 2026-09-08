@@ -54,7 +54,7 @@ direnv 通过 `use devenv` 加载环境，不需要 nix-direnv。Node 大版本�
 
 `dev`、`preview`、`test` 默认使用 `preview` 内容模式（含草稿、`noindex`），`build` 默认使用 `production`。需要覆盖时使用同一个 `SITE_MODE` 环境变量，例如 `SITE_MODE=production npm run preview`、`SITE_MODE=production npm test` 或 `SITE_MODE=preview npm run build`；它只决定站点内容，不切换云端 Worker 环境。`dev` 独有的 `Drafts` Toolbar 列出草稿，`Single-language` 列出缺少语言版本的文章；验证完整搜索使用 `npm run preview`。
 
-所有服务前台运行，用 Ctrl-C 结束；开发的壁纸脚本监听与 Astro 两个子进程由 `concurrently` 统一启停。手动调整页面端口可用 `SITE_PORT=4334 npm run dev` 或 `SITE_PORT=4335 npm run preview`。这些环境变量对 just 转发同样有效。工作区的生成目录与构建产物共享，不并行构建、测试，也不重建正在使用的预览产物；优先复用已有开发服务，谁启动谁负责停止。
+所有服务前台运行，用 Ctrl-C 结束；Astro 同时负责壁纸脚本的按需编译与依赖监听，不需要独立编译或监听进程。手动调整页面端口可用 `SITE_PORT=4334 npm run dev` 或 `SITE_PORT=4335 npm run preview`。这些环境变量对 just 转发同样有效。工作区的生成目录与构建产物共享，不并行构建、测试，也不重建正在使用的预览产物；优先复用已有开发服务，谁启动谁负责停止。
 
 Playwright 由 npm 锁定和升级，浏览器由其官方安装器下载，不使用 nixpkgs 的 Playwright/browser 包。首次测试或升级 Playwright 后执行上表的浏览器安装命令；`npm ci` 不隐式安装浏览器。NixOS 的加载器、运行库及依赖检查适配集中在 `devenv.nix`；Ubuntu CI 使用 `playwright install --with-deps chromium` 安装宿主系统库。`PLAYWRIGHT_CHROME_PATH` 可用于人工对照已有 Chrome，环境验收使用默认下载的浏览器。
 

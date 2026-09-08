@@ -16,8 +16,7 @@
 
 | URL 范围                        | 浏览器缓存规则                        | 原因                                                                                      |
 | ------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `/_astro/*`                     | `public, max-age=31536000, immutable` | Astro 为源码构建资源生成带内容哈希的文件名；内容改变时 URL 随之改变。                     |
-| `/_runtime/*`                   | `no-cache`                            | 壁纸启动脚本由构建生成但使用稳定文件名；每次使用前必须重新验证，不能按 URL 假定内容不变。 |
+| `/_astro/*`                     | `public, max-age=31536000, immutable` | 包括壁纸启动脚本在内的构建资源使用内容哈希文件名；内容不变时 URL 不随构建 ID 改变。       |
 | `/pagefind/pagefind-entry.json` | `public, max-age=31536000, immutable` | 页面把本次构建 UUID 作为 Pagefind `meta-cache-tag`，使元数据请求的查询参数随构建改变。    |
 | 其他静态文件                    | 不自定义                              | HTML、robots、sitemap、Web Manifest 和 Pagefind 其余文件沿用 Static Assets 的默认响应头。 |
 
@@ -28,7 +27,7 @@ Cloudflare 当前文档说明，普通静态请求未携带 `Authorization` 或 
 ## 正确性条件
 
 - `/_astro/*` 下只能存在带内容指纹的构建资源。若以后自定义 Astro 输出文件名，必须继续保留内容哈希；不要把可原地更新的文件手工放入该路径。
-- `/_runtime/*` 中的稳定 URL 不能改为 `immutable`，除非文件名也改为随内容变化并同步更新所有引用。
+- 壁纸启动脚本由 `config/classic-script-bundles.mjs` 在 Astro 构建中编译并输出为内容哈希资源，没有独立编译步骤或 `.cache` 中间文件；HTML 仍以同步经典脚本加载它，不改为延迟执行。新部署不额外保留旧文件：发布交界时取得旧 HTML 且没有可用脚本缓存的访问，可能加载失败；新版部署正常时刷新可恢复。
 - Pagefind 元数据的长期缓存依赖每次构建生成新的 ID，并把同一 ID 同时写入 HTML、客户端代码和 `meta-cache-tag`。不能去掉、固定或复用旧标记后继续保留该入口的 `immutable` 规则。
 - 不要为 `/*` 统一设置长期缓存。文章内容最终是稳定 URL 的 HTML；重新部署后，浏览器应先重新验证 HTML，再从新文档取得新的哈希资源 URL 和搜索构建标记。
 - `apps/site/public/` 中的其他文件由 Astro 原样复制，不会仅因位于 `public/` 而自动获得内容指纹。
@@ -43,7 +42,7 @@ Cloudflare 当前文档说明，普通静态请求未携带 `Authorization` 或 
 
 1. HTML 仍要求重新验证，没有获得一年 `immutable`；
 2. 一个实际存在的 `/_astro/*` 资源具有一年 `immutable`；
-3. `/_runtime/wallpaper-system-v3.js` 为 `no-cache`；
+3. HTML 的 `data-wallpaper-system-entry` 引用真实存在的 `/_astro/` 哈希脚本，响应具有一年 `immutable`，且脚本仍在首屏同步执行；
 4. 带当前构建查询参数的 `/pagefind/pagefind-entry.json` 具有一年 `immutable`，换一次部署后查询参数发生变化；
 5. robots、sitemap、Web Manifest 和其他稳定 URL 没有意外继承长期缓存；
 6. 两个 `/api/wallpapers` 端点仍返回 Worker 代码各自声明的缓存头。
