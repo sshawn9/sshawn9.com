@@ -1,6 +1,5 @@
 import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
-import { createMarkdownProcessor } from '@sshawn9/site-build/markdown';
 import { createSiteParaglidePlugin } from '@sshawn9/site-i18n/paraglide';
 import solid from '@astrojs/solid-js';
 import { envField, fontProviders } from 'astro/config';
@@ -9,6 +8,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { developmentFontAssets } from './development-font-assets.mjs';
 import { inlineScriptBundles } from './inline-script-bundles.mjs';
+import { createMarkdownProcessor } from './markdown.ts';
 
 const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const outputDirectory = new URL('../dist/', import.meta.url);

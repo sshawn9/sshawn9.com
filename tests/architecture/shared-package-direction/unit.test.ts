@@ -4,7 +4,7 @@ import { collectSourceFiles, readFile, repositoryRoot } from '../source-files';
 
 describe('shared package dependency direction', () => {
   it('keeps shared packages from reaching back into application source', async () => {
-    const roots = ['content-ui', 'site-build', 'site-domain', 'site-i18n'].map((name) =>
+    const roots = ['content-ui', 'site-domain', 'site-i18n'].map((name) =>
       join(repositoryRoot, 'packages', name),
     );
     const violations: string[] = [];

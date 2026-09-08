@@ -17,7 +17,6 @@ describe('public package exports', () => {
       .filter((path) => path !== ownPath);
     const forbidden = [
       'packages/content-ui/src',
-      'packages/site-build/src',
       'packages/site-domain/src',
       'packages/site-i18n/src',
       '@site-domain/',
