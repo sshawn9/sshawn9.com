@@ -1,6 +1,6 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
-import { createSourceLastModifiedResolver } from '@sshawn9/site-build/git-last-modified';
 import { parseArticleEntryId } from '@sshawn9/site-domain/article-convention';
+import { createSourceLastModifiedResolver } from './git-last-modified';
 
 type ContentEntry = CollectionEntry<'blog'>;
 type MetadataEntry = CollectionEntry<'articleMetadata'>;

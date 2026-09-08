@@ -22,7 +22,7 @@ src/styles/      全局 token、字体、基础布局与级联入口
 
 - 路由与文档结构：从 [BaseLayout](src/layouts/BaseLayout.astro)、`src/pages/` 和 [SiteShell](src/components/SiteShell.astro) 进入。文档交换时 Header 来自目标 HTML；只有壁纸视觉层跨文档持久化，同页视图更新不交换文档。
 - 页面交互：在所属 `src/features/<功能>/` 中修改，由 [PageRuntime](src/runtime/page-runtime.ts) 挂载、销毁；跨页生命周期由 [SiteRuntime](src/runtime/site-runtime.ts) 组合。复杂研究交互位于根目录 `packages/content-ui/`。
-- 内容：正文与媒体在根目录 `content/`，本目录 `src/content/` 只作应用适配；纯内容规则在 `packages/site-domain/`，Astro 构建适配在 `packages/site-build/`。界面消息在根目录 `messages/`，i18n 接线在 `packages/site-i18n/`。
+- 内容：正文与媒体在根目录 `content/`，本目录 `src/content/` 只作应用适配；纯内容规则在 `packages/site-domain/`。Astro 构建适配位于 [content.config.ts](src/content.config.ts) 和 [markdown.ts](config/markdown.ts)，Git 适配位于 [git-last-modified.ts](src/content/git-last-modified.ts)。界面消息在根目录 `messages/`，i18n 接线在 `packages/site-i18n/`。
 - 构建与本地服务：[共享配置](config/create-site-config.mjs) 定义站点构建，[本地配置](astro.local.config.mjs) 只补充 dev/preview 的代理和开发工具。壁纸 API 实现在根目录 `worker/`，不属于浏览器运行时。
 
 边界的设计理由见 [静态文档架构](../../docs/rearchitecture/ADR-001-static-document-application.md) 与 [运行时状态所有权](../../docs/rearchitecture/ADR-002-client-runtime-and-state-ownership.md)。

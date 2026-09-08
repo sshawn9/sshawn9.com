@@ -91,7 +91,7 @@ Worker 不接管普通 HTML，仅为了页面路由或状态恢复而执行 Work
 具体目录和修改入口见 [应用说明](../../apps/site/README.md)。目录可以按职责调整，以下边界避免内容、框架和运行时互相渗透：
 
 - `site-domain` 不导入 Astro、Solid、DOM 或 Cloudflare API；
-- `site-build` 只把领域事实接到 Astro 构建边界；
+- `apps/site` 的内容配置、Markdown 和 Git 适配只在构建期把领域事实接到 Astro/Node 边界，与浏览器运行时和纯领域代码分开；
 - `site-i18n` 是全站唯一的消息与语言策略来源；
 - `content-ui` 可以依赖领域和 i18n 包，但不得回头导入任一应用源码；
 - `content` 只能通过包出口取得交互实现，不得导入应用内组件、库或样式实现；
