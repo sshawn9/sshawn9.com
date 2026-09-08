@@ -1,12 +1,12 @@
 # sshawn9.com
 
-Shawn 的个人网站，用于展示项目、发布博客和个人介绍。当前分支只有一套站点应用；历史实现不再留在工作树中，需要对照时从 Git 历史读取。
+Shawn 的个人网站，用于展示项目、发布博客和个人介绍。站点应用位于 `apps/site/`。
 
-架构决策见 [静态文档应用](docs/rearchitecture/ADR-001-static-document-application.md) 和 [客户端运行时与状态所有权](docs/rearchitecture/ADR-002-client-runtime-and-state-ownership.md)；平台验收与回滚门槛见 [迁移与回滚计划](docs/rearchitecture/MIGRATION.md)。
+本文件说明开发、内容编写和部署；代码入口见 [应用目录说明](apps/site/README.md)，架构理由见 [ADR-001](docs/rearchitecture/ADR-001-static-document-application.md) 和 [ADR-002](docs/rearchitecture/ADR-002-client-runtime-and-state-ownership.md)。平台验收与回滚门槛单独记录在 [迁移与回滚计划](docs/rearchitecture/MIGRATION.md)。
 
 ## 技术栈
 
-- Astro 7：静态生成与官方 ClientRouter
+- Astro：静态生成与官方 ClientRouter
 - Astro Content Collections：具有类型约束的文章与项目内容
 - Paraglide JS：类型安全的中英文界面文案
 - Pagefind Component UI：构建时生成的多语言全站搜索
@@ -25,11 +25,11 @@ Shawn 的个人网站，用于展示项目、发布博客和个人介绍。当�
 
 ```sh
 direnv allow
-just install
-just browser-install
+npm ci
+npm exec -- playwright install chromium
 ```
 
-direnv 通过 `use devenv` 加载环境，不需要 nix-direnv。Node 大版本由 `.nvmrc` 决定；JavaScript 模块其余行为沿用默认值，包括提供 TypeScript Language Server、不自动安装项目依赖。进入目录不下载测试浏览器、不启动服务。不使用 direnv 时运行 `devenv shell`，非交互任务使用 `devenv shell npm test` 等原有 npm 命令。不使用 Nix 时仍可自行安装 Node 24 及所需系统依赖，直接使用 npm。
+direnv 通过 `use devenv` 加载环境，不需要 nix-direnv。Node 大版本由 `.nvmrc` 决定，具体工具版本由环境锁文件固定；项目依赖和测试浏览器显式安装，进入目录不启动服务。不使用 direnv 时运行 `devenv shell`，非交互任务使用 `devenv shell npm test` 等原有 npm 命令。不使用 Nix 时也可自行准备对应 Node 和系统依赖，直接使用 npm。
 
 根目录 `package.json` 定义完整日常流程，运行 `npm run` 查看命令。`justfile` 只是可选的外部快捷入口，逐项转发下表命令；不安装 just 也能完成全部操作。
 
@@ -56,13 +56,13 @@ direnv 通过 `use devenv` 加载环境，不需要 nix-direnv。Node 大版本�
 
 所有服务前台运行，用 Ctrl-C 结束；开发的壁纸脚本监听与 Astro 两个子进程由 `concurrently` 统一启停。手动调整页面端口可用 `SITE_PORT=4334 npm run dev` 或 `SITE_PORT=4335 npm run preview`。这些环境变量对 just 转发同样有效。工作区的生成目录与构建产物共享，不并行构建、测试，也不重建正在使用的预览产物；优先复用已有开发服务，谁启动谁负责停止。
 
-Playwright 由 npm 锁定和升级，Chromium 及 headless shell 由其官方安装器下载，不使用 nixpkgs 的 Playwright/browser 包。首次测试或升级 Playwright 后执行 `just browser-install`；`npm ci` 不隐式安装浏览器。NixOS 下，`NIX_LD`、`NIX_LD_LIBRARY_PATH` 提供加载器和运行库，devenv 的 `scripts.ldd` 让 Playwright 的依赖检查使用同一组库，不全局导出 `LD_LIBRARY_PATH`。Ubuntu CI 使用官方 `playwright install --with-deps chromium` 安装宿主系统库，`ldd` 直接委托 `/usr/bin/ldd`。需要人工对照时仍可通过 `PLAYWRIGHT_CHROME_PATH` 指定已有 Chrome，但环境验收应使用默认下载的浏览器。
+Playwright 由 npm 锁定和升级，浏览器由其官方安装器下载，不使用 nixpkgs 的 Playwright/browser 包。首次测试或升级 Playwright 后执行上表的浏览器安装命令；`npm ci` 不隐式安装浏览器。NixOS 的加载器、运行库及依赖检查适配集中在 `devenv.nix`；Ubuntu CI 使用 `playwright install --with-deps chromium` 安装宿主系统库。`PLAYWRIGHT_CHROME_PATH` 可用于人工对照已有 Chrome，环境验收使用默认下载的浏览器。
 
-测试内部服务器由 Playwright 启停，默认端口 `4399`（可用 `PLAYWRIGHT_PORT` 覆盖），不复用已有服务器，也不是人工预览入口。既有测试场景和数据模拟保持不变，不另设 `test:e2e` 公开命令。
+测试内部服务器由 Playwright 启停，默认端口 `4399`（可用 `PLAYWRIGHT_PORT` 覆盖），不复用已有服务器，也不是人工预览入口。测试集中在 `tests/<功能>/<案例>/`，每个案例的 Markdown 说明与单元或浏览器测试放在一起。
 
-完整验证为 `npm run format:check`、`npm run check`、`npm test`。CI 先安装 Nix 和 devenv，再通过默认 devenv shell 执行这套 npm 命令，不依赖 just，也不另建任务流程。环境依赖使用 `devenv update` 更新，JS 依赖使用 npm 更新，验证后提交对应锁文件。CLI 是宿主工具，不受项目锁文件固定；本地由系统管理，CI 使用官方安装入口 `nix profile add nixpkgs#devenv`，不要求 CLI 与模块版本号相同。
+完整验证为 `npm run format:check`、`npm run check`、`npm test`。[CI](.github/workflows/verify.yml) 在 devenv 环境内执行同一套 npm 命令，并分别验证所需的 Preview／Production 产物。环境依赖使用 `devenv update` 更新，JS 依赖使用 npm 更新，验证后提交对应锁文件。devenv CLI 是宿主工具，由系统或 CI 安装，不受项目锁文件固定。
 
-构建配置自动生成 `SITE_BUILD_ID`，并将同一个 UUID 写入 HTML、客户端代码和搜索配置，不依赖外部传值，也不关联版本号。测试从待测产物读取标识；预览和部署直接使用已有产物。CI 直接上传测试过的产物，不重复构建；部署仍由现有 GitHub Actions 负责。
+构建标识由应用自动生成，无需手动设置 `SITE_BUILD_ID`。CI 部署直接使用测试过的产物，不再次构建；标识与缓存的关系见 [缓存说明](docs/cloudflare-browser-cache.md)。
 
 ## 国际化
 
@@ -159,7 +159,7 @@ projects:
 
 ## 创建文章修订版本
 
-仓库刻意不提供修改内容目录的自动化脚本。当文章第一次发生实质性修订时，将原文章及其元信息完整保留为 `v1/` 快照，并将 `v2/` 创建为一份完整的新快照。后续修订依次增加 `v3/`、`v4/` 等目录。所有版本专属资源都应复制到对应版本目录，已经发布的旧版本目录保持不变。
+当文章第一次发生实质性修订时，将原文章及其元信息完整保留为 `v1/` 快照，并将 `v2/` 创建为一份完整的新快照。后续修订依次增加 `v3/`、`v4/` 等目录。所有版本专属资源都应复制到对应版本目录，已经发布的旧版本目录保持不变。
 
 `packages/site-domain/src/article-convention.ts` 定义路径约定，`apps/site/src/content/` 负责把 Astro 内容条目适配成页面所需的数据。路由和组件消费规范化后的文章与版本数据，不自行解析路径。
 
@@ -183,21 +183,23 @@ Paraglide 负责页面级文案和界面文案，长篇文章与项目记录仍�
 
 ## 部署
 
-每个已推送分支都有稳定的 Worker Preview URL。`main` 分支拥有已部署的 `sshawn9-com-preview` Worker URL；其他分支使用稳定别名，且不会改变该部署。预览构建包含草稿文章、不生成 sitemap，并同时通过 HTML 与 HTTP 响应头声明 `noindex`。拉取请求执行相同的预览模式验证，但不会使用部署密钥。每次部署摘要都会提供稳定分支 URL 和不可变版本 URL。分支删除后不会主动删除其别名，旧版本也不会主动删除；它们最终由 Cloudflare 的 Preview URL 保留策略清理。
+以下描述仓库的 [工作流配置](.github/workflows/site.yml)，不代表已完成线上平台验收：
 
-在 `main` 分支上，分别通过验证的预览产物和生产产物会在验证完成后独立部署。生产版本排除草稿并保留 sitemap；预览版本包含草稿且不会改变生产流量。`workflow_dispatch` 遵循相同的分支行为。
+- 分支推送或手动触发：验证后发布 Preview；`main` 更新 `sshawn9-com-preview` 的当前部署，其他分支只上传带稳定别名的版本。部署摘要提供稳定分支 URL 和不可变版本 URL。
+- `main` 还会独立验证并部署 Production；拉取请求只验证 Preview，不使用部署密钥。
+- Preview 包含草稿、不生成 sitemap，并在 HTML 和 `_headers` 中声明 `noindex`；Production 排除草稿并生成 sitemap。工作流不主动清理已删除分支的预览别名。
 
-需要配置一个 GitHub Actions 仓库密钥：
+需要配置以下 GitHub Actions 仓库密钥：
 
-- `CLOUDFLARE_API_TOKEN`：使用 Cloudflare 的 **Edit Cloudflare Workers** 模板创建，并限制在目标账户内的令牌
+- `CLOUDFLARE_API_TOKEN`：具备目标账户 Worker 部署权限的令牌
 - `UNSPLASH_ACCESS_KEY`：Unsplash 应用的 Access Key，只作为 Worker 运行时密钥上传
 
-生产 Worker 每天 18:00 UTC 更新一次照片池。更新过程搜索最新的横向自然风景候选图片，并且只有在得到足够多的有效结果后才替换现有清单；候选图片入池本身不计作下载。浏览器成功启用某张图片作为背景后，再由 Worker 异步调用该图片的 Unsplash 下载跟踪地址。更新失败时继续使用上一份清单。浏览器在每次会话中随机选择一张图片，页面切换时保持不变，长时间停留时每十分钟淡入切换一次；减少动态效果的用户不会自动轮换。
+`wrangler.jsonc` 声明 Production 与 Preview 两个 Worker 环境及各自的 KV 绑定，KV ID 由 Wrangler 配置。普通页面与资源走 Static Assets，只有壁纸 API 优先进入 Worker。生产配置关闭 `workers.dev`，但两个环境的 `preview_urls` 均为 `true`；不能据此认定生产版本 URL 已关闭，也不能据此推断线上 Access 保护状态。生产域名绑定不由当前 Wrangler 文件声明，部署前需确认外部域名配置与目标 Worker 一致。
 
-照片始终使用 Unsplash API 返回的 CDN 地址，不转存到本站。固定在页面右下角的摄影师与 Unsplash 链接用于满足 API 署名要求。搜索条件只能提高风景题材的命中率，不能提供严格的内容保证；需要绝对控制时，应将来源改为人工维护的 Unsplash Collection。
+### 景观壁纸
 
-`wrangler.jsonc` 中不填写 KV ID，由 Wrangler 在生产 Worker 和预览 Worker 首次部署时分别自动配置 KV。生产环境配置 Cron；预览环境不创建 Cron。照片池为空时接口返回 503，不会因首次或重复访问自动初始化。
+生产照片池按 [`wrangler.jsonc`](wrangler.jsonc) 的 Cron 更新，当前每三小时一次；Preview 不配置 Cron。[Worker](worker/index.ts) 合并新候选与已有照片，验证后写入清单；更新失败保留旧清单，内容未变时不改写。照片池为空时 API 返回 503，不会因首次或重复访问自动初始化。
 
-`wrangler.jsonc` 是两个隔离 Worker 环境的唯一配置来源。默认的 `sshawn9-com` Worker 通过 `sshawn9.com` 提供生产服务，不开放 `workers.dev` 或 Preview URL。`preview` 环境将包含草稿的 `main` 构建部署到 `sshawn9-com-preview`；其他分支上传带有稳定别名但不设为当前部署的版本。每次构建也会获得一个不可变版本 URL。稳定的生产自定义域映射由独立的长期 Terraform 基础设施管理。本方案不使用 Cloudflare Pages 项目，也不为每个分支创建 DNS 记录。
+浏览器按标签页维护当前／下一张照片，站内导航不换图。自动轮换在当前照片淡化完成后重新计时，范围由 [壁纸模型](apps/site/src/features/appearance/wallpaper/model.ts) 定义，当前为随机 5–9 分钟；后台补图不改变已有计时。关闭自动轮换、页面隐藏或启用减少动态效果时不自动换图。
 
-首次迁移资源所有权时，应先应用 `actions-private/cf-dns` 配置，并确认它已经导入现有的 `sshawn9.com` 自定义域，然后再部署本仓库中不含路由的 Wrangler 配置。
+图片从 Unsplash CDN 获取，不转存到本站。浏览器报告图片的实际使用或下载，Worker 调用对应的 Unsplash 下载跟踪接口；页面保留摄影师与 Unsplash 署名链接。搜索条件不能严格保证照片题材。

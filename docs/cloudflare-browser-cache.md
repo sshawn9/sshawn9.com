@@ -1,185 +1,59 @@
-# Cloudflare Workers 静态站点的浏览器缓存策略
+# Cloudflare Workers 静态站点的浏览器缓存
 
-本文记录 `sshawn9.com` 在 Cloudflare Workers Static Assets 上的浏览器缓存问题、验证过程、最终策略与适用边界。记录日期为 2026 年 8 月 10 日。
+本文说明本站当前的浏览器缓存决策及其正确性边界。仓库中的配置是事实来源；Cloudflare 边缘节点和浏览器最终收到的响应头仍须在部署后验证。
 
-## 当前部署结构
+## 请求边界
 
-网站使用 Astro 构建为静态文件，构建结果位于 `dist/`，再由 Wrangler 部署到 Cloudflare Workers Static Assets。生产域名为 `https://sshawn9.com`。
+`wrangler.jsonc` 将 `apps/site/dist/` 作为 Workers Static Assets 目录，并且只让 `/api/wallpapers` 与 `/api/wallpapers/download` 优先进入 Worker。普通 HTML 和静态文件由 Static Assets 提供，构建时从 `apps/site/public/` 原样复制的 `_headers` 为这些响应增加规则。
 
-当前 `wrangler.jsonc` 将 `dist/` 配置为静态资源目录，并使用 `auto-trailing-slash` 处理 HTML 路由。网站没有通过自定义 Worker 脚本动态生成页面。
+`_headers` 不控制 Worker 代码生成的响应。因此壁纸清单、不可用响应和下载上报的缓存策略分别由 `worker/index.ts` 设置，不能通过本文所述的静态资源规则推断。
 
-构建前后的资源关系如下：
+还需区分两层缓存：`CF-Cache-Status` 描述 Cloudflare 边缘缓存，不代表浏览器可以长期直接复用本地副本；浏览器主要依据响应中的 `Cache-Control` 和验证器处理自己的缓存。
 
-- Markdown 和 MDX 内容在构建时生成路由对应的 HTML，例如 `index.zh.md` 最终成为某个 `dist/zh/.../index.html`。
-- 来自 `src/` 的客户端 JavaScript、CSS、字体和经过 Astro 资源管线处理的文件通常输出到 `dist/_astro/`，文件名包含内容哈希。
-- `apps/site/public/` 中的普通文件按原路径复制到 `dist/`，不会因为放在该目录中而自动获得内容哈希。
-- Pagefind 在 Astro 构建完成后生成 `dist/pagefind/`。其中包含稳定文件名，因此不能把整个目录无条件视为不可变资源。
+## 当前规则
 
-浏览器不会直接请求源文件中的 `.md`、`.mdx` 或 `.tsx` 文件。需要分别讨论最终生成的 HTML 和浏览器实际请求的构建资源。
+规则的唯一配置来源是 `apps/site/public/_headers`：
 
-## 需要区分的两层缓存
+| URL 范围                        | 浏览器缓存规则                        | 原因                                                                                      |
+| ------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `/_astro/*`                     | `public, max-age=31536000, immutable` | Astro 为源码构建资源生成带内容哈希的文件名；内容改变时 URL 随之改变。                     |
+| `/_runtime/*`                   | `no-cache`                            | 壁纸启动脚本由构建生成但使用稳定文件名；每次使用前必须重新验证，不能按 URL 假定内容不变。 |
+| `/pagefind/pagefind-entry.json` | `public, max-age=31536000, immutable` | 页面把本次构建 UUID 作为 Pagefind `meta-cache-tag`，使元数据请求的查询参数随构建改变。    |
+| 其他静态文件                    | 不自定义                              | HTML、robots、sitemap、Web Manifest 和 Pagefind 其余文件沿用 Static Assets 的默认响应头。 |
 
-### Cloudflare 边缘缓存
+`_headers` 还为匹配的 `workers.dev` 地址设置 `X-Robots-Tag: noindex`。这是索引策略，不是缓存策略；配置存在不代表这些地址已经在线可达或绕过访问控制。
 
-`CF-Cache-Status: HIT` 表示文件已由 Cloudflare 边缘节点提供。它描述的是 Cloudflare 网络内部的缓存状态，不等于浏览器可以在本地长期直接使用该文件。
+Cloudflare 当前文档说明，普通静态请求未携带 `Authorization` 或 `Range` 时，默认返回 `Cache-Control: public, max-age=0, must-revalidate`；Static Assets 同时提供 ETag，自定义 `_headers` 可以覆盖默认响应头。该描述是平台契约，不等同于本站当前生产域名已经实测为相同结果。
 
-### 浏览器缓存
+## 正确性条件
 
-浏览器主要根据响应中的 `Cache-Control`、`ETag` 等标头决定能否直接复用本地副本。`Cache-Control: public, max-age=0, must-revalidate` 表示浏览器可以保存响应，但它会立即变为陈旧状态，再次使用前必须向服务器检查。
+- `/_astro/*` 下只能存在带内容指纹的构建资源。若以后自定义 Astro 输出文件名，必须继续保留内容哈希；不要把可原地更新的文件手工放入该路径。
+- `/_runtime/*` 中的稳定 URL 不能改为 `immutable`，除非文件名也改为随内容变化并同步更新所有引用。
+- Pagefind 元数据的长期缓存依赖每次构建生成新的 ID，并把同一 ID 同时写入 HTML、客户端代码和 `meta-cache-tag`。不能去掉、固定或复用旧标记后继续保留该入口的 `immutable` 规则。
+- 不要为 `/*` 统一设置长期缓存。文章内容最终是稳定 URL 的 HTML；重新部署后，浏览器应先重新验证 HTML，再从新文档取得新的哈希资源 URL 和搜索构建标记。
+- `apps/site/public/` 中的其他文件由 Astro 原样复制，不会仅因位于 `public/` 而自动获得内容指纹。
 
-因此，`CF-Cache-Status: HIT` 和 `max-age=0` 可以同时出现：服务器侧由 Cloudflare 边缘缓存快速返回，浏览器侧仍然检查内容是否发生变化。
+修改服务端规则不会主动撤销浏览器已经保存的 `immutable` 响应。若修正错误的长期缓存策略，应同时使用新的资源 URL 或构建标记，不能只改 `_headers` 后假定旧缓存立即失效。
 
-## 修改前的线上实测
+`tests/build/artifact-identity/` 检查 HTML、客户端和 Pagefind 请求使用同一构建 ID；`tests/search/deployment-cache/` 检查新构建不会复用上一部署长期缓存的元数据入口。这些测试覆盖应用的代际协议，不验证 Cloudflare 实际解析 `_headers` 后的线上响应。
 
-在尚未添加 `_headers` 文件时，直接请求生产域名得到以下结果。
+## 部署验收
 
-首页和博客 HTML：
+发布后应在生产域名以及本次部署的不可变版本 URL 分别检查：
 
-```http
-HTTP/2 200
-content-type: text/html
-cf-cache-status: HIT
-cache-control: public, max-age=0, must-revalidate
-```
+1. HTML 仍要求重新验证，没有获得一年 `immutable`；
+2. 一个实际存在的 `/_astro/*` 资源具有一年 `immutable`；
+3. `/_runtime/wallpaper-system-v3.js` 为 `no-cache`；
+4. 带当前构建查询参数的 `/pagefind/pagefind-entry.json` 具有一年 `immutable`，换一次部署后查询参数发生变化；
+5. robots、sitemap、Web Manifest 和其他稳定 URL 没有意外继承长期缓存；
+6. 两个 `/api/wallpapers` 端点仍返回 Worker 代码各自声明的缓存头。
 
-Astro 生成的哈希 JavaScript：
+这一步还应记录 `Cache-Control`、ETag 和 `CF-Cache-Status`，但不能用边缘 `HIT` 代替浏览器缓存策略的核对。Cloudflare 控制台中的 Zone 级规则不在仓库内，若存在，也须与实际响应一起单独核实。
 
-```http
-HTTP/2 200
-content-type: text/javascript
-cf-cache-status: HIT
-cache-control: public, max-age=0, must-revalidate
-etag: "59a5b1bcc3aab145e7285ee0d8a2567e"
-```
+## 参考
 
-使用该 ETag 发出条件请求时，服务器返回 `304 Not Modified`，说明构建资源能够通过 ETag 完成重新验证。
-
-`robots.txt` 和 `sitemap-index.xml` 同样返回 `max-age=0, must-revalidate`，并带有 ETag。
-
-实测时，Cloudflare 面板中的 Zone 级“浏览器缓存 TTL”为 4 小时，但生产域名和对应的 `workers.dev` 域名仍返回上述 `max-age=0` 标头。这说明当前 Worker Static Assets 请求链路没有被该 4 小时设置覆盖。Cloudflare 的 Worker 规则说明也将客户端到 Worker 的 Browser Cache TTL 列为忽略项。
-
-生产环境中通过规范化路由访问的 HTML 没有观察到 ETag。即使 Cloudflare 的 Static Assets 文档将 ETag 列为默认响应头，也不能据此声称当前 HTML 一定使用 ETag；对这个网站而言，应以实际响应为准。HTML 仍然通过 `max-age=0, must-revalidate` 保证浏览器不会在未重新请求的情况下长期使用旧页面，但服务器可能返回完整的 HTML，而不一定是 `304`。
-
-## 最终策略
-
-### Cloudflare 面板
-
-将 Zone 级“浏览器缓存 TTL”设置为“遵循现有标头”。
-
-这项修改对当前 Worker Static Assets 的线上响应没有观察到直接影响，但它是更合适的域名级默认值：未来同一 Zone 下的其他子域名可以按照各自服务返回的响应头控制浏览器缓存，而不会被统一抬高到 4 小时。
-
-### 仓库中的 `_headers`
-
-在 `apps/site/public/_headers` 中只配置 Astro 的哈希资源目录：
-
-```text
-/_astro/*
-  Cache-Control: public, max-age=31536000, immutable
-```
-
-Astro 构建时会把该文件复制为 `dist/_headers`，Wrangler 部署 Static Assets 时解析规则。`_headers` 本身不会作为普通静态文件对外提供。
-
-这条规则表示：
-
-- 浏览器可以保存 `/_astro/*` 资源 365 天；
-- 在缓存仍然新鲜时，不需要再次验证；
-- 资源内容变化后，Astro 会生成新的哈希文件名，新 HTML 将引用新 URL，因此不会继续使用旧内容。
-
-没有为 `/*` 设置统一缓存规则。HTML、robots、sitemap、Web Manifest、Pagefind 和其他稳定 URL 文件继续使用 Workers Static Assets 的默认重新验证策略。
-
-## 为什么只缓存 `/_astro/*`
-
-Astro 默认使用内容哈希命名来自源码的构建资源。例如：
-
-```text
-/_astro/component.ABC123.js
-/_astro/styles.XYZ789.css
-```
-
-当内容变化时，文件名中的哈希也随之变化。长期缓存旧 URL 不会阻止浏览器请求新 URL，这是使用 `immutable` 的必要前提。
-
-实施前对当前构建结果进行了检查：
-
-- `dist/_astro/` 中共有 106 个文件；
-- 文件名全部具有哈希形式；
-- 仓库不存在人工维护的 `apps/site/public/_astro/` 目录。
-
-后续不得把没有内容哈希、但可能原地更新的文件手工放入 `apps/site/public/_astro/`。如果以后自定义 Astro 的构建文件名，也必须保留内容哈希，否则一年 `immutable` 将不再安全。
-
-## Markdown 和 MDX 更新后的行为
-
-Markdown 和 MDX 最终生成稳定 URL 的 HTML，而不是带哈希的文章文件。更新文章并重新部署后：
-
-1. 浏览器重新请求文章 HTML；
-2. Cloudflare 返回当前部署中的 HTML；
-3. 如果文章引用的客户端代码或 CSS 发生变化，新 HTML 会引用新的 `/_astro/*` 哈希 URL；
-4. 浏览器下载新的哈希资源，旧缓存不会干扰新页面。
-
-因此不需要给每篇 Markdown 或 MDX 文章增加任何缓存字段，也不需要改变文章目录结构。
-
-## 本地隔离验证
-
-使用与 CI 一致的 Wrangler 4.120.0，在临时 Static Assets 项目中加入同一条 `_headers` 规则，得到以下响应。
-
-HTML：
-
-```http
-Cache-Control: public, max-age=0, must-revalidate
-ETag: "e31408f3f6abe5fdebabf0cc9edee560"
-```
-
-匹配 `/_astro/*` 的 JavaScript：
-
-```http
-Cache-Control: public, max-age=31536000, immutable
-ETag: "670ce0ac5ed85d0cedb43505e64df284"
-```
-
-结果证明该规则只覆盖目标目录，不会把 HTML 一并设置为一年缓存。这里的本地 HTML ETag 只能证明 Wrangler 隔离环境的行为，不能替代生产环境实测；生产环境中的规范化 HTML 路由仍以线上响应为准。
-
-## 部署后的验证方法
-
-首先确认构建产物包含规则文件：
-
-```sh
-npm run build
-test -f apps/site/dist/_headers
-sed -n '1,20p' apps/site/dist/_headers
-```
-
-部署后检查一个 HTML 页面：
-
-```sh
-curl -sS -D - -o /dev/null https://sshawn9.com/zh/
-```
-
-预期仍然包含：
-
-```http
-Cache-Control: public, max-age=0, must-revalidate
-```
-
-然后从当前构建结果中选择一个真实存在的 `/_astro/*` URL 并检查：
-
-```sh
-curl -sS -D - -o /dev/null https://sshawn9.com/_astro/<实际文件名>
-```
-
-预期包含：
-
-```http
-Cache-Control: public, max-age=31536000, immutable
-```
-
-还应确认 `robots.txt`、`sitemap-index.xml` 和 Pagefind 稳定文件名没有意外获得一年缓存。
-
-## 回退方法
-
-如果部署后响应头与预期不符，删除 `apps/site/public/_headers` 中的对应规则并重新部署，即可恢复 Workers Static Assets 的默认响应头。浏览器已经缓存的哈希 URL 不需要主动清除，因为它们对应不可变内容；新的构建会使用新的 URL。
-
-## 参考资料
-
-- [Cloudflare Workers Static Assets：Headers](https://developers.cloudflare.com/workers/static-assets/headers/)
-- [Cloudflare：Set Browser Cache TTL](https://developers.cloudflare.com/cache/how-to/edge-browser-cache-ttl/set-browser-ttl/)
-- [Cloudflare：Page Rules with Workers](https://developers.cloudflare.com/workers/configuration/workers-with-page-rules/)
-- [Astro：Customize file names in the build output](https://docs.astro.build/en/recipes/customizing-output-filenames/)
+- [Cloudflare Workers Static Assets：自定义响应头](https://developers.cloudflare.com/workers/static-assets/headers/)
+- [Cloudflare Workers Static Assets：请求路由与缓存](https://developers.cloudflare.com/workers/static-assets/)
+- [Astro：项目结构与 `public/` 目录](https://docs.astro.build/en/basics/project-structure/)
+- [Astro：构建资源文件名](https://docs.astro.build/en/recipes/customizing-output-filenames/)
+- [Pagefind：`meta-cache-tag`](https://pagefind.app/docs/search-config/#meta-cache-tag)
