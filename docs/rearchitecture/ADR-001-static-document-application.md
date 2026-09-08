@@ -4,7 +4,8 @@
 - 日期：2026-08-28
 - 接受日期：2026-08-29
 - 决策范围：渲染模型、客户端增强、托管边界和框架职责
-- 用户可见变化：`BCP-001` 的跨代际导航边界，以及已批准的必需字体等待与 JavaScript 前提
+
+本记录保留架构选择及其理由；具体交互以当前确认的需求为准。不同构建之间使用完整文档导航，首次文字呈现等待必需字体，本站最终呈现与交互需要 JavaScript。
 
 ## 背景
 
@@ -17,9 +18,9 @@
 - 首个可见文字帧必须直接稳定；冷缓存可保留背景与进度线并等待必需字体；
 - 普通请求优先由 Cloudflare 免费静态资源层直接服务。
 
-普通 SSG 只解决第一项，完整 SPA 会削弱第一、二、四项。目标架构必须同时承载静态文档和有限的应用行为。
+选择需要同时解决静态交付和导航连续性，避免为了局部交互把整篇正文纳入客户端组件树。
 
-## 建议决策
+## 决策
 
 采用“静态文档应用”模型：
 
@@ -27,21 +28,12 @@
 2. Astro 官方 ClientRouter 是唯一的客户端文档导航器。
 3. Header 由每个目标文档的 Astro HTML 直接提供；只有必须保持画面连续的壁纸视觉层跨页持久化。
 4. 页面正文保持 Astro HTML；复杂交互按岛屿独立服务端渲染并按需水合。
-5. Solid 是复杂交互岛的唯一 UI 运行时；普通增强继续使用 TypeScript，不为统一语法重写正确的数学逻辑。
-6. Pagefind 继续承担构建后静态搜索，直到它不能满足已定义行为为止。
-7. Cloudflare Static Assets 直接服务页面和资源；Worker 只接管明确的 `/api/*`、Cron、KV 和其他可信边缘能力。
+5. 本站自有的复杂交互岛使用 Solid；普通增强使用 TypeScript，第三方图形、媒体和搜索库保留自身运行时。
+6. Pagefind 承担构建后静态搜索；输入、结果呈现与查询状态的分工见 [ADR-002](ADR-002-client-runtime-and-state-ownership.md#语言与搜索边界)。
+7. Cloudflare Static Assets 直接服务页面和资源；Worker 负责显式路由的壁纸 API、Cron 和 KV。
 8. 不引入常驻 SSR，也不要求额外服务器。
 
-Qwik City SSG 曾作为垂直切片挑战者。它在真实 SPA 导航中把完整文章正文再次交付进路由 JavaScript，触发硬门槛，因此不再作为默认候选。冻结 POC 的长期有效证据已经收敛如下，实验源码不再作为架构依赖保留：
-
-| 验证项                                 | Astro | Qwik |
-| -------------------------------------- | ----- | ---- |
-| 每个 URL 直接生成完整列表和文章 HTML   | 通过  | 通过 |
-| 同构建客户端导航保持全局视觉连续       | 通过  | 通过 |
-| 导航载荷不再次包含完整文章正文         | 通过  | 失败 |
-| 构建产物可由普通静态文件服务器直接提供 | 通过  | 通过 |
-
-失败依据是正文所有权和重复交付，而不是某次压缩体积排名。Qwik 改用完整文档导航可以避免正文进入路由脚本，但会同时放弃本站要求的同构建导航连续性；Astro 则在同一模型内同时满足两项边界。
+2026-08-29 选型时，Astro 垂直切片验证了完整静态 HTML、连续导航、状态恢复与隔离交互岛。同期测试的 Qwik City SSG 方案在客户端导航中把完整正文再次交付进路由 JavaScript，因正文重复交付而未被选用。这是当时版本和实现的比较，不是对各框架后续版本能力的永久判断；实验源码不作为长期架构依赖保留。
 
 ## 职责边界
 
@@ -57,7 +49,7 @@ Qwik City SSG 曾作为垂直切片挑战者。它在真实 SPA 导航中把完�
                ├── 静态页面出口（Astro HTML）
                └── 独立交互岛（Solid）
 
-/api/* ──► Cloudflare Worker ──► KV / Cron / 外部受信服务
+壁纸 API ──► Cloudflare Worker ──► KV / Cron / Unsplash
 ```
 
 ### Astro 负责
@@ -94,28 +86,9 @@ Header 不水合、不创建全站组件树，不解析整篇文章，也不拥�
 
 Worker 不接管普通 HTML，仅为了页面路由或状态恢复而执行 Worker 属于架构回退。
 
-## 目录与依赖方向
+## 依赖方向
 
-目标代码按真实职责分层，不引入泛化的企业框架：
-
-```text
-apps/site/
-  public/               站点静态资源
-  src/
-    features/           页面功能的组件、浏览器行为与源样式
-    components/         跨页面静态外壳与首帧组件
-    content/            应用侧构建期内容适配
-    runtime/            跨页面浏览器基础设施与组合根
-    styles/             token、基础元素、外壳与稳定级联入口
-packages/site-domain/   内容、语言、版本、标签等纯领域逻辑
-packages/site-build/    Astro 内容集合、Markdown 与构建期适配
-packages/site-i18n/     唯一消息目录、Paraglide 配置与生成运行时
-packages/content-ui/    文章/项目交互组件、模型、样式与显式安装入口
-content/                MD/MDX、元数据和本地媒体；不放实现代码
-worker/                 与页面运行时隔离的边缘代码
-```
-
-依赖规则：
+具体目录和修改入口见 [应用说明](../../apps/site/README.md)。目录可以按职责调整，以下边界避免内容、框架和运行时互相渗透：
 
 - `site-domain` 不导入 Astro、Solid、DOM 或 Cloudflare API；
 - `site-build` 只把领域事实接到 Astro 构建边界；
@@ -131,48 +104,27 @@ worker/                 与页面运行时隔离的边缘代码
 - 全站只保留一层稳定的设计 token、基础布局和字体声明；它在导航期间不被删除。
 - 页面源样式归所属 `features/` 管理，并由所属页面或组件显式导入；Astro 负责生成页面块与跨页共享块。交互岛继续拥有自己的局部样式。
 - 不允许组件水合后向 head 注入决定页面主要几何的样式。
-- 所有可变尺寸必须由同一个初始状态同时驱动服务端标记、绘制前恢复和客户端接管。
+- 布局默认值、绘制前偏好恢复和客户端接管共用状态解析与投影规则，避免接管时再次可见修正。
 - 字体准备属于导航准备阶段，不能通过先替换正文再等待字体实现。
 
 ## Cloudflare 部署模型
 
 - 一次发布必须包含彼此匹配的 HTML、索引、脚本、样式、字体和 Worker 代码。
-- 哈希资源长期 immutable；稳定 URL 重新验证。
+- 带内容哈希的资源长期缓存；稳定 URL 默认重新验证。Pagefind 元数据入口是显式例外，其请求查询参数随构建改变，具体规则见 [缓存说明](../cloudflare-browser-cache.md)。
 - 分支预览与不可变版本地址继续隔离。
 - HTML 缓存优化不能成为正确性的前提；客户端使用构建 ID 防止不同代际运行时混合。
 - 普通静态请求不得为了统计、ETag 或路由进入 Worker。
 
 相关平台能力以 [Cloudflare Static Assets](https://developers.cloudflare.com/workers/static-assets/) 和 [版本与部署](https://developers.cloudflare.com/workers/versions-and-deployments/) 为依据。
 
-## 为什么不是其他主方案
-
-| 方案                 | 不作为默认方案的原因                                                            |
-| -------------------- | ------------------------------------------------------------------------------- |
-| SvelteKit 全站应用   | 路由和快照优秀，但长静态文章会进入全应用客户端边界；关闭 CSR 又会失去客户端路由 |
-| Nuxt 静态生成        | 内容生态成熟，但全应用运行时和 payload 对当前长文档站偏重                       |
-| Hugo / Eleventy      | 静态生成优秀，但没有本站需要的导航事务和复合历史恢复；最终仍需自建客户端路由    |
-| SolidStart           | 不把正在变化的全栈路线作为绿地核心；现有 Solid 只作为隔离 UI 运行时             |
-| 自建 SPA Router      | 会重新制造旧 Swup 外围的 head、脚本、取消、可访问性和生命周期问题               |
-| 全站 Worker SSR      | 没有需求收益，却增加请求配额、运行时故障和缓存复杂度                            |
-| 仅依赖原生跨文档过渡 | 无法在当前目标浏览器中稳定提供完整视觉连续性和状态恢复                          |
-
-Solid 只用于确实需要组件状态与生命周期的交互岛，不成为外壳、领域或导航核心，因此将来替换 UI 框架不需要重写状态协议。
-
-## 代价
+## 取舍与升级
 
 - 仍需自行实现状态账本、字体准备、精确首帧边界和构建代际门，但它们被隔离成可独立测试的基础设施模块。
-- Astro ClientRouter 升级可能带来行为回归，必须精确锁定版本并通过完整契约测试后升级。
+- 依赖版本由包配置与锁文件管理，可以升级；升级时核对版本耦合的适配点与测试探针，按风险验证受影响契约，不以保留旧版本代替验证。
 - 交互岛统一使用 Solid；静态外壳和普通增强不得为了共享少量状态扩大 island 边界。
 - `rel=expect` 的自动化证据目前来自 Chromium；Firefox/Safari 的支持或等价降级仍是生产迁移门槛。
 
-## 接受依据
-
-1. Astro 垂直切片已经证明完整静态 HTML、视觉连续性、状态恢复、交互岛和跨代际边界可由该模型承载；
-2. Qwik 挑战者因导航时重复交付正文触发硬门槛；
-3. `BCP-001` 已批准采用跨代际完整文档导航；
-4. SiteShell 改为静态 Astro HTML 后消除了早期 UI island 引导代码造成的错误中间帧；
-5. 剩余真实内容、跨浏览器和 Cloudflare 平台证据属于正式站点的迁移与生产切换门槛，不再扩展 POC。
-6. 技术选型结论进入 ADR 后，隔离 POC 的源码、构建产物和测试不再作为长期项目组成保留。
+不采用自建路由器或全站 SSR，是因为当前需求下增加的状态协议与服务端运维成本没有相应收益；需求或工具能力改变时可以重新评估。平台验收、生产切换与回滚状态以 [迁移计划](MIGRATION.md) 为准，不由本 ADR 推断。
 
 ## 参考
 
@@ -182,5 +134,3 @@ Solid 只用于确实需要组件状态与生命周期的交互岛，不成为�
 - [Astro ClientRouter 与视图过渡](https://docs.astro.build/en/guides/view-transitions/)
 - [Astro Solid 集成](https://docs.astro.build/en/guides/integrations-guide/solid-js/)
 - [HTML `rel=expect`](https://html.spec.whatwg.org/multipage/links.html#link-type-expect)
-- [Qwik 静态生成](https://qwik.dev/docs/guides/static-site-generation/)
-- [Qwik Resumability](https://qwik.dev/docs/concepts/resumable/)
