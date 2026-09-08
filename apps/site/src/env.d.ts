@@ -2,6 +2,11 @@
 
 declare const __SITE_BUILD_ID__: string;
 
+declare module 'virtual:site-wallpaper-script-url' {
+  const url: string;
+  export default url;
+}
+
 declare module 'virtual:site-initial-document-script' {
   const source: string;
   export default source;

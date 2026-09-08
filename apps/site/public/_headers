@@ -1,9 +1,6 @@
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
 
-/_runtime/*
-  Cache-Control: no-cache
-
 /pagefind/pagefind-entry.json
   Cache-Control: public, max-age=31536000, immutable
 

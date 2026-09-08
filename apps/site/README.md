@@ -7,8 +7,7 @@
 ```text
 config/          Astro 配置、构建标识与构建集成
 devtools/        仅开发环境导入的内容健康工具
-public/          原样发布的静态资源及生成的壁纸启动脚本
-scripts/         应用构建步骤与壁纸脚本打包
+public/          原样发布的静态资源
 src/pages/       路由、静态页面与端点
 src/layouts/     文档骨架和页面布局
 src/components/  跨功能静态组件、首帧入口和文档外壳

@@ -3,8 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "npm run build:wallpaper && astro build && pagefind --site dist",
-    "build:wallpaper": "node scripts/build-wallpaper-system.mjs",
+    "build": "astro build && pagefind --site dist",
     "check": "astro check"
   },
   "dependencies": {
