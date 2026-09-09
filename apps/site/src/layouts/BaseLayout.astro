@@ -13,6 +13,7 @@ import { REQUIRED_FONT_META_NAME, SITE_FONT_QUERIES } from '../runtime/required-
 import { SITE_CONTEXT } from '../config/site-context';
 import initialDocumentScript from 'virtual:site-initial-document-script';
 import wallpaperSystemUrl from 'virtual:site-wallpaper-script-url';
+import typographyStylesUrl from '../styles/typography-vendor.css?url';
 import '../styles/index.css';
 
 interface Props {
@@ -108,6 +109,7 @@ const documentNoIndex = noIndex || SITE_CONTEXT.noIndex;
       ))
     }
     <title>{documentTitle}</title>
+    <link rel="stylesheet" href={typographyStylesUrl} />
     <link rel="expect" href={`#${INITIAL_FRAME_READY_ID}`} blocking="render" />
     <ClientRouter fallback="swap" />
   </head>
