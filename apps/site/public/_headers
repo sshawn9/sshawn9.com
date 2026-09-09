@@ -1,3 +1,13 @@
+# HTML uses canonical trailing-slash URLs; keep data and asset URLs out of this rule.
+/
+  Cache-Control: public, max-age=400, must-revalidate
+
+/*/
+  Cache-Control: public, max-age=400, must-revalidate
+
+/404
+  Cache-Control: public, max-age=400, must-revalidate
+
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
 
