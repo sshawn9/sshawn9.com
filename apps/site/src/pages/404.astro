@@ -5,6 +5,7 @@ import { INITIAL_FRAME_READY_ID } from '../runtime/initial-frame';
 import { REQUIRED_FONT_META_NAME, SITE_FONT_QUERIES } from '../runtime/required-fonts';
 import fallbackLocaleScript from 'virtual:site-fallback-locale-script';
 import initialDocumentScript from 'virtual:site-initial-document-script';
+import typographyStylesUrl from '../styles/typography-vendor.css?url';
 import '../features/foundation/action-links.css';
 import '../styles/index.css';
 
@@ -65,6 +66,7 @@ const localeTitles = JSON.stringify({
       })();
     </script>
     <script is:inline data-locale-titles={localeTitles} set:html={fallbackLocaleScript} />
+    <link rel="stylesheet" href={typographyStylesUrl} />
     <link rel="expect" href={`#${INITIAL_FRAME_READY_ID}`} blocking="render" />
   </head>
   <body>

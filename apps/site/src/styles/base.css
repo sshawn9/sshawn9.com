@@ -1,6 +1,3 @@
-@import '@fontsource-variable/noto-sans-sc/wght.css';
-@import 'katex/dist/katex.min.css';
-
 /*
  * Theme changes animate the live document. Registered semantic colors avoid
  * flattening the page into View Transition screenshots, which breaks the
