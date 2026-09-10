@@ -32,12 +32,3 @@ html[data-navigation-scope='view'] .astro-route-announcer {
   flex: 1;
   flex-direction: column;
 }
-
-@keyframes navigation-progress {
-  from {
-    transform: translate3d(-110%, 0, 0);
-  }
-  to {
-    transform: translate3d(390%, 0, 0);
-  }
-}

@@ -11,6 +11,7 @@ import {
   type LocaleNavigationPoint,
 } from '../locale-navigation-transfer';
 import { prepareRequiredFonts } from '../required-fonts';
+import { reflectPageBusy } from '../navigation-feedback';
 import { restorePageAndNestedScroll, restorePageScroll } from '../scroll-state';
 import { decodeScrollSnapshot } from '../state-ledger';
 
@@ -25,6 +26,7 @@ document.addEventListener(
 );
 
 try {
+  const initialBody = document.body;
   const targetUrl = new URL(location.href);
   prepareTargetBlogView(document, targetUrl);
   prepareTargetBlogSidebarState(document, window);
@@ -53,8 +55,12 @@ try {
     synchronizeArticleToc(document, window);
   };
   const commitReadyDocument = (): void => {
+    // A client navigation may have replaced this body while its fonts loaded.
+    // That old preparation must not restore scroll or publish readiness for it.
+    if (document.body !== initialBody) return;
     commitPlacement();
     document.documentElement.dataset.fontState = 'ready';
+    reflectPageBusy(document);
   };
 
   const preparation = prepareRequiredFonts(document);

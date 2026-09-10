@@ -305,7 +305,9 @@ export function installNavigationCoordinator(
         pageTransition.cancel();
         restoringTraversal = false;
         phase = { kind: 'idle' };
-        feedback.cancel(feedbackId);
+        // Astro aborts A immediately before preparing its replacement B. Let B
+        // inherit A's feedback; with no replacement, clear it before the next paint.
+        sourceWindow.queueMicrotask(() => feedback.cancel(feedbackId));
       },
       { once: true },
     );
@@ -343,6 +345,7 @@ export function installNavigationCoordinator(
       }
       if (!event.signal.aborted && isCurrentTransaction(id)) {
         event.newDocument.documentElement.dataset.fontState = 'ready';
+        feedback.prepared(feedbackId);
         await pageTransition.prepareOutgoing(event.signal);
       }
     };

@@ -16,6 +16,7 @@ export type NavigationFeedbackClock = {
 
 const IDLE_STATE: NavigationFeedbackState = { pending: false, phase: 'idle' };
 
+/** Keeps navigation readiness separate from delayed, anti-flicker presentation. */
 export class NavigationFeedback {
   readonly #clock: NavigationFeedbackClock;
   readonly #reflect: (state: NavigationFeedbackState) => void;
@@ -36,27 +37,39 @@ export class NavigationFeedback {
 
   begin(href: string): number {
     const revision = ++this.#revision;
-    this.#clearTimers();
-    this.#shownAt = 0;
-    this.#publish({ pending: true, phase: 'idle', href });
-    this.#showTimer = this.#clock.setTimeout(() => {
-      if (revision !== this.#revision) return;
-      this.#shownAt = this.#clock.now();
-      this.#publish({ pending: true, phase: 'active', href });
-    }, NAVIGATION_SHOW_DELAY_MS);
+    this.#clock.clearTimeout(this.#finishTimer);
+    this.#finishTimer = undefined;
+    // Transfer a continuous wait's deadline or already-visible bar. Once the
+    // old bar is fading/idle, a new wait gets a fresh presentation.
+    const phase = this.#state.phase === 'active' ? 'active' : 'idle';
+    this.#publish({ pending: true, phase, href });
+    if (phase === 'idle' && this.#showTimer === undefined) {
+      this.#showTimer = this.#clock.setTimeout(() => {
+        this.#showTimer = undefined;
+        this.#shownAt = this.#clock.now();
+        // This timer belongs to the waiting interval, not its first navigation.
+        this.#publish({ ...this.#state, phase: 'active' });
+      }, NAVIGATION_SHOW_DELAY_MS);
+    }
     return revision;
   }
 
-  finish(revision: number): void {
+  /** Resource-ready navigation must not first light the bar during its fade. */
+  prepared(revision: number): void {
     if (revision !== this.#revision) return;
-
     this.#clock.clearTimeout(this.#showTimer);
     this.#showTimer = undefined;
-    if (this.#state.phase !== 'active') {
+  }
+
+  finish(revision: number): void {
+    if (revision !== this.#revision || !this.#state.pending) return;
+    this.prepared(revision);
+    if (this.#state.phase === 'idle') {
       this.#reset(revision);
       return;
     }
 
+    // Content and aria-busy finish now; only the visible bar stays for its minimum.
     this.#publish({ ...this.#state, pending: false });
     const remaining = Math.max(0, NAVIGATION_MIN_VISIBLE_MS - (this.#clock.now() - this.#shownAt));
     this.#finishTimer = this.#clock.setTimeout(() => {
@@ -67,14 +80,11 @@ export class NavigationFeedback {
   }
 
   cancel(revision: number): void {
-    if (revision === this.#revision) this.#reset(revision);
+    this.#reset(revision);
   }
 
   dispose(): void {
-    this.#revision += 1;
-    this.#clearTimers();
-    this.#shownAt = 0;
-    this.#publish(IDLE_STATE);
+    this.#reset(++this.#revision);
   }
 
   #publish(state: NavigationFeedbackState): void {
@@ -82,16 +92,12 @@ export class NavigationFeedback {
     this.#reflect(state);
   }
 
-  #clearTimers(): void {
+  #reset(revision: number): void {
+    if (revision !== this.#revision) return;
     this.#clock.clearTimeout(this.#showTimer);
     this.#clock.clearTimeout(this.#finishTimer);
     this.#showTimer = undefined;
     this.#finishTimer = undefined;
-  }
-
-  #reset(revision: number): void {
-    if (revision !== this.#revision) return;
-    this.#clearTimers();
     this.#shownAt = 0;
     this.#publish(IDLE_STATE);
   }
@@ -105,6 +111,16 @@ export function createBrowserFeedbackClock(sourceWindow: Window): NavigationFeed
   };
 }
 
+/** Initial font preparation and navigation can overlap; neither clears the other. */
+export function reflectPageBusy(targetDocument: Document): void {
+  const root = targetDocument.documentElement;
+  const pending =
+    root.dataset.fontState === 'loading' || root.hasAttribute('data-navigation-pending');
+  const main = targetDocument.querySelector('main');
+  if (pending) main?.setAttribute('aria-busy', 'true');
+  else main?.removeAttribute('aria-busy');
+}
+
 export function reflectNavigationFeedback(
   targetDocument: Document,
   state: NavigationFeedbackState,
@@ -113,8 +129,5 @@ export function reflectNavigationFeedback(
   root.toggleAttribute('data-navigation-pending', state.pending);
   if (state.phase === 'idle') root.removeAttribute('data-navigation-progress');
   else root.dataset.navigationProgress = state.phase;
-
-  const main = targetDocument.querySelector('main');
-  if (state.pending) main?.setAttribute('aria-busy', 'true');
-  else main?.removeAttribute('aria-busy');
+  reflectPageBusy(targetDocument);
 }

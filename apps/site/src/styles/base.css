@@ -215,8 +215,9 @@
 /*
  * Typography is one required page resource. The wallpaper remains visible,
  * while every surface that could expose fallback glyphs waits for the exact
- * fonts used by this document. A warm document clears this state synchronously
- * before the render boundary and therefore never exposes a loading frame.
+ * fonts used by this document. Already-ready fonts take the synchronous path;
+ * cached files may still require preparation. Progress follows its original
+ * offscreen-entry/exit cycle rather than staying in view on every frame.
  */
 :root[data-font-state='loading'] [data-font-surface] {
   visibility: hidden;

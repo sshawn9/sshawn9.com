@@ -225,7 +225,7 @@ function areRequiredFontFamiliesDeclared(
   });
 }
 
-/** The synchronous warm path prevents a cached reload from exposing a loading frame. */
+/** Font availability, not an assumed cache hit, decides the synchronous path. */
 function areRequiredFontRequestsReady(
   fontDocument: FontDocument,
   requests: readonly RequiredFontRequest[],
