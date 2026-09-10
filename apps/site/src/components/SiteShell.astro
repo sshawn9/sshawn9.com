@@ -6,6 +6,7 @@ import BackdropSurface from '../features/appearance/components/BackdropSurface.a
 import SiteHeaderNavigation from './site-shell/SiteHeaderNavigation.astro';
 import SiteHeaderUtilities from './site-shell/SiteHeaderUtilities.astro';
 import WallpaperSettings from '../features/appearance/components/WallpaperSettings.astro';
+import NavigationProgress from './NavigationProgress.astro';
 
 interface Props {
   locale: Locale;
@@ -22,7 +23,7 @@ const copy = getFoundationCopy(locale);
   <BackdropSurface {locale} />
 
   <header class="site-header" transition:name="site-header" transition:animate="none">
-    <div class="navigation-progress" aria-hidden="true"></div>
+    <NavigationProgress />
     <div class="content-shell site-header__inner" data-font-surface>
       <a
         class="site-identity"

@@ -1,45 +1,18 @@
 import { expect, test } from '@playwright/test';
 import { Miniflare } from 'miniflare';
 import { readFile, readdir } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import {
+  builtSiteDirectory,
+  builtSiteOutput,
+  createStaticAssetsServer,
+} from '../../support/static-assets';
 
-const output = new URL('../../../apps/site/dist/', import.meta.url);
-const directory = fileURLToPath(output);
 const htmlPolicy = 'public, max-age=400, must-revalidate';
 const immutablePolicy = 'public, max-age=31536000, immutable';
 let server: Miniflare;
 
 test.beforeAll(async () => {
-  server = new Miniflare({
-    cf: false,
-    logRequests: false,
-    workers: [
-      {
-        config: {
-          name: 'html-cache',
-          type: 'worker',
-          compatibilityDate: '2026-08-10',
-          // Static Assets handles these requests, not this unused Worker.
-          manifest: {
-            mainModule: 'unused.js',
-            modules: {
-              'unused.js': {
-                type: 'esm',
-                contents:
-                  'export default { fetch() { return new Response(null, { status: 404 }); } };',
-              },
-            },
-          },
-          assets: {
-            directory,
-            hasUserWorker: false,
-            htmlHandling: 'auto-trailing-slash',
-            notFoundHandling: '404-page',
-          },
-        },
-      },
-    ],
-  });
+  server = createStaticAssetsServer('html-cache');
   await server.ready;
 });
 
@@ -48,10 +21,10 @@ test.afterAll(async () => {
 });
 
 test('Cloudflare applies URL-scoped HTML caching without overriding asset policies', async () => {
-  expect(await readFile(new URL('_headers', output), 'utf8')).toBe(
+  expect(await readFile(new URL('_headers', builtSiteOutput), 'utf8')).toBe(
     await readFile(new URL('../../../apps/site/public/_headers', import.meta.url), 'utf8'),
   );
-  const files = await readdir(directory, { recursive: true });
+  const files = await readdir(builtSiteDirectory, { recursive: true });
   for (const file of files.filter((name) => name.endsWith('.html'))) {
     const pathname = `/${file.replace(/(^|\/)index\.html$/, '$1').replace(/\.html$/, '')}`;
     const response = await server.dispatchFetch(`https://site.test${pathname}`, {

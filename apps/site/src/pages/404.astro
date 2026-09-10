@@ -1,5 +1,6 @@
 ---
 import { Font } from 'astro:assets';
+import NavigationProgress from '../components/NavigationProgress.astro';
 import * as m from '@sshawn9/site-i18n/messages';
 import { INITIAL_FRAME_READY_ID } from '../runtime/initial-frame';
 import { REQUIRED_FONT_META_NAME, SITE_FONT_QUERIES } from '../runtime/required-fonts';
@@ -71,7 +72,7 @@ const localeTitles = JSON.stringify({
   </head>
   <body>
     <header class="site-header">
-      <div class="navigation-progress" aria-hidden="true"></div>
+      <NavigationProgress />
       <div class="content-shell site-header__inner" data-font-surface>
         {
           (['en', 'zh'] as const).map((locale) => (
@@ -92,7 +93,7 @@ const localeTitles = JSON.stringify({
       </div>
     </header>
 
-    <main class="not-found-page" data-font-surface>
+    <main class="not-found-page" data-font-surface aria-busy="true">
       {
         (['en', 'zh'] as const).map((locale) => (
           <div class="fallback-locale-copy" data-fallback-locale={locale}>
