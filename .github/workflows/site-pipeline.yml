@@ -1,4 +1,4 @@
-name: Site
+name: Site CI/CD
 
 on:
   push:
@@ -10,13 +10,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: site-${{ github.workflow }}-${{ github.ref }}
+  # Preserve the existing lock key independently of the workflow display name.
+  group: site-Site-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   verify:
     if: ${{ github.event_name != 'push' || !github.event.deleted }}
-    uses: ./.github/workflows/verify.yml
+    uses: ./.github/workflows/site-validation.yml
     with:
       upload_preview: ${{ github.event_name != 'pull_request' && startsWith(github.ref, 'refs/heads/') }}
       upload_production: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
@@ -27,7 +28,7 @@ jobs:
     concurrency:
       group: deploy-preview-${{ github.ref }}
       cancel-in-progress: true
-    uses: ./.github/workflows/deploy-cloudflare.yml
+    uses: ./.github/workflows/site-deployment.yml
     with:
       artifact_name: site-preview-${{ github.sha }}
       deployment_type: preview
@@ -41,7 +42,7 @@ jobs:
     concurrency:
       group: deploy-production
       cancel-in-progress: true
-    uses: ./.github/workflows/deploy-cloudflare.yml
+    uses: ./.github/workflows/site-deployment.yml
     with:
       artifact_name: site-production-${{ github.sha }}
       deployment_type: production
