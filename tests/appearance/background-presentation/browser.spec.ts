@@ -34,7 +34,7 @@ async function backgroundState(page: Page): Promise<BackgroundState> {
   });
 }
 
-async function settlePresentation(page: Page): Promise<void> {
+async function expectPresentation(page: Page, expected: Partial<BackgroundState>): Promise<void> {
   await expect(page.locator('html')).not.toHaveAttribute('data-theme-transition', 'active', {
     timeout: 2_000,
   });
@@ -43,6 +43,9 @@ async function settlePresentation(page: Page): Promise<void> {
     'active',
     { timeout: 2_000 },
   );
+  // Timer-owned markers can clear before the browser samples the animation endpoint.
+  // Poll the complete visual state without relaxing its exact final values.
+  await expect.poll(() => backgroundState(page), { timeout: 2_000 }).toMatchObject(expected);
 }
 
 test('the four theme and background combinations project one coherent backdrop state', async ({
@@ -52,7 +55,6 @@ test('the four theme and background combinations project one coherent backdrop s
   await seedTwoSlots(page, 1600);
   await page.addInitScript(() => localStorage.setItem('theme', 'light'));
   await page.goto('/en/blog/');
-  await settlePresentation(page);
 
   const root = page.locator('html');
   const theme = page.locator('[data-theme-toggle]').first();
@@ -61,8 +63,7 @@ test('the four theme and background combinations project one coherent backdrop s
   const enabledControl = page.locator('#wallpaper-settings [data-wallpaper-enabled-control]');
   const enabled = enabledControl.locator('[data-wallpaper-enabled]');
 
-  const scenicLight = await backgroundState(page);
-  expect(scenicLight).toMatchObject({
+  await expectPresentation(page, {
     theme: 'light',
     mode: 'scenic',
     stageOpacity: 1,
@@ -71,12 +72,12 @@ test('the four theme and background combinations project one coherent backdrop s
     darkScrimOpacity: 0,
     creditHidden: false,
   });
+  const scenicLight = await backgroundState(page);
   expect(scenicLight.backgroundImage).not.toBe('none');
 
   await enabledControl.click();
   await expect(enabled).not.toBeChecked();
-  await settlePresentation(page);
-  expect(await backgroundState(page)).toMatchObject({
+  await expectPresentation(page, {
     theme: 'light',
     mode: 'default',
     stageOpacity: 0,
@@ -87,9 +88,7 @@ test('the four theme and background combinations project one coherent backdrop s
   });
 
   await theme.click();
-  await settlePresentation(page);
-  const defaultDark = await backgroundState(page);
-  expect(defaultDark).toMatchObject({
+  await expectPresentation(page, {
     theme: 'dark',
     mode: 'default',
     stageOpacity: 0,
@@ -98,13 +97,13 @@ test('the four theme and background combinations project one coherent backdrop s
     darkScrimOpacity: 1,
     creditHidden: true,
   });
+  const defaultDark = await backgroundState(page);
   expect(defaultDark.imageOpacity).toBeLessThan(scenicLight.imageOpacity);
 
   await menu.click();
   await enabledControl.click();
   await expect(enabled).toBeChecked();
-  await settlePresentation(page);
-  expect(await backgroundState(page)).toMatchObject({
+  await expectPresentation(page, {
     theme: 'dark',
     mode: 'scenic',
     stageOpacity: 1,
@@ -136,9 +135,8 @@ test('rapidly reversed theme and mode transitions settle on only the latest choi
   await theme.click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await expect(page.locator('html')).toHaveAttribute('data-wallpaper-mode', 'scenic');
-  await settlePresentation(page);
 
-  expect(await backgroundState(page)).toMatchObject({
+  await expectPresentation(page, {
     theme: 'light',
     mode: 'scenic',
     stageOpacity: 1,
