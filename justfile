@@ -28,6 +28,10 @@ worker-dev:
 build:
     npm run build
 
+# 分析已有构建，导出页面、资源及双向对应清单；不构建、不联网。
+inventory:
+    npm run inventory
+
 # 单测 → 一次构建 → 浏览器测试，不必先 build。
 test:
     npm test

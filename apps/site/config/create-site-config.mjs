@@ -9,6 +9,8 @@ import { fileURLToPath } from 'node:url';
 import { developmentFontAssets } from './development-font-assets.mjs';
 import { classicScriptBundles } from './classic-script-bundles.mjs';
 import { createMarkdownProcessor } from './markdown.ts';
+import { pagefindBuild } from './search-index.mjs';
+import { resourceInventoryBuildInfo } from '../tools/resource-inventory/build-info.mjs';
 
 const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const outputDirectory = new URL('../dist/', import.meta.url);
@@ -167,6 +169,8 @@ export function createSiteConfig({ integrations = [], viteServer = {} } = {}) {
               },
             }),
           ]),
+      pagefindBuild(),
+      resourceInventoryBuildInfo({ buildId, mode: previewBuild ? 'preview' : 'production' }),
     ],
     i18n: {
       defaultLocale: 'en',

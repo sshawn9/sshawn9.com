@@ -2,6 +2,7 @@
 dist/
 # generated types
 .astro/
+/apps/site/.reports/
 
 # Cloudflare local state
 .wrangler/

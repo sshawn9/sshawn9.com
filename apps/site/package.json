@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "astro build && pagefind --site dist",
+    "build": "astro build",
     "check": "astro check"
   },
   "dependencies": {

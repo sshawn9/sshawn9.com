@@ -23,6 +23,8 @@ Shawn 的个人网站，用于展示项目、发布博客和个人介绍。站�
 
 本地和 CI 共用 devenv 原生环境：`devenv.nix` 定义工具与运行库，`devenv.yaml` 沿用官方默认来源，`devenv.lock` 由 CLI 管理。机器需要安装 Nix、devenv 和 direnv，并启用 direnv 的 shell hook。当前面向 `x86_64-linux` 的 NixOS 与 Ubuntu；NixOS 还需在系统配置中启用 `programs.nix-ld.enable = true`。
 
+项目要求 Node 24 或更高版本；devenv 继续使用 `.nvmrc` 指定的 Node 24，不为旧版本增加 TypeScript 加载器。
+
 ```sh
 direnv allow
 npm ci
@@ -33,18 +35,19 @@ direnv 通过 `use devenv` 加载环境，不需要 nix-direnv。Node 大版本�
 
 根目录 `package.json` 定义完整日常流程，运行 `npm run` 查看命令。`justfile` 只是可选的外部快捷入口，逐项转发下表命令；不安装 just 也能完成全部操作。
 
-| npm 入口                                  | 能力                                                     | 可选快捷入口           |
-| ----------------------------------------- | -------------------------------------------------------- | ---------------------- |
-| `npm ci`                                  | 按锁文件安装依赖                                         | `just install`         |
-| `npm exec -- playwright install chromium` | 按需安装测试浏览器                                       | `just browser-install` |
-| `npm run dev`                             | 热更新、Dev Toolbar、线上壁纸 API；搜索使用静态回退      | `just dev`             |
-| `npm run preview`                         | 先构建，再预览完整页面与 Pagefind 搜索；壁纸使用线上 API | `just preview`         |
-| `npm run worker:dev`                      | 仅调试本地 Worker API，不启动站点                        | `just worker-dev`      |
-| `npm run build`                           | 只生成 `apps/site/dist/` 部署产物，不启动服务            | `just build`           |
-| `npm test`                                | 单测 → 一次构建 → 浏览器测试，不必先 build               | `just test`            |
-| `npm run check`                           | 工作区和根项目类型检查                                   | `just check`           |
-| `npm run format`                          | 使用项目锁定的 Prettier 格式化                           | `just fmt`             |
-| `npm run format:check`                    | 只检查格式                                               | `just fmt-check`       |
+| npm 入口                                  | 能力                                                       | 可选快捷入口           |
+| ----------------------------------------- | ---------------------------------------------------------- | ---------------------- |
+| `npm ci`                                  | 按锁文件安装依赖                                           | `just install`         |
+| `npm exec -- playwright install chromium` | 按需安装测试浏览器                                         | `just browser-install` |
+| `npm run dev`                             | 热更新、Dev Toolbar、线上壁纸 API；搜索使用静态回退        | `just dev`             |
+| `npm run preview`                         | 先构建，再预览完整页面与 Pagefind 搜索；壁纸使用线上 API   | `just preview`         |
+| `npm run worker:dev`                      | 仅调试本地 Worker API，不启动站点                          | `just worker-dev`      |
+| `npm run build`                           | 只生成 `apps/site/dist/` 部署产物，不启动服务              | `just build`           |
+| `npm run inventory`                       | 分析已有构建，导出页面、资源和双向对应清单；不构建、不联网 | `just inventory`       |
+| `npm test`                                | 单测 → 一次构建 → 浏览器测试，不必先 build                 | `just test`            |
+| `npm run check`                           | 工作区和根项目类型检查                                     | `just check`           |
+| `npm run format`                          | 使用项目锁定的 Prettier 格式化                             | `just fmt`             |
+| `npm run format:check`                    | 只检查格式                                                 | `just fmt-check`       |
 
 `dev` 在 `http://127.0.0.1:4332` 提供热更新页面，`preview` 在 `http://127.0.0.1:4333` 提供构建后的页面；两者均通过 `apps/site/astro.local.config.mjs` 将 `/api/wallpapers` 及其下载上报接口代理至 `https://sshawn9.com`，真正的图片仍从 Unsplash CDN 获取。日常页面开发不启动本地 Worker，不需要本地 KV 或 Unsplash 密钥，但壁纸依赖网络和线上 API 可用性。应用目录的 npm 脚本仅承担内部构建和检查。
 
@@ -63,6 +66,16 @@ Playwright 由 npm 锁定和升级，浏览器由其官方安装器下载，不�
 完整验证为 `npm run format:check`、`npm run check`、`npm test`。[站点验证工作流](.github/workflows/site-validation.yml) 在 devenv 环境内执行同一套 npm 命令，并分别验证所需的 Preview／Production 产物。环境依赖使用 `devenv update` 更新，JS 依赖使用 npm 更新，验证后提交对应锁文件。devenv CLI 是宿主工具，由系统或 CI 安装，不受项目锁文件固定。
 
 构建标识由应用自动生成，无需手动设置 `SITE_BUILD_ID`。CI 部署直接使用测试过的产物，不再次构建；标识与缓存的关系见 [缓存说明](docs/cloudflare-browser-cache.md)。
+
+搜索通过 [构建集成](apps/site/config/search-index.mjs) 调用 Pagefind 官方 Node API，在 Astro 页面和站点地图生成后写入 `dist/pagefind`；索引失败会使构建失败，后台进程在结束时关闭。搜索构建参数集中在该文件，不再自动读取 Pagefind CLI 配置文件或 `PAGEFIND_*` 环境变量；当前使用默认参数，`dev` 的静态搜索回退不变。
+
+最后，`build` 在 `.astro/resource-inventory-build.json` 保存最终产物的文件名单、SHA-256 和客户端依赖信息（位于应用目录，不会部署）。之后运行 `npm run inventory`，在 `apps/site/.reports/` 同时生成 `resource-inventory.json` 和供人阅读的 `resource-inventory.md`，包含 `pages`、`resources`、`pageResources`、`resourcePages` 四部分及构建标识。Markdown 提供概览、索引和可折叠的双向对应关系，适合在 IDE 的 Markdown 预览中阅读；两种格式来自同一次分析。任何产物缺失、新增、内容改变，或字体规则与记录不符时都会报错，包括搜索分片和部署响应头；不会自动构建或请求线上网站。异地分析须使用对应代码、同一次构建的 `dist` 和这份构建信息；本地校验不等于验证远端部署。
+
+分析失败时保留上一次报告。分析成功后先写完两个临时文件，再逐个原子替换正式文件；两个文件不构成文件系统事务，若进程在替换期间异常终止，应重新运行 `npm run inventory`。
+
+对应关系是一份页面关联资源集合，不按首次加载、延迟加载或交互时机分栏。大小图、响应式变体、页面交互脚本和版本数据都归入所属页面；图片查看器只归入有可放大图片的文章。字体按本站字体规则、页面文字、固定交互文字及 CSS `unicode-range` 筛选，同时保留声明的回退字体和格式备选，因此不是一次访问的精确请求记录。搜索只关联当前语言的已构建索引和全部结果数据，不模拟不同查询，不纳入目标文章资源或备用搜索 UI；自由输入对应字体保留完整字符覆盖。随机壁纸图片、第三方 iframe 内部及无法静态确定的运行时地址仍不在保证范围。反向清单由正向清单派生；没有找到引用的资源不等于可删除。
+
+大小统计包含资源的 `bytes`（原始字节）和 `brotliBytes`，以及全站 `sizeTotals`、每页 `pageSizeTotals`。Brotli 使用 Node 内置实现的默认参数，参数与适用扩展名记录在报告的 `compression` 中；对文本、WASM、TTF/OTF 逐文件计算，图片、WOFF/WOFF2、Pagefind 压缩数据等保留原大小，不生成额外部署文件。合计按物理文件去重，全站包含未被页面引用的构建资源；未知项单独计数，Markdown 显示 `+ N unknown`，JSON 的 `knownBytes`／`knownBrotliBytes` 只表示已知部分。这里统计的是资源集合体积，不是 Cloudflare 实测传输量或用户单次访问流量。
 
 ## 国际化
 
