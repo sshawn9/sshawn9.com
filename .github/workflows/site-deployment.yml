@@ -1,4 +1,4 @@
-name: Deploy site to Cloudflare
+name: Site Deployment (Cloudflare)
 
 on:
   workflow_call:

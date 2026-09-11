@@ -60,7 +60,7 @@ Playwright 由 npm 锁定和升级，浏览器由其官方安装器下载，不�
 
 测试内部服务器由 Playwright 启停，默认端口 `4399`（可用 `PLAYWRIGHT_PORT` 覆盖），不复用已有服务器，也不是人工预览入口。测试集中在 `tests/<功能>/<案例>/`，每个案例的 Markdown 说明与单元或浏览器测试放在一起。
 
-完整验证为 `npm run format:check`、`npm run check`、`npm test`。[CI](.github/workflows/verify.yml) 在 devenv 环境内执行同一套 npm 命令，并分别验证所需的 Preview／Production 产物。环境依赖使用 `devenv update` 更新，JS 依赖使用 npm 更新，验证后提交对应锁文件。devenv CLI 是宿主工具，由系统或 CI 安装，不受项目锁文件固定。
+完整验证为 `npm run format:check`、`npm run check`、`npm test`。[站点验证工作流](.github/workflows/site-validation.yml) 在 devenv 环境内执行同一套 npm 命令，并分别验证所需的 Preview／Production 产物。环境依赖使用 `devenv update` 更新，JS 依赖使用 npm 更新，验证后提交对应锁文件。devenv CLI 是宿主工具，由系统或 CI 安装，不受项目锁文件固定。
 
 构建标识由应用自动生成，无需手动设置 `SITE_BUILD_ID`。CI 部署直接使用测试过的产物，不再次构建；标识与缓存的关系见 [缓存说明](docs/cloudflare-browser-cache.md)。
 
@@ -183,7 +183,7 @@ Paraglide 负责页面级文案和界面文案，长篇文章与项目记录仍�
 
 ## 部署
 
-以下描述仓库的 [工作流配置](.github/workflows/site.yml)，不代表已完成线上平台验收：
+以下描述仓库的 [CI/CD 入口](.github/workflows/site-pipeline.yml)及其调用的[站点验证](.github/workflows/site-validation.yml)和[Cloudflare 部署](.github/workflows/site-deployment.yml)工作流，不代表已完成线上平台验收：
 
 - 分支推送或手动触发：验证后发布 Preview；`main` 更新 `sshawn9-com-preview` 的当前部署，其他分支只上传带稳定别名的版本。部署摘要提供稳定分支 URL 和不可变版本 URL。
 - `main` 还会独立验证并部署 Production；拉取请求只验证 Preview，不使用部署密钥。

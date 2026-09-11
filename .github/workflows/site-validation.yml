@@ -1,4 +1,4 @@
-name: Verify site
+name: Site Validation
 
 on:
   workflow_call:
