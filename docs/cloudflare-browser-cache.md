@@ -19,6 +19,7 @@
 | `/`、`/*/`、`/404`              | `public, max-age=400, must-revalidate` | HTML 可在 400 秒新鲜期内直接复用，配合已有链接预取减少点击后的重复验证；过期后先验证再使用。       |
 | `/_astro/*`                     | `public, max-age=31536000, immutable`  | 包括壁纸启动脚本在内的构建资源使用内容哈希文件名；内容不变时 URL 不随构建 ID 改变。                |
 | `/pagefind/pagefind-entry.json` | `public, max-age=31536000, immutable`  | 页面把本次构建 UUID 作为 Pagefind `meta-cache-tag`，使元数据请求的查询参数随构建改变。             |
+| `/resource-inventory.json`      | `no-store`                             | 每次探测重新取得部署清单，不复用客户端保存的上一部署清单。                                         |
 | 其他静态文件                    | 不自定义                               | 文章对比 JSON、robots、sitemap、Web Manifest 和 Pagefind 其余文件沿用 Static Assets 的默认响应头。 |
 
 `_headers` 还为匹配的 `workers.dev` 地址设置 `X-Robots-Tag: noindex`。这是索引策略，不是缓存策略；配置存在不代表这些地址已经在线可达或绕过访问控制。
@@ -33,6 +34,7 @@ Cloudflare 当前文档说明，普通静态请求未携带 `Authorization` 或 
 - Noto 字体声明与 KaTeX 样式由 `typography-vendor.css?url` 独立输出为哈希 CSS，普通页面和独立 404 都全局加载；本站样式变化不应改变这份资源的地址。字体预加载、按需请求与切页前准备流程保持不变。
 - 壁纸启动脚本由 `config/classic-script-bundles.mjs` 在 Astro 构建中编译并输出为内容哈希资源，没有独立编译步骤或 `.cache` 中间文件；HTML 仍以同步经典脚本加载它，不改为延迟执行。新部署不额外保留旧文件：发布交界时取得旧 HTML 且没有可用脚本缓存的访问，可能加载失败；新版部署正常时刷新可恢复。
 - Pagefind 元数据的长期缓存依赖每次构建生成新的 ID，并把同一 ID 同时写入 HTML、客户端代码和 `meta-cache-tag`。不能去掉、固定或复用旧标记后继续保留该入口的 `immutable` 规则。
+- 生产 CI 从已通过测试的构建生成资源清单，再把它放入同一份部署目录；不从另一次构建或独立的“最新 CI 产物”选择清单。`no-store` 防止客户端保存旧清单，不承诺部署切换在全球同时完成，也不锁定整个探测期间的线上版本。
 - 不要为 `/*` 统一设置缓存规则，避免与哈希资源规则叠加或影响数据端点。HTML 规则使用 `/*/` 匹配以 `/` 结尾的页面，另列 `/` 和 `/404`，不覆盖 `compare/data/*.json` 等文件路径，也不依赖具体语言。
 - 接受按 URL 匹配的 404 缓存：以 `/` 结尾并匹配 HTML 规则的缺失页面保留 404 状态，也缓存 400 秒，包括语言目录外的路径。若该地址随后发布为真实页面，持有旧 404 的用户可能需要刷新；不为排除 404 增加额外实现。
 - 接受发布交界时短暂复用旧 HTML 的取舍：新部署不会主动撤销浏览器尚未过期的 HTML，也不额外保留旧资源。旧页面若引用已失效的文件，正常部署下刷新通常可恢复；构建 UUID 检查继续保留，但不承诺旧页面跨部署始终完整可用。本项不引入历史资源归档或搜索版本化。
@@ -55,6 +57,7 @@ Cloudflare 当前文档说明，普通静态请求未携带 `Authorization` 或 
 5. 文章对比 JSON、robots、sitemap、Web Manifest 和 Pagefind 其余文件没有意外继承 HTML 的 400 秒规则；
 6. 两个 `/api/wallpapers` 端点仍返回 Worker 代码各自声明的缓存头。
 7. 中英文目录内外、以 `/` 结尾的普通缺失路径返回 404 和 400 秒缓存规则，没有被误变成 200；规则外的缺失文件路径不继承 400 秒策略。
+8. 生产 `/resource-inventory.json` 返回 JSON 和 `no-store`，其构建 ID 与本次部署 HTML 一致，清单中的哈希资源可以访问。
 
 这一步还应记录 `Cache-Control`、`Date`、`Age`、ETag 和 `CF-Cache-Status`，确认响应抵达浏览器时仍有可用的新鲜期，并实际检查预取后点击不再重复验证、手动刷新会重新验证。不能用边缘 `HIT` 代替浏览器缓存策略的核对。Cloudflare 控制台中的 Zone 级规则不在仓库内，若存在，也须与实际响应一起单独核实。
 

@@ -4,7 +4,10 @@ import { fileURLToPath } from 'node:url';
 export const builtSiteOutput = new URL('../../apps/site/dist/', import.meta.url);
 export const builtSiteDirectory = fileURLToPath(builtSiteOutput);
 
-export function createStaticAssetsServer(name: string): Miniflare {
+export function createStaticAssetsServer(
+  name: string,
+  directory: string = builtSiteDirectory,
+): Miniflare {
   return new Miniflare({
     cf: false,
     logRequests: false,
@@ -26,7 +29,7 @@ export function createStaticAssetsServer(name: string): Miniflare {
             },
           },
           assets: {
-            directory: builtSiteDirectory,
+            directory,
             hasUserWorker: false,
             htmlHandling: 'auto-trailing-slash',
             notFoundHandling: '404-page',

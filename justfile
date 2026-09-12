@@ -32,6 +32,11 @@ build:
 inventory:
     npm run inventory
 
+# 从当前机器探测现有资源清单，保留每轮结果；参数转交 npm 命令。
+[positional-arguments]
+cache-probe *args:
+    npm run cache:probe -- "$@"
+
 # 单测 → 一次构建 → 浏览器测试，不必先 build。
 test:
     npm test

@@ -14,5 +14,9 @@
 /pagefind/pagefind-entry.json
   Cache-Control: public, max-age=31536000, immutable
 
+# This deployment's inventory must not be reused from an earlier deployment.
+/resource-inventory.json
+  Cache-Control: no-store
+
 https://:version.:subdomain.workers.dev/*
   X-Robots-Tag: noindex

@@ -13,6 +13,7 @@ import { createResourceInventory } from '../../../apps/site/tools/resource-inven
 import { fontResourceUrls } from '../../../apps/site/tools/resource-inventory/fonts.mjs';
 import { renderInventoryMarkdown } from '../../../apps/site/tools/resource-inventory/markdown.mjs';
 import { measureFileSizes } from '../../../apps/site/tools/resource-inventory/sizes.mjs';
+import { createStaticAssetsServer } from '../../support/static-assets';
 import {
   readHtmlReferences,
   readModuleReferences,
@@ -60,6 +61,47 @@ async function fixture(files: Record<string, string>, manifest: Record<string, a
 }
 
 describe('resource inventory build boundary', () => {
+  it('serves each packaged inventory with its matching assets and no browser caching', async () => {
+    const headers = await readFile(
+      new URL('../../../apps/site/public/_headers', import.meta.url),
+      'utf8',
+    );
+    for (const buildId of ['build-a', 'build-b']) {
+      const script = `app-${buildId}.js`;
+      const built = await fixture({
+        _headers: headers,
+        'index.html': `<html lang="en"><head><meta name="site-build-id" content="${buildId}"><script src="/${script}"></script></head><body>Page</body></html>`,
+        [script]: `console.log("${buildId}")`,
+      });
+      built.buildInfo.buildId = buildId;
+      const inventory = await createResourceInventory(built);
+      expect(inventory.diagnostics.filter((item) => item.level === 'error')).toEqual([]);
+      // The inventory is deployment metadata, added after analyzing the site assets.
+      // It cannot list its own size or hash as a resource to probe.
+      await writeFile(join(built.directory, 'resource-inventory.json'), JSON.stringify(inventory));
+      const server = createStaticAssetsServer(`inventory-${buildId}`, built.directory);
+      try {
+        await server.ready;
+        const response = await server.dispatchFetch('https://site.test/resource-inventory.json');
+        expect(response.status).toBe(200);
+        expect(response.headers.get('cache-control')).toBe('no-store');
+        const published = (await response.json()) as typeof inventory;
+        expect(published).toEqual(inventory);
+        expect(published.buildId).toBe(buildId);
+        expect(published.resources.map((item) => item.url)).toContain(
+          `https://site.test/${script}`,
+        );
+        const page = await server.dispatchFetch('https://site.test/');
+        expect(await page.text()).toContain(`content="${published.buildId}"`);
+        const asset = await server.dispatchFetch(`https://site.test/${script}`);
+        expect(asset.status).toBe(200);
+        expect(await asset.text()).toContain(buildId);
+      } finally {
+        await server.dispose();
+      }
+    }
+  });
+
   it('captures static and dynamic dependencies without changing deployed output', async () => {
     let manifest: Record<string, any> = {};
     async function build(capture: boolean) {

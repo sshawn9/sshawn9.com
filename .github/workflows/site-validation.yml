@@ -61,6 +61,11 @@ jobs:
         run: npm test
         env:
           SITE_MODE: production
+      - name: Package production resource inventory
+        if: ${{ inputs.upload_production }}
+        run: |
+          npm run inventory
+          cp apps/site/.reports/resource-inventory.json apps/site/dist/resource-inventory.json
       - name: Upload verified production site
         if: ${{ inputs.upload_production }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

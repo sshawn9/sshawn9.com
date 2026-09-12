@@ -44,6 +44,7 @@ direnv 通过 `use devenv` 加载环境，不需要 nix-direnv。Node 大版本�
 | `npm run worker:dev`                      | 仅调试本地 Worker API，不启动站点                          | `just worker-dev`      |
 | `npm run build`                           | 只生成 `apps/site/dist/` 部署产物，不启动服务              | `just build`           |
 | `npm run inventory`                       | 分析已有构建，导出页面、资源和双向对应清单；不构建、不联网 | `just inventory`       |
+| `npm run cache:probe`                     | 读取线上生产部署清单探测缓存，按出口 IP 保留轮次及增量汇总 | `just cache-probe`     |
 | `npm test`                                | 单测 → 一次构建 → 浏览器测试，不必先 build                 | `just test`            |
 | `npm run check`                           | 工作区和根项目类型检查                                     | `just check`           |
 | `npm run format`                          | 使用项目锁定的 Prettier 格式化                             | `just fmt`             |
@@ -76,6 +77,39 @@ Playwright 由 npm 锁定和升级，浏览器由其官方安装器下载，不�
 对应关系是一份页面关联资源集合，不按首次加载、延迟加载或交互时机分栏。大小图、响应式变体、页面交互脚本和版本数据都归入所属页面；图片查看器只归入有可放大图片的文章。字体按本站字体规则、页面文字、固定交互文字及 CSS `unicode-range` 筛选，同时保留声明的回退字体和格式备选，因此不是一次访问的精确请求记录。搜索只关联当前语言的已构建索引和全部结果数据，不模拟不同查询，不纳入目标文章资源或备用搜索 UI；自由输入对应字体保留完整字符覆盖。随机壁纸图片、第三方 iframe 内部及无法静态确定的运行时地址仍不在保证范围。反向清单由正向清单派生；没有找到引用的资源不等于可删除。
 
 大小统计包含资源的 `bytes`（原始字节）和 `brotliBytes`，以及全站 `sizeTotals`、每页 `pageSizeTotals`。Brotli 使用 Node 内置实现的默认参数，参数与适用扩展名记录在报告的 `compression` 中；对文本、WASM、TTF/OTF 逐文件计算，图片、WOFF/WOFF2、Pagefind 压缩数据等保留原大小，不生成额外部署文件。合计按物理文件去重，全站包含未被页面引用的构建资源；未知项单独计数，Markdown 显示 `+ N unknown`，JSON 的 `knownBytes`／`knownBrotliBytes` 只表示已知部分。这里统计的是资源集合体积，不是 Cloudflare 实测传输量或用户单次访问流量。
+
+### 单机缓存探测
+
+`cache:probe` 每次运行开始时下载一次 `https://sshawn9.com/resource-inventory.json`，整个运行使用这份生产部署清单，不构建、不爬取页面、不清缓存，也不更改部署。下载失败或内容无效就报错，不回退到本地清单。可用 `--inventory PATH|URL` 显式指定本地文件或 HTTP(S) 地址；不要求运行机器上有 `dist`，也不需要 GitHub 凭据。使用项目 Node 环境与 npm 安装的 Undici，只探测清单内的本站资源（包含 HTML），完整保留查询参数；外站资源单独列为未探测项。没有接入 GitHub Actions 自动预热或 Globalping。
+
+生产 CI 在构建和测试通过后运行 `npm run inventory`，再把 JSON 放进同一份 `dist` 部署产物。清单与网站一起切换生产版本，不另维护“最新 CI 产物”指针；失败的构建或尚未上线的产物不会通过该生产地址提供。清单地址设置 `Cache-Control: no-store`，不复用客户端保存的旧清单；Cloudflare 的静态资源与 Worker 随同一次部署发布，见[官方说明](https://developers.cloudflare.com/workers/static-assets/#how-it-works)。清单是打包时附加的部署元数据，不把自身列为待预热资源；本地 `inventory` 命令仍只生成 `.reports` 报告。首次部署这项改动之前，生产清单地址尚不存在。
+
+```sh
+npm run cache:probe
+npm run cache:probe -- --hit-streak 3 --max-attempts 8
+just cache-probe --concurrency 1
+npm run cache:probe -- --inventory /path/to/deployed-resource-inventory.json
+```
+
+每个资源在该出口 IP 下最近连续 N 次实际探测均完整下载、HTTP 状态符合预期、`CF-Cache-Status` 为 `HIT`，且 `CF-Ray` 的机房代码相同且已知，就跳过。默认 N 为 2，`--hit-streak N` 可逐次运行调整；跳过不计作新 HIT，也不改最后测量时间。明确标识的 404 页面接受 HTTP 200/404，其他资源要求 HTTP 200。历史不自动过期，因此历史达标不等于当前缓存仍然命中，也不验证该 URL 是否已切换到新部署。
+
+每轮只请求尚未达标且未耗尽本次尝试次数的资源，每项一次；单个资源本次默认最多尝试 3 次（`--max-attempts N`）。达到历史命中条件，或剩余项都耗尽次数时结束。不再提供固定轮数、总时限或轮间隔；单请求超时默认 20 秒（`--request-timeout SEC`），超时、失败及 429 都消耗一次尝试，下一轮再试。
+
+默认最多同时进行 2 个资源请求（`--concurrency N`）。并发池未满时，仅保留一个补位计时器，每次独立随机等待 1–3 秒后加入一个请求；池满时取消计时，满转不满时重新等待完整间隔。未满期间已有请求完成不重置计时。可用 `--interval-min SEC`、`--interval-max SEC` 调整范围。随机间隔用于节流，不保证不会被安全规则拦截。
+
+资源请求收到 429 响应头就暂停新资源请求，已发出的请求继续收尾。有效 `Retry-After` 指定等待秒数或日期；缺失或无效时等待 60 秒，多个暂停期限取最晚值。暂停到期后重新等待完整补位间隔；期限写入该 IP 的历史，重跑时该 IP 的资源请求继续遵守尚未到期的暂停。403 或 Cloudflare challenge 停止本次运行，不尝试绕过。没有总时限，遇到很长的服务器等待要求时可用 Ctrl-C 结束。
+
+同一次运行共用 Undici 连接池，跨资源及轮次复用 HTTP/1.1 长连接。禁用 HTTP/2 是为了避免其协议级自动重发绕过调度与尝试次数；不跟随重定向、不携带登录信息、不加绕缓存参数。正文完整接收并解压验证后丢弃。代理沿用 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 回退及 `NO_PROXY`（小写变量优先），由客户端原生处理支持的 HTTP(S)/SOCKS5 代理，不静默改变出口。Undici 官方解压器目前首次使用会输出一次实验性功能提示。
+
+结果保存在 `apps/site/.reports/cache-probe/<egress-ip>/`，IPv6 文件夹名将冒号替换为下划线；`--output PATH` 可改父目录。相同出口的多次运行共用追加式 `events.jsonl` 和增量 `report.json`／`report.md`，每个资源完成后更新。每次运行有自己的 `run-<id>.json`，每轮的 `round-<run-id>-<number>.json`／`.md` 都保留。请求开始只追加日志，不重写报表；资源结果、暂停和结束时更新报表。重开目录时回放日志、比较报表内容，只重写缺失或不一致的文件。汇总展示各资源最近一次真实结果和连续 HIT 数，轮报告单独标记跳过、未请求和尝试耗尽，不用历史 HIT 冒充本轮测量。
+
+同一 IP 目录不允许两个进程同时写入。SIGINT/SIGTERM 会取消活动请求、保存未完成轮次并释放连接和锁；SIGKILL 后下次打开目录会从日志重建汇总，但须先确认原进程已退出，再移除残留 `.lock`。日志损坏会明确报错，不静默丢弃历史。文件系统写入或关闭失败时以非零退出码和终端错误为准，落盘报告可能未反映最终收尾错误。
+
+出口 IP/国家通过同域 `/cdn-cgi/trace` 在每次运行开始时查询一次，整次运行使用这个 IP 归档，不再逐轮查询。出口查询不加入资源的重试或 429 暂停策略，失败就停止；运行期间不重新确认出口。逐资源记录 `CF-Ray` 的机房代码，不据此推断完整缓存链路。报告中的清单 buildId 不代表已核验线上版本；Static Assets 的 HIT/MISS 也存在平台误报边界，见 [Cloudflare 说明](https://developers.cloudflare.com/workers/static-assets/headers/#footnotes)。
+
+报告记录输入清单的 URL 或文件路径、实际解析的 JSON 字节数及 SHA-256，以及各资源的 HTTP、缓存状态、机房、连接复用、实际 socket IP、编码及解码字节数、响应头到达时间和完整下载时间。计时从资源请求交给客户端开始，不含补位或清单下载等待；需要建连时包含建连耗时，不是纯服务端耗时。不输出无法可靠获取的独立 DNS、建连、TLS 或排队耗时。
+
+退出码：`0` 为当前资源均达到历史命中条件，`2` 为尝试耗尽仍未达标，`3` 为访问被拦截，`1` 为执行错误，`130`/`143` 为 SIGINT/SIGTERM 中断。报告包含公网 IP、主机标识和 URL，不自动上传；对外分享前自行检查。
 
 ## 国际化
 

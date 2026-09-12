@@ -14,6 +14,7 @@
     "dev": "cd apps/site && SITE_MODE=${SITE_MODE:-preview} ASTRO_DEV_BACKGROUND=0 astro dev --config astro.local.config.mjs --host 127.0.0.1 --port ${SITE_PORT:-4332}",
     "build": "npm run build --workspace @sshawn9/site",
     "inventory": "node apps/site/tools/resource-inventory/cli.mjs",
+    "cache:probe": "node apps/site/tools/cache-probe/cli.mjs",
     "preview": "export SITE_MODE=${SITE_MODE:-preview}; npm run build && cd apps/site && ASTRO_PREVIEW_BACKGROUND=0 astro preview --config astro.local.config.mjs --host 127.0.0.1 --port ${SITE_PORT:-4333}",
     "worker:dev": "wrangler dev --assets apps/site/public --ip 127.0.0.1 --port ${SITE_WORKER_PORT:-8787} --local --show-interactive-dev-session=false",
     "test": "export SITE_MODE=${SITE_MODE:-preview}; vitest run && npm run build && playwright test",
@@ -35,6 +36,7 @@
     "prettier": "^3.9.6",
     "prettier-plugin-astro": "^0.14.1",
     "typescript": "^6.0.3",
+    "undici": "^8.10.2",
     "vega": "^6.4.0",
     "vitest": "^5.0.0",
     "wrangler": "4.129.0"
