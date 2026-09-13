@@ -33,8 +33,6 @@ export function createArticleTocController(
   sourceWindow: Window,
 ): ArticleTocController {
   const listeners = new AbortController();
-  const mobileToc = article.querySelector<HTMLElement>('[data-article-mobile-toc]');
-  const mobileToggle = article.querySelector<HTMLButtonElement>('[data-article-mobile-toc-toggle]');
   let frame = 0;
   let pendingTarget: { slug: string; y: number } | undefined;
 
@@ -75,15 +73,22 @@ export function createArticleTocController(
     pendingTarget = { slug, y: Math.min(maximumY, Math.max(0, requestedY)) };
     setActiveArticleToc(sourceDocument, slug);
 
-    if (mobileToc?.matches(':popover-open')) mobileToc.hidePopover();
+    // Only activating a link inside the mobile TOC can close that popover.
+    // Desktop TOC interactions do not depend on the Popover API.
+    const mobileToc = link.closest<HTMLElement>('[data-article-mobile-toc]');
+    if (
+      mobileToc &&
+      typeof mobileToc.hidePopover === 'function' &&
+      !event.defaultPrevented &&
+      event.button === 0 &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.shiftKey &&
+      !event.altKey
+    ) {
+      mobileToc.hidePopover();
+    }
     scheduleReconcile();
-  };
-
-  const synchronizeMobileDisclosure = () => {
-    mobileToggle?.setAttribute(
-      'aria-expanded',
-      String(Boolean(mobileToc?.matches(':popover-open'))),
-    );
   };
 
   article.addEventListener('click', handleClick, { signal: listeners.signal });
@@ -111,12 +116,7 @@ export function createArticleTocController(
     },
     { signal: listeners.signal },
   );
-  mobileToc?.addEventListener('toggle', synchronizeMobileDisclosure, {
-    signal: listeners.signal,
-  });
-
   synchronizeArticleToc(sourceDocument, sourceWindow);
-  synchronizeMobileDisclosure();
 
   return {
     destroy() {

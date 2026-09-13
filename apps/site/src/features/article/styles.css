@@ -417,8 +417,10 @@ html[data-article-sidebar-collapsed]
   cursor: pointer;
 }
 
-.article-version-compare-toggle[aria-expanded='true'] span,
-.article-mobile-toc-toggle[aria-expanded='true'] span {
+.article-version-compare:has(> .article-popover:popover-open)
+  > .article-version-compare-toggle
+  span,
+.article-mobile-toc-module:has(> .article-popover:popover-open) > .article-mobile-toc-toggle span {
   transform: rotate(180deg);
 }
 

@@ -4,10 +4,6 @@ import {
 } from './article-sidebar-controller';
 import { createArticleTocController, type ArticleTocController } from './article-toc-controller';
 import {
-  createArticlePopoverController,
-  type ArticlePopoverController,
-} from './article-popover-controller';
-import {
   createArticleMediaController,
   type ArticleMediaController,
 } from './article-media-controller';
@@ -30,14 +26,12 @@ function createArticlePageController(
     sourceDocument,
     sourceWindow,
   );
-  const popoverController: ArticlePopoverController = createArticlePopoverController(article);
   const mediaController: ArticleMediaController = createArticleMediaController(article);
 
   article.setAttribute('data-article-runtime-ready', '');
   return {
     destroy() {
       tocController.destroy();
-      popoverController.destroy();
       mediaController.destroy();
       sidebarController?.destroy();
       article.removeAttribute('data-article-runtime-ready');
