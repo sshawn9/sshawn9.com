@@ -16,6 +16,16 @@ export type FoundationCopy = {
   searchPageTitle: string;
   searchPageDescription: string;
   searchPlaceholder: string;
+  searchInputLabel: string;
+  searchInputHint: string;
+  searchClear: string;
+  searchResultsLabel: string;
+  searchSearchingTemplate: string;
+  searchZeroResultsTemplate: string;
+  searchOneResultTemplate: string;
+  searchManyResultsTemplate: string;
+  searchLoading: string;
+  searchError: string;
   searchEmptyTitle: string;
   searchEmptyDescription: string;
   searchUnavailableTitle: string;
@@ -118,6 +128,19 @@ export function getFoundationCopy(locale: Locale): FoundationCopy {
     searchPageTitle: staticMessage(m.search_page_title),
     searchPageDescription: staticMessage(m.search_page_description),
     searchPlaceholder: staticMessage(m.search_placeholder),
+    searchInputLabel: staticMessage(m.search_input_label),
+    searchInputHint: staticMessage(m.search_input_hint),
+    searchClear: staticMessage(m.search_clear),
+    searchResultsLabel: staticMessage(m.search_results_label),
+    searchSearchingTemplate: m.search_searching({ query: '{query}' }, options),
+    searchZeroResultsTemplate: m.search_zero_results({ query: '{query}' }, options),
+    searchOneResultTemplate: m.search_one_result({ query: '{query}' }, options),
+    searchManyResultsTemplate: m.search_many_results(
+      { query: '{query}', count: '{count}' },
+      options,
+    ),
+    searchLoading: staticMessage(m.search_loading),
+    searchError: staticMessage(m.search_error),
     searchEmptyTitle: staticMessage(m.search_empty_title),
     searchEmptyDescription: staticMessage(m.search_empty_description),
     searchUnavailableTitle: staticMessage(m.search_unavailable_title),

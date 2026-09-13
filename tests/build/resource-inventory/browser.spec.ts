@@ -110,6 +110,8 @@ test('inventory matches the built document identity and has complete local Pagef
   expect(search).toContain(
     new URL(`/pagefind/pagefind-entry.json?ts=${inventory.buildId}`, inventory.site).href,
   );
+  expect(search).toContain(new URL('/pagefind/pagefind.js', inventory.site).href);
+  expect(search).not.toContain(new URL('/pagefind/pagefind-component-ui.js', inventory.site).href);
   expect(
     inventory.resources.some((resource) => resource.file?.startsWith('pagefind/fragment/')),
   ).toBe(true);
@@ -213,7 +215,7 @@ test('sampled runtime asset requests remain within inventory associations', asyn
   );
   await expectRequestsAreAssociated(search, '/en/search/', async () => {
     await expect(search.locator('[data-site-search]')).toHaveAttribute('data-search-ready', '');
-    await search.locator('[data-site-search] .pf-input').fill('gith');
+    await search.locator('[data-site-search] input[type="search"]:enabled').fill('gith');
     await fragment;
     await expect(search.locator('.site-search-result__link').first()).toBeVisible();
   });

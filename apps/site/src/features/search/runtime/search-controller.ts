@@ -3,41 +3,12 @@ import type { PageController, PageNavigation, PageView } from '../../../runtime/
 import { prepareRequiredFonts } from '../../../runtime/required-fonts';
 import { createSearchQueryUrl, normalizeSearchQuery, readSearchQuery } from './search-query-state';
 import { createSearchResultsView, type SearchResultsView } from './search-results-view';
+import {
+  createPagefindClient,
+  getDisplaySubResults,
+  type PagefindResponse,
+} from './pagefind-client';
 
-type PagefindSection = { url: string; title: string; excerpt: string };
-type PagefindResult = {
-  url: string;
-  meta: Record<string, string | undefined>;
-  excerpt: string;
-  sub_results?: PagefindSection[];
-};
-type PagefindResponse = { results: Array<{ data(): Promise<PagefindResult> }> };
-
-/** Only the public Component UI capabilities used by this page. */
-type PagefindInstance = {
-  getInputs(): HTMLElement[];
-  registerResults(
-    element: HTMLElement,
-    capabilities: {
-      keyboardNavigation: boolean;
-      announcements: boolean;
-    },
-  ): void;
-  on(event: 'search', callback: (query: string) => void, owner: Element): void;
-  on(event: 'results', callback: (result: PagefindResponse) => void, owner: Element): void;
-  on(event: 'error', callback: () => void, owner: Element): void;
-  triggerSearch(query: string): void;
-  translate(key: string, values?: Record<string, string | number>): string;
-  announceRaw(message: string, priority: 'polite'): void;
-  getDisplaySubResults(result: PagefindResult, limit: number): PagefindSection[];
-};
-type PagefindInstanceManager = {
-  getInstance(name: string): PagefindInstance;
-  removeInstance(name: string): void;
-};
-type SearchWindow = Window & {
-  PagefindComponents?: { getInstanceManager(): PagefindInstanceManager };
-};
 type SearchJob = {
   query: string;
   controller: AbortController;
@@ -46,9 +17,9 @@ type SearchJob = {
   loading?: Promise<void>;
 };
 
-const COMPONENT_CONNECTION_TIMEOUT_MS = 5_000;
 const SEARCH_RESPONSE_TIMEOUT_MS = 10_000;
 const SEARCH_LOADING_HINT_DELAY_MS = 200;
+const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_BATCH_SIZE = 10;
 
 function createSearchPageController(
@@ -59,20 +30,18 @@ function createSearchPageController(
   initialScrollRestoration?: ReturnType<typeof readCurrentScroll>,
 ): PageController {
   const listeners = new AbortController();
-  const instanceName = root.dataset.searchInstance ?? 'default';
   const loading = root.querySelector<HTMLElement>('[data-search-loading]');
   const interactive = root.querySelector<HTMLElement>('[data-search-interactive]');
   const fallback = root.querySelector<HTMLElement>('[data-search-fallback]');
-  let instanceManager: PagefindInstanceManager | undefined;
+  let client: ReturnType<typeof createPagefindClient> | undefined;
   let view: SearchResultsView | undefined;
   let destroyed = false;
   let failed = false;
   let composing = false;
   let responseTimer = 0;
   let hintTimer = 0;
-  // The input can supersede a search before Pagefind's debounce submits its successor.
+  let debounceTimer = 0;
   let currentJob: SearchJob | undefined;
-  let submittedJob: SearchJob | undefined;
   let pendingScrollRestoration = initialScrollRestoration ?? readCurrentScroll(sourceWindow);
   let applyViewUrl: ((url: URL) => void) | undefined;
   const pageView: PageView = {
@@ -97,34 +66,29 @@ function createSearchPageController(
   const invalidate = () => {
     currentJob?.controller.abort();
     currentJob = undefined;
+    sourceWindow.clearTimeout(debounceTimer);
     clearTimers();
-  };
-
-  const removeInstance = () => {
-    instanceManager?.removeInstance(instanceName);
-    instanceManager = undefined;
   };
 
   const showFailure = () => {
     if (destroyed || failed) return;
     failed = true;
+    sourceWindow.clearTimeout(startupTimer);
     invalidate();
     listeners.abort();
     view?.destroy();
-    removeInstance();
+    client?.destroy();
     loading?.setAttribute('hidden', '');
     interactive?.setAttribute('hidden', '');
     fallback?.removeAttribute('hidden');
     root.removeAttribute('data-search-ready');
     root.setAttribute('data-search-failed', '');
   };
-
-  const connectionTimer = sourceWindow.setTimeout(showFailure, COMPONENT_CONNECTION_TIMEOUT_MS);
+  const startupTimer = sourceWindow.setTimeout(showFailure, SEARCH_RESPONSE_TIMEOUT_MS);
 
   const reflectQuery = (query: string) => {
     const nextUrl = createSearchQueryUrl(new URL(sourceWindow.location.href), query);
-    if (nextUrl.href === sourceWindow.location.href) return;
-    navigation.replaceViewUrl(nextUrl);
+    if (nextUrl.href !== sourceWindow.location.href) navigation.replaceViewUrl(nextUrl);
   };
 
   const restorePendingScroll = () => {
@@ -139,95 +103,102 @@ function createSearchPageController(
   };
 
   const connect = async () => {
-    // A local enhancement must not block Astro's document script queue. Its
-    // existing connection timeout owns failure; the native module cache dedupes.
-    const componentUrl = new URL('/pagefind/pagefind-component-ui.js', sourceWindow.location.href)
-      .href;
-    await Promise.all([
-      import(/* @vite-ignore */ componentUrl),
-      sourceWindow.customElements.whenDefined('pagefind-config'),
-      sourceWindow.customElements.whenDefined('pagefind-input'),
-    ]);
-    if (destroyed || failed) return;
-
-    const components = (sourceWindow as SearchWindow).PagefindComponents;
-    const pagefindInput = root.querySelector<HTMLElement>('pagefind-input');
-    const input = pagefindInput?.querySelector<HTMLInputElement>('input');
-    if (!components || !pagefindInput || !input) {
+    const input = root.querySelector<HTMLInputElement>('[data-search-input]');
+    const clear = root.querySelector<HTMLButtonElement>('[data-search-clear]');
+    const announcement = root.querySelector<HTMLElement>('[data-search-announcement]');
+    if (
+      !input ||
+      !clear ||
+      !announcement ||
+      !root.dataset.searchBundle ||
+      !root.dataset.searchGeneration
+    ) {
       showFailure();
       return;
     }
-
-    instanceManager = components.getInstanceManager();
-    const instance = instanceManager.getInstance(instanceName);
-    if (!instance.getInputs().includes(pagefindInput)) {
-      showFailure();
-      return;
-    }
-
+    const message = (name: string, values: Record<string, string | number> = {}) => {
+      const template = root.getAttribute('data-search-' + name) ?? '';
+      return template.replace(/{(query|count)}/g, (match, key: string) =>
+        String(values[key] ?? match),
+      );
+    };
     const resultsView = createSearchResultsView(root, input, {
-      announce: (message) => instance.announceRaw(message, 'polite'),
+      announce: (text) => {
+        announcement.textContent = text;
+      },
       loadMore: () => loadBatch(currentJob),
     });
     view = resultsView;
-    resultsView.element.setAttribute('aria-label', instance.translate('results_label'));
-    instance.registerResults(resultsView.element, {
-      keyboardNavigation: true,
-      announcements: true,
-    });
+    client = createPagefindClient(
+      new URL(root.dataset.searchBundle, sourceWindow.location.href),
+      root.dataset.searchGeneration,
+    );
+    const engine = client;
 
     const failJob = (job: SearchJob) => {
       if (!isCurrent(job)) return;
       job.controller.abort();
       clearTimers();
-      // A failed refinement must not remove a previously usable search.
-      if (resultsView.query) resultsView.fail(instance.translate('error_search'));
+      if (resultsView.query) resultsView.fail(message('error-message'));
       else showFailure();
     };
-
-    const startWait = (job: SearchJob, message: string) => {
+    const startWait = (job: SearchJob, text: string) => {
       clearTimers();
       hintTimer = sourceWindow.setTimeout(() => {
-        if (isCurrent(job)) resultsView.showLoading(message);
+        if (isCurrent(job)) resultsView.showLoading(text);
       }, SEARCH_LOADING_HINT_DELAY_MS);
       responseTimer = sourceWindow.setTimeout(() => failJob(job), SEARCH_RESPONSE_TIMEOUT_MS);
     };
 
-    const selectQuery = (rawQuery: string, preserveScroll = false) => {
+    const search = async (job: SearchJob) => {
+      if (!isCurrent(job)) return;
+      startWait(job, message('searching-template', { query: job.query }));
+      try {
+        const instance = await engine.ready;
+        if (!isCurrent(job) || !instance) return;
+        const response = await instance.search(job.query);
+        if (!isCurrent(job)) return;
+        job.response = response;
+        await loadBatch(job);
+      } catch {
+        failJob(job);
+      }
+    };
+
+    const selectQuery = (rawQuery: string, immediate = false, preserveScroll = false) => {
       if (destroyed || failed) return;
       const query = normalizeSearchQuery(rawQuery);
-      reflectQuery(query);
+      clear.hidden = input.value.length === 0;
       if (isCurrent(currentJob) && currentJob.query === query) return;
       invalidate();
       if (!preserveScroll) pendingScrollRestoration = undefined;
       if (!query) {
+        announcement.textContent = '';
         resultsView.clear();
         restorePendingScroll();
         return;
       }
-      currentJob = { query, controller: new AbortController(), rendered: 0 };
+      const job: SearchJob = { query, controller: new AbortController(), rendered: 0 };
+      currentJob = job;
       resultsView.pending();
+      if (immediate) void search(job);
+      else debounceTimer = sourceWindow.setTimeout(() => void search(job), SEARCH_DEBOUNCE_MS);
     };
 
     function loadBatch(job: SearchJob | undefined): Promise<void> {
       if (!isCurrent(job) || !job.response) return Promise.resolve();
       if (job.loading) return job.loading;
-      if (job.rendered > 0 && job.rendered >= job.response.results.length) {
-        return Promise.resolve();
-      }
-
+      if (job.rendered > 0 && job.rendered >= job.response.results.length) return Promise.resolve();
       const hits = job.response.results;
       const append = job.rendered > 0;
-      // History needs complete geometry before restoring a deep scroll position.
-      // Normal searches retain bounded, on-demand batches.
+      // Restore deep history positions only after the required result geometry exists.
       const size = pendingScrollRestoration?.page.y
         ? hits.length
         : append
           ? SEARCH_BATCH_SIZE
           : Math.max(SEARCH_BATCH_SIZE, resultsView.count);
       const batch = hits.slice(job.rendered, job.rendered + size);
-      if (append) startWait(job, instance.translate('loading'));
-
+      if (append) startWait(job, message('loading-message'));
       job.loading = (async () => {
         const items = await Promise.all(
           batch.map(async (hit) => {
@@ -238,7 +209,7 @@ function createSearchPageController(
               type: data.meta.type ?? '',
               published: data.meta.published ?? '',
               excerpt: data.excerpt,
-              sections: instance.getDisplaySubResults(data, 3),
+              sections: getDisplaySubResults(data),
             };
           }),
         );
@@ -249,14 +220,12 @@ function createSearchPageController(
           signal: job.controller.signal,
         });
         if (!isCurrent(job)) return;
-
         const key =
-          hits.length === 0 ? 'zero_results' : hits.length === 1 ? 'one_result' : 'many_results';
-        const summary = instance.translate(key, { SEARCH_TERM: job.query, COUNT: hits.length });
+          hits.length === 0 ? 'zero-results' : hits.length === 1 ? 'one-result' : 'many-results';
+        const summary = message(key + '-template', { query: job.query, count: hits.length });
         clearTimers();
         resultsView.commit(job.query, hits.length, prepared, summary, append);
         job.rendered += batch.length;
-
         restorePendingScroll();
       })()
         .catch(() => failJob(job))
@@ -266,44 +235,48 @@ function createSearchPageController(
       return job.loading;
     }
 
-    instance.on(
-      'search',
-      (rawQuery) => {
-        if (composing || normalizeSearchQuery(rawQuery) !== normalizeSearchQuery(input.value))
-          return;
-        selectQuery(rawQuery, true);
-        const job = currentJob;
-        if (!isCurrent(job) || submittedJob === job) return;
-        submittedJob = job;
-        startWait(job, instance.translate('searching', { SEARCH_TERM: job.query }));
-      },
-      root,
-    );
-
-    instance.on(
-      'results',
-      (response) => {
-        const job = submittedJob;
-        if (!isCurrent(job) || job.response) return;
-        job.response = response;
-        void loadBatch(job);
-      },
-      root,
-    );
-    instance.on(
-      'error',
-      () => {
-        if (isCurrent(currentJob)) failJob(currentJob);
-        else if (!resultsView.query) showFailure();
-      },
-      root,
-    );
-
-    // Invalidate on input, before Pagefind's debounce can submit the next search.
+    const submitInput = (immediate = false) => {
+      reflectQuery(input.value);
+      selectQuery(input.value, immediate);
+    };
+    const clearQuery = () => {
+      input.value = '';
+      submitInput(true);
+      input.focus();
+    };
+    clear.addEventListener('click', clearQuery, { signal: listeners.signal });
     input.addEventListener(
       'input',
       () => {
-        if (!composing) selectQuery(input.value);
+        clear.hidden = input.value.length === 0;
+        if (!composing) submitInput();
+      },
+      { signal: listeners.signal },
+    );
+    input.addEventListener(
+      'keydown',
+      (event) => {
+        if (
+          event.isComposing ||
+          composing ||
+          event.defaultPrevented ||
+          event.altKey ||
+          event.ctrlKey ||
+          event.metaKey
+        )
+          return;
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          clearQuery();
+        } else if (event.key === 'ArrowDown') {
+          const first = Array.from(
+            resultsView.element.querySelectorAll<HTMLAnchorElement>('a[href]'),
+          ).find((link) => link.getClientRects().length > 0);
+          if (first) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
       },
       { signal: listeners.signal },
     );
@@ -320,27 +293,26 @@ function createSearchPageController(
       'compositionend',
       () => {
         composing = false;
-        selectQuery(input.value);
-        instance.triggerSearch(input.value);
+        submitInput(true);
       },
       { signal: listeners.signal },
     );
 
     applyViewUrl = (url) => {
-      const query = readSearchQuery(url);
-      input.value = query;
-      selectQuery(query, true);
-      instance.triggerSearch(query);
+      // Applying an existing URL does not write history. PageRuntime owns
+      // initial canonicalization, after this controller has been registered.
+      input.value = readSearchQuery(url);
+      selectQuery(input.value, true, true);
     };
-
-    sourceWindow.clearTimeout(connectionTimer);
     applyViewUrl(new URL(sourceWindow.location.href));
     loading?.setAttribute('hidden', '');
     fallback?.setAttribute('hidden', '');
     interactive?.removeAttribute('hidden');
     root.setAttribute('data-search-ready', '');
+    // Inputs and navigation are usable while the index prepares asynchronously.
+    await engine.ready;
+    sourceWindow.clearTimeout(startupTimer);
   };
-
   void connect().catch(showFailure);
 
   return {
@@ -348,11 +320,11 @@ function createSearchPageController(
     destroy() {
       if (destroyed) return;
       destroyed = true;
-      sourceWindow.clearTimeout(connectionTimer);
+      sourceWindow.clearTimeout(startupTimer);
       invalidate();
       listeners.abort();
       view?.destroy();
-      removeInstance();
+      client?.destroy();
     },
   };
 }

@@ -129,11 +129,12 @@ export async function readHtmlReferences(html) {
       add(attrs['renderer-url']);
       if (attrs['component-url'])
         islands.push({ componentUrl: attrs['component-url'], props: attrs.props ?? '' });
-    } else if (tag === 'pagefind-config' && attrs['bundle-path']) {
+    } else if ('data-site-search' in attrs && attrs['data-search-bundle']) {
       pagefind = {
-        bundlePath: attrs['bundle-path'],
-        language: attrs.lang ?? document.documentElement.lang ?? 'en',
-        cacheTag: attrs['meta-cache-tag'] ?? null,
+        bundlePath: attrs['data-search-bundle'],
+        // Pagefind createInstance selects its index from the document language.
+        language: (document.documentElement.lang || 'unknown').toLowerCase(),
+        cacheTag: attrs['data-search-generation'] ?? null,
       };
     }
     // Template and noscript assets belong to the page, regardless of when used.

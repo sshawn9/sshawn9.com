@@ -10,24 +10,25 @@ interface Props {
 
 const { locale } = Astro.props;
 const copy = getFoundationCopy(locale);
-const instanceName = `site-${locale}`;
-const languageTag = locale === 'zh' ? 'zh-cn' : 'en';
+const inputId = `search-input-${locale}`;
+const inputHintId = `search-input-hint-${locale}`;
+const resultsId = `search-results-${locale}`;
 ---
 
 <div
   class="site-search-panel"
   data-site-search
-  data-search-instance={instanceName}
   data-search-path={`/${locale}/search/`}
   data-search-generation={CURRENT_BUILD_ID}
+  data-search-bundle="/pagefind/"
+  data-search-searching-template={copy.searchSearchingTemplate}
+  data-search-zero-results-template={copy.searchZeroResultsTemplate}
+  data-search-one-result-template={copy.searchOneResultTemplate}
+  data-search-many-results-template={copy.searchManyResultsTemplate}
+  data-search-loading-message={copy.searchLoading}
+  data-search-error-message={copy.searchError}
 >
-  <pagefind-config
-    instance={instanceName}
-    lang={languageTag}
-    bundle-path="/pagefind/"
-    excerpt-length="36"
-    meta-cache-tag={CURRENT_BUILD_ID}
-    preload></pagefind-config>
+  <span class="sr-only" data-search-announcement aria-live="polite" aria-atomic="true"></span>
 
   <div class="site-search-loading" data-search-loading role="status" hidden>
     <input
@@ -41,7 +42,29 @@ const languageTag = locale === 'zh' ? 'zh-cn' : 'en';
   </div>
 
   <div class="site-search__interactive" data-search-interactive hidden>
-    <pagefind-input instance={instanceName} placeholder={copy.searchPlaceholder}></pagefind-input>
+    <search class="site-search-input-wrapper" role="search" aria-label={copy.searchInputLabel}>
+      <label class="sr-only" for={inputId}>{copy.searchInputLabel}</label>
+      <svg class="site-search-input-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="10.5" cy="10.5" r="7.5"></circle>
+        <path d="m16 16 5 5"></path>
+      </svg>
+      <input
+        id={inputId}
+        class="site-search-input"
+        data-search-input
+        type="search"
+        autocomplete="off"
+        autocapitalize="none"
+        enterkeyhint="search"
+        placeholder={copy.searchPlaceholder}
+        aria-describedby={inputHintId}
+        aria-controls={resultsId}
+      />
+      <span id={inputHintId} class="sr-only">{copy.searchInputHint}</span>
+      <button class="site-search-clear" type="button" data-search-clear hidden>
+        {copy.searchClear}
+      </button>
+    </search>
 
     <div class="site-search__context">
       <p class="site-search__summary" data-search-summary></p>
@@ -55,10 +78,10 @@ const languageTag = locale === 'zh' ? 'zh-cn' : 'en';
 
     <div
       class="site-search-results"
-      id={`search-results-${locale}`}
+      id={resultsId}
       data-search-results
       role="region"
-      aria-label={copy.searchPageTitle}
+      aria-label={copy.searchResultsLabel}
     >
       <ol class="site-search-list" data-search-list></ol>
       <ol class="site-search-list" data-search-placeholder aria-hidden="true" hidden>

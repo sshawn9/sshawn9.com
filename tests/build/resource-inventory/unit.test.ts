@@ -497,14 +497,21 @@ describe('resource inventory', () => {
   });
 
   it('scopes Pagefind output to the page language and selected metadata hash', async () => {
+    const document = (language: string, body: string) =>
+      `<html lang="${language}"><head><meta name="site-font-query" content="400 1em var(--font-test)"><link rel="stylesheet" href="/font.css"></head><body data-font-surface>${body}</body></html>`;
+    const searchRoot =
+      '<div data-site-search data-search-bundle="/pagefind/" data-search-generation="test-build"><input type="search"></div>';
     const files = {
-      'en/search/index.html':
-        '<pagefind-config bundle-path="/pagefind/" lang="en" meta-cache-tag="test-build">',
-      'zh/search/index.html':
-        '<pagefind-config bundle-path="/pagefind/" lang="zh-cn" meta-cache-tag="test-build">',
-      'article/index.html': '<title>Article</title>',
+      'en/search/index.html': document('en', searchRoot),
+      'zh/search/index.html': document('zh-CN', searchRoot),
+      'article/index.html': document('en', '<h1>Article</h1>'),
+      'font.css':
+        ':root{--font-test:"Input Font","Noto Sans SC Variable"}@font-face{font-family:"Input Font";src:url(/latin.woff2);unicode-range:U+0-FF}@font-face{font-family:"Noto Sans SC Variable";src:url(/han.woff2);unicode-range:U+4E00-9FFF}@font-face{font-family:"KaTeX_Main";src:url(/math.woff2)}',
+      'latin.woff2': 'latin',
+      'han.woff2': 'han',
+      'math.woff2': 'math',
       'pagefind/fallback-ui.js': '',
-      'pagefind/pagefind-component-ui.js': 'const source = "pagefind.js";',
+      'pagefind/pagefind-component-ui.js': 'import(componentUiPath);',
       'pagefind/pagefind.js':
         'const backgroundScript = "pagefind-worker.js"; new Worker( backgroundScript );',
       'pagefind/pagefind-worker.js': '',
@@ -532,6 +539,8 @@ describe('resource inventory', () => {
     const chinese = report.pageResources['https://site.test/zh/search/'];
     expect(english).toEqual(
       expect.arrayContaining([
+        'https://site.test/pagefind/pagefind-entry.json?ts=test-build',
+        'https://site.test/pagefind/pagefind.js',
         'https://site.test/pagefind/pagefind.enhash.pf_meta',
         'https://site.test/pagefind/fragment/en_a.pf_fragment',
         'https://site.test/pagefind/pagefind-worker.js',
@@ -542,7 +551,24 @@ describe('resource inventory', () => {
     expect(chinese).not.toContain('https://site.test/article/');
     expect(chinese).not.toContain('https://site.test/pagefind/fallback-ui.js');
     expect(english).not.toContain('https://site.test/pagefind/pagefind-ui.js');
+    for (const resources of [english, chinese]) {
+      expect(resources).not.toContain('https://site.test/pagefind/pagefind-component-ui.js');
+      expect(resources).not.toContain('https://site.test/pagefind/pagefind-modular-ui.js');
+      expect(resources).toContain('https://site.test/han.woff2');
+      expect(resources).not.toContain('https://site.test/math.woff2');
+    }
+    expect(report.pageResources['https://site.test/article/']).not.toContain(
+      'https://site.test/han.woff2',
+    );
+    expect(report.resourcePages['https://site.test/pagefind/pagefind-component-ui.js']).toEqual([]);
     expect(report.diagnostics).toEqual([]);
+
+    const withoutComponentUi = Object.fromEntries(
+      Object.entries(files).filter(([file]) => file !== 'pagefind/pagefind-component-ui.js'),
+    );
+    expect((await createResourceInventory(await fixture(withoutComponentUi))).diagnostics).toEqual(
+      [],
+    );
 
     // Missing one shard must fail even while other shards still exist.
     for (const file of [

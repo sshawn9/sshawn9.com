@@ -9,7 +9,7 @@ Shawn 的个人网站，用于展示项目、发布博客和个人介绍。站�
 - Astro：静态生成与官方 ClientRouter
 - Astro Content Collections：具有类型约束的文章与项目内容
 - Paraglide JS：类型安全的中英文界面文案
-- Pagefind Component UI：构建时生成的多语言全站搜索
+- Pagefind：构建时生成的多语言全站搜索，本站界面直接调用查询 API
 - 按功能归属的 CSS 与 TypeScript 控制器：布局、导航、列表和目录增强
 - 隔离的 SolidJS 岛：研究图形与复杂局部交互
 - Diff2Html 与 jsdiff：按需比较文章的完整历史版本
