@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-for (const resource of ['pagefind.js', 'pagefind-component-ui.js', 'pagefind-entry.json']) {
+for (const resource of ['pagefind.js', 'pagefind-entry.json']) {
   test(`${resource} failure restores a usable static route out of search`, async ({ page }) => {
     await page.route(`**/pagefind/${resource}*`, (route) => route.abort());
     await page.goto('/en/search/?q=website');
@@ -20,14 +20,14 @@ for (const resource of ['pagefind.js', 'pagefind-component-ui.js', 'pagefind-ent
 }
 
 for (const entry of ['cold', 'client'] as const) {
-  test(`a stalled component cannot trap ${entry} search entry or revive its failed view`, async ({
+  test(`a stalled engine cannot trap ${entry} search entry or revive its failed view`, async ({
     page,
   }) => {
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    await page.route('**/pagefind/pagefind-component-ui.js', async (route) => {
+    await page.route('**/pagefind/pagefind.js', async (route) => {
       await gate;
       await route.continue();
     });
@@ -46,8 +46,11 @@ for (const entry of ['cold', 'client'] as const) {
       await expect(page.locator('[data-search-fallback]')).toBeVisible();
       await expect(page.locator('[data-search-loading]')).toBeHidden();
       release();
-      await page.evaluate(() => customElements.whenDefined('pagefind-input').then(() => undefined));
-      // Late custom-element registration must not revive a destroyed search view.
+      await page.evaluate(async () => {
+        const url = '/pagefind/pagefind.js';
+        await import(/* @vite-ignore */ url);
+      });
+      // Late engine loading must not revive a failed search view.
       await expect(page.locator('[data-search-fallback]')).toBeVisible();
       await expect(page.locator('[data-search-interactive]')).toBeHidden();
       await page.goto('/en/search/?q=website');

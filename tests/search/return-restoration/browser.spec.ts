@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const searchRoot = (page: Page) => page.locator('[data-site-search]');
-const searchInput = (page: Page) => searchRoot(page).locator('.pf-input');
+const searchInput = (page: Page) => searchRoot(page).locator('[data-search-input]');
 const searchList = (page: Page) => searchRoot(page).locator('[data-search-list]');
 
 async function waitForSearch(page: Page) {

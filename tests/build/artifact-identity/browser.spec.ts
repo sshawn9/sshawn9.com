@@ -42,7 +42,10 @@ test('HTML, the live client, and search metadata share the built artifact identi
       'original',
     );
     await expect(documentIdentity).toHaveAttribute('content', expectedId);
-    await expect(page.locator('pagefind-config')).toHaveAttribute('meta-cache-tag', expectedId);
+    await expect(page.locator('[data-site-search]')).toHaveAttribute(
+      'data-search-generation',
+      expectedId,
+    );
     expect(new URL(entryRequest.url()).searchParams.get('ts')).toBe(expectedId);
     await expect(page.locator('[data-site-search]')).toHaveAttribute('data-search-ready', '');
   }

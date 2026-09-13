@@ -25,11 +25,6 @@ const hasGeneratedIndex = import.meta.env.PROD;
   noIndex
   fontQueries={[SITE_FONT_QUERIES.monoRegular]}
 >
-  {
-    hasGeneratedIndex && (
-      <link slot="head" rel="stylesheet" href="/pagefind/pagefind-component-ui.css" />
-    )
-  }
   <section class="content-shell search-page" aria-labelledby="search-page-heading">
     <h1 id="search-page-heading" class="sr-only">{copy.searchPageTitle}</h1>
     {

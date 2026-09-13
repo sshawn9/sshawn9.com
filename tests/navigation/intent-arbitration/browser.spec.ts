@@ -12,7 +12,7 @@ function blogTag(page: Page, slug: string) {
 }
 
 function searchInput(page: Page) {
-  return page.locator('.pf-input');
+  return page.locator('[data-search-input]');
 }
 
 async function waitForSearch(page: Page) {

@@ -4,7 +4,11 @@
  * rather than treating every file under the bundle directory as search data.
  */
 
-export const unusedSearchModules = ['pagefind-ui.js', 'pagefind-modular-ui.js'];
+export const unusedSearchModules = [
+  'pagefind-component-ui.js',
+  'pagefind-ui.js',
+  'pagefind-modular-ui.js',
+];
 
 function fail(message) {
   throw new Error(`Resource inventory: Pagefind ${message}`);
@@ -94,9 +98,9 @@ export async function searchResourceUrls({ config, files, read }) {
   const { key: languageKey, index } = selected;
   const hash = index.hash;
 
-  // These are the runtime files shipped by the selected Pagefind component UI.
+  // These are the runtime files used by the site's Pagefind API instance.
   // Their ownership does not depend on minification, variable names or spacing.
-  const runtime = ['pagefind-component-ui.js', 'pagefind.js', 'pagefind-worker.js'].map((file) =>
+  const runtime = ['pagefind.js', 'pagefind-worker.js'].map((file) =>
     requireFile(knownFiles, `${directory}/${file}`),
   );
 
