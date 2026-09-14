@@ -59,6 +59,37 @@ it('returns 503 for an empty cache without letting a visitor initialize it', asy
   expect(kv.putCalls).toBe(0);
 });
 
+it('rejects an invalid stored download endpoint without serving a partial pool or repairing it', async () => {
+  const kv = new MemoryKv();
+  const manifest = storedManifest();
+  manifest.photos.push({
+    ...manifest.photos[0]!,
+    id: 'invalid-download',
+    downloadLocation: 'https://example.com/download',
+  });
+  const stored = JSON.stringify(manifest);
+  await kv.put('wallpaper-manifest-v1', stored);
+  kv.putCalls = 0;
+  const fetchMock = vi.fn();
+  vi.stubGlobal('fetch', fetchMock);
+
+  const response = await handleWallpaperRequest(
+    new Request('https://sshawn9.com/api/wallpapers'),
+    {
+      ASSETS: { fetch: vi.fn() },
+      WALLPAPER_MANIFEST: kv,
+      UNSPLASH_ACCESS_KEY: 'test-access-key',
+    },
+    { waitUntil: vi.fn() },
+  );
+
+  expect(response.status).toBe(503);
+  expect(await response.json()).toEqual({ error: 'Wallpaper manifest unavailable.' });
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(kv.putCalls).toBe(0);
+  expect(kv.values.get('wallpaper-manifest-v1')).toBe(stored);
+});
+
 it('does not refresh an existing manifest during a user request', async () => {
   const kv = new MemoryKv();
   const existing = storedManifest('2026-08-01T00:00:00.000Z');

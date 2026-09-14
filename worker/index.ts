@@ -2,6 +2,7 @@ import {
   WALLPAPER_DOWNLOAD_ENDPOINT,
   WALLPAPER_ENDPOINT,
   isWallpaperManifest,
+  isWallpaperPhoto,
   type WallpaperManifest,
   type WallpaperPhoto,
 } from '@sshawn9/site-domain/wallpaper';
@@ -32,23 +33,6 @@ type WorkerContext = {
   waitUntil(promise: Promise<unknown>): void;
 };
 
-type UnsplashPhoto = {
-  id: string;
-  created_at: string;
-  blur_hash: string | null;
-  width: number;
-  height: number;
-  urls: { raw: string };
-  links: { html: string; download_location: string };
-  user: { name: string; links: { html: string } };
-};
-
-type UnsplashSearchResponse = {
-  results: UnsplashPhoto[];
-};
-
-type SupportedUnsplashPhoto = UnsplashPhoto & { blur_hash: string };
-
 type StoredWallpaperPhoto = WallpaperPhoto & {
   downloadLocation: string;
 };
@@ -75,7 +59,12 @@ function addAttributionParameters(value: string, content: string) {
   return url.toString();
 }
 
-function isUnsplashApiUrl(value: string) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isUnsplashApiUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
   try {
     const url = new URL(value);
     return url.protocol === 'https:' && url.hostname === 'api.unsplash.com';
@@ -84,40 +73,52 @@ function isUnsplashApiUrl(value: string) {
   }
 }
 
-function isSupportedPhoto(photo: UnsplashPhoto): photo is SupportedUnsplashPhoto {
-  try {
-    return (
-      typeof photo.id === 'string' &&
-      photo.id.length > 0 &&
-      typeof photo.created_at === 'string' &&
-      Number.isFinite(Date.parse(photo.created_at)) &&
-      typeof photo.blur_hash === 'string' &&
-      photo.blur_hash.length > 0 &&
-      typeof photo.user.name === 'string' &&
-      photo.user.name.length > 0 &&
-      photo.width >= 2400 &&
-      photo.height >= 1350 &&
-      photo.width / photo.height >= 1.4 &&
-      new URL(photo.urls.raw).hostname === 'images.unsplash.com' &&
-      new URL(photo.links.html).hostname.endsWith('unsplash.com') &&
-      new URL(photo.user.links.html).hostname.endsWith('unsplash.com') &&
-      isUnsplashApiUrl(photo.links.download_location)
-    );
-  } catch {
-    return false;
-  }
+function isStoredWallpaperPhoto(value: unknown): value is StoredWallpaperPhoto {
+  return (
+    isWallpaperPhoto(value) &&
+    'downloadLocation' in value &&
+    isUnsplashApiUrl(value.downloadLocation)
+  );
 }
 
-function toStoredWallpaperPhoto(photo: SupportedUnsplashPhoto): StoredWallpaperPhoto {
+/** The same storage contract guards both sides of the KV boundary. */
+function isStoredWallpaperManifest(value: unknown): value is StoredWallpaperManifest {
+  return isWallpaperManifest(value) && value.photos.every(isStoredWallpaperPhoto);
+}
+
+function parseWallpaperCandidate(value: unknown): StoredWallpaperPhoto | undefined {
+  if (
+    !isRecord(value) ||
+    typeof value.width !== 'number' ||
+    !Number.isFinite(value.width) ||
+    typeof value.height !== 'number' ||
+    !Number.isFinite(value.height) ||
+    value.width < 2400 ||
+    value.height < 1350 ||
+    value.width / value.height < 1.4
+  )
+    return undefined;
+
+  const { urls, links, user } = value;
+  if (!isRecord(urls) || !isRecord(links) || !isRecord(user) || !isRecord(user.links)) {
+    return undefined;
+  }
+  const photo = {
+    id: value.id,
+    createdAt: value.created_at,
+    blurHash: value.blur_hash,
+    rawUrl: urls.raw,
+    photographerName: user.name,
+    photographerUrl: user.links.html,
+    photoUrl: links.html,
+    downloadLocation: links.download_location,
+  };
+  if (!isStoredWallpaperPhoto(photo)) return undefined;
+
   return {
-    id: photo.id,
-    createdAt: photo.created_at,
-    blurHash: photo.blur_hash,
-    rawUrl: photo.urls.raw,
-    photographerName: photo.user.name,
-    photographerUrl: addAttributionParameters(photo.user.links.html, 'credit-photographer'),
-    photoUrl: addAttributionParameters(photo.links.html, 'credit-photo'),
-    downloadLocation: photo.links.download_location,
+    ...photo,
+    photographerUrl: addAttributionParameters(photo.photographerUrl, 'credit-photographer'),
+    photoUrl: addAttributionParameters(photo.photoUrl, 'credit-photo'),
   };
 }
 
@@ -164,10 +165,13 @@ export async function refreshWallpaperManifest(
     throw new Error(`Unsplash search failed with status ${response.status}.`);
   }
 
-  const payload = (await response.json()) as UnsplashSearchResponse;
-  const candidates = Array.isArray(payload.results)
-    ? payload.results.filter(isSupportedPhoto).map(toStoredWallpaperPhoto)
-    : [];
+  const payload: unknown = await response.json();
+  if (!isRecord(payload) || !Array.isArray(payload.results)) {
+    throw new Error('Unsplash search returned an invalid response.');
+  }
+  const candidates = payload.results
+    .map(parseWallpaperCandidate)
+    .filter((photo): photo is StoredWallpaperPhoto => photo !== undefined);
   const existingPhotos = existingManifest?.photos ?? [];
   const photos = mergeWallpaperPhotos(existingPhotos, candidates);
 
@@ -184,6 +188,9 @@ export async function refreshWallpaperManifest(
     updatedAt: new Date().toISOString(),
     photos,
   };
+  if (!isStoredWallpaperManifest(manifest)) {
+    throw new Error('Refusing to store an invalid wallpaper manifest.');
+  }
   await env.WALLPAPER_MANIFEST.put(MANIFEST_KEY, JSON.stringify(manifest));
   return manifest;
 }
@@ -199,15 +206,7 @@ function refreshOnce(env: WorkerEnvironment) {
 
 async function readManifest(env: Pick<WorkerEnvironment, 'WALLPAPER_MANIFEST'>) {
   const value = await env.WALLPAPER_MANIFEST.get(MANIFEST_KEY, 'json');
-  if (!isWallpaperManifest(value)) return undefined;
-
-  const photos = value.photos.filter(
-    (photo): photo is StoredWallpaperPhoto =>
-      'downloadLocation' in photo &&
-      typeof photo.downloadLocation === 'string' &&
-      isUnsplashApiUrl(photo.downloadLocation),
-  );
-  return photos.length === value.photos.length ? { ...value, photos } : undefined;
+  return isStoredWallpaperManifest(value) ? value : undefined;
 }
 
 function publicManifest(manifest: StoredWallpaperManifest): WallpaperManifest {
