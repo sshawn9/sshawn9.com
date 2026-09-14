@@ -1,0 +1,297 @@
+# sshawn9.com 全仓代码审计
+
+## 归档与后续进展
+
+本报告于 2026-09-14 从临时目录复制到仓库，引用的六份验证记录一并保留。下文的审计日期、源码行号和验证数字仍对应原始审计基线，不代表所有问题现在都未修复。本次仅补充 A06/A07/A09/A10/A11/B02 的操作例子并只读核对当前代码，没有重跑故障探针，也没有修改相关业务源码。
+
+后续已完成：A02/A03 搜索生命周期修复（`e4ae82c`）；移除宽屏文章对隐藏手机目录 Popover 接口的初始化依赖（`3a0a1b8`）；A04/A05 图片查看器加载与取消修复（`9d89321`）。
+
+A01 原有的隐藏目录触发已消除，但通用异常收尾缺口仍在，按用户决定暂缓，先讨论错误收集工具。B01 中旧 iPad 真正需要使用的弹层兼容仍未处理。A06/A07/A09/A10/A11 的对应代码路径仍在；B02 仍需明确“关闭景观模式”是否取消正在进行的下一张操作。
+
+审计日期：2026-09-13。基线提交：`ee492d04c42fab85ec9de36c195757772e2f0a4f`。
+
+本轮完成自有代码与配置走读、现有验证基线、定向故障对照和交叉复核。未修改业务源码、测试或 Git 状态；未部署、修改 Cloudflare、访问真实壁纸 API 或运行预热；未操作个人 Chrome。临时诊断文件保留在本目录。
+
+## 结论
+
+仓库存在需要修复的结构性缺陷，但没有证据支持整站推倒重写。主要问题集中在：
+
+- 初始化成功、失败和资源回收没有完全形成同一个生命周期；局部增强失败会传播到导航状态。
+- 接第三方库时，只拥有了 UI 或事件入口，没有真正拥有底层查询实例、未来异步加载和正在进行的手势。
+- 一些状态以“现在的布尔值”替代“具体哪次操作”，或把一个任务的完成用来重挂另一个任务的期限。
+- 测试多覆盖稳定初始化之后的操作；冷加载中的输入、取消后的下一次操作、失败时部分资源回收是明显盲区。
+
+不应仅因文件长、双套 DOM 或存在状态机判定设计错误。壁纸显示层和存储槽的分离、内容领域与 Astro 适配的分工、缓存探测的传输/调度/历史分层均有明确用途。
+
+## 验证结果与边界
+
+- `devenv shell npm run check`：通过，0 errors / 0 warnings / 2 hints。
+- `devenv shell npm run format:check`：通过。
+- 一次现有 `npm test`：64 组、184 个单元测试通过；Preview 构建生成 138 页；142 个 Chromium 浏览器测试通过。见 [完整日志](baseline.log)。
+- [运行时定向对照](runtime-probes.json)：搜索冷启动、搜索实例回收、图片主模块失败、取消导航后开图、目录组合键均得到与源码一致的异常结果；另记录减少动画模式的既有行为。
+- [壁纸/图形对照](figure-wallpaper-probes.json)：确认 D3 手势残留、清单期限重挂、关开模式后旧解码仍提交。[Vega 独立复核](early-vega-toggle.json)确认控件与图状态分叉。第一次 Vega 诊断误点隐藏 input 的超时不计为应用缺陷。
+- [后端/工具对照](backend-probes.json)：异常上游候选使已有可读照片池从 HTTP 200 变为 503；记录通知失败的两条路径对在途任务取消处理不同。全部使用内存/固定响应，不访问真实服务。
+- iPadOS 16.3.1 的 Popover 不支持由平台版本与源码确认；此前 1366px 宽屏能力模拟复现了隐藏手机目录抛错和进度遗留。不是 iPad 真机调试数据。
+- [浏览器环境检查](browser-availability.json)：已有 Firefox/WebKit 在当前 devenv 下无法启动，分别缺运行库；本轮没有安装或修改环境。因此不宣称完成 Safari、Firefox 或旧 iPad 的实际页面验收。
+
+## A. 应优先处理的确定性缺陷
+
+“已复现”表示有具体对照数据，不表示已在线上事故中抓到相同栈。建议顺序按用户影响与结构收益排列，不代表一轮同时修改。
+
+### A01：局部初始化失败，留下未完成的导航与部分控制器
+
+位置：[导航完成入口](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/src/runtime/navigation-coordinator.ts:435)、[页面挂载](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/src/runtime/page-runtime.ts:56)、[文章组合](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/src/features/article/runtime/article-controller.ts:24)。
+
+已知触发：先成功进入博客，再客户端进入文章；旧 iPad 上隐藏 mobile TOC 的 `matches(':popover-open')` 抛错。
+
+- `mountedPage` 在控制器创建成功前就已赋值；同一 main 后续挂载会提前返回，不能补全失败的初始化。
+- 文章已创建 sidebar 和部分 TOC 全局监听，但还没有返回组合清理函数；外层销毁拿不到这些部分资源。
+- `documentReady()` 抛错跳过 `feedback.finish()`，进度和 pending 状态没有收尾。
+- 下一次成功文档导航可以结束新的导航状态，不是整个标签页永久不可导航。
+- 冷文章首次加载失败有额外的原生导航保护；旧 Document 随完整导航释放。因此不能把冷加载情况描述成无限跨页累积。
+
+修复方向：先评价增强是否需要/可用；挂载成功与资源交付要一致，失败要回收已创建部分；导航必须拥有失败收尾，保留错误信息。不能只隐藏进度条，也不能靠再次发 page-load 重试。
+
+成本：中等的生命周期修正，集中在组合根、PageRuntime 和文章控制器；只停止进度可以很小，但那不是完整修复。旧浏览器弹层本身是否兼容仍需单独决定。
+
+### A02：搜索冷加载期间输入，会稳定得到错误的零结果
+
+位置：[搜索响应接线](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/src/features/search/runtime/search-controller.ts:283)、[初始查询](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/src/features/search/runtime/search-controller.ts:329)。
+
+复现：延迟 `pagefind.js`，进入不带 q 的搜索页，输入 `website` 并等待提交，再放行模块。输入、URL 和结果 query 都是 website，却是 0 张卡片；刷新同一 URL 得到 4 张。
+
+原因：旧的初始空查询在模块加载后发布空 results；响应没有查询身份，本站把它绑定到最新 submittedJob，之后真正的非空结果被已有 job.response 拦下。
+
+修复方向：空查询由本地清空，不提交无必要的异步搜索；结果提交必须与发起它的任务对应。不要继续用额外布尔值猜测无身份事件属于哪个任务。
+
+成本：消除空查询竞态可局部修改；与 A03 一起评估 Pagefind 接入边界更有结构收益。现有过期任务测试先等初始结果、只延迟分片，漏掉模块冷加载阶段。
+
+### A03：离开搜索没有释放共享 Worker 内的索引实例
+
+位置：[removeInstance 包装](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/src/features/search/runtime/search-controller.ts:103)、[页面销毁](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/src/features/search/runtime/search-controller.ts:348)。
+
+复现：四次客户端进入搜索再离开，记录到 `pf_0` 至 `pf_3` 四个 init，零个 destroy。这里是一个共享 Worker 中的四个实例，不是四个 Worker，也没有测量具体内存增长量。
+
+依赖源码确认：Component UI manager 的 removeInstance 只从自身 Map 删除；底层 Pagefind 实例需要 destroy 才删除 Worker Map 中的索引和数据状态。
+
+修复方向：明确底层实例的创建和销毁者。可评估直接使用 Pagefind 查询 API，让已有本站输入/结果逻辑直接拥有实例；访问第三方私有字段虽可能少改代码，但增加升级耦合。
+
+成本：中等接入调整。现有搜索返回测试只检查查询、卡片和滚动，没有检查底层实例是否释放。
+
+### A04：图片主模块加载失败后，既打不开查看器，也没有普通链接回退
+
+位置：[媒体增强](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/src/features/article/runtime/article-media-controller.ts:68)。
+
+复现：只阻断 `photoswipe.esm.*.js`，连续点击图片两次，没有 viewer，runtime 仍是 ready，并收到两次模块加载拒绝。
+
+原因：外层 catch 只包含 lightbox 与 CSS；未来点击中的主模块 import 不在它的错误边界里。PhotoSwipe 已阻止普通链接行为，内部加载拒绝又没有接到本站回退。普通新标签页回退的缺失由依赖源码补足，本探针没有单独统计新标签页数量。
+
+修复方向：在拦截点击前保证增强准备完整，或让单一打开流程显式处理懒加载失败与普通链接回退。
+
+成本：局部至中等。提前加载主模块更简单，但增加未点击图片用户的下载；保留点击懒载则需拥有该异步失败边界。现有失败测试只阻断 CSS。
+
+### A05：取消导航后，下一次开图被旧关闭意图取消
+
+位置：[closeRequested](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/src/features/article/runtime/article-media-controller.ts:58)。
+
+复现：图片文章上开始一个延迟导航，再点当前文章目录锚点取消；第一次开图没有保留下来的 viewer，第二次正常。未录制“闪现”动画，不能把闪现作为已观测事实。
+
+原因：即使当时没有 viewer，导航开始也无条件设 closeRequested=true；导航取消后没有销毁事件重置，旧标记留给下一次打开。
+
+修复方向：关闭意图归属当前已打开或正在准备的 viewer，不能覆盖未来的新打开。与 A04 一起整理媒体打开/关闭/失败生命周期。
+
+成本：小至中等；不需要新建全局导航机制。
+
+### A06：Ctrl/Meta 点目录，会改变未滚动的原页面高亮
+
+操作例子：正在看文章第一节，按住 Ctrl（Mac 为 Command）点击目录里的第五节，想在新标签页看它。原标签页正文仍停在第一节，目录却把第五节高亮成“正在阅读”。错的是原页面的高亮，不是新标签页不能打开。应只在点击确实作用于当前页面时，才更新当前页面的待滚动目标。
+
+位置：[目录点击处理](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/src/features/article/runtime/article-toc-controller.ts:61)。
+
+复现 Control 点远处目录：原页面 hash 仍空、scrollY 仍为 0，高亮却切到所点章节。
+
+原因：没有筛选修饰键和已取消事件，直接设置当前页 pendingTarget。现有测试仅覆盖普通左键。
+
+修复方向：只为真正作用于当前页面的点击设置待滚动目标。成本小，须保留正常目录滚动和新标签页打开行为。
+
+### A07：正常换图会推迟照片清单的刷新期限
+
+这里有两个不同的计时：5–9 分钟是“换一张壁纸”，30 分钟是“向服务器更新可选照片名单”。本项只涉及后者。例如 12:00 获取名单，本应 12:30 更新；12:07 换图后却把更新名单推到 12:37，12:14 再换又推到 12:44。壁纸仍然能换，只是一直从旧名单中选，服务器新增的照片可能迟迟进不来。不是此前修过的自动轮换期限重置问题。
+
+位置：[补图完成](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/src/features/appearance/wallpaper/system.ts:356)、[清单定时器](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/src/features/appearance/wallpaper/system.ts:561)。
+
+探针确认一次换图后取消原 30 分钟计时器，并从当前时间重新挂 30 分钟。源码表明手动/自动换图最终均调用 ensureBuffer；普通 loadManifest 又直接使用内存缓存。
+
+因此若持续前台、每 5–9 分钟成功自动换图，清单刷新期限会一直被后移。没有实际等待 30 分钟；长期饥饿结论来自已验证的重挂行为与代码时序。不是说任何情况下都不刷新。
+
+修复方向：清单期限由清单刷新生命周期拥有，补图完成不改变它；重试与恢复可见时如何重新安排保持明确。
+
+成本小。现有活动测试只检查“有一个计时器”，没有检查期限是否保留。
+
+### A08：图表加载前修改同步开关，加载后两份状态分叉
+
+位置：[开关处理](/home/star/ghq/github.com/sshawn9/sshawn9.com/packages/content-ui/src/features/closed-loop-control-timing/ClosedLoopControlTimingClient.tsx:157)、[Vega 创建](/home/star/ghq/github.com/sshawn9/sshawn9.com/packages/content-ui/src/features/closed-loop-control-timing/ClosedLoopControlTimingClient.tsx:175)。
+
+复现：延迟 Vega 模块，通过可见开关关闭同步，再放行。开关前后 `aria-checked=false`，图的 `data-synchronized=true`。
+
+原因：加载前用户选择只写入 Solid 状态；创建 View 时仍使用默认 true，没有应用当前选择。
+
+修复方向：初始化 View 时读取当前控件状态，使其成为权威来源；也可禁用未就绪控件，但会改变交互。前者改动小且保留用户输入。现有测试全部等图生成后才操作。
+
+### A09：拖动中切页，旧窗口手势没有随组件卸载结束
+
+操作例子：拖动项目示意图的小车，还没松开鼠标时离开页面。旧图已经不显示了，但接收鼠标移动、松手以及禁止拖选的临时监听仍留在窗口上，直到松手才解除。正确行为是离开时结束旧图的这次拖动。探针确认的是监听残留，没有观察到新页面卡死、永久不能选字或永久泄漏；普通“拖完再切页”不属于这个场景。
+
+位置：[D3 挂载/清理](/home/star/ghq/github.com/sshawn9/sshawn9.com/packages/content-ui/src/features/motion-control/MotionControlProjectVisual.tsx:37)。
+
+复现：按住车辆拖动，客户端切到 About；mousemove、mouseup、dragstart、selectstart 的 `.drag` 监听仍在 window，松手后才解除。本次没有观察到异常，不描述成永久泄漏或页面卡死。
+
+原因：清理只移除 handle 上的新手势入口，漏了 D3 为当前手势临时安装的窗口资源。
+
+修复方向：组件拥有正在进行的手势，卸载时结束它并恢复拖选行为；不可无归属地删除 window 上所有其他图的 D3 监听。成本小至中等。
+
+### A10：Worker 入池和读取的校验不同，坏候选会让整个池不可读
+
+直观例子：照片名单原有四张合格照片，又混入一张地址不是 HTTPS 的照片。收进名单时被放过，给访客读取名单时却因这一张不合格而拒绝整份数据；结果不是只跳过坏照片，而是请求名单的访客拿不到任何名单。已显示或已缓存在浏览器里的壁纸不一定受影响，博客正文也不受此项影响。这个错误由固定异常上游响应模拟出来，不表示线上 Unsplash 已经返回过这种照片。
+
+位置：[候选过滤](/home/star/ghq/github.com/sshawn9/sshawn9.com/worker/index.ts:86)、[写入与读取](/home/star/ghq/github.com/sshawn9/sshawn9.com/worker/index.ts:182)、[共享校验](/home/star/ghq/github.com/sshawn9/sshawn9.com/packages/site-domain/src/wallpaper.ts:24)。
+
+内存对照：已有 4 张合法照片，API 返回 200；固定上游响应中增加一张 `http://images.unsplash.com/...` 候选，刷新写入 5 张后，API 返回 503。原 4 张仍在，没有删除，但整份清单被读取校验拒绝。
+
+摄取只检查图片 hostname，读取还要求 HTTPS；页面 hostname 的 endsWith('unsplash.com') 也比共享校验宽。
+
+修复方向：摄取复用共享校验，写入前确认整份存储数据可被读取，不用多套不一致的校验。成本小。
+
+这是模拟异常可信上游数据的可靠性缺陷，不是已观察到 Unsplash 返回坏数据的线上事故，也未找到访客注入/SSRF 路径。
+
+### A11：缓存探测记录资源结果失败时，不取消其他在途请求
+
+这项发生在维护者运行 cache-probe 时，不是访客浏览网站时。例子：工具已发出几项资源请求，其中一项完成后，保存或通知结果的步骤失败；工具停止发新请求，但其他已经开始的下载仍继续到完成或超时，才最终退出。它会报告失败，不是伪装成预热成功；缺口是发现致命记录错误后没有及时取消其他在途工作。本次实测注入的是通知回调异常，不是实际把磁盘写满。
+
+位置：[通知失败包装](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/tools/cache-probe/probe.mjs:315)、[资源结果记录](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/tools/cache-probe/probe.mjs:358)。
+
+对照使用假 HTTP 客户端：request-start 通知抛错，活动任务收到 abort；resource 通知抛错，调度停止新增任务，但两个已开始任务都继续完成。记录失败约 54ms，运行约 310ms 后才结束。
+
+准确边界：探针抛错位置是 onEvent，发生在 history.record 成功后，不是实际磁盘写满。源码中的 history.record 拒绝经过同一个无 abort 包装的 await，支持实际写盘失败存在相同风险；未实测磁盘故障。
+
+修复方向：统一所有持久化/通知致命错误的终止出口，停止新任务并取消在途请求，保留已写入 journal。成本小，不需重写 scheduler/history。
+
+## B. 已有兼容缺口、风险和需要决定的行为
+
+### B01：iPadOS 16 的弹层支持范围
+
+原生 Popover 在 Safari/iPadOS 17 才支持；当前设置和文章弹层依赖其隐藏/开关行为。宽屏同样存在隐藏移动目录，CSS 隐藏不会阻止 JS 初始化。[WebKit 官方说明](https://webkit.org/blog/14445/webkit-features-in-safari-17-0/)。
+
+根因明确，但选择完全兼容、保留基本功能的降级还是提高支持下限，仍需用户决定。A01 的生命周期边界应修，但不能拿关闭进度条代替弹层可用性。
+
+### B02：关→开景观模式后，旧 Next 是否应取消
+
+操作例子：当前显示 A，点击“下一张”，B 还没准备好；关闭景观模式，又在 B 准备好之前重新开启。随后 B 准备完成，即使没有再点“下一张”，它也会替换 A。这不是关闭期间显示壁纸，也不是自动轮换；是之前那次点击是否仍然有效。如果关闭代表取消，重新开启后就不该再兑现旧点击；如果关闭只是暂时隐藏，继续兑现可以接受。因此需要先明确操作语义，不能直接把一种偏好当成唯一正确行为。
+
+探针确认：Next 等待解码时关闭再开启，释放原解码后仍从 photo-one 提交 photo-two。它不是在关闭状态下换图。enabled 变化没有使操作 revision 失效。
+
+现有测试标题宣称关闭会取消 pending decode，但只测“关→解码结束→开”，没有定义/覆盖这次关开时序。若取消语义继续成立，应永久失效旧操作；若关闭只影响显示、允许旧 Next 继续，应明确更改契约，而不是让布尔检查偶然决定。调整成本小。
+
+### B03：清单和下载缺少应用层截止时间
+
+[清单请求](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/src/features/appearance/wallpaper/assets.ts:111)共用未完成 Promise；[下载](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/src/features/appearance/wallpaper/download.ts:22)一直等 fetch/blob。挂起期间在线恢复、重试或 Next 可能继续等待同一任务。
+
+已确认应用没有截止/取消保证，不声称浏览器网络层永不结束。建议为装饰性网络工作设明确结束边界，释放 busy 后允许重试；期限需要按实际图片体积和网络条件选择。未做真实慢网长时间挂起验收。
+
+### B04：Preview 空照片池没有仓库内的生产者
+
+Preview Cron 关闭，访客 API 只读，部署不初始化或同步 KV。若绑定空池，会一直 503；已有池也没有这套代码内的定期更新路径。线上可能手动预置或配置共享，未核查，不能据此宣称现网有故障。
+
+这属于用户之前明确留待另议的部署数据源问题，不擅自加入修复。正式选择共享池、同步或独立更新时，应明确唯一维护路径。
+
+### B05：长期保留的旧壁纸下载上报失效
+
+候选池最多 250 张，旧照片可能被淘汰；用户当前壁纸可以长期保留。CDN 下载仍成功，随后仅按 photoId 上报，Worker 查当前池返回 404，客户端不检查该响应。
+
+这是代码可推导的身份有效期冲突，不是本轮实际等待照片淘汰的线上复现。候选池不等于所有曾经合法展示的照片。是否保留历史跟踪信息/凭证及有效期，需要权衡存储与上游上报要求。
+
+### B06：减少动画时等待反馈离屏，是既有取舍
+
+实测 reduce + 字体失败时进度 opacity=1，但矩形右边界为 -35.125px，整条在视口外，文字仍隐藏。
+
+ADR-002 明确接受单次极短动画后离屏，因此不列新 bug。若现在希望等待过程一直有反馈，应改变已确认的视觉策略；静态可见状态可避免运动。测试仅看 opacity/animationName 无法证明可见，需相应调整断言目的。
+
+字体失败后永久不提交文字也在现有 ADR 中明确。它会牺牲基本阅读可用性；是否允许系统字体回退须单独决定，不能以审计为名静默改变。
+
+### B07：Safari 16/17 透明页头缺少背景模糊
+
+当前 CSS 和产物仅声明无前缀 backdrop-filter；Safari 18 才去掉前缀要求。[WebKit 官方说明](https://webkit.org/blog/15865/webkit-features-in-safari-18-0/#backdrop-filter)。页头背景只有较低不透明度，旧 Safari 下正文可能透到导航文字背后。
+
+缺少效果由源码和平台支持确认；可读性影响程度未真机验收。若支持这些版本，补对应前缀/无滤镜基础背景是小改，不需要弹层级别兼容工程。
+
+### B08：报告外站资源的语义可以更清楚
+
+inventory 允许页面关联外站资源；probe 只测同源。页面表的 Outstanding 会包含永远不探测的外站项，但报告另有“External resources not probed”，全局停止只取同源目标。
+
+这不等于预热循环错误或伪造命中。可把“同源未达标”和“外站未测”分栏，减少阅读歧义，优先级低。
+
+## C. 有实际收益的结构简化候选
+
+### C01：固定二维示意图可以摆脱 Plotly 生命周期
+
+[ResearchFigure.astro](/home/star/ghq/github.com/sshawn9/sshawn9.com/packages/content-ui/src/components/ResearchFigure.astro:11)对四类固定示意图 client:load；其配置关闭拖动、hover、缩放，却仍初始化共享 Plotly 运行时、等待字体、监听主题/尺寸并重绘。
+
+可评估服务端 SVG，继续保留外层图形聚焦。收益是删除这部分水合、绘图就绪/失败/销毁逻辑；代价是迁移标注和响应式坐标，需要视觉复核。包含真正交互的 Frenet 图仍需绘图库，不能承诺所有含图页面都省掉 Plotly 下载。这是中等工作量的明确减重方向，不是现有功能 bug。
+
+### C02：博客和文章侧栏共用机械交互部分
+
+两份 sidebar controller 的拖动、键盘调宽、持久化和清理实现高度重复。可以共用这些机制，保留各自选择器、宽度与方向配置。
+
+收益是同类修复不必双写；代价是引入一个小型显式参数接口。只抽共同机制，不建立通用 UI 插件系统。没有必要仅为了文件更短就拆更多层。
+
+### C03：项目预览的“静态”声明与可拖实现冲突
+
+[ProjectPreview](/home/star/ghq/github.com/sshawn9/sshawn9.com/apps/site/src/features/projects/components/ProjectPreview.astro:14)带 static 标记，CSS 屏蔽容器指针并改普通光标；子 handle 又显式 pointer-events:all，组件仍水合安装拖动，测试也要求可拖。
+
+应选清楚：真静态则去掉水合/手势；真交互则恢复一致提示并评价触摸滚动。不能只因命名就删用户功能。
+
+### C04：保留有用边界，清理小冗余即可
+
+- 壁纸 View/System/TabStore 的分工及视觉层与槽位分离有实际用途，不建议重写。
+- 内容/项目的语言选择虽然相似，约束不同，通用解析框架没有明确收益。
+- cache-probe 的传输、补位调度、journal、派生报告职责成立，不应按行数合并。
+- `ResearchFigure.tsx:736` 的无副作用 effect、Paraglide 的“两个站点”旧注释等可随相关改动清理，不作为审计成绩。
+- 构建 UUID 与内容哈希各司其职；没有证据支持为省缓存删除跨代导航检查。
+
+## D. 测试与未证实线索
+
+需要补的重点不是继续堆 happy-path 测试，而是把“进入前后边界”串起来：模块加载期间输入、初始化一半失败、导航取消后下一次操作、拖动未结束就卸载、重复进入后的资源数量、独立期限是否被其他任务改变。
+
+现有正则架构测试是提示性守卫，不是完整依赖图验证。精确锁定允许导入的库名单，也不能成为拒绝合理纯函数依赖的架构理由。
+
+未作为确定缺陷的线索：
+
+- Plotly newPlot/react 未决时卸载、旧图状态提交的潜在竞态：尚未确认当前图类型是否存在足够的真实异步窗口；不拿人为延迟 Promise 直接当生产故障证据。
+- 图形聚焦关闭后的 RAF 可能与新滚动意图竞争：未完成真实时序复现。
+- KV get/JSON 失败会绕过友好 503；不承诺任意平台故障有自愈。本轮未模拟实际 Cloudflare 故障。
+- 桌面刷新闪黑发生过，后续浏览器状态变化后暂不复现，根因未明。没有因为“现在正常”关闭该线索，也没有继续无界录制。
+- 未做实际 Cloudflare 绑定/权限、第三方依赖漏洞全量扫描、真实网络配额/代理、屏幕阅读器、长期内存、全文数学证明或逐条外链可用性审计。
+
+## 覆盖记录
+
+| 范围           | 完成内容                                                                                                                 |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 全局 runtime   | 全部18个运行时/入口文件及相关导航/字体/状态测试与ADR                                                                     |
+| 布局与公共组件 | components/layouts、全局CSS、各feature Astro/CSS及layout/overlays/appearance测试                                         |
+| 页面控制器     | blog/search/article全部14控制器、comparison TSX、相应测试；相关Pagefind/PhotoSwipe实现路径                               |
+| 壁纸           | 全部7个浏览器文件、非API测试/夹具、共享domain                                                                            |
+| 内容与i18n     | 全部13个路由/端点、内容配置/适配、domain全部8文件、i18n两源码及exports、content/locale测试；正文仅按元数据和引用约定检查 |
+| 图形与媒体     | content-ui全部25文件、research测试及相关D3路径；不宣称数学全域形式证明                                                   |
+| 构建与清单     | Astro配置与5个构建文件、资源清单全部9模块、相关build测试/输出一致性                                                      |
+| Worker与发布   | Worker全文、API测试、wrangler、三个CI工作流、部署说明；未访问真实平台配置                                                |
+| 工具与环境     | cache-probe全部7模块和对应测试、devtools全部6文件、根配置/npm/just/devenv/ignore等                                       |
+| 文档/测试约束  | README、应用说明、三个重构文档、缓存说明及相关案例说明；历史规则按当前需求评价，不作为绝对正确的证明                     |
+
+## 建议推进顺序
+
+1. 先修 A02/A03 搜索边界、A04/A05 媒体生命周期，以及 A08 图表早期输入。这些有明确复现，直接影响正常访问；搜索接入调整应先明确方案。
+2. 独立设计 A01 的初始化成功/失败/回收边界，并同时决定 B01 的旧浏览器范围。不能用小范围进度隐藏冒充根因修复。
+3. 修 A06/A07/A09/A10/A11 的局部确定性问题；B02 的取消语义明确后一起处理。
+4. C01/C02/C03 属于有价值但需选择的减重工作，单独做，不夹带在 bug 修复中。
+
+每组修改后对其失败路径和正常路径一起验证。无需因为这次审计直接升级依赖、替换路由器、重写壁纸系统或大范围更换UI框架。
