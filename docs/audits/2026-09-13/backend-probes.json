@@ -1,0 +1,28 @@
+[
+  {
+    "name": "worker-invalid-candidate",
+    "beforeStatus": 200,
+    "afterStatus": 503,
+    "storedPhotos": 5
+  },
+  {
+    "name": "persistence-failure-request-start",
+    "stopReason": "failed",
+    "failure": "Injected request-start persistence failure",
+    "elapsedMs": 6,
+    "started": 1,
+    "aborted": 1,
+    "completed": 0,
+    "errorAt": 5
+  },
+  {
+    "name": "persistence-failure-resource",
+    "stopReason": "failed",
+    "failure": "Injected resource persistence failure",
+    "elapsedMs": 310,
+    "started": 2,
+    "aborted": 0,
+    "completed": 2,
+    "errorAt": 54
+  }
+]
