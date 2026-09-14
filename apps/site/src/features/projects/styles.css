@@ -90,14 +90,6 @@
   min-width: 0;
 }
 
-[data-project-preview-static] {
-  pointer-events: none;
-}
-
-[data-project-preview-static] .motion-control-vehicle-handle {
-  cursor: default;
-}
-
 .project-detail-page {
   width: min(100% - 2rem, 56rem);
   padding-block: 3rem;
