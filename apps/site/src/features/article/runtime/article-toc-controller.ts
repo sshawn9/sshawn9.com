@@ -1,4 +1,5 @@
 import {
+  ARTICLE_HEADING_SELECTOR,
   ARTICLE_TOC_LINK_SELECTOR,
   readArticleHeadingOffset,
   setActiveArticleToc,
@@ -57,12 +58,50 @@ export function createArticleTocController(
   };
 
   const handleClick = (event: MouseEvent) => {
+    // Check before changing state. Astro's later document listener also prevents
+    // the default action when it handles an otherwise valid navigation.
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    )
+      return;
+
     const source = event.target instanceof Element ? event.target : undefined;
     const link = source?.closest<HTMLAnchorElement>(ARTICLE_TOC_LINK_SELECTOR);
-    if (!link || !article.contains(link)) return;
+    if (
+      !link ||
+      !article.contains(link) ||
+      (link.target && link.target !== '_self') ||
+      link.hasAttribute('download')
+    )
+      return;
     const slug = link.dataset.tocSlug;
     const heading = slug ? sourceDocument.getElementById(slug) : undefined;
-    if (!slug || !heading) return;
+    if (
+      !slug ||
+      !heading ||
+      !article.contains(heading) ||
+      !heading.matches(ARTICLE_HEADING_SELECTOR)
+    )
+      return;
+
+    try {
+      const destination = new URL(link.href);
+      const current = sourceWindow.location;
+      if (
+        destination.origin !== current.origin ||
+        destination.pathname !== current.pathname ||
+        destination.search !== current.search ||
+        decodeURIComponent(destination.hash.slice(1)) !== slug
+      )
+        return;
+    } catch {
+      return;
+    }
 
     const offset = readArticleHeadingOffset(heading, sourceWindow);
     const requestedY = sourceWindow.scrollY + heading.getBoundingClientRect().top - offset;
@@ -76,16 +115,7 @@ export function createArticleTocController(
     // Only activating a link inside the mobile TOC can close that popover.
     // Desktop TOC interactions do not depend on the Popover API.
     const mobileToc = link.closest<HTMLElement>('[data-article-mobile-toc]');
-    if (
-      mobileToc &&
-      typeof mobileToc.hidePopover === 'function' &&
-      !event.defaultPrevented &&
-      event.button === 0 &&
-      !event.metaKey &&
-      !event.ctrlKey &&
-      !event.shiftKey &&
-      !event.altKey
-    ) {
+    if (mobileToc && typeof mobileToc.hidePopover === 'function') {
       mobileToc.hidePopover();
     }
     scheduleReconcile();
