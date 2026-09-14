@@ -17,6 +17,7 @@ import {
   validateOptions,
 } from '../../../apps/site/tools/cache-probe/probe.mjs';
 import { createProbeClient } from '../../../apps/site/tools/cache-probe/http.mjs';
+import { openEgressHistory } from '../../../apps/site/tools/cache-probe/history.mjs';
 import {
   defaultInventoryUrl,
   loadInventory,
@@ -697,23 +698,184 @@ describe('backpressure, failures and interruption', () => {
     expect(followed).toBe(false);
   });
 
-  it('aborts active requests when persistence fails and releases the archive lock', async () => {
-    const site = await server((request, response) => {
-      if (request.url === '/cdn-cgi/trace') {
-        trace(response);
-        return;
+  it.each(['request-start', 'pause'])(
+    'aborts active requests when %s notification fails and releases the archive lock',
+    async (type) => {
+      const site = await server((request, response) => {
+        if (request.url === '/cdn-cgi/trace') {
+          trace(response);
+          return;
+        }
+        if (type === 'pause') response.writeHead(429, { 'Retry-After': '60' });
+        response.flushHeaders();
+      });
+      const parent = await directory();
+      const result = await run(inventory(site), fast, parent, {
+        onEvent(event: any) {
+          if (event.type === type) throw new Error(`${type} notification failed.`);
+        },
+      });
+      expect(result.stopReason).toBe('failed');
+      expect(result.failure).toBe(`${type} notification failed.`);
+      expect(await readdir(join(parent, '198.51.100.7'))).not.toContain('.lock');
+    },
+  );
+
+  it.each(['notification', 'report-write'])(
+    'cancels an in-flight body on resource %s failure and preserves recorded history',
+    async (failurePoint) => {
+      const requests: string[] = [];
+      const completedResponse = Promise.withResolvers<ServerResponse>();
+      const slowStarted = Promise.withResolvers<void>();
+      const slowRecorded = Promise.withResolvers<void>();
+      let slowAborted = false;
+      let slowResult: Awaited<ReturnType<ReturnType<typeof createProbeClient>['request']>>;
+      let closed = false;
+      const parent = await directory();
+      const archive = join(parent, '198.51.100.7');
+      const site = await server((request, response) => {
+        if (request.url === '/cdn-cgi/trace') return trace(response);
+        requests.push(request.url!);
+        if (request.url === '/completed.js') {
+          completedResponse.resolve(response);
+        } else if (request.url === '/slow.js') {
+          // A HIT header is not enough: keep this body in flight until cancellation.
+          response.writeHead(200, { 'CF-Cache-Status': 'HIT', 'CF-Ray': 'abc-SJC' });
+          response.write('Incomplete body');
+          slowStarted.resolve();
+        } else {
+          hit(response);
+        }
+      });
+      const pending = run(
+        inventory(site, ['/', '/completed.js', '/slow.js', '/not-started.js']),
+        fast,
+        parent,
+        {
+          onEvent(event: any) {
+            if (event.type === 'request-start' && event.request.url === `${site}/slow.js`)
+              slowRecorded.resolve();
+            if (
+              failurePoint === 'notification' &&
+              event.type === 'resource' &&
+              event.result.url === `${site}/completed.js`
+            )
+              throw new Error('Resource notification failed.');
+          },
+          clientFactory(options: Parameters<typeof createProbeClient>[0]) {
+            const client = clientFactory(options);
+            return {
+              ...client,
+              async request(...args: Parameters<typeof client.request>) {
+                const result = await client.request(...args);
+                if (String(args[0]) === `${site}/slow.js`) {
+                  slowAborted = args[1]?.signal?.aborted ?? false;
+                  slowResult = result;
+                }
+                return result;
+              },
+              async close() {
+                await client.close();
+                closed = true;
+                throw new Error('Secondary transport cleanup failure.');
+              },
+            };
+          },
+        },
+      );
+      const response = await completedResponse.promise;
+      await Promise.all([slowStarted.promise, slowRecorded.promise]);
+      // The first resource is already durably recorded before this pool slot opens.
+      expect(
+        (await readJson(join(archive, 'report.json'))).resources[`${site}/`].streak.count,
+      ).toBe(1);
+      if (failurePoint === 'report-write') {
+        // Fail the real snapshot write with EISDIR, not a callback named "disk full".
+        await mkdir(join(archive, 'report.json.tmp'));
       }
-      response.flushHeaders();
+      hit(response);
+      const result = await pending;
+
+      expect(result.stopReason).toBe('failed');
+      expect(result.failure).toContain(
+        failurePoint === 'notification' ? 'Resource notification failed.' : 'EISDIR',
+      );
+      expect(slowAborted).toBe(true);
+      expect(slowResult!).toMatchObject({ complete: false });
+      expect(slowResult!.errorCode).not.toBe('PROBE_TIMEOUT');
+      expect(closed).toBe(true);
+      expect(requests).toEqual(['/', '/completed.js', '/slow.js']);
+      expect(result.rounds).toHaveLength(1);
+      expect(result.rounds[0].complete).toBe(false);
+      expect(result.rounds[0].results[3].state).toBe('not-requested');
+      expect(await readdir(archive)).not.toContain('.lock');
+
+      const journal = await readFile(join(archive, 'events.jsonl'), 'utf8');
+      const observations = journal
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+        .filter((event) => event.type === 'resource');
+      expect(observations.map((event) => event.result.url)).toEqual([
+        `${site}/`,
+        `${site}/completed.js`,
+      ]);
+      if (failurePoint === 'report-write') {
+        await rm(join(archive, 'report.json.tmp'), { recursive: true });
+      } else {
+        expect((await readJson(join(archive, 'report.json'))).runs[0]).toMatchObject({
+          stopReason: 'failed',
+          failure: 'Resource notification failed.',
+        });
+      }
+      const history = await openEgressHistory(parent, '198.51.100.7');
+      try {
+        expect(history.state.resources[`${site}/completed.js`].streak.count).toBe(1);
+        expect(history.state.resources[`${site}/slow.js`]).toBeUndefined();
+        expect(history.state.resources[`${site}/not-started.js`]).toBeUndefined();
+        expect(await readFile(join(archive, 'events.jsonl'), 'utf8')).toBe(journal);
+      } finally {
+        await history.close();
+      }
+    },
+  );
+
+  it('retains the original failure when the final notification also fails', async () => {
+    const site = await server((request, response) => {
+      if (request.url === '/cdn-cgi/trace') trace(response);
+      else hit(response);
     });
     const parent = await directory();
-    const result = await run(inventory(site), fast, parent, {
+    const result = await run(inventory(site, ['/']), fast, parent, {
       onEvent(event: any) {
-        if (event.type === 'request-start') throw new Error('disk full');
+        if (event.type === 'resource') throw new Error('Resource notification failed.');
+        if (event.type === 'end') throw new Error('Secondary end notification failure.');
       },
     });
     expect(result.stopReason).toBe('failed');
-    expect(result.failure).toBe('disk full');
-    expect(await readdir(join(parent, '198.51.100.7'))).not.toContain('.lock');
+    expect(result.failure).toBe('Resource notification failed.');
+    expect((await readJson(join(parent, '198.51.100.7', 'report.json'))).runs[0]).toMatchObject({
+      stopReason: 'failed',
+      failure: 'Resource notification failed.',
+    });
+  });
+
+  it('still rejects when only the final notification fails', async () => {
+    const site = await server((request, response) => {
+      if (request.url === '/cdn-cgi/trace') trace(response);
+      else hit(response);
+    });
+    const parent = await directory();
+    await expect(
+      run(inventory(site, ['/']), { ...fast, hitStreak: 1 }, parent, {
+        onEvent(event: any) {
+          if (event.type === 'end') throw new Error('End notification failed.');
+        },
+      }),
+    ).rejects.toThrow('End notification failed.');
+    const archive = join(parent, '198.51.100.7');
+    expect((await readJson(join(archive, 'report.json'))).runs[0].stopReason).toBe('warm');
+    expect(await readdir(archive)).not.toContain('.lock');
   });
 
   it('records a transport cleanup failure before finalizing the archive', async () => {
