@@ -31,19 +31,19 @@ $$
 \begin{aligned}
 \mathbf T(s)
 &=
-\frac{d\mathbf r}{ds},&
+\frac{\mathrm{d}\mathbf r}{\mathrm{d}s},&
 \mathbf N(s)
 &=
 J\mathbf T(s),\\[0.6em]
-\frac{d\mathbf T}{ds}
+\frac{\mathrm{d}\mathbf T}{\mathrm{d}s}
 &=
 \kappa_r\mathbf N,&
-\frac{d\mathbf N}{ds}
+\frac{\mathrm{d}\mathbf N}{\mathrm{d}s}
 &=
 -\kappa_r\mathbf T,\\[0.6em]
 \kappa_r
 &=
-\frac{d\theta_r}{ds}.
+\frac{\mathrm{d}\theta_r}{\mathrm{d}s}.
 \end{aligned}
 $$
 
@@ -70,21 +70,21 @@ Thus, $v>0$ when driving forward, $v<0$ when reversing, and $v=0$ when stationar
 Let $\ell$ be the **oriented arc-length coordinate** of the rear-axle-center trajectory. Given an initial value $\ell(t_0)$, define
 
 $$
-\ell(t)=\ell(t_0)+\int_{t_0}^{t}v(\tau)\,d\tau,
+\ell(t)=\ell(t_0)+\int_{t_0}^{t}v(\tau)\,\mathrm{d}\tau,
 $$
 
 so that
 
 $$
-\frac{d\ell}{dt}=v.
+\frac{\mathrm{d}\ell}{\mathrm{d}t}=v.
 $$
 
-The value of $\ell$ increases while driving forward and decreases while reversing. It is not the monotonically increasing cumulative distance, whose increment would instead be computed from $|v|\,dt$. On a trajectory segment where $v\ne0$, $\ell$ can serve as a local parameter. The chain rule then gives $d\mathbf z/d\ell=\mathbf e_\theta$, so the signed curvature of the vehicle trajectory under this orientation is defined by
+The value of $\ell$ increases while driving forward and decreases while reversing. It is not the monotonically increasing cumulative distance, whose increment would instead be computed from $|v|\,\mathrm{d}t$. On a trajectory segment where $v\ne0$, $\ell$ can serve as a local parameter. The chain rule then gives $\mathrm{d}\mathbf z/\mathrm{d}\ell=\mathbf e_\theta$, so the signed curvature of the vehicle trajectory under this orientation is defined by
 
 $$
 \kappa_v
 :=
-\frac{d\theta}{d\ell}.
+\frac{\mathrm{d}\theta}{\mathrm{d}\ell}.
 $$
 
 For a given vehicle position, the **closest-point projection** finds the point on the reference path that minimizes the distance to the rear-axle center. This article assumes that the projection is unique and lies in the interior of the reference-path parameter interval, so the line from the projection point to the rear-axle center is perpendicular to the path. Denote the projection point's arc-length coordinate by $s(t)$. Let $d(t)$ be the signed distance from that point to the vehicle along the left unit normal $\mathbf N$: $d>0$ places the vehicle to the left of the increasing-$s$ direction, and $d<0$ places it to the right. Define the difference between the vehicle heading and the reference heading at the projection point by
@@ -96,6 +96,8 @@ $$
 $$
 
 Both $\theta$ and $\theta_r$ are continuously unwrapped along the trajectory segment under consideration, preventing an artificial jump in $\varphi$ when an angle representation crosses the $\pm\pi$ boundary. The time-domain model uses time $t$ as its independent variable and $(s,d,\varphi)$ as its state. The reference-path-arc-length-domain, or spatial-domain, model instead uses $s$ as its independent variable and therefore requires only $(d,\varphi)$ as its state. Figure 1 shows the geometric relationship among these quantities. The vectors $\mathbf T(s)$ and $\mathbf N(s)$ are the Frenet basis vectors at the projection point; the purple bidirectional dimension line is the lateral deviation $d$ from the reference path to the rear-axle center; and the arrow $\mathbf e_\theta$ at the rear-axle center is the vehicle heading unit vector.
+
+Throughout this article, upright $\mathrm{d}$ denotes the differential symbol, distinct from the italic lateral-deviation variable $d$; $\dot d$ denotes the time derivative of that deviation.
 
 <FocusFigure number={1} variant="research" interactive={false}>
   <ResearchFigure kind="vehicle-state" />
@@ -122,17 +124,17 @@ d(t)\mathbf N\bigl(s(t)\bigr).
 \tag{1}
 $$
 
-Differentiate Equation (1) with respect to time $t$, using $d\mathbf r/ds=\mathbf T$ and $d\mathbf N/ds=-\kappa_r\mathbf T$:
+Differentiate Equation (1) with respect to time $t$, using $\mathrm{d}\mathbf r/\mathrm{d}s=\mathbf T$ and $\mathrm{d}\mathbf N/\mathrm{d}s=-\kappa_r\mathbf T$:
 
 $$
 \begin{aligned}
 \dot{\mathbf z}
 &=
-\frac{d\mathbf r}{ds}\dot s
+\frac{\mathrm{d}\mathbf r}{\mathrm{d}s}\dot s
 +
 \dot d\,\mathbf N
 +
-d\,\frac{d\mathbf N}{ds}\dot s\\[0.6em]
+d\,\frac{\mathrm{d}\mathbf N}{\mathrm{d}s}\dot s\\[0.6em]
 &=
 \mathbf T\dot s
 +
@@ -258,27 +260,27 @@ $$
 \theta_r\bigl(s(t)\bigr).
 $$
 
-Apply the chain rule with respect to time and substitute $\kappa_r=d\theta_r/ds$:
+Apply the chain rule with respect to time and substitute $\kappa_r=\mathrm{d}\theta_r/\mathrm{d}s$:
 
 $$
 \begin{aligned}
 \dot\varphi
 &=
 \dot\theta -
-\frac{d\theta_r}{ds}\dot s\\[0.6em]
+\frac{\mathrm{d}\theta_r}{\mathrm{d}s}\dot s\\[0.6em]
 &=
 \dot\theta -
 \kappa_r\dot s.
 \end{aligned}
 $$
 
-On an interval where $v\ne0$, using $\kappa_v=d\theta/d\ell$ and $d\ell/dt=v$ gives
+On an interval where $v\ne0$, using $\kappa_v=\mathrm{d}\theta/\mathrm{d}\ell$ and $\mathrm{d}\ell/\mathrm{d}t=v$ gives
 
 $$
 \begin{aligned}
 \dot\theta
 &=
-\frac{d\theta}{d\ell}\frac{d\ell}{dt}\\[0.6em]
+\frac{\mathrm{d}\theta}{\mathrm{d}\ell}\frac{\mathrm{d}\ell}{\mathrm{d}t}\\[0.6em]
 &=
 v\kappa_v.
 \end{aligned}
@@ -347,7 +349,7 @@ For a strict comparison, fix the same state $(s,d,\varphi)$, the same vehicle cu
 | Quantity                                                        | Forward: $v=u$                                                    | Reverse: $v=-u$                                                    | Definition or model changed?           |
 | --------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------- |
 | Vehicle velocity $\dot{\mathbf z}$                              | $u\mathbf e_\theta$                                               | $-u\mathbf e_\theta$                                               | No-sideslip relation unchanged         |
-| Oriented arc-length rate $d\ell/dt$                             | $u$                                                               | $-u$                                                               | Always $d\ell/dt=v$                    |
+| Oriented arc-length rate $\mathrm{d}\ell/\mathrm{d}t$           | $u$                                                               | $-u$                                                               | Always $\mathrm{d}\ell/\mathrm{d}t=v$  |
 | Reference-path coordinate rate $\dot s$                         | $\dfrac{u\cos\varphi}{1-d\kappa_r}$                               | $-\dfrac{u\cos\varphi}{1-d\kappa_r}$                               | Determined by the same state equation  |
 | Lateral-deviation rate $\dot d$                                 | $u\sin\varphi$                                                    | $-u\sin\varphi$                                                    | Definition of $d$ unchanged            |
 | Heading rate $\dot\theta$                                       | $u\kappa_v$                                                       | $-u\kappa_v$                                                       | $\kappa_v$ is not artificially negated |
@@ -376,27 +378,27 @@ Differentiate directly with respect to $\ell$:
 
 $$
 \begin{aligned}
-\frac{d\mathbf z}{d\ell}
+\frac{\mathrm{d}\mathbf z}{\mathrm{d}\ell}
 &=
-\frac{d\mathbf r}{ds}\frac{ds}{d\ell}
+\frac{\mathrm{d}\mathbf r}{\mathrm{d}s}\frac{\mathrm{d}s}{\mathrm{d}\ell}
 +
-\frac{\mathrm d\,d}{\mathrm d\ell}\mathbf N
+\frac{\mathrm{d}\,d}{\mathrm{d}\ell}\mathbf N
 +
-d\frac{d\mathbf N}{ds}\frac{ds}{d\ell}\\[0.8em]
+d\frac{\mathrm{d}\mathbf N}{\mathrm{d}s}\frac{\mathrm{d}s}{\mathrm{d}\ell}\\[0.8em]
 &=
-\mathbf T\frac{ds}{d\ell}
+\mathbf T\frac{\mathrm{d}s}{\mathrm{d}\ell}
 +
-\frac{\mathrm d\,d}{\mathrm d\ell}\mathbf N
+\frac{\mathrm{d}\,d}{\mathrm{d}\ell}\mathbf N
 +
-d\frac{d\mathbf N}{ds}\frac{ds}{d\ell}.
+d\frac{\mathrm{d}\mathbf N}{\mathrm{d}s}\frac{\mathrm{d}s}{\mathrm{d}\ell}.
 \end{aligned}
 $$
 
-From the Frenet relation $d\mathbf N/ds=-\kappa_r\mathbf T$ and $\langle\mathbf T,\mathbf N\rangle=0$,
+From the Frenet relation $\mathrm{d}\mathbf N/\mathrm{d}s=-\kappa_r\mathbf T$ and $\langle\mathbf T,\mathbf N\rangle=0$,
 
 $$
 \left\langle
-\frac{d\mathbf N}{ds},
+\frac{\mathrm{d}\mathbf N}{\mathrm{d}s},
 \mathbf N
 \right\rangle
 =-\kappa_r\langle\mathbf T,\mathbf N\rangle=0.
@@ -406,16 +408,16 @@ Project the position derivative onto $\mathbf N$ and use $\langle\mathbf T,\math
 
 $$
 \left\langle
-\frac{d\mathbf z}{d\ell},
+\frac{\mathrm{d}\mathbf z}{\mathrm{d}\ell},
 \mathbf N
 \right\rangle =
-\frac{\mathrm d\,d}{\mathrm d\ell}.
+\frac{\mathrm{d}\,d}{\mathrm{d}\ell}.
 $$
 
 By the orientation of $\ell$ and the no-sideslip constraint, the unit tangent of the vehicle trajectory with respect to $\ell$ is the heading unit vector:
 
 $$
-\frac{d\mathbf z}{d\ell} =
+\frac{\mathrm{d}\mathbf z}{\mathrm{d}\ell} =
 \mathbf e_\theta =
 \cos\varphi\,\mathbf T
 +
@@ -426,7 +428,7 @@ Its normal component is
 
 $$
 \left\langle
-\frac{d\mathbf z}{d\ell},
+\frac{\mathrm{d}\mathbf z}{\mathrm{d}\ell},
 \mathbf N
 \right\rangle =
 \sin\varphi.
@@ -435,28 +437,28 @@ $$
 Equating the same normal component gives
 
 $$
-\frac{\mathrm d\,d}{\mathrm d\ell} =
+\frac{\mathrm{d}\,d}{\mathrm{d}\ell} =
 \sin\varphi =
 \sin(\theta-\theta_r).
 $$
 
-This result follows directly from the position relation parameterized by $\ell$ and is not inferred backward from time derivatives. Reference-path curvature does not appear explicitly because the projection of $d\mathbf N/ds=-\kappa_r\mathbf T$ onto the $\mathbf N$ direction is zero. General regularity of the closest-point map within a tubular neighborhood is discussed in [[4, §2.1, Eq. (4), Proposition 2 and Theorem 3]](#ref-kublik-tsai-2016).
+This result follows directly from the position relation parameterized by $\ell$ and is not inferred backward from time derivatives. Reference-path curvature does not appear explicitly because the projection of $\mathrm{d}\mathbf N/\mathrm{d}s=-\kappa_r\mathbf T$ onto the $\mathbf N$ direction is zero. General regularity of the closest-point map within a tubular neighborhood is discussed in [[4, §2.1, Eq. (4), Proposition 2 and Theorem 3]](#ref-kublik-tsai-2016).
 
 ### Local relationship between reference-path and vehicle-trajectory arc lengths
 
-Substituting $d\mathbf N/ds=-\kappa_r\mathbf T$ into the position derivative from the previous subsection gives
+Substituting $\mathrm{d}\mathbf N/\mathrm{d}s=-\kappa_r\mathbf T$ into the position derivative from the previous subsection gives
 
 $$
-\frac{d\mathbf z}{d\ell} =
-(1-d\kappa_r)\frac{ds}{d\ell}\mathbf T
+\frac{\mathrm{d}\mathbf z}{\mathrm{d}\ell} =
+(1-d\kappa_r)\frac{\mathrm{d}s}{\mathrm{d}\ell}\mathbf T
 +
-\frac{\mathrm d\,d}{\mathrm d\ell}\mathbf N.
+\frac{\mathrm{d}\,d}{\mathrm{d}\ell}\mathbf N.
 $$
 
 At the same time, the vehicle-trajectory unit tangent with respect to oriented arc length $\ell$ is
 
 $$
-\frac{d\mathbf z}{d\ell} =
+\frac{\mathrm{d}\mathbf z}{\mathrm{d}\ell} =
 \cos\varphi\,\mathbf T
 +
 \sin\varphi\,\mathbf N.
@@ -465,14 +467,14 @@ $$
 Equating tangential components gives
 
 $$
-(1-d\kappa_r)\frac{ds}{d\ell} =
+(1-d\kappa_r)\frac{\mathrm{d}s}{\mathrm{d}\ell} =
 \cos\varphi.
 $$
 
-When $1-d\kappa_r\ne0$ and $\cos\varphi\ne0$, this equation gives $ds/d\ell\ne0$, so $s$ and $\ell$ are locally interchangeable parameters. “Locally interchangeable” means that, near the current point, the same vehicle-trajectory segment can be described using either $s$ or $\ell$, with a differentiable local inverse transformation between them. Their local arc-length relationship is
+When $1-d\kappa_r\ne0$ and $\cos\varphi\ne0$, this equation gives $\mathrm{d}s/\mathrm{d}\ell\ne0$, so $s$ and $\ell$ are locally interchangeable parameters. “Locally interchangeable” means that, near the current point, the same vehicle-trajectory segment can be described using either $s$ or $\ell$, with a differentiable local inverse transformation between them. Their local arc-length relationship is
 
 $$
-\frac{d\ell}{ds} =
+\frac{\mathrm{d}\ell}{\mathrm{d}s} =
 \frac{1-d\kappa_r}{\cos\varphi}.
 \tag{3}
 $$
@@ -480,7 +482,7 @@ $$
 The inverse relation is
 
 $$
-\frac{ds}{d\ell} =
+\frac{\mathrm{d}s}{\mathrm{d}\ell} =
 \frac{\cos\varphi}{1-d\kappa_r}.
 $$
 
@@ -488,18 +490,18 @@ For an interactive examination of how $d$, $\kappa_r$, and $\varphi$ jointly aff
 
 ### Lateral-deviation equation
 
-On an interval where $ds/d\ell\ne0$, the chain rule gives
+On an interval where $\mathrm{d}s/\mathrm{d}\ell\ne0$, the chain rule gives
 
 $$
-\frac{\mathrm d\,d}{\mathrm d\ell} =
-\frac{\mathrm d\,d}{\mathrm ds}\frac{ds}{d\ell}.
+\frac{\mathrm{d}\,d}{\mathrm{d}\ell} =
+\frac{\mathrm{d}\,d}{\mathrm{d}s}\frac{\mathrm{d}s}{\mathrm{d}\ell}.
 $$
 
-Substituting $\mathrm d\,d/\mathrm d\ell=\sin\varphi$ and the inverse of Equation (3) yields
+Substituting $\mathrm{d}\,d/\mathrm{d}\ell=\sin\varphi$ and the inverse of Equation (3) yields
 
 $$
 \begin{aligned}
-\frac{\mathrm d\,d}{\mathrm ds}
+\frac{\mathrm{d}\,d}{\mathrm{d}s}
 &=
 \frac{\sin\varphi}
 {\cos\varphi/(1-d\kappa_r)}\\[0.6em]
@@ -508,7 +510,7 @@ $$
 \end{aligned}
 $$
 
-The relation $\mathrm d\,d/\mathrm d\ell=\sin\varphi$ contains no explicit reference-path curvature because it describes normal displacement per unit oriented vehicle-trajectory arc length. By contrast, $\mathrm d\,d/\mathrm ds$ explicitly contains $\kappa_r$, because changing the independent variable to the reference-path arc-length coordinate requires the inverse of Equation (3) for the scale conversion.
+The relation $\mathrm{d}\,d/\mathrm{d}\ell=\sin\varphi$ contains no explicit reference-path curvature because it describes normal displacement per unit oriented vehicle-trajectory arc length. By contrast, $\mathrm{d}\,d/\mathrm{d}s$ explicitly contains $\kappa_r$, because changing the independent variable to the reference-path arc-length coordinate requires the inverse of Equation (3) for the scale conversion.
 
 ### Heading-error equation
 
@@ -518,19 +520,19 @@ $$
 \varphi(s)=\theta\bigl(\ell(s)\bigr)-\theta_r(s).
 $$
 
-Differentiate with respect to reference-path arc length $s$, using $\kappa_v=d\theta/d\ell$, $\kappa_r=d\theta_r/ds$, and Equation (3):
+Differentiate with respect to reference-path arc length $s$, using $\kappa_v=\mathrm{d}\theta/\mathrm{d}\ell$, $\kappa_r=\mathrm{d}\theta_r/\mathrm{d}s$, and Equation (3):
 
 $$
 \begin{aligned}
-\frac{d\varphi}{ds}
+\frac{\mathrm{d}\varphi}{\mathrm{d}s}
 &=
-\frac{d\theta}{d\ell}\frac{d\ell}{ds}-\frac{d\theta_r}{ds}\\[0.65em]
+\frac{\mathrm{d}\theta}{\mathrm{d}\ell}\frac{\mathrm{d}\ell}{\mathrm{d}s}-\frac{\mathrm{d}\theta_r}{\mathrm{d}s}\\[0.65em]
 &=
 \kappa_v\frac{1-d\kappa_r}{\cos\varphi}-\kappa_r.
 \end{aligned}
 $$
 
-The first term is the rate of change of vehicle heading per unit reference-path arc length, while the second term, $\kappa_r=d\theta_r/ds$, is the rate of change of reference heading under the same independent variable.
+The first term is the rate of change of vehicle heading per unit reference-path arc length, while the second term, $\kappa_r=\mathrm{d}\theta_r/\mathrm{d}s$, is the rate of change of reference heading under the same independent variable.
 
 ### Two-state reference-path-arc-length-domain model
 
@@ -538,59 +540,59 @@ Combining the lateral-deviation and heading-error equations gives the spatial-do
 
 $$
 \begin{aligned}
-\frac{\mathrm d\,d}{\mathrm ds}
+\frac{\mathrm{d}\,d}{\mathrm{d}s}
 &=
 (1-d\kappa_r)\tan\varphi,\\[0.7em]
-\frac{d\varphi}{ds}
+\frac{\mathrm{d}\varphi}{\mathrm{d}s}
 &=
 \frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r.
 \end{aligned}
 \tag{4}
 $$
 
-Here, $\kappa_r=\kappa_r(s)$ is determined by the reference path, and $\kappa_v$ is the vehicle-trajectory curvature input. Equation (4) follows entirely from arc-length-parameterized geometric relations and does not depend on the time-domain model. In addition to a unique closest-point projection and $1-d\kappa_r\ne0$, it requires $\cos\varphi\ne0$. Otherwise, $ds/d\ell=0$, and the reference-path arc-length coordinate $s$ cannot serve as a local independent variable of the vehicle trajectory at that point.
+Here, $\kappa_r=\kappa_r(s)$ is determined by the reference path, and $\kappa_v$ is the vehicle-trajectory curvature input. Equation (4) follows entirely from arc-length-parameterized geometric relations and does not depend on the time-domain model. In addition to a unique closest-point projection and $1-d\kappa_r\ne0$, it requires $\cos\varphi\ne0$. Otherwise, $\mathrm{d}s/\mathrm{d}\ell=0$, and the reference-path arc-length coordinate $s$ cannot serve as a local independent variable of the vehicle trajectory at that point.
 
 ### Reversing in the arc-length-domain model
 
 Equation (4) also applies to reversing without a separate derivation. The reason is that the preceding derivation uses the oriented arc-length coordinate $\ell$, positive along the vehicle heading unit vector, and relies only on the no-sideslip geometric differential relations
 
 $$
-d\mathbf z=\mathbf e_\theta\,d\ell,
+\mathrm{d}\mathbf z=\mathbf e_\theta\,\mathrm{d}\ell,
 \qquad
-d\theta=\kappa_v\,d\ell.
+\mathrm{d}\theta=\kappa_v\,\mathrm{d}\ell.
 $$
 
-Neither relation requires $d\ell>0$. For forward motion, $d\ell>0$ and the displacement $d\mathbf z$ points with $\mathbf e_\theta$. For reverse motion, $d\ell<0$ and $d\mathbf z$ points against $\mathbf e_\theta$, while $d\mathbf z/d\ell=\mathbf e_\theta$ remains true. The component comparison of the position differential, arc-length conversion, and chain rule are therefore unchanged in reverse, yielding the same two-state model.
+Neither relation requires $\mathrm{d}\ell>0$. For forward motion, $\mathrm{d}\ell>0$ and the displacement $\mathrm{d}\mathbf z$ points with $\mathbf e_\theta$. For reverse motion, $\mathrm{d}\ell<0$ and $\mathrm{d}\mathbf z$ points against $\mathbf e_\theta$, while $\mathrm{d}\mathbf z/\mathrm{d}\ell=\mathbf e_\theta$ remains true. The component comparison of the position differential, arc-length conversion, and chain rule are therefore unchanged in reverse, yielding the same two-state model.
 
 The inverse of Equation (3) gives
 
 $$
-\frac{ds}{d\ell}=\frac{\cos\varphi}{1-d\kappa_r}.
+\frac{\mathrm{d}s}{\mathrm{d}\ell}=\frac{\cos\varphi}{1-d\kappa_r}.
 $$
 
-In general, the signs of $ds$ and $d\ell$ are related by
+In general, the signs of $\mathrm{d}s$ and $\mathrm{d}\ell$ are related by
 
 $$
-\operatorname{sgn}(ds)=
-\operatorname{sgn}(d\ell)
+\operatorname{sgn}(\mathrm{d}s)=
+\operatorname{sgn}(\mathrm{d}\ell)
 \operatorname{sgn}\!\left(\frac{\cos\varphi}{1-d\kappa_r}\right).
 $$
 
-In the usual Frenet tracking region where $1-d\kappa_r>0$ and $|\varphi|<\pi/2$, $ds/d\ell>0$, so forward motion has $ds>0$ and reverse motion has $ds<0$. Given the same vehicle-curvature function $\kappa_v(s)$ and the same initial state, the same spatial-domain equations determine the same $(d,\varphi)$ state curve for forward and reverse motion; the curve is simply traversed in opposite directions of $s$. The right-hand side of Equation (4) requires no modification.
+In the usual Frenet tracking region where $1-d\kappa_r>0$ and $|\varphi|<\pi/2$, $\mathrm{d}s/\mathrm{d}\ell>0$, so forward motion has $\mathrm{d}s>0$ and reverse motion has $\mathrm{d}s<0$. Given the same vehicle-curvature function $\kappa_v(s)$ and the same initial state, the same spatial-domain equations determine the same $(d,\varphi)$ state curve for forward and reverse motion; the curve is simply traversed in opposite directions of $s$. The right-hand side of Equation (4) requires no modification.
 
 Within this usual tracking region, while keeping the same state, initial condition, and curvature input, the quantities correspond as follows:
 
-| Quantity                                                        | Forward                               | Reverse                                              | Definition or model changed?                    |
-| --------------------------------------------------------------- | ------------------------------------- | ---------------------------------------------------- | ----------------------------------------------- |
-| Oriented vehicle-trajectory arc-length increment $d\ell$        | $d\ell>0$                             | $d\ell<0$                                            | Definition unchanged                            |
-| Vehicle displacement $d\mathbf z=\mathbf e_\theta d\ell$        | Same direction as $\mathbf e_\theta$  | Opposite direction to $\mathbf e_\theta$             | Geometric relation unchanged                    |
-| Reference-path arc-length increment $ds$                        | $ds>0$                                | $ds<0$                                               | Determined by Equation (3)                      |
-| Heading increment $d\theta=\kappa_v d\ell$                      | Accumulates along positive arc length | Increment direction reverses for the same $\kappa_v$ | $\kappa_v$ is not artificially negated          |
-| States $d$, $\varphi$                                           | Evolve forward in $s$                 | Evolve backward in $s$                               | State definitions unchanged and not pre-negated |
-| Reference curvature $\kappa_r$ and vehicle curvature $\kappa_v$ | Existing sign conventions             | Same sign conventions                                | Neither is modified                             |
-| Two right-hand sides of Equation (4)                            | Original form                         | Original form                                        | Completely unchanged                            |
+| Quantity                                                                   | Forward                               | Reverse                                              | Definition or model changed?                    |
+| -------------------------------------------------------------------------- | ------------------------------------- | ---------------------------------------------------- | ----------------------------------------------- |
+| Oriented vehicle-trajectory arc-length increment $\mathrm{d}\ell$          | $\mathrm{d}\ell>0$                    | $\mathrm{d}\ell<0$                                   | Definition unchanged                            |
+| Vehicle displacement $\mathrm{d}\mathbf z=\mathbf e_\theta \mathrm{d}\ell$ | Same direction as $\mathbf e_\theta$  | Opposite direction to $\mathbf e_\theta$             | Geometric relation unchanged                    |
+| Reference-path arc-length increment $\mathrm{d}s$                          | $\mathrm{d}s>0$                       | $\mathrm{d}s<0$                                      | Determined by Equation (3)                      |
+| Heading increment $\mathrm{d}\theta=\kappa_v \mathrm{d}\ell$               | Accumulates along positive arc length | Increment direction reverses for the same $\kappa_v$ | $\kappa_v$ is not artificially negated          |
+| States $d$, $\varphi$                                                      | Evolve forward in $s$                 | Evolve backward in $s$                               | State definitions unchanged and not pre-negated |
+| Reference curvature $\kappa_r$ and vehicle curvature $\kappa_v$            | Existing sign conventions             | Same sign conventions                                | Neither is modified                             |
+| Two right-hand sides of Equation (4)                                       | Original form                         | Original form                                        | Completely unchanged                            |
 
-Accordingly, when solving directly in $s$ within this usual tracking region, forward motion integrates from a smaller $s$ to a larger $s$, while reverse motion integrates from a larger $s$ to a smaller $s$. On a reversing segment beginning at $s_{\mathrm{start}}$ with monotonically decreasing $s$, a numerical implementation may define an increasing progress variable $\sigma=s_{\mathrm{start}}-s$. Since $d/d\sigma=-d/ds$, both state-equation right-hand sides then acquire an overall factor of $-1$. This is a consequence of changing the independent variable, not a modification of Equation (4) caused by reversing.
+Accordingly, when solving directly in $s$ within this usual tracking region, forward motion integrates from a smaller $s$ to a larger $s$, while reverse motion integrates from a larger $s$ to a smaller $s$. On a reversing segment beginning at $s_{\mathrm{start}}$ with monotonically decreasing $s$, a numerical implementation may define an increasing progress variable $\sigma=s_{\mathrm{start}}-s$. Since $\mathrm{d}/\mathrm{d}\sigma=-\mathrm{d}/\mathrm{d}s$, both state-equation right-hand sides then acquire an overall factor of $-1$. This is a consequence of changing the independent variable, not a modification of Equation (4) caused by reversing.
 
 ## References
 

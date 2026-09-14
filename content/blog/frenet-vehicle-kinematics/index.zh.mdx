@@ -31,19 +31,19 @@ $$
 \begin{aligned}
 \mathbf T(s)
 &=
-\frac{d\mathbf r}{ds},&
+\frac{\mathrm{d}\mathbf r}{\mathrm{d}s},&
 \mathbf N(s)
 &=
 J\mathbf T(s),\\[0.6em]
-\frac{d\mathbf T}{ds}
+\frac{\mathrm{d}\mathbf T}{\mathrm{d}s}
 &=
 \kappa_r\mathbf N,&
-\frac{d\mathbf N}{ds}
+\frac{\mathrm{d}\mathbf N}{\mathrm{d}s}
 &=
 -\kappa_r\mathbf T,\\[0.6em]
 \kappa_r
 &=
-\frac{d\theta_r}{ds}.
+\frac{\mathrm{d}\theta_r}{\mathrm{d}s}.
 \end{aligned}
 $$
 
@@ -70,21 +70,21 @@ $$
 以 $\ell$ 表示后轴中心轨迹的**有向弧长坐标**。给定初值 $\ell(t_0)$ 后，它定义为
 
 $$
-\ell(t)=\ell(t_0)+\int_{t_0}^{t}v(\tau)\,d\tau,
+\ell(t)=\ell(t_0)+\int_{t_0}^{t}v(\tau)\,\mathrm{d}\tau,
 $$
 
 因而
 
 $$
-\frac{d\ell}{dt}=v.
+\frac{\mathrm{d}\ell}{\mathrm{d}t}=v.
 $$
 
-前进时 $\ell$ 增大，倒车时 $\ell$ 减小。它不是只增不减的累计路程；后者的增量应由 $|v|\,dt$ 计算。在 $v\ne0$ 的轨迹段上，$\ell$ 可作为局部参数，链式法则给出 $d\mathbf z/d\ell=\mathbf e_\theta$，因此车辆轨迹相对于这一取向的有符号曲率定义为
+前进时 $\ell$ 增大，倒车时 $\ell$ 减小。它不是只增不减的累计路程；后者的增量应由 $|v|\,\mathrm{d}t$ 计算。在 $v\ne0$ 的轨迹段上，$\ell$ 可作为局部参数，链式法则给出 $\mathrm{d}\mathbf z/\mathrm{d}\ell=\mathbf e_\theta$，因此车辆轨迹相对于这一取向的有符号曲率定义为
 
 $$
 \kappa_v
 :=
-\frac{d\theta}{d\ell}.
+\frac{\mathrm{d}\theta}{\mathrm{d}\ell}.
 $$
 
 对给定的车辆位置，**最近点投影**是在参考路径上寻找与后轴中心距离最小的点。本文假设该投影点唯一并位于参考路径参数区间的内部，因此后轴中心与投影点的连线垂直于参考路径。投影点的弧长坐标记为 $s(t)$；从投影点沿左单位法向量 $\mathbf N$ 测得的有符号距离记为横向偏差 $d(t)$，其中 $d>0$ 表示车辆位于参考路径 $s$ 增大方向的左侧，$d<0$ 表示位于右侧。车辆航向角与投影点处参考航向角之差定义为
@@ -96,6 +96,8 @@ $$
 $$
 
 这里的 $\theta$ 与 $\theta_r$ 都取沿所讨论轨迹段连续展开的角度值，使 $\varphi$ 在跨越 $\pm\pi$ 的表示边界时不发生人为跳变。时间域模型以时间 $t$ 为自变量、以 $(s,d,\varphi)$ 为状态；参考路径弧长域模型也称空间域模型，它改用 $s$ 作为自变量，因此只需以 $(d,\varphi)$ 为状态。图 1 表示这些量之间的几何关系：$\mathbf T(s)$ 与 $\mathbf N(s)$ 是投影点处的 Frenet 基向量，紫色双向尺寸线表示从参考路径到后轴中心的横向偏差 $d$，后轴中心处的箭头 $\mathbf e_\theta$ 表示车辆航向单位向量。
+
+本文以直立的 $\mathrm{d}$ 表示微分符号，以区别于斜体的横向偏差变量 $d$；$\dot d$ 表示横向偏差对时间的导数。
 
 <FocusFigure number={1} variant="research" interactive={false}>
   <ResearchFigure kind="vehicle-state" />
@@ -120,17 +122,17 @@ d(t)\mathbf N\bigl(s(t)\bigr).
 \tag{1}
 $$
 
-对式 (1) 关于时间 $t$ 求导，并使用 $d\mathbf r/ds=\mathbf T$ 与 $d\mathbf N/ds=-\kappa_r\mathbf T$：
+对式 (1) 关于时间 $t$ 求导，并使用 $\mathrm{d}\mathbf r/\mathrm{d}s=\mathbf T$ 与 $\mathrm{d}\mathbf N/\mathrm{d}s=-\kappa_r\mathbf T$：
 
 $$
 \begin{aligned}
 \dot{\mathbf z}
 &=
-\frac{d\mathbf r}{ds}\dot s
+\frac{\mathrm{d}\mathbf r}{\mathrm{d}s}\dot s
 +
 \dot d\,\mathbf N
 +
-d\,\frac{d\mathbf N}{ds}\dot s\\[0.6em]
+d\,\frac{\mathrm{d}\mathbf N}{\mathrm{d}s}\dot s\\[0.6em]
 &=
 \mathbf T\dot s
 +
@@ -254,27 +256,27 @@ $$
 \theta_r\bigl(s(t)\bigr).
 $$
 
-关于时间使用链式法则，并代入 $\kappa_r=d\theta_r/ds$：
+关于时间使用链式法则，并代入 $\kappa_r=\mathrm{d}\theta_r/\mathrm{d}s$：
 
 $$
 \begin{aligned}
 \dot\varphi
 &=
 \dot\theta -
-\frac{d\theta_r}{ds}\dot s\\[0.6em]
+\frac{\mathrm{d}\theta_r}{\mathrm{d}s}\dot s\\[0.6em]
 &=
 \dot\theta -
 \kappa_r\dot s.
 \end{aligned}
 $$
 
-在 $v\ne0$ 的运动区间，由 $\kappa_v=d\theta/d\ell$ 以及 $d\ell/dt=v$，
+在 $v\ne0$ 的运动区间，由 $\kappa_v=\mathrm{d}\theta/\mathrm{d}\ell$ 以及 $\mathrm{d}\ell/\mathrm{d}t=v$，
 
 $$
 \begin{aligned}
 \dot\theta
 &=
-\frac{d\theta}{d\ell}\frac{d\ell}{dt}\\[0.6em]
+\frac{\mathrm{d}\theta}{\mathrm{d}\ell}\frac{\mathrm{d}\ell}{\mathrm{d}t}\\[0.6em]
 &=
 v\kappa_v.
 \end{aligned}
@@ -340,16 +342,16 @@ $$
 
 为进行严格对比，固定同一状态 $(s,d,\varphi)$、同一车辆曲率 $\kappa_v$ 和同一速度大小 $u>0$，只把纵向速度从前进的 $v=u$ 改为倒车的 $v=-u$。各量的变化如下：
 
-| 量                                        | 前进：$v=u$                                                       | 倒车：$v=-u$                                                       | 定义或模型是否改变    |
-| ----------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------ | --------------------- |
-| 车辆速度 $\dot{\mathbf z}$                | $u\mathbf e_\theta$                                               | $-u\mathbf e_\theta$                                               | 无侧滑关系不变        |
-| 有向弧长变化率 $d\ell/dt$                 | $u$                                                               | $-u$                                                               | 始终有 $d\ell/dt=v$   |
-| 参考路径坐标变化率 $\dot s$               | $\dfrac{u\cos\varphi}{1-d\kappa_r}$                               | $-\dfrac{u\cos\varphi}{1-d\kappa_r}$                               | 由同一状态方程决定    |
-| 横向偏差变化率 $\dot d$                   | $u\sin\varphi$                                                    | $-u\sin\varphi$                                                    | $d$ 的定义不变        |
-| 航向角速度 $\dot\theta$                   | $u\kappa_v$                                                       | $-u\kappa_v$                                                       | $\kappa_v$ 不人为变号 |
-| 航向误差变化率 $\dot\varphi$              | $u\left(\kappa_v-\dfrac{\kappa_r\cos\varphi}{1-d\kappa_r}\right)$ | $-u\left(\kappa_v-\dfrac{\kappa_r\cos\varphi}{1-d\kappa_r}\right)$ | $\varphi$ 的定义不变  |
-| 参考曲率 $\kappa_r$ 与车辆曲率 $\kappa_v$ | 使用既定符号约定                                                  | 使用同一符号约定                                                   | 均不修改              |
-| 式 (2)                                    | 使用原方程                                                        | 使用原方程                                                         | 完全不变              |
+| 量                                          | 前进：$v=u$                                                       | 倒车：$v=-u$                                                       | 定义或模型是否改变                    |
+| ------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------- |
+| 车辆速度 $\dot{\mathbf z}$                  | $u\mathbf e_\theta$                                               | $-u\mathbf e_\theta$                                               | 无侧滑关系不变                        |
+| 有向弧长变化率 $\mathrm{d}\ell/\mathrm{d}t$ | $u$                                                               | $-u$                                                               | 始终有 $\mathrm{d}\ell/\mathrm{d}t=v$ |
+| 参考路径坐标变化率 $\dot s$                 | $\dfrac{u\cos\varphi}{1-d\kappa_r}$                               | $-\dfrac{u\cos\varphi}{1-d\kappa_r}$                               | 由同一状态方程决定                    |
+| 横向偏差变化率 $\dot d$                     | $u\sin\varphi$                                                    | $-u\sin\varphi$                                                    | $d$ 的定义不变                        |
+| 航向角速度 $\dot\theta$                     | $u\kappa_v$                                                       | $-u\kappa_v$                                                       | $\kappa_v$ 不人为变号                 |
+| 航向误差变化率 $\dot\varphi$                | $u\left(\kappa_v-\dfrac{\kappa_r\cos\varphi}{1-d\kappa_r}\right)$ | $-u\left(\kappa_v-\dfrac{\kappa_r\cos\varphi}{1-d\kappa_r}\right)$ | $\varphi$ 的定义不变                  |
+| 参考曲率 $\kappa_r$ 与车辆曲率 $\kappa_v$   | 使用既定符号约定                                                  | 使用同一符号约定                                                   | 均不修改                              |
+| 式 (2)                                      | 使用原方程                                                        | 使用原方程                                                         | 完全不变                              |
 
 因此，在上述比较条件下，仅改变 $v$ 的符号会使式 (2) 的三个状态变化率同时反号。时间 $t$ 仍按正方向推进；与参考路径弧长域模型不同，时间域倒车通过 $v<0$ 表示，而不是通过反向积分时间实现。停车时 $v=0$，式 (2) 给出 $\dot s=\dot d=\dot\varphi=0$。
 
@@ -372,27 +374,27 @@ $$
 
 $$
 \begin{aligned}
-\frac{d\mathbf z}{d\ell}
+\frac{\mathrm{d}\mathbf z}{\mathrm{d}\ell}
 &=
-\frac{d\mathbf r}{ds}\frac{ds}{d\ell}
+\frac{\mathrm{d}\mathbf r}{\mathrm{d}s}\frac{\mathrm{d}s}{\mathrm{d}\ell}
 +
-\frac{\mathrm d\,d}{\mathrm d\ell}\mathbf N
+\frac{\mathrm{d}\,d}{\mathrm{d}\ell}\mathbf N
 +
-d\frac{d\mathbf N}{ds}\frac{ds}{d\ell}\\[0.8em]
+d\frac{\mathrm{d}\mathbf N}{\mathrm{d}s}\frac{\mathrm{d}s}{\mathrm{d}\ell}\\[0.8em]
 &=
-\mathbf T\frac{ds}{d\ell}
+\mathbf T\frac{\mathrm{d}s}{\mathrm{d}\ell}
 +
-\frac{\mathrm d\,d}{\mathrm d\ell}\mathbf N
+\frac{\mathrm{d}\,d}{\mathrm{d}\ell}\mathbf N
 +
-d\frac{d\mathbf N}{ds}\frac{ds}{d\ell}.
+d\frac{\mathrm{d}\mathbf N}{\mathrm{d}s}\frac{\mathrm{d}s}{\mathrm{d}\ell}.
 \end{aligned}
 $$
 
-由 Frenet 关系 $d\mathbf N/ds=-\kappa_r\mathbf T$ 与 $\langle\mathbf T,\mathbf N\rangle=0$，
+由 Frenet 关系 $\mathrm{d}\mathbf N/\mathrm{d}s=-\kappa_r\mathbf T$ 与 $\langle\mathbf T,\mathbf N\rangle=0$，
 
 $$
 \left\langle
-\frac{d\mathbf N}{ds},
+\frac{\mathrm{d}\mathbf N}{\mathrm{d}s},
 \mathbf N
 \right\rangle
 =-\kappa_r\langle\mathbf T,\mathbf N\rangle=0.
@@ -402,16 +404,16 @@ $$
 
 $$
 \left\langle
-\frac{d\mathbf z}{d\ell},
+\frac{\mathrm{d}\mathbf z}{\mathrm{d}\ell},
 \mathbf N
 \right\rangle =
-\frac{\mathrm d\,d}{\mathrm d\ell}.
+\frac{\mathrm{d}\,d}{\mathrm{d}\ell}.
 $$
 
 由 $\ell$ 的取向和无侧滑约束，车辆轨迹相对于 $\ell$ 的单位切向量就是航向单位向量：
 
 $$
-\frac{d\mathbf z}{d\ell} =
+\frac{\mathrm{d}\mathbf z}{\mathrm{d}\ell} =
 \mathbf e_\theta =
 \cos\varphi\,\mathbf T
 +
@@ -422,7 +424,7 @@ $$
 
 $$
 \left\langle
-\frac{d\mathbf z}{d\ell},
+\frac{\mathrm{d}\mathbf z}{\mathrm{d}\ell},
 \mathbf N
 \right\rangle =
 \sin\varphi.
@@ -431,28 +433,28 @@ $$
 比较同一个法向分量，得到
 
 $$
-\frac{\mathrm d\,d}{\mathrm d\ell} =
+\frac{\mathrm{d}\,d}{\mathrm{d}\ell} =
 \sin\varphi =
 \sin(\theta-\theta_r).
 $$
 
-这一结果直接来自以 $\ell$ 参数化的位置关系，没有借助时间导数反推。它最终不显含参考路径曲率，因为 $d\mathbf N/ds=-\kappa_r\mathbf T$ 在 $\mathbf N$ 方向上的投影为零。最近点映射及其管状邻域中的一般正则性背景见 [[4, §2.1, Eq. (4), Proposition 2 and Theorem 3]](#ref-kublik-tsai-2016)。
+这一结果直接来自以 $\ell$ 参数化的位置关系，没有借助时间导数反推。它最终不显含参考路径曲率，因为 $\mathrm{d}\mathbf N/\mathrm{d}s=-\kappa_r\mathbf T$ 在 $\mathbf N$ 方向上的投影为零。最近点映射及其管状邻域中的一般正则性背景见 [[4, §2.1, Eq. (4), Proposition 2 and Theorem 3]](#ref-kublik-tsai-2016)。
 
 ### 参考路径弧长与车辆轨迹有向弧长的局部换算
 
-将 $d\mathbf N/ds=-\kappa_r\mathbf T$ 代入上一小节的位置导数，可得
+将 $\mathrm{d}\mathbf N/\mathrm{d}s=-\kappa_r\mathbf T$ 代入上一小节的位置导数，可得
 
 $$
-\frac{d\mathbf z}{d\ell} =
-(1-d\kappa_r)\frac{ds}{d\ell}\mathbf T
+\frac{\mathrm{d}\mathbf z}{\mathrm{d}\ell} =
+(1-d\kappa_r)\frac{\mathrm{d}s}{\mathrm{d}\ell}\mathbf T
 +
-\frac{\mathrm d\,d}{\mathrm d\ell}\mathbf N.
+\frac{\mathrm{d}\,d}{\mathrm{d}\ell}\mathbf N.
 $$
 
 同时，车辆轨迹相对于有向弧长 $\ell$ 的单位切向量为
 
 $$
-\frac{d\mathbf z}{d\ell} =
+\frac{\mathrm{d}\mathbf z}{\mathrm{d}\ell} =
 \cos\varphi\,\mathbf T
 +
 \sin\varphi\,\mathbf N.
@@ -461,14 +463,14 @@ $$
 比较切向分量：
 
 $$
-(1-d\kappa_r)\frac{ds}{d\ell} =
+(1-d\kappa_r)\frac{\mathrm{d}s}{\mathrm{d}\ell} =
 \cos\varphi.
 $$
 
-当 $1-d\kappa_r\ne0$ 且 $\cos\varphi\ne0$ 时，上式给出 $ds/d\ell\ne0$，因而 $s$ 与 $\ell$ 在局部互为参数。这里“局部互为参数”是指在当前点附近，同一段车辆轨迹既可以用 $s$ 描述，也可以用 $\ell$ 描述，并且两种参数之间存在可微的局部逆变换。两种弧长的局部换算关系为
+当 $1-d\kappa_r\ne0$ 且 $\cos\varphi\ne0$ 时，上式给出 $\mathrm{d}s/\mathrm{d}\ell\ne0$，因而 $s$ 与 $\ell$ 在局部互为参数。这里“局部互为参数”是指在当前点附近，同一段车辆轨迹既可以用 $s$ 描述，也可以用 $\ell$ 描述，并且两种参数之间存在可微的局部逆变换。两种弧长的局部换算关系为
 
 $$
-\frac{d\ell}{ds} =
+\frac{\mathrm{d}\ell}{\mathrm{d}s} =
 \frac{1-d\kappa_r}{\cos\varphi}.
 \tag{3}
 $$
@@ -476,7 +478,7 @@ $$
 相应的逆关系为
 
 $$
-\frac{ds}{d\ell} =
+\frac{\mathrm{d}s}{\mathrm{d}\ell} =
 \frac{\cos\varphi}{1-d\kappa_r}.
 $$
 
@@ -484,18 +486,18 @@ $$
 
 ### 横向偏差方程
 
-在 $ds/d\ell\ne0$ 的区间内，链式法则给出
+在 $\mathrm{d}s/\mathrm{d}\ell\ne0$ 的区间内，链式法则给出
 
 $$
-\frac{\mathrm d\,d}{\mathrm d\ell} =
-\frac{\mathrm d\,d}{\mathrm ds}\frac{ds}{d\ell}.
+\frac{\mathrm{d}\,d}{\mathrm{d}\ell} =
+\frac{\mathrm{d}\,d}{\mathrm{d}s}\frac{\mathrm{d}s}{\mathrm{d}\ell}.
 $$
 
-代入 $\mathrm d\,d/\mathrm d\ell=\sin\varphi$ 与式 (3) 的逆关系：
+代入 $\mathrm{d}\,d/\mathrm{d}\ell=\sin\varphi$ 与式 (3) 的逆关系：
 
 $$
 \begin{aligned}
-\frac{\mathrm d\,d}{\mathrm ds}
+\frac{\mathrm{d}\,d}{\mathrm{d}s}
 &=
 \frac{\sin\varphi}
 {\cos\varphi/(1-d\kappa_r)}\\[0.6em]
@@ -504,7 +506,7 @@ $$
 \end{aligned}
 $$
 
-关系 $\mathrm d\,d/\mathrm d\ell=\sin\varphi$ 不显含参考路径曲率，因为它描述每单位车辆轨迹有向弧长产生的法向变化；而 $\mathrm d\,d/\mathrm ds$ 显含 $\kappa_r$，因为改用参考路径弧长坐标作为自变量时必须使用式 (3) 的逆关系完成尺度换算。
+关系 $\mathrm{d}\,d/\mathrm{d}\ell=\sin\varphi$ 不显含参考路径曲率，因为它描述每单位车辆轨迹有向弧长产生的法向变化；而 $\mathrm{d}\,d/\mathrm{d}s$ 显含 $\kappa_r$，因为改用参考路径弧长坐标作为自变量时必须使用式 (3) 的逆关系完成尺度换算。
 
 ### 航向误差方程
 
@@ -514,19 +516,19 @@ $$
 \varphi(s)=\theta\bigl(\ell(s)\bigr)-\theta_r(s).
 $$
 
-关于参考路径弧长 $s$ 求导，并使用 $\kappa_v=d\theta/d\ell$、$\kappa_r=d\theta_r/ds$ 以及式 (3)：
+关于参考路径弧长 $s$ 求导，并使用 $\kappa_v=\mathrm{d}\theta/\mathrm{d}\ell$、$\kappa_r=\mathrm{d}\theta_r/\mathrm{d}s$ 以及式 (3)：
 
 $$
 \begin{aligned}
-\frac{d\varphi}{ds}
+\frac{\mathrm{d}\varphi}{\mathrm{d}s}
 &=
-\frac{d\theta}{d\ell}\frac{d\ell}{ds}-\frac{d\theta_r}{ds}\\[0.65em]
+\frac{\mathrm{d}\theta}{\mathrm{d}\ell}\frac{\mathrm{d}\ell}{\mathrm{d}s}-\frac{\mathrm{d}\theta_r}{\mathrm{d}s}\\[0.65em]
 &=
 \kappa_v\frac{1-d\kappa_r}{\cos\varphi}-\kappa_r.
 \end{aligned}
 $$
 
-第一项是车辆航向角每单位参考路径弧长的变化率，第二项 $\kappa_r=d\theta_r/ds$ 是参考航向角在同一自变量下的变化率。
+第一项是车辆航向角每单位参考路径弧长的变化率，第二项 $\kappa_r=\mathrm{d}\theta_r/\mathrm{d}s$ 是参考航向角在同一自变量下的变化率。
 
 ### 二状态参考路径弧长域模型
 
@@ -534,59 +536,59 @@ $$
 
 $$
 \begin{aligned}
-\frac{\mathrm d\,d}{\mathrm ds}
+\frac{\mathrm{d}\,d}{\mathrm{d}s}
 &=
 (1-d\kappa_r)\tan\varphi,\\[0.7em]
-\frac{d\varphi}{ds}
+\frac{\mathrm{d}\varphi}{\mathrm{d}s}
 &=
 \frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r.
 \end{aligned}
 \tag{4}
 $$
 
-这里 $\kappa_r=\kappa_r(s)$ 由参考路径给定，$\kappa_v$ 是车辆轨迹曲率输入。式 (4) 完全由弧长参数化的几何关系得到，不依赖时间域模型。除最近点投影唯一且 $1-d\kappa_r\ne0$ 外，它还要求 $\cos\varphi\ne0$；否则 $ds/d\ell=0$，参考路径弧长坐标 $s$ 在该点无法作为车辆轨迹的局部自变量。
+这里 $\kappa_r=\kappa_r(s)$ 由参考路径给定，$\kappa_v$ 是车辆轨迹曲率输入。式 (4) 完全由弧长参数化的几何关系得到，不依赖时间域模型。除最近点投影唯一且 $1-d\kappa_r\ne0$ 外，它还要求 $\cos\varphi\ne0$；否则 $\mathrm{d}s/\mathrm{d}\ell=0$，参考路径弧长坐标 $s$ 在该点无法作为车辆轨迹的局部自变量。
 
 ### 弧长域模型中的倒车
 
 式 (4) 同样适用于倒车，无须针对倒车重新推导。原因是前述弧长域推导使用的是沿车辆航向单位向量取正的有向弧长坐标 $\ell$，并且只依赖无侧滑条件下的几何微分关系
 
 $$
-d\mathbf z=\mathbf e_\theta\,d\ell,
+\mathrm{d}\mathbf z=\mathbf e_\theta\,\mathrm{d}\ell,
 \qquad
-d\theta=\kappa_v\,d\ell.
+\mathrm{d}\theta=\kappa_v\,\mathrm{d}\ell.
 $$
 
-这两个关系没有要求 $d\ell>0$。前进时 $d\ell>0$，位移 $d\mathbf z$ 与车辆航向单位向量 $\mathbf e_\theta$ 同向；倒车时 $d\ell<0$，位移 $d\mathbf z$ 与 $\mathbf e_\theta$ 反向，但 $d\mathbf z/d\ell=\mathbf e_\theta$ 仍然成立。因此，前述位置微分的分量比较、弧长换算和链式法则在倒车时均保持不变，最终得到的仍是同一个二状态模型。
+这两个关系没有要求 $\mathrm{d}\ell>0$。前进时 $\mathrm{d}\ell>0$，位移 $\mathrm{d}\mathbf z$ 与车辆航向单位向量 $\mathbf e_\theta$ 同向；倒车时 $\mathrm{d}\ell<0$，位移 $\mathrm{d}\mathbf z$ 与 $\mathbf e_\theta$ 反向，但 $\mathrm{d}\mathbf z/\mathrm{d}\ell=\mathbf e_\theta$ 仍然成立。因此，前述位置微分的分量比较、弧长换算和链式法则在倒车时均保持不变，最终得到的仍是同一个二状态模型。
 
 式 (3) 的逆关系给出
 
 $$
-\frac{ds}{d\ell}=\frac{\cos\varphi}{1-d\kappa_r}.
+\frac{\mathrm{d}s}{\mathrm{d}\ell}=\frac{\cos\varphi}{1-d\kappa_r}.
 $$
 
-因此一般情况下，$ds$ 与 $d\ell$ 的符号关系为
+因此一般情况下，$\mathrm{d}s$ 与 $\mathrm{d}\ell$ 的符号关系为
 
 $$
-\operatorname{sgn}(ds)=
-\operatorname{sgn}(d\ell)
+\operatorname{sgn}(\mathrm{d}s)=
+\operatorname{sgn}(\mathrm{d}\ell)
 \operatorname{sgn}\!\left(\frac{\cos\varphi}{1-d\kappa_r}\right).
 $$
 
-在通常的 Frenet 跟踪区域 $1-d\kappa_r>0$ 且 $|\varphi|<\pi/2$ 内，$ds/d\ell>0$，所以前进对应 $ds>0$，倒车对应 $ds<0$。在给定同一车辆曲率函数 $\kappa_v(s)$ 并从同一状态出发时，前进与倒车由同一空间域方程确定同一条 $(d,\varphi)$ 状态曲线，只是沿 $s$ 的相反方向经过它，式 (4) 的右端不需要修改。
+在通常的 Frenet 跟踪区域 $1-d\kappa_r>0$ 且 $|\varphi|<\pi/2$ 内，$\mathrm{d}s/\mathrm{d}\ell>0$，所以前进对应 $\mathrm{d}s>0$，倒车对应 $\mathrm{d}s<0$。在给定同一车辆曲率函数 $\kappa_v(s)$ 并从同一状态出发时，前进与倒车由同一空间域方程确定同一条 $(d,\varphi)$ 状态曲线，只是沿 $s$ 的相反方向经过它，式 (4) 的右端不需要修改。
 
 在上述常用跟踪区域内，并保持相同的状态、初始条件与曲率输入，各量的对应变化如下：
 
-| 量                                           | 前进                       | 倒车                            | 是否修改定义或模型            |
-| -------------------------------------------- | -------------------------- | ------------------------------- | ----------------------------- |
-| 车辆轨迹有向弧长坐标增量 $d\ell$             | $d\ell>0$                  | $d\ell<0$                       | 不修改定义                    |
-| 车辆位移 $d\mathbf z=\mathbf e_\theta d\ell$ | 与 $\mathbf e_\theta$ 同向 | 与 $\mathbf e_\theta$ 反向      | 几何关系不变                  |
-| 参考路径弧长增量 $ds$                        | $ds>0$                     | $ds<0$                          | 由式 (3) 决定                 |
-| 航向增量 $d\theta=\kappa_v d\ell$            | 按正向弧长累积             | 对相同 $\kappa_v$，增量方向反转 | $\kappa_v$ 不因倒车而人为变号 |
-| 状态 $d$、$\varphi$                          | 由模型沿 $s$ 正向演化      | 由模型沿 $s$ 反向演化           | 状态定义不变，也不预先取反    |
-| 参考曲率 $\kappa_r$ 与车辆曲率 $\kappa_v$    | 使用既定符号约定           | 使用同一符号约定                | 均不修改                      |
-| 式 (4) 的两个右端                            | 原形式                     | 原形式                          | 完全不变                      |
+| 量                                                             | 前进                       | 倒车                            | 是否修改定义或模型            |
+| -------------------------------------------------------------- | -------------------------- | ------------------------------- | ----------------------------- |
+| 车辆轨迹有向弧长坐标增量 $\mathrm{d}\ell$                      | $\mathrm{d}\ell>0$         | $\mathrm{d}\ell<0$              | 不修改定义                    |
+| 车辆位移 $\mathrm{d}\mathbf z=\mathbf e_\theta \mathrm{d}\ell$ | 与 $\mathbf e_\theta$ 同向 | 与 $\mathbf e_\theta$ 反向      | 几何关系不变                  |
+| 参考路径弧长增量 $\mathrm{d}s$                                 | $\mathrm{d}s>0$            | $\mathrm{d}s<0$                 | 由式 (3) 决定                 |
+| 航向增量 $\mathrm{d}\theta=\kappa_v \mathrm{d}\ell$            | 按正向弧长累积             | 对相同 $\kappa_v$，增量方向反转 | $\kappa_v$ 不因倒车而人为变号 |
+| 状态 $d$、$\varphi$                                            | 由模型沿 $s$ 正向演化      | 由模型沿 $s$ 反向演化           | 状态定义不变，也不预先取反    |
+| 参考曲率 $\kappa_r$ 与车辆曲率 $\kappa_v$                      | 使用既定符号约定           | 使用同一符号约定                | 均不修改                      |
+| 式 (4) 的两个右端                                              | 原形式                     | 原形式                          | 完全不变                      |
 
-相应地，在上述常用跟踪区域内使用 $s$ 直接求解时，前进从较小的 $s$ 积分到较大的 $s$，倒车则从较大的 $s$ 积分到较小的 $s$。在从 $s_{\mathrm{start}}$ 开始且 $s$ 单调减小的倒车轨迹段上，如果数值实现另外定义递增进度 $\sigma=s_{\mathrm{start}}-s$，则由 $d/d\sigma=-d/ds$ 可知两个状态方程的右端会整体乘以 $-1$；这是更换自变量造成的结果，不是倒车改变了式 (4)。
+相应地，在上述常用跟踪区域内使用 $s$ 直接求解时，前进从较小的 $s$ 积分到较大的 $s$，倒车则从较大的 $s$ 积分到较小的 $s$。在从 $s_{\mathrm{start}}$ 开始且 $s$ 单调减小的倒车轨迹段上，如果数值实现另外定义递增进度 $\sigma=s_{\mathrm{start}}-s$，则由 $\mathrm{d}/\mathrm{d}\sigma=-\mathrm{d}/\mathrm{d}s$ 可知两个状态方程的右端会整体乘以 $-1$；这是更换自变量造成的结果，不是倒车改变了式 (4)。
 
 ## 参考文献
 
