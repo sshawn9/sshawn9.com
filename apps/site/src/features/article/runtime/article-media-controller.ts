@@ -1,17 +1,9 @@
+import type PhotoSwipe from 'photoswipe';
+import type PhotoSwipeLightbox from 'photoswipe/lightbox';
 import photoSwipeStylesheetHref from 'photoswipe/style.css?url';
 
 export type ArticleMediaController = {
   destroy(): void;
-};
-
-type Lightbox = {
-  pswp?: {
-    opener: { isOpening: boolean };
-    close(): void;
-  };
-  init(): void;
-  destroy(): void;
-  on(eventName: string, listener: () => void): void;
 };
 
 let stylesheetPreparation: { link: HTMLLinkElement; ready: Promise<void> } | undefined;
@@ -54,57 +46,77 @@ export function createArticleMediaController(article: HTMLElement): ArticleMedia
   }
 
   let destroyed = false;
-  let lightbox: Lightbox | undefined;
-  let closeRequested = false;
+  let lightbox: PhotoSwipeLightbox | undefined;
+  let closingViewer: PhotoSwipe | undefined;
   const sourceDocument = article.ownerDocument;
   const closeViewer = () => {
-    closeRequested = true;
-    const viewer = lightbox?.pswp;
-    if (viewer && !viewer.opener.isOpening) viewer.close();
+    if (!lightbox) return;
+    // Cancel only an already requested open. The next click starts a new one.
+    lightbox.shouldOpen = false;
+    const viewer = lightbox.pswp;
+    if (!viewer || viewer === closingViewer) return;
+
+    // A cancelled viewer must not take focus during its late opening/closing events.
+    viewer.options.trapFocus = false;
+    viewer.options.returnFocus = false;
+    if (!viewer.opener.isOpening) {
+      viewer.close();
+      return;
+    }
+
+    // PhotoSwipe ignores close/destroy during opening. Keep this cleanup on the
+    // exact instance, even if the article is destroyed before its animation ends.
+    closingViewer = viewer;
+    const closeAfterOpening = () => {
+      viewer.off('openingAnimationEnd', closeAfterOpening);
+      if (closingViewer === viewer) closingViewer = undefined;
+      viewer.close();
+    };
+    viewer.on('openingAnimationEnd', closeAfterOpening);
   };
   gallery.dataset.articleMediaRuntime = 'loading';
   sourceDocument.addEventListener('astro:before-preparation', closeViewer);
 
   void Promise.all([
     import('photoswipe/lightbox'),
+    import('photoswipe'),
     preparePhotoSwipeStylesheet(article.ownerDocument),
   ])
-    .then(([{ default: PhotoSwipeLightbox }]) => {
+    .then(([{ default: PhotoSwipeLightbox }, { default: PhotoSwipe }]) => {
       if (destroyed || !gallery.isConnected) return;
 
       lightbox = new PhotoSwipeLightbox({
         gallery,
         children: 'a[data-article-media-item]',
-        pswpModule: () => import('photoswipe'),
+        pswpModule: PhotoSwipe,
         bgOpacity: 0.92,
       });
       lightbox.on('openingAnimationEnd', () => {
         if (destroyed) return;
-        if (closeRequested) {
-          lightbox?.pswp?.close();
-          return;
-        }
         gallery.dataset.articleMediaViewer = 'open';
       });
       lightbox.on('closingAnimationStart', () => {
         if (!destroyed) gallery.dataset.articleMediaViewer = 'closing';
       });
       lightbox.on('destroy', () => {
-        closeRequested = false;
-        delete gallery.dataset.articleMediaViewer;
+        if (!destroyed) delete gallery.dataset.articleMediaViewer;
       });
+      // Do not intercept image links until every viewer dependency is ready.
       lightbox.init();
       gallery.dataset.articleMediaRuntime = 'ready';
     })
-    .catch(() => {
-      if (!destroyed) gallery.dataset.articleMediaRuntime = 'fallback';
+    .catch((error: unknown) => {
+      if (destroyed) return;
+      gallery.dataset.articleMediaRuntime = 'fallback';
+      console.error('Failed to prepare the article image viewer', error);
     });
 
   return {
     destroy() {
+      if (destroyed) return;
       destroyed = true;
-      closeRequested = false;
       sourceDocument.removeEventListener('astro:before-preparation', closeViewer);
+      closeViewer();
       lightbox?.destroy();
       lightbox = undefined;
       delete gallery.dataset.articleMediaRuntime;
