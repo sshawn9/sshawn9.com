@@ -45,12 +45,17 @@ async function installActivityProbe(page: Page): Promise<void> {
     const browserWindow: Window = window;
     const schedule = browserWindow.setTimeout.bind(browserWindow);
     const cancel = browserWindow.clearTimeout.bind(browserWindow);
+    const manifestInterval = 5 * 60 * 60_000;
     browserWindow.setTimeout = (handler: TimerHandler, delay?: number, ...args: unknown[]) => {
       const id = schedule(handler, delay, ...args);
       if (delay !== undefined && delay >= 5 * 60_000 && delay <= 9 * 60_000) {
         probe.activeRotation.push(id);
       }
-      if (delay === 30_000 || delay === 30 * 60_000) probe.activeManifest.push(id);
+      // This case hides and restores immediately: the manifest timer resumes
+      // with almost all of its 5 hours left, not an exact fresh duration.
+      if (delay !== undefined && delay > manifestInterval - 60_000 && delay <= manifestInterval) {
+        probe.activeManifest.push(id);
+      }
       return id;
     };
     browserWindow.clearTimeout = (id?: number) => {
@@ -97,7 +102,9 @@ test('reduced motion disables automatic rotation and makes manual advance immedi
     .toBe(1);
 });
 
-test('a hidden document clears activity and resumes with one fresh schedule', async ({ page }) => {
+test('a hidden document clears activity and resumes with one timer for each purpose', async ({
+  page,
+}) => {
   await routeWallpaperResources(page);
   await seedTwoSlots(page, 1600, { autoRotation: true });
   await installActivityProbe(page);

@@ -4,8 +4,6 @@ import { downloadWallpaper } from './download';
 import {
   AUTO_ROTATION_KEY,
   ENABLED_KEY,
-  MANIFEST_REFRESH_MS,
-  MANIFEST_RETRY_MS,
   MAX_CANDIDATE_ATTEMPTS,
   MAX_ROTATION_MS,
   MIN_ROTATION_MS,
@@ -49,6 +47,7 @@ export class WallpaperSystem {
   private bufferPromise?: Promise<void>;
   private bufferDirty = false;
   private advancePromise?: Promise<void>;
+  private pendingAdvance?: AbortController;
   private downloading = false;
   private slotRevision = 0;
   private rotationTimer?: number;
@@ -112,6 +111,7 @@ export class WallpaperSystem {
         this.view.setTheme(preferences.theme, !this.reducedMotion.matches);
       }
       if (previousPreferences.enabled !== preferences.enabled) {
+        if (!preferences.enabled) this.cancelPendingAdvance();
         this.view.setMode(preferences.enabled, !this.reducedMotion.matches);
       }
       if (previousPolicyKey !== policy.key) this.slotRevision += 1;
@@ -119,7 +119,7 @@ export class WallpaperSystem {
 
     this.render();
     this.syncRotationTimer();
-    this.scheduleManifestRefresh();
+    this.syncManifestTimer();
     // Current presentation never waits for the spare slot. This also runs
     // while scenic mode is off so the next manual enable/advance stays ready.
     void this.ensureBuffer();
@@ -286,6 +286,7 @@ export class WallpaperSystem {
   private async loadManifest(revalidate = false): Promise<WallpaperManifest | undefined> {
     const manifest = await this.manifestSource.load(revalidate);
     if (manifest && !this.disposed) this.acceptManifest(manifest);
+    this.syncManifestTimer();
     return manifest;
   }
 
@@ -361,7 +362,6 @@ export class WallpaperSystem {
     this.bufferPromise = this.drainBuffer().finally(() => {
       this.bufferPromise = undefined;
       this.render();
-      this.scheduleManifestRefresh();
     });
     return this.bufferPromise;
   }
@@ -452,40 +452,59 @@ export class WallpaperSystem {
       return Promise.resolve();
     }
 
-    this.advancePromise = this.runAdvance()
+    const AbortControllerConstructor = (this.sourceWindow as Window & typeof globalThis)
+      .AbortController;
+    const controller = new AbortControllerConstructor();
+    this.pendingAdvance = controller;
+    const task = this.runAdvance(controller.signal)
       .catch(() => undefined)
       .finally(() => {
+        if (this.advancePromise !== task) return;
         this.advancePromise = undefined;
+        this.pendingAdvance = undefined;
         this.render();
         this.syncRotationTimer();
         void this.ensureBuffer();
       });
+    this.advancePromise = task;
     this.render();
     return this.advancePromise;
   }
 
-  private async runAdvance(): Promise<void> {
+  private cancelPendingAdvance(): void {
+    if (!this.pendingAdvance) return;
+    this.pendingAdvance.abort();
+    this.pendingAdvance = undefined;
+    this.advancePromise = undefined;
+  }
+
+  private async runAdvance(signal: AbortSignal): Promise<void> {
     let next = this.next ?? this.readNextAsset();
     if (!next) {
       await this.ensureBuffer();
-      if (this.disposed || !this.preferences.enabled) return;
+      if (this.disposed || signal.aborted || !this.preferences.enabled) return;
       next = this.next ?? this.readNextAsset();
     }
     if (!next || !this.current || !this.state.currentSlot) return;
 
     const revision = ++this.slotRevision;
-    await this.commitAdvance(next, revision);
+    await this.commitAdvance(next, revision, signal);
   }
 
-  private async commitAdvance(candidate: WallpaperAsset, revision: number): Promise<void> {
+  private async commitAdvance(
+    candidate: WallpaperAsset,
+    revision: number,
+    signal: AbortSignal,
+  ): Promise<void> {
     const previousSlot = this.state.currentSlot;
     if (!previousSlot) return;
     const nextSlot = otherSlot(previousSlot);
     const stored = this.store.readAsset(nextSlot);
     if (!stored || stored.photo.id !== candidate.photo.id) return;
-    if (!(await decodeDataUrl(this.sourceWindow, stored.dataUrl))) return;
+    if (!(await decodeDataUrl(this.sourceWindow, stored.dataUrl, signal))) return;
     if (
       this.disposed ||
+      signal.aborted ||
       !this.preferences.enabled ||
       revision !== this.slotRevision ||
       this.state.currentSlot !== previousSlot
@@ -496,6 +515,9 @@ export class WallpaperSystem {
 
     const nextState: WallpaperTabState = { ...this.state, currentSlot: nextSlot };
     if (!this.store.writeState(nextState)) return;
+    // From this point the photo is current, not a cancellable candidate. Keep
+    // advancePromise locked until presentation starts and the old slot retires.
+    this.pendingAdvance = undefined;
     this.clearRotationTimer();
     this.state = nextState;
     this.current = stored;
@@ -558,10 +580,11 @@ export class WallpaperSystem {
     this.manifestTimer = undefined;
   }
 
-  private scheduleManifestRefresh(): void {
+  private syncManifestTimer(): void {
     this.clearManifestTimer();
-    if (this.disposed || this.target.hidden) return;
-    const delay = this.manifest ? MANIFEST_REFRESH_MS : MANIFEST_RETRY_MS;
+    const refreshAt = this.manifestSource.nextRefreshAt;
+    if (this.disposed || this.target.hidden || refreshAt === undefined) return;
+    const delay = Math.max(0, refreshAt - Date.now());
     this.manifestTimer = this.sourceWindow.setTimeout(() => {
       this.manifestTimer = undefined;
       void this.refreshManifest();
@@ -591,6 +614,7 @@ export class WallpaperSystem {
   private dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.cancelPendingAdvance();
     this.slotRevision += 1;
     this.clearRotationTimer();
     this.clearManifestTimer();

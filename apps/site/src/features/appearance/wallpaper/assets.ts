@@ -6,6 +6,8 @@ import {
 import {
   IMAGE_TIMEOUT_MS,
   MANIFEST_ENDPOINT,
+  MANIFEST_REFRESH_MS,
+  MANIFEST_RETRY_MS,
   MAX_IMAGE_BYTES,
   createImageUrl,
   isWallpaperDataUrl,
@@ -36,7 +38,12 @@ function blobAsDataUrl(sourceWindow: Window, blob: Blob): Promise<string | undef
 }
 
 /** Confirms that a prepared image can be painted before it replaces the current slot. */
-export async function decodeDataUrl(sourceWindow: Window, dataUrl: string): Promise<boolean> {
+export async function decodeDataUrl(
+  sourceWindow: Window,
+  dataUrl: string,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  if (signal?.aborted) return false;
   const ImageConstructor = (sourceWindow as Window & typeof globalThis).Image;
   const image = new ImageConstructor();
   image.decoding = 'async';
@@ -46,11 +53,15 @@ export async function decodeDataUrl(sourceWindow: Window, dataUrl: string): Prom
     .decode()
     .then(() => image.naturalWidth > 0)
     .catch(() => image.complete && image.naturalWidth > 0);
-  const expired = new Promise<false>((resolve) => {
-    timeout = sourceWindow.setTimeout(() => resolve(false), IMAGE_TIMEOUT_MS);
+  let cancel: () => void;
+  const interrupted = new Promise<false>((resolve) => {
+    cancel = () => resolve(false);
+    timeout = sourceWindow.setTimeout(cancel, IMAGE_TIMEOUT_MS);
+    signal?.addEventListener('abort', cancel, { once: true });
   });
-  const result = await Promise.race([decoded, expired]);
+  const result = await Promise.race([decoded, interrupted]);
   if (timeout !== undefined) sourceWindow.clearTimeout(timeout);
+  signal?.removeEventListener('abort', cancel!);
   image.removeAttribute('src');
   return result;
 }
@@ -101,6 +112,7 @@ export async function fetchWallpaperAsset(
 export class WallpaperManifestSource {
   private manifest?: WallpaperManifest;
   private pending?: Promise<WallpaperManifest | undefined>;
+  private refreshAt?: number;
 
   constructor(private readonly sourceWindow: Window) {}
 
@@ -108,9 +120,18 @@ export class WallpaperManifestSource {
     return this.manifest;
   }
 
+  get nextRefreshAt(): number | undefined {
+    return this.pending ? undefined : this.refreshAt;
+  }
+
   async load(revalidate = false): Promise<WallpaperManifest | undefined> {
     if (this.pending) return this.pending;
-    if (!revalidate && this.manifest) return this.manifest;
+    if (
+      !revalidate &&
+      (this.manifest || (this.refreshAt !== undefined && Date.now() < this.refreshAt))
+    ) {
+      return this.manifest;
+    }
 
     this.pending = this.sourceWindow
       .fetch(MANIFEST_ENDPOINT, {
@@ -122,14 +143,17 @@ export class WallpaperManifestSource {
           return undefined;
         }
         const value: unknown = await response.json();
-        return isWallpaperManifest(value) ? value : undefined;
+        if (!isWallpaperManifest(value)) return undefined;
+        this.manifest = value;
+        return value;
       })
       .catch(() => undefined)
       .finally(() => {
         this.pending = undefined;
+        // Only an actual request settles the deadline. Reading cached metadata
+        // or preparing the next image must not postpone remote revalidation.
+        this.refreshAt = Date.now() + (this.manifest ? MANIFEST_REFRESH_MS : MANIFEST_RETRY_MS);
       });
-    const manifest = await this.pending;
-    if (manifest) this.manifest = manifest;
-    return manifest;
+    return this.pending;
   }
 }
