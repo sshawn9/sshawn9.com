@@ -36,9 +36,9 @@ async function waitForRouteEnhancement(page: Page, route: string): Promise<void>
     });
   }
   if (route.includes('planar-frenet-frame')) {
-    await expect(page.locator('[data-plotly-figure] .plot-container').first()).toBeVisible({
-      timeout: 30_000,
-    });
+    await expect(
+      page.locator('[data-research-figure] svg[data-research-panel]').first(),
+    ).toBeVisible();
   }
   if (route.includes('closed-loop-control-timing')) {
     await expect(page.locator('.closed-loop-control-timing-plot svg')).toBeVisible({
@@ -61,6 +61,7 @@ async function responsiveGeometry(page: Page) {
       '.project-card',
       '.article-layout',
       '.article-main',
+      '[data-research-figure]',
       '.version-comparison',
       '[data-version-comparison-main]',
     ];
