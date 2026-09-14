@@ -1,5 +1,5 @@
 import type { WallpaperPhoto } from '@sshawn9/site-domain/wallpaper';
-import { DOWNLOAD_ENDPOINT } from './model';
+import { DOWNLOAD_ENDPOINT, DOWNLOAD_TIMEOUT_MS } from './model';
 
 const DOWNLOAD_WIDTH = 2400;
 
@@ -19,10 +19,23 @@ export async function downloadWallpaper(
   sourceWindow: Window,
   photo: WallpaperPhoto,
 ): Promise<void> {
-  const response = await sourceWindow.fetch(downloadUrl(photo.rawUrl));
-  if (!response.ok) return;
+  const AbortControllerConstructor = (sourceWindow as Window & typeof globalThis).AbortController;
+  const controller = new AbortControllerConstructor();
+  const timeout = sourceWindow.setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
+  let blob: Blob;
+  try {
+    const response = await sourceWindow.fetch(downloadUrl(photo.rawUrl), {
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      controller.abort();
+      return;
+    }
+    blob = await response.blob();
+  } finally {
+    sourceWindow.clearTimeout(timeout);
+  }
 
-  const blob = await response.blob();
   const URLConstructor = (sourceWindow as Window & typeof globalThis).URL;
   const objectUrl = URLConstructor.createObjectURL(blob);
   const link = target.createElement('a');

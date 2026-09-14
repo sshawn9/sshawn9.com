@@ -8,6 +8,7 @@ import {
   MANIFEST_ENDPOINT,
   MANIFEST_REFRESH_MS,
   MANIFEST_RETRY_MS,
+  MANIFEST_TIMEOUT_MS,
   MAX_IMAGE_BYTES,
   createImageUrl,
   isWallpaperDataUrl,
@@ -133,13 +134,19 @@ export class WallpaperManifestSource {
       return this.manifest;
     }
 
+    const AbortControllerConstructor = (this.sourceWindow as Window & typeof globalThis)
+      .AbortController;
+    const controller = new AbortControllerConstructor();
+    const timeout = this.sourceWindow.setTimeout(() => controller.abort(), MANIFEST_TIMEOUT_MS);
     this.pending = this.sourceWindow
       .fetch(MANIFEST_ENDPOINT, {
         cache: revalidate ? 'no-cache' : 'default',
         headers: { Accept: 'application/json' },
+        signal: controller.signal,
       })
       .then(async (response) => {
         if (!response.ok || !response.headers.get('Content-Type')?.includes('application/json')) {
+          controller.abort();
           return undefined;
         }
         const value: unknown = await response.json();
@@ -149,6 +156,7 @@ export class WallpaperManifestSource {
       })
       .catch(() => undefined)
       .finally(() => {
+        this.sourceWindow.clearTimeout(timeout);
         this.pending = undefined;
         // Only an actual request settles the deadline. Reading cached metadata
         // or preparing the next image must not postpone remote revalidation.
