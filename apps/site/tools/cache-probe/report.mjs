@@ -74,6 +74,8 @@ export function renderSummaryMarkdown(state, run) {
     return Boolean(streak?.colo && streak.count >= required);
   };
   const targets = run?.targets ?? [];
+  const targetUrls = new Set(targets.map((item) => item.url));
+  const externalUrls = new Set((run?.skipped ?? []).map((item) => item.url));
   return (
     [
       '# Cache probe — cumulative egress summary',
@@ -94,12 +96,14 @@ export function renderSummaryMarkdown(state, run) {
       ].join('\n'),
       '## Pages — cumulative qualification for the current inventory',
       [
-        '| Page | Qualified / associated resources | Outstanding resources |',
-        '| --- | ---: | --- |',
+        '| Page | Qualified / probe targets | Outstanding probe targets | External resources (not probed) |',
+        '| --- | ---: | --- | --- |',
         ...(run?.pages ?? []).map((page) => {
           const urls = run.pageResources[page.url];
-          const missing = urls.filter((url) => !qualified(url));
-          return `| ${link(page.title || shortUrl(page.url), page.url)} | ${urls.length - missing.length}/${urls.length} | ${missing.map((url) => link(shortUrl(url), url)).join(', ') || 'None'} |`;
+          const pageTargets = urls.filter((url) => targetUrls.has(url));
+          const missing = pageTargets.filter((url) => !qualified(url));
+          const external = urls.filter((url) => externalUrls.has(url));
+          return `| ${link(page.title || shortUrl(page.url), page.url)} | ${pageTargets.length - missing.length}/${pageTargets.length} | ${missing.map((url) => link(shortUrl(url), url)).join(', ') || 'None'} | ${external.length ? `${external.length}: ${external.map((url) => link(url, url)).join(', ')}` : '0'} |`;
         }),
       ].join('\n'),
       '## All rounds',

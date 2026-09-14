@@ -7,6 +7,7 @@ import {
   normalizeIp,
   openEgressHistory,
 } from '../../../apps/site/tools/cache-probe/history.mjs';
+import { renderSummaryMarkdown } from '../../../apps/site/tools/cache-probe/report.mjs';
 
 const roots: string[] = [];
 const pageUrl = 'https://site.test/';
@@ -454,6 +455,71 @@ describe('egress history event journal and projections', () => {
 });
 
 describe('report Markdown', () => {
+  it.each([
+    { name: 'all targets qualify', assetState: 'hit', external: true, historicalExternal: false },
+    {
+      name: 'one target is outstanding',
+      assetState: 'miss',
+      external: true,
+      historicalExternal: false,
+    },
+    {
+      name: 'the external URL has historical HITs',
+      assetState: 'hit',
+      external: true,
+      historicalExternal: true,
+    },
+    {
+      name: 'there are no external resources',
+      assetState: 'hit',
+      external: false,
+      historicalExternal: false,
+    },
+  ])(
+    'separates probe targets from external resources when $name',
+    ({ assetState, external, historicalExternal }) => {
+      const externalUrl = 'https://cdn.test/image.webp';
+      const at = '2026-09-14T00:00:00.000Z';
+      const run = {
+        ...runFixture('run-page-scope', at),
+        targets: [{ url: pageUrl }, { url: resourceUrl }],
+        pageResources: { [pageUrl]: [pageUrl, resourceUrl, ...(external ? [externalUrl] : [])] },
+        skipped: external ? [{ url: externalUrl, reason: 'External resource' }] : [],
+      };
+      const state = {
+        ip: '203.0.113.9',
+        updatedAt: at,
+        resources: Object.fromEntries(
+          [pageUrl, resourceUrl, ...(historicalExternal ? [externalUrl] : [])].map((url) => {
+            const status = url === resourceUrl ? assetState : 'hit';
+            return [
+              url,
+              {
+                latest: resultFixture(status, at, { url }),
+                streak: { count: status === 'hit' ? 2 : 0, colo: status === 'hit' ? 'SJC' : null },
+              },
+            ];
+          }),
+        ),
+        rounds: [],
+      };
+      const original = structuredClone({ state, run });
+      const markdown = renderSummaryMarkdown(state, run);
+      const ratio = assetState === 'hit' ? '2/2' : '1/2';
+      const outstanding = assetState === 'hit' ? 'None' : `[/app.js](<${resourceUrl}>)`;
+      const externalCell = external ? `1: [${externalUrl}](<${externalUrl}>)` : '0';
+
+      expect(markdown).toContain(
+        '| Page | Qualified / probe targets | Outstanding probe targets | External resources (not probed) |',
+      );
+      expect(markdown).toContain(
+        `| [Fixture page](<${pageUrl}>) | ${ratio} | ${outstanding} | ${externalCell} |`,
+      );
+      expect(markdown).toContain(`Current inventory: ${ratio} resources qualify for skipping.`);
+      expect({ state, run }).toEqual(original);
+    },
+  );
+
   it('escapes a malicious page title in summary Markdown', async () => {
     const root = await temporaryRoot();
     const history = await openEgressHistory(root, '203.0.113.9');
