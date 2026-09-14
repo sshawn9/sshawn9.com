@@ -251,8 +251,15 @@ export async function runProbe(
   let blocked = false;
   const record = async (history, event) => {
     const value = { ...event, at: event.at ?? nowIso() };
-    await history.record(value);
-    await onEvent(value, report);
+    try {
+      await history.record(value);
+      await onEvent(value, report);
+    } catch (error) {
+      // Cancel here: the scheduler cannot reject until every active task settles.
+      fatal ??= error;
+      controller.abort(fatal);
+      throw fatal;
+    }
   };
   const qualifies = (target) => isQualified(history.state.resources[target.url], options.hitStreak);
   try {
@@ -312,11 +319,8 @@ export async function runProbe(
         attempts.set(target.url, attempt);
         const request = { url: target.url, attempt, state: 'pending', startedAt: nowIso() };
         round.results[index] = request;
-        const persist = (event) =>
-          record(history, event).catch((error) => {
-            fatal ??= error;
-            controller.abort(error);
-          });
+        // record owns cancellation; join these notifications and rethrow fatal below.
+        const persist = (event) => record(history, event).catch(() => {});
         // Dispatch without awaiting disk I/O: a reserved slot must not issue a
         // delayed request after another response has already paused the pool.
         const notifications = [persist({ type: 'request-start', roundId: round.id, request })];
@@ -441,7 +445,12 @@ export async function runProbe(
         }
       }
     }
-    await onEvent({ type: 'end', at: report.finishedAt }, report);
+    try {
+      await onEvent({ type: 'end', at: report.finishedAt }, report);
+    } catch (error) {
+      // Do not mask an earlier failure; an end-only notification error still rejects.
+      if (report.failure === null) throw error;
+    }
   }
   return report;
 }
