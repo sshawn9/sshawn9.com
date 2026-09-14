@@ -24,7 +24,7 @@ export const MODE_TRANSITION_MS = 720;
 export const THEME_TRANSITION_MS = 650;
 export const MIN_ROTATION_MS = 5 * 60 * 1000;
 export const MAX_ROTATION_MS = 9 * 60 * 1000;
-export const MANIFEST_REFRESH_MS = 30 * 60 * 1000;
+export const MANIFEST_REFRESH_MS = 5 * 60 * 60 * 1000;
 export const MANIFEST_RETRY_MS = 30 * 1000;
 
 export type Theme = 'light' | 'dark';
