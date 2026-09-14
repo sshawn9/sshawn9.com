@@ -28,7 +28,7 @@ const shift = {
 ---
 
 <div class="research-plot" data-research-figure data-kind={kind}>
-  <div class="research-plot-canvas" style={`--research-columns: ${panels.length}`}>
+  <div class="research-plot-canvas">
     {
       panels.map((panel) => {
         const width = panel.x[1] - panel.x[0];
@@ -125,6 +125,7 @@ const shift = {
                 );
               })}
             </div>
+            {panel.note && <p class="research-panel-note">{panel.note}</p>}
           </div>
         );
       })

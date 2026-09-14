@@ -22,6 +22,7 @@ export type ResearchPanel = {
   x: Point;
   y: Point;
   title?: string;
+  note?: string;
   paths: { d: string; color: Color; width: number }[];
   segments: Segment[];
   points: { at: Point; color: Color }[];
@@ -112,6 +113,9 @@ function curvatureSigns(): ResearchPanel[] {
 function heading(): ResearchPanel[] {
   const left = panel([-1.55, 1.7], [-0.42, 1.58]);
   const right = panel([0.05, 3.85], [-0.35, 1.85]);
+  left.title = '(a)';
+  right.title = '(b)';
+  right.note = 'κᵣ(s) = lim Δθᵣ / Δs';
   const theta = (35 * Math.PI) / 180;
   left.segments.push(
     { from: [-1.45, 0], to: [1.55, 0], color: 'muted', width: 1 },
@@ -124,13 +128,6 @@ function heading(): ResearchPanel[] {
   vector(left, [0, 0], [-Math.sin(theta), Math.cos(theta)], 'green', 'N', {
     bold: true,
     offset: 0.28,
-  });
-  left.labels.push({
-    at: [-1.42, 1.46],
-    text: '(a)',
-    size: 13,
-    horizontal: 'left',
-    vertical: 'top',
   });
   right.paths.push({ d: arc(2.4, 0.1, 1.18), color: 'blue', width: 3 });
   for (const [angle, text, offset, vertical] of [
@@ -146,15 +143,12 @@ function heading(): ResearchPanel[] {
       vertical,
     });
   }
-  right.labels.push(
-    { at: [0.202, 1.718], text: '(b)', size: 13, horizontal: 'left', vertical: 'top' },
-    { at: [2.026, -0.306], text: 'κᵣ(s) = lim Δθᵣ / Δs', size: 13, vertical: 'bottom' },
-  );
   return [left, right];
 }
 
 function vehicleState(): ResearchPanel[] {
   const result = panel([0, 8.4], [-0.25, 5.65]);
+  result.note = '‖T‖ = ‖N‖ = 1';
   const angle = 0.62;
   const point = circlePoint(6.8, angle);
   const tangent: Point = [Math.cos(angle), Math.sin(angle)];
@@ -200,20 +194,13 @@ function vehicleState(): ResearchPanel[] {
     { from: point, to: dimensionStart, color: 'purple', width: 1 },
     { from: vehicle, to: dimensionEnd, color: 'purple', width: 1 },
   );
-  result.labels.push({
-    at: [0.336, 5.355],
-    text: '‖T‖ = ‖N‖ = 1',
-    color: 'muted',
-    size: 18,
-    horizontal: 'left',
-    vertical: 'top',
-  });
   return [result];
 }
 
 function vehicleVelocity(): ResearchPanel[] {
   return [false, true].map((physical) => {
     const result = panel([-0.3, 4.48], [-0.55, 2.72]);
+    result.title = physical ? '(b)' : '(a)';
     result.segments.push(
       { from: [-0.2, 0], to: [4.15, 0], color: 'muted', width: 1 },
       { from: [0, -0.2], to: [0, 2.45], color: 'muted', width: 1 },
@@ -257,13 +244,6 @@ function vehicleVelocity(): ResearchPanel[] {
         horizontal: 'left',
       },
     );
-    result.labels.push({
-      at: [-0.3, 2.7854],
-      text: physical ? '(b)' : '(a)',
-      size: 18,
-      horizontal: 'left',
-      vertical: 'bottom',
-    });
     return result;
   });
 }
