@@ -97,7 +97,7 @@ $$
 
 Both $\theta$ and $\theta_r$ are continuously unwrapped along the trajectory segment under consideration, preventing an artificial jump in $\varphi$ when an angle representation crosses the $\pm\pi$ boundary. The time-domain model uses time $t$ as its independent variable and $(s,d,\varphi)$ as its state. The reference-path-arc-length-domain, or spatial-domain, model instead uses $s$ as its independent variable and therefore requires only $(d,\varphi)$ as its state. Figure 1 shows the geometric relationship among these quantities. The vectors $\mathbf T(s)$ and $\mathbf N(s)$ are the Frenet basis vectors at the projection point; the purple bidirectional dimension line is the lateral deviation $d$ from the reference path to the rear-axle center; and the arrow $\mathbf e_\theta$ at the rear-axle center is the vehicle heading unit vector.
 
-<FocusFigure number={1} variant="research">
+<FocusFigure number={1} variant="research" interactive={false}>
   <ResearchFigure kind="vehicle-state" />
   <figcaption slot="caption">
     <strong>Figure 1.</strong> Geometric definition of the vehicle Frenet state. The blue point is
@@ -214,7 +214,7 @@ $$
 
 Using the same Frenet frame and the same resultant velocity vector, Figure 2 separately shows the two components obtained by differentiating the position coordinates and by expressing the no-sideslip velocity. Placing them side by side makes the subsequent coefficient comparison a direct geometric correspondence.
 
-<FocusFigure number={2} variant="research">
+<FocusFigure number={2} variant="research" interactive={false}>
   <ResearchFigure kind="vehicle-velocity" />
   <figcaption slot="caption">
     <strong>Figure 2.</strong> Two decompositions of the same vehicle velocity vector in the same

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.describe.configure({ timeout: 60_000 });
 
-test('research figures leave cleanly and initialize one instance on the next client entry', async ({
+test('static research figures leave cleanly and return without a plotting runtime', async ({
   page,
 }) => {
   let plotlyRuntimeRequests = 0;
@@ -14,9 +14,10 @@ test('research figures leave cleanly and initialize one instance on the next cli
 
   await page.goto('/en/tags/frenet/');
   await page.locator('a[href="/en/blog/planar-frenet-frame/"]').first().click();
-  await expect(page.locator('[data-plotly-figure] .plot-container')).toHaveCount(2, {
-    timeout: 30_000,
-  });
+  await expect(page.locator('[data-research-figure]')).toHaveCount(2);
+  await expect(page.locator('svg[data-research-panel]')).toHaveCount(5);
+  await expect(page.locator('svg[data-research-panel]').first()).toBeVisible();
+  await expect(page.locator('[data-figure-focus] interactive-figure-status')).toHaveCount(0);
 
   const firstFigure = page.locator('[data-figure-focus]').first();
   await firstFigure.evaluate((element) => {
@@ -37,11 +38,14 @@ test('research figures leave cleanly and initialize one instance on the next cli
   await page.locator('a[href="/en/tags/frenet/"]').first().click();
   await expect(page).toHaveURL(/\/en\/blog\/\?tag=frenet$/);
   await page.locator('a[href="/en/blog/planar-frenet-frame/"]').first().click();
-  await expect(page.locator('[data-plotly-figure]')).toHaveCount(2);
-  await expect(page.locator('[data-plotly-figure] .plot-container')).toHaveCount(2, {
-    timeout: 30_000,
-  });
-  await expect(page.locator('[data-plotly-figure] .plot-container .plot-container')).toHaveCount(0);
-  await expect(page.locator('style#plotly\\.js-style-global')).toHaveCount(1);
-  expect(plotlyRuntimeRequests).toBe(1);
+  await expect(page.locator('[data-research-figure]')).toHaveCount(2);
+  await expect(page.locator('svg[data-research-panel]')).toHaveCount(5);
+  for (const panel of await page.locator('svg[data-research-panel]').all()) {
+    await expect(panel).toBeVisible();
+  }
+  await expect(page.locator('[data-figure-focus] astro-island')).toHaveCount(0);
+  await expect(page.locator('[data-figure-focus] interactive-figure-status')).toHaveCount(0);
+  await expect(page.locator('[data-plotly-figure], .plot-container')).toHaveCount(0);
+  await expect(page.locator('style#plotly\\.js-style-global')).toHaveCount(0);
+  expect(plotlyRuntimeRequests).toBe(0);
 });

@@ -1,11 +1,133 @@
 ---
-import ResearchFigureClient, { type ResearchFigureKind } from './ResearchFigure.tsx';
+import { renderToString } from 'katex';
+import { projectPoint, researchPanels, type ResearchFigureKind } from './research-figure-geometry';
 
 type Props = {
   kind: ResearchFigureKind;
 };
 
 const { kind } = Astro.props;
+const panels = researchPanels(kind);
+const colors = {
+  ink: 'var(--ink)',
+  muted: 'var(--muted)',
+  blue: '#4c78a8',
+  orange: '#f58518',
+  green: '#54a24b',
+  purple: '#b279a2',
+};
+const percent = (value: number) => `${value}%`;
+const shift = {
+  left: '0%',
+  center: '-50%',
+  right: '-100%',
+  top: '0%',
+  middle: '-50%',
+  bottom: '-100%',
+};
 ---
 
-<ResearchFigureClient {kind} client:load />
+<div class="research-plot" data-research-figure data-kind={kind}>
+  <div class="research-plot-canvas" style={`--research-columns: ${panels.length}`}>
+    {
+      panels.map((panel) => {
+        const width = panel.x[1] - panel.x[0];
+        const height = panel.y[1] - panel.y[0];
+        return (
+          <div class="research-panel-slot">
+            {panel.title && <span class="research-panel-title">{panel.title}</span>}
+            <div class="research-panel" style={`--research-ratio: ${width / height}`}>
+              <svg data-research-panel width="100%" height="100%" aria-hidden="true">
+                <svg
+                  class="research-paths"
+                  width="100%"
+                  height="100%"
+                  viewBox={`${panel.x[0]} ${-panel.y[1]} ${width} ${height}`}
+                  preserveAspectRatio="none"
+                >
+                  {panel.paths.map((path) => (
+                    <path
+                      d={path.d}
+                      fill="none"
+                      stroke={colors[path.color]}
+                      stroke-width={path.width}
+                      vector-effect="non-scaling-stroke"
+                    />
+                  ))}
+                </svg>
+                {panel.segments.map((segment) => {
+                  const a = projectPoint(panel, segment.from);
+                  const b = projectPoint(panel, segment.to);
+                  const angle =
+                    (Math.atan2(
+                      -(segment.to[1] - segment.from[1]),
+                      segment.to[0] - segment.from[0],
+                    ) *
+                      180) /
+                    Math.PI;
+                  return (
+                    <>
+                      <line
+                        x1={percent(a[0])}
+                        y1={percent(a[1])}
+                        x2={percent(b[0])}
+                        y2={percent(b[1])}
+                        stroke={colors[segment.color]}
+                        stroke-width={segment.width ?? 2.2}
+                      />
+                      {segment.arrow && (
+                        <svg
+                          class="research-arrowhead"
+                          x={percent(b[0])}
+                          y={percent(b[1])}
+                          width="1"
+                          height="1"
+                          overflow="visible"
+                        >
+                          <path
+                            d="M 0 0 L -11 -5.5 L -11 5.5 Z"
+                            fill={colors[segment.color]}
+                            transform={`rotate(${angle})`}
+                          />
+                        </svg>
+                      )}
+                    </>
+                  );
+                })}
+                {panel.points.map((point) => {
+                  const p = projectPoint(panel, point.at);
+                  return (
+                    <circle
+                      cx={percent(p[0])}
+                      cy={percent(p[1])}
+                      r="4"
+                      fill={colors[point.color]}
+                    />
+                  );
+                })}
+              </svg>
+              {panel.labels.map((label) => {
+                const p = projectPoint(panel, label.at);
+                return (
+                  <span
+                    class:list={[
+                      'research-label',
+                      {
+                        'research-label--math': label.math,
+                        'research-label--backed': label.background,
+                      },
+                    ]}
+                    style={`left:${p[0]}%;top:${p[1]}%;color:${colors[label.color ?? 'ink']};font-size:${label.size ?? 12}px;font-weight:${label.bold ? 700 : 400};transform:translate(${shift[label.horizontal ?? 'center']},${shift[label.vertical ?? 'middle']})`}
+                  >
+                    {label.latex ? <Fragment set:html={renderToString(label.text)} /> : label.text}
+                    {label.subscript && <sub>{label.subscript}</sub>}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })
+    }
+  </div>
+</div>

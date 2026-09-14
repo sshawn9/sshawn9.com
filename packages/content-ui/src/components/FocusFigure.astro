@@ -7,9 +7,10 @@ type Props = {
   number: number;
   dimensions?: 1 | 2;
   variant?: 'frenet' | 'research';
+  interactive?: boolean;
 };
 
-const { number, dimensions = 1, variant = 'frenet' } = Astro.props;
+const { number, dimensions = 1, variant = 'frenet', interactive = true } = Astro.props;
 const locale = requireLocale(Astro.currentLocale ?? BASE_LOCALE);
 const languageTag = toLanguageTag(locale);
 const expandLabel = m.figure_expand({ number }, { locale });
@@ -28,15 +29,19 @@ const errorLabel = m.interactive_figure_unavailable({}, { locale });
   data-dimensions={dimensions === 2 ? '2' : undefined}
 >
   <slot />
-  <interactive-figure-status
-    data-state="fallback"
-    data-loading-label={loadingLabel}
-    data-error-label={errorLabel}
-  >
-    <p data-interactive-figure-status-message role="status" aria-live="polite">
-      {fallbackLabel}
-    </p>
-  </interactive-figure-status>
+  {
+    interactive && (
+      <interactive-figure-status
+        data-state="fallback"
+        data-loading-label={loadingLabel}
+        data-error-label={errorLabel}
+      >
+        <p data-interactive-figure-status-message role="status" aria-live="polite">
+          {fallbackLabel}
+        </p>
+      </interactive-figure-status>
+    )
+  }
   <button
     type="button"
     lang={languageTag}
