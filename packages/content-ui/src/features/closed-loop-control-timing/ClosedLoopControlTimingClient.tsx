@@ -149,8 +149,8 @@ const ClosedLoopControlTimingClient: Component<Props> = (props) => {
   };
 
   const reset = () => {
-    if (!view) return;
     setSynchronizedState(INITIAL_TIMING_SIGNALS.synchronized);
+    if (!view) return;
     void setSignals(view, INITIAL_TIMING_SIGNALS).runAsync();
   };
 
@@ -195,6 +195,7 @@ const ClosedLoopControlTimingClient: Component<Props> = (props) => {
           else delete root.dataset.dragging;
         });
 
+        view.signal('synchronized', synchronized());
         await view.runAsync();
         if (disposed) return;
         setInteractiveFigureState(root, 'ready');
