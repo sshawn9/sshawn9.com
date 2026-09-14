@@ -181,6 +181,10 @@ export function createSiteConfig({ integrations = [], viteServer = {} } = {}) {
       },
     },
     vite: {
+      build: {
+        // Give CSS its own baseline; Astro's esnext target otherwise drops compatibility prefixes.
+        cssTarget: ['chrome111', 'edge111', 'firefox114', 'safari16.3', 'ios16.3'],
+      },
       plugins: [classicScriptBundles(), ...developmentFontAssets(), createSiteParaglidePlugin()],
       define: {
         // Astro can replace import.meta.env keys from private env before Vite's define runs.
