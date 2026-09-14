@@ -1,4 +1,4 @@
-import { drag, type D3DragEvent } from 'd3-drag';
+import { drag, dragEnable, type D3DragEvent } from 'd3-drag';
 import { select } from 'd3-selection';
 import {
   createMemo,
@@ -35,21 +35,41 @@ const MotionControlProjectVisual: Component = () => {
   const marker = (name: string) => `url(#${markerPrefix}-${name})`;
 
   onMount(() => {
+    let releaseMouseDrag: (() => void) | undefined;
     const behavior = drag<SVGRectElement, unknown, Point>()
       .container(svg)
       .touchable(true)
       .subject(() => ({ ...scene().vehicle }))
       .on('start', (event: D3DragEvent<SVGRectElement, unknown, Point>) => {
         event.sourceEvent.stopPropagation();
+        if (event.identifier === 'mouse') {
+          const view: Window = event.sourceEvent.view;
+          const selection = select(view);
+          // D3 installs these before start. Another instance may later take over.
+          const move = selection.on('mousemove.drag');
+          const up = selection.on('mouseup.drag');
+          releaseMouseDrag = () => {
+            if (selection.on('mousemove.drag') !== move || selection.on('mouseup.drag') !== up)
+              return;
+            selection.on('mousemove.drag mouseup.drag', null);
+            dragEnable(view);
+          };
+        }
         setDragging(true);
       })
       .on('drag', (event: D3DragEvent<SVGRectElement, unknown, Point>) => {
         setVehicle(clampMotionControlVehicle({ x: event.x, y: event.y }));
       })
-      .on('end', () => setDragging(false));
+      .on('end', (event: D3DragEvent<SVGRectElement, unknown, Point>) => {
+        if (event.identifier === 'mouse') releaseMouseDrag = undefined;
+        setDragging(false);
+      });
 
     select<SVGRectElement, unknown>(vehicleHandle).call(behavior);
-    onCleanup(() => select(vehicleHandle).on('.drag', null));
+    onCleanup(() => {
+      select(vehicleHandle).on('.drag', null);
+      releaseMouseDrag?.();
+    });
   });
 
   const tangentEnd = () => pointAlong(scene().projection, scene().tangent, UNIT_VECTOR_LENGTH);
