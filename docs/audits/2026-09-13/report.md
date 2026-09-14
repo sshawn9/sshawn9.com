@@ -16,6 +16,8 @@
 
 2026-09-14 完成 A09：车辆图形卸载时清理仍属于本组件的活动鼠标手势，并通过 D3 恢复原生拖放和文字选择；其他实例已经接管时不干预。业务源码只改 `MotionControlProjectVisual.tsx`，未改导航、模型、依赖或触摸处理。旧预览复现卸载后四项窗口监听和选择保护残留，隔离构建上的五项定向用例通过。全量 211 项单元测试通过；177 项 Chromium 浏览器回归中 176 项首次通过，发布模式一项因验证命令漏传 `SITE_MODE=preview` 失败，补齐参数后同一产物复核通过。用户原有预览及其产物未替换，未进行 Safari、Firefox 或旧 iPad 实机验收。
 
+2026-09-14 完成 A08：闭环图首次运行前读取最新开关状态，加载期间重置也立即恢复控件默认值。业务源码只调整 `ClosedLoopControlTimingClient.tsx` 的两处顺序，未新增状态或异步协调机制。四个加载期用例在旧预览上三项失败、一项对照通过；修复后的四项均通过，并通过真实拖动检查同步与非同步的 SVG 联动。研究图表相关 22 项 Chromium 浏览器测试、全量 211 项单元测试及工作区类型检查通过，独立审查未发现阻断问题。未重跑全站浏览器套件，未验证 Safari／iPad 实机，用户现有预览未替换。
+
 A01 原有的隐藏目录触发已消除，但通用异常收尾缺口仍在，按用户决定暂缓，先讨论错误收集工具。B01 中旧 iPad 真正需要使用的弹层兼容仍未处理。
 
 审计日期：2026-09-13。基线提交：`ee492d04c42fab85ec9de36c195757772e2f0a4f`。
@@ -143,6 +145,8 @@ A01 原有的隐藏目录触发已消除，但通用异常收尾缺口仍在，�
 成本小。现有活动测试只检查“有一个计时器”，没有检查期限是否保留。
 
 ### A08：图表加载前修改同步开关，加载后两份状态分叉
+
+2026-09-14 已修复。Vega 和字体都准备好后，在首次 `runAsync()` 前将当前 `synchronized()` 写入图表；重置先恢复控件状态，再判断是否已有 View。新增[加载期状态测试](../../../tests/research/timing-initial-state/README.md)覆盖提前关闭、反复切换、提前重置和重置后再修改，并验证加载后的真实拖动与重置。现有图表算法、加载后开关逻辑及销毁流程不变。以下保留原始问题记录。
 
 位置：[开关处理](/home/star/ghq/github.com/sshawn9/sshawn9.com/packages/content-ui/src/features/closed-loop-control-timing/ClosedLoopControlTimingClient.tsx:157)、[Vega 创建](/home/star/ghq/github.com/sshawn9/sshawn9.com/packages/content-ui/src/features/closed-loop-control-timing/ClosedLoopControlTimingClient.tsx:175)。
 

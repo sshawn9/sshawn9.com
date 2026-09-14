@@ -76,7 +76,9 @@
   display: inline-flex;
   align-items: center;
   gap: 0.36rem;
+  border: 1px solid var(--line);
   border-radius: 0.62rem;
+  background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
   padding: 0.42rem 0.58rem;
   color: var(--muted);
   font-size: 0.68rem;
