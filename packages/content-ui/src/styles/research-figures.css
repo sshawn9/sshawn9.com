@@ -14,12 +14,6 @@
   box-shadow: 0 24px 70px rgb(0 0 0 / 0.2);
 }
 
-.research-article-figure > astro-island {
-  display: block;
-  width: 100%;
-  min-width: 0;
-}
-
 .research-plot,
 .research-plot-canvas {
   width: 100%;
@@ -27,33 +21,42 @@
 }
 
 .research-plot-canvas {
+  --research-panel-min: 18rem;
   display: grid;
-  grid-template-columns: repeat(var(--research-columns), minmax(0, 1fr));
-  column-gap: 10%;
-  padding: 46px 28px 30px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--research-panel-min)), 1fr));
+  gap: 2rem;
+  padding: 1.5rem 1rem;
   background: var(--surface-strong);
 }
 
 .research-plot[data-kind='planar-curvature-signs'] .research-plot-canvas {
-  column-gap: 5%;
-  padding: 52px 24px 18px;
+  --research-panel-min: 14rem;
+}
+
+.research-plot[data-kind='vehicle-velocity'] .research-plot-canvas {
+  --research-panel-min: 22rem;
 }
 
 .research-panel-slot {
-  position: relative;
   min-width: 0;
-  container-type: size;
 }
 
-/* Fit equal x/y scales without a client-side size observer. Labels and arrow
-   heads remain CSS-pixel sized rather than shrinking with the geometry. */
+.research-plot[data-kind='vehicle-state'] .research-panel-slot {
+  width: 100%;
+  max-width: 44rem;
+  justify-self: center;
+}
+
+/* The coordinate frame owns its height in normal flow. Its margins reserve
+   room for pixel-sized labels, which do not shrink with the geometry. */
 .research-panel {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: min(100cqw, calc(100cqh * var(--research-ratio)));
-  height: min(100cqh, calc(100cqw / var(--research-ratio)));
-  transform: translate(-50%, -50%);
+  position: relative;
+  aspect-ratio: var(--research-ratio);
+  margin: 1.5rem 1rem;
+}
+
+.research-plot[data-kind='vehicle-velocity'] .research-panel {
+  margin: 2rem 4.5rem 2rem 1rem;
 }
 
 .research-panel > svg {
@@ -74,14 +77,10 @@
   height: 1px;
 }
 
-.research-label,
-.research-panel-title {
+.research-label {
   position: absolute;
   line-height: 1.2;
   white-space: nowrap;
-}
-
-.research-label {
   padding: 2px;
 }
 
@@ -102,24 +101,27 @@
 }
 
 .research-panel-title {
-  top: -6%;
-  left: 50%;
+  display: block;
   color: var(--ink);
   font-size: 13px;
-  transform: translate(-50%, -100%);
+  line-height: 1.5;
 }
 
-.research-plot[data-kind='planar-curvature-signs'] .research-plot-canvas {
-  height: 17rem;
+.research-panel-slot > .research-panel-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
 }
 
-.research-plot[data-kind='planar-heading'] .research-plot-canvas,
-.research-plot[data-kind='vehicle-velocity'] .research-plot-canvas {
-  height: 26.875rem;
+.research-plot[data-kind='vehicle-velocity'] .research-panel-title,
+.research-plot[data-kind='vehicle-state'] .research-panel-note {
+  font-size: 18px;
 }
 
-.research-plot[data-kind='vehicle-state'] .research-plot-canvas {
-  height: 32.5rem;
+.research-plot[data-kind='planar-curvature-signs'] .research-panel-title {
+  text-align: center;
 }
 
 .research-article-figure figcaption {
@@ -177,29 +179,21 @@
 .figure-focus-stage > .research-article-figure[data-focus-active] {
   display: flex;
   width: 100%;
-  height: calc(100dvh - var(--figure-focus-inset) - var(--figure-focus-inset));
-  min-height: 36rem;
   flex-direction: column;
   margin: 0;
   background: var(--surface-strong);
 }
 
-.research-article-figure[data-focus-active] > astro-island {
-  flex: 1 1 0;
-  height: 0;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.research-article-figure[data-focus-active] .research-plot,
-.research-article-figure[data-focus-active] .research-plot-canvas {
-  height: 100%;
-  min-height: 0;
-}
-
-.research-article-figure[data-focus-active] > .research-plot {
-  flex: 1 1 0;
-  height: 0;
+.research-article-figure[data-focus-active] .frenet-focus-toggle {
+  position: sticky;
+  z-index: 4;
+  top: 0.75rem;
+  right: auto;
+  bottom: auto;
+  order: -1;
+  align-self: flex-end;
+  flex: none;
+  margin: 0.75rem 0.75rem 0;
 }
 
 @media (max-width: 45rem) {
