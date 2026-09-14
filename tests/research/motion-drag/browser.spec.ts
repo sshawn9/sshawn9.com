@@ -206,10 +206,15 @@ test('unmounting the old figure does not cancel a different D3 drag that took ov
 });
 
 test.describe('touch dragging', () => {
-  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  test.use({ viewport: { width: 390, height: 500 }, isMobile: true, hasTouch: true });
 
   test('touch movement, normal release and cancellation remain usable', async ({ page }) => {
     const { figure, handle } = await openFigure(page);
+    await figure.evaluate((element) =>
+      element.scrollIntoView({ block: 'center', behavior: 'instant' }),
+    );
+    const scrollBefore = await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }));
+    expect(scrollBefore.y).toBeGreaterThan(100);
     const input = await page.context().newCDPSession(page);
     let touchActive = false;
     try {
@@ -226,12 +231,15 @@ test.describe('touch dragging', () => {
         await expect(figure).toHaveAttribute('data-dragging', '');
         await input.send('Input.dispatchTouchEvent', {
           type: 'touchMove',
-          touchPoints: [{ x: startX + 20, y: startY + 10, id: 1 }],
+          touchPoints: [{ x: startX + 20, y: startY + 40, id: 1 }],
         });
         await expect(figure).not.toHaveAttribute('data-vehicle-x', before!);
         await input.send('Input.dispatchTouchEvent', { type: end, touchPoints: [] });
         touchActive = false;
         await expect(figure).not.toHaveAttribute('data-dragging', '');
+        expect(await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }))).toEqual(
+          scrollBefore,
+        );
         expect(await windowDragState(page)).toEqual({ listeners: [], selectionBlocked: false });
       }
     } finally {
@@ -240,6 +248,81 @@ test.describe('touch dragging', () => {
       await input.detach();
     }
   });
+
+  test('swiping the reference line or empty area scrolls the page without moving the vehicle', async ({
+    page,
+  }) => {
+    const { figure } = await openFigure(page);
+    const vehicleX = await figure.getAttribute('data-vehicle-x');
+    const vehicleY = await figure.getAttribute('data-vehicle-y');
+    const input = await page.context().newCDPSession(page);
+    let touchActive = false;
+    try {
+      for (const area of ['reference', 'empty']) {
+        await figure.evaluate((element) =>
+          element.scrollIntoView({ block: 'center', behavior: 'instant' }),
+        );
+        const scrollBefore = await page.evaluate(() => window.scrollY);
+        expect(scrollBefore).toBeGreaterThan(100);
+        const point = await figure.evaluate((element, area) => {
+          if (area === 'reference') {
+            const path = element.querySelector<SVGPathElement>('.motion-control-reference-line')!;
+            const point = path.getPointAtLength(path.getTotalLength() * 0.15);
+            const screen = point.matrixTransform(path.getScreenCTM()!);
+            return { x: screen.x, y: screen.y };
+          }
+          const box = element.getBoundingClientRect();
+          return { x: box.x + box.width * 0.1, y: box.y + box.height * 0.2 };
+        }, area);
+        await input.send('Input.dispatchTouchEvent', {
+          type: 'touchStart',
+          touchPoints: [{ ...point, id: 1 }],
+        });
+        touchActive = true;
+        for (let step = 1; step <= 6; step++) {
+          await input.send('Input.dispatchTouchEvent', {
+            type: 'touchMove',
+            touchPoints: [{ x: point.x, y: point.y + 15 * step, id: 1 }],
+          });
+          await page.evaluate(() => new Promise(requestAnimationFrame));
+        }
+        await input.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        touchActive = false;
+        await expect
+          .poll(() => page.evaluate(() => window.scrollY))
+          .toBeLessThan(scrollBefore - 30);
+        await expect(figure).toHaveAttribute('data-vehicle-x', vehicleX!);
+        await expect(figure).toHaveAttribute('data-vehicle-y', vehicleY!);
+        await expect(figure).not.toHaveAttribute('data-dragging', '');
+      }
+    } finally {
+      if (touchActive)
+        await input.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+      await input.detach();
+    }
+  });
+});
+
+test('dragging from a wheel still moves the vehicle', async ({ page }) => {
+  const { figure } = await openFigure(page);
+  const point = await figure
+    .locator('.motion-control-wheel')
+    .first()
+    .evaluate((element) => {
+      const wheel = element as SVGRectElement;
+      // Start on the painted tire stroke, not the hollow center.
+      const screen = new DOMPoint(0, wheel.y.baseVal.value).matrixTransform(wheel.getScreenCTM()!);
+      return { x: screen.x, y: screen.y };
+    });
+  const before = await figure.getAttribute('data-vehicle-x');
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  try {
+    await page.mouse.move(point.x + 20, point.y + 10);
+    await expect(figure).not.toHaveAttribute('data-vehicle-x', before!);
+  } finally {
+    await page.mouse.up();
+  }
 });
 
 test('the server-rendered project preview responds to two-dimensional dragging', async ({
@@ -256,7 +339,9 @@ test('the server-rendered project preview responds to two-dimensional dragging',
   expect(box).not.toBeNull();
 
   await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await expect(handle).toHaveCSS('cursor', 'grab');
   await page.mouse.down();
+  await expect(handle).toHaveCSS('cursor', 'grabbing');
   await page.mouse.move(box!.x + box!.width / 2 + 24, box!.y + box!.height / 2 + 12);
   const intermediate = {
     x: await figure.getAttribute('data-vehicle-x'),
@@ -270,6 +355,7 @@ test('the server-rendered project preview responds to two-dimensional dragging',
     y: await figure.getAttribute('data-vehicle-y'),
   };
   await page.mouse.up();
+  await expect(handle).toHaveCSS('cursor', 'grab');
 
   expect(latest.x).not.toBe(initialX);
   expect(latest.y).not.toBe(initialY);
@@ -281,4 +367,9 @@ test('the server-rendered project preview responds to two-dimensional dragging',
   );
   await expect(figure).toHaveAttribute('data-vehicle-x', latest.x ?? '');
   await expect(figure).toHaveAttribute('data-vehicle-y', latest.y ?? '');
+  await expect(page).toHaveURL(/\/en\/projects\/$/);
+  const title = page.locator('.project-card--with-preview .project-card__link').first();
+  const target = await title.getAttribute('href');
+  await title.click();
+  await expect(page).toHaveURL(new URL(target!, page.url()).href);
 });

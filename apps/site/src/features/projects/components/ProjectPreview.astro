@@ -11,7 +11,7 @@ const { kind } = Astro.props;
 
 {
   kind === 'motion-control' && (
-    <div data-project-preview={kind} data-project-preview-static>
+    <div data-project-preview={kind}>
       <MotionControlProjectVisual client:load />
     </div>
   )
