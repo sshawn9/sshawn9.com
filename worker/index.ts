@@ -209,6 +209,16 @@ async function readManifest(env: Pick<WorkerEnvironment, 'WALLPAPER_MANIFEST'>) 
   return isStoredWallpaperManifest(value) ? value : undefined;
 }
 
+// Only visitor requests tolerate read failures; refreshes must still reject.
+async function readManifestForRequest(env: Pick<WorkerEnvironment, 'WALLPAPER_MANIFEST'>) {
+  try {
+    return await readManifest(env);
+  } catch (error) {
+    console.error('Unable to read the wallpaper manifest.', error);
+    return undefined;
+  }
+}
+
 function publicManifest(manifest: StoredWallpaperManifest): WallpaperManifest {
   return {
     version: manifest.version,
@@ -266,7 +276,7 @@ export async function handleWallpaperRequest(
     });
   }
 
-  const manifest = await readManifest(env);
+  const manifest = await readManifestForRequest(env);
   return manifest ? manifestResponse(manifest, request) : unavailableResponse(request);
 }
 
@@ -301,7 +311,7 @@ export async function handleWallpaperDownloadRequest(
     return new Response('Bad Request', { status: 400 });
   }
 
-  const manifest = await readManifest(env);
+  const manifest = await readManifestForRequest(env);
   if (!manifest) return unavailableResponse(request);
 
   const photo = manifest.photos.find((candidate) => candidate.id === photoId);
