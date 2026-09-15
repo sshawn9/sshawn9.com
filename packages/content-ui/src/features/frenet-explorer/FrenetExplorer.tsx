@@ -250,6 +250,7 @@ const FrenetExplorer: Component<Props> = (props) => {
   let geometryPlotElement!: HTMLDivElement;
   let mainPlot: PlotlyHTMLElement | undefined;
   let geometryPlot: PlotlyHTMLElement | undefined;
+  const ownedPlots = new Set<HTMLDivElement>();
   let mainFigure: MainPlotFigure | undefined;
   let plotly: PlotlyApi | undefined;
   let intersectionObserver: IntersectionObserver | undefined;
@@ -299,6 +300,17 @@ const FrenetExplorer: Component<Props> = (props) => {
     return `φ=${state.selected.phi.toFixed(2)}°, d=${state.selected.d.toFixed(4)}, κᵣ=${state.selected.kappa.toFixed(4)}, dℓ/ds=${value === null ? m.frenet_undefined({}, { locale: contentLocale }) : value.toFixed(4)}${degeneracy}`;
   });
 
+  const purgePlots = () => {
+    if (!plotly) return;
+    for (const element of ownedPlots) {
+      plotly.purge(element);
+      ownedPlots.delete(element);
+    }
+    mainPlot = undefined;
+    geometryPlot = undefined;
+    mainFigure = undefined;
+  };
+
   const schedule = () => {
     if (destroyed || frame || rendering || !plotly || !mainPlot || !geometryPlot) return;
     frame = requestAnimationFrame(() => {
@@ -333,9 +345,9 @@ const FrenetExplorer: Component<Props> = (props) => {
   const flush = async () => {
     if (destroyed || rendering || !plotly || !mainPlot || !geometryPlot) return;
     rendering = true;
+    const updates: Array<Promise<unknown>> = [];
     try {
       if (dirtyMainFigure || dirtyGeometryFigure || dirtyGeometryData) {
-        const updates: Array<Promise<unknown>> = [];
         pendingSelection = undefined;
         const theme = readPlotTheme(rootElement);
         if (dirtyMainFigure) {
@@ -389,7 +401,7 @@ const FrenetExplorer: Component<Props> = (props) => {
           quantity === 'coordinate-scale',
         );
         const traces = GEOMETRY_TRACE_KEYS.map((key) => payload[key]);
-        const updates: Array<Promise<unknown>> = [
+        updates.push(
           plotly.restyle(
             geometryPlot,
             {
@@ -399,7 +411,7 @@ const FrenetExplorer: Component<Props> = (props) => {
             } as unknown as Data,
             GEOMETRY_TRACE_KEYS.map((_, index) => index),
           ),
-        ];
+        );
         if (mainFigure.selectedTraceIndex !== undefined) {
           const selected = selectedPointTrace({ axes, quantity, selected: selection });
           updates.push(
@@ -410,26 +422,36 @@ const FrenetExplorer: Component<Props> = (props) => {
         }
         await Promise.all(updates);
       }
+      if (destroyed) return;
       if (dirtyResize) {
         dirtyResize = false;
         const geometryView = geometryViewRanges(state);
-        await Promise.all([
+        updates.push(
           plotly.relayout(mainPlot, {
             autosize: true,
             ...(mainCamera ? { 'scene.camera': mainCamera } : {}),
           }),
+        );
+        updates.push(
           plotly.relayout(geometryPlot, {
             autosize: true,
             ...geometryViewportLayout(geometryView),
           }),
-        ]);
+        );
+        await Promise.all(updates);
       }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error));
-      setStatus('error');
+      if (!destroyed) {
+        setErrorMessage(error instanceof Error ? error.message : String(error));
+        setStatus('error');
+      }
     } finally {
+      // A rejected or synchronously throwing call cannot release ownership of
+      // another plot's pending update. Purge only after every started call settles.
+      await Promise.allSettled(updates);
       rendering = false;
-      if (dirtyMainFigure || dirtyGeometryFigure || dirtyGeometryData) schedule();
+      if (destroyed) purgePlots();
+      else if (dirtyMainFigure || dirtyGeometryFigure || dirtyGeometryData) schedule();
       else if (dirtyResize || pendingSelection) void flush();
     }
   };
@@ -533,12 +555,17 @@ const FrenetExplorer: Component<Props> = (props) => {
       const theme = readPlotTheme(rootElement);
       mainFigure = buildMainFigure(state, theme, plotLabels, mainViewRevision);
       const geometryFigure = buildGeometryFigure(state, theme);
+      rendering = true;
+      // A rejected creation can still allocate resources on its target element.
+      ownedPlots.add(mainPlotElement);
       mainPlot = await plotly.newPlot(
         mainPlotElement,
         mainFigure.data,
         mainFigure.layout,
         mainFigure.config,
       );
+      if (destroyed) return;
+      ownedPlots.add(geometryPlotElement);
       geometryPlot = await plotly.newPlot(
         geometryPlotElement,
         geometryFigure.data,
@@ -582,10 +609,16 @@ const FrenetExplorer: Component<Props> = (props) => {
         attributeFilter: ['class'],
       });
     } catch (error) {
+      resizeObserver?.disconnect();
+      themeObserver?.disconnect();
+      purgePlots();
       if (destroyed) return;
       setErrorMessage(error instanceof Error ? error.message : String(error));
       setStatus('error');
       setInteractiveFigureState(rootElement, 'error');
+    } finally {
+      rendering = false;
+      if (destroyed) purgePlots();
     }
   });
 
@@ -602,9 +635,8 @@ const FrenetExplorer: Component<Props> = (props) => {
       mainPlot.removeAllListeners('plotly_hover');
       mainPlot.removeAllListeners('plotly_click');
       mainPlot.removeAllListeners('plotly_relayout');
-      plotly.purge(mainPlot);
     }
-    if (geometryPlot && plotly) plotly.purge(geometryPlot);
+    if (!rendering) purgePlots();
   });
 
   return (
