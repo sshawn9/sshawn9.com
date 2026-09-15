@@ -1,10 +1,10 @@
 # 审计剩余事项
 
-核对日期：2026-09-15。源码基线：`8e5c1900ef3a4b8ca9de7b4b7e107d0cf31198b2`。
+初次核对日期：2026-09-15。诊断源码基线：`8e5c1900ef3a4b8ca9de7b4b7e107d0cf31198b2`。
 
 本页只保留[原审计](2026-09-13/report.md)尚未处理的事项，不重复已完成的修复。原报告 D 节的五条线索按原顺序编号为 D01–D05，便于后续指认。查明原因不等于已修复；“受控时序”表示诊断人为安排了操作先后，不能当作正常访问已经发生同样故障。
 
-本轮只核对代码、执行本地诊断并整理记录，没有修改业务源码、正式测试或线上配置。诊断版本为 Playwright `1.63.0`、默认 Chromium `153.0.8010.12`、Astro `7.3.1`、Plotly `4.0.0`，不操作个人 Chrome。现有构建标注的提交为 `4beee1f`；它与本次源码基线之间，下述导航、字体、聚焦控制器及 Frenet 交互实现均无差异。
+初次整理只核对代码、执行本地诊断并记录，没有修改业务源码、正式测试或线上配置；后续完成项从本页移除，修复记录保留在原审计中。诊断版本为 Playwright `1.63.0`、默认 Chromium `153.0.8010.12`、Astro `7.3.1`、Plotly `4.0.0`，未操作个人 Chrome。当时使用的构建标注提交为 `4beee1f`；它与诊断源码基线之间，下述导航、字体、聚焦控制器及 Frenet 交互实现均无差异。
 
 ## 已确认、尚未修复
 
@@ -17,18 +17,6 @@
 - **状态：按此前决定暂缓，先讨论错误收集机制。** 错误收集只能帮助发现故障，不能代替这项生命周期修复。
 
 源码：[page-runtime.ts](../../apps/site/src/runtime/page-runtime.ts)、[article-controller.ts](../../apps/site/src/features/article/runtime/article-controller.ts)、[navigation-coordinator.ts](../../apps/site/src/runtime/navigation-coordinator.ts)。
-
-### D03：KV 读取或 JSON 解析失败，没有返回约定的 503
-
-这条已从代码线索推进到本地实测：不是“照片名单不存在”，而是“读取名单这个操作本身失败”。
-
-- 空 KV、成功解析但字段不合法：GET、HEAD、下载上报 POST 均返回现有 503，并带 `Retry-After: 60`。
-- 存储内容不是合法 JSON、KV `get()` 拒绝：三个入口均直接抛出异常，跳过上述 503，共六个异常路径得到相同结果。
-- 使用真实 Worker 导出函数、内存 KV 和损坏 JSON；没有联系 Cloudflare，也没有写入线上数据。结论是本站的异常返回路径缺失，不推测真实平台最终错误页的内容。
-
-待处理：在适当的请求边界记录读取异常并返回一致的不可用响应；区分读失败与空池，不因此覆盖数据或触发访客刷新。
-
-源码：[worker/index.ts](../../worker/index.ts) 的 `readManifest`、`handleWallpaperRequest`、`handleWallpaperDownloadRequest`。
 
 ### B05：旧壁纸还能保留，但照片淘汰后无法上报下载
 
