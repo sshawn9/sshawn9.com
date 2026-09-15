@@ -1,5 +1,6 @@
 import { mountArticlePage } from '../features/article/runtime/article-controller';
 import { prepareTargetArticleSidebarState } from '../features/article/runtime/article-sidebar-state';
+import { synchronizeArticleToc } from '../features/article/runtime/article-toc-state';
 import { mountBlogPage } from '../features/blog/runtime/blog-controller';
 import { prepareTargetBlogSidebarState } from '../features/blog/runtime/blog-sidebar-state';
 import { prepareTargetBlogView } from '../features/blog/runtime/blog-view-state';
@@ -16,6 +17,7 @@ export type PageRuntime = {
   resolveView(targetUrl: URL): PageView | undefined;
   prepareTargetDocument(targetDocument: Document, targetUrl: URL): void;
   beforeDocumentSwap(targetDocument: Document, targetUrl: URL): void;
+  prepareCurrentDocument(): void;
   mountCurrentPage(navigation: PageNavigation): void;
   dispose(): void;
 };
@@ -52,6 +54,10 @@ export function createPageRuntime(
       pendingSearchScroll = targetDocument.querySelector('[data-site-search]')
         ? readCurrentScroll(sourceWindow, targetUrl)
         : undefined;
+    },
+    prepareCurrentDocument() {
+      // Root placement determines the active link; its wrapping affects nested scroll.
+      synchronizeArticleToc(sourceDocument, sourceWindow);
     },
     mountCurrentPage(navigation) {
       if (disposed) return;

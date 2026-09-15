@@ -412,18 +412,20 @@ export function installNavigationCoordinator(
     const localePoint = transferStorage
       ? consumeLocaleNavigationTransfer(transferStorage, sourceWindow.location)
       : undefined;
+    const snapshot =
+      !localePoint && phase.navigationType === 'traverse'
+        ? readCurrentScroll(sourceWindow)
+        : undefined;
     if (localePoint) {
       restorePageScroll(sourceDocument, sourceWindow, localePoint);
-    } else if (phase.navigationType === 'traverse') {
-      const snapshot = readCurrentScroll(sourceWindow);
-      if (snapshot) {
-        // Starting a replacement navigation can update Astro's own root-scroll
-        // cache while the outgoing DOM is still visible. Our entry snapshot
-        // remains authoritative for both root and nested restoration.
-        restorePageScroll(sourceDocument, sourceWindow, snapshot.page);
-        restoreNestedScroll(sourceDocument, snapshot);
-      }
+    } else if (snapshot) {
+      // Starting a replacement navigation can update Astro's own root-scroll
+      // cache while the outgoing DOM is still visible. Our entry snapshot
+      // remains authoritative for both root and nested restoration.
+      restorePageScroll(sourceDocument, sourceWindow, snapshot.page);
     }
+    dependencies.pages.prepareCurrentDocument();
+    if (snapshot) restoreNestedScroll(sourceDocument, snapshot);
     if (phase.focusMainContent) {
       sourceDocument.querySelector<HTMLElement>('#main-content')?.focus({ preventScroll: true });
     }

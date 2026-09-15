@@ -67,13 +67,3 @@ export function restorePageScroll(
   // turning refresh and history restoration into a visible scroll animation.
   sourceWindow.scrollTo({ left: point.x, top: point.y, behavior: 'instant' });
 }
-
-/** Used by the initial-frame coordinator; normal ClientRouter traversal owns page scroll. */
-export function restorePageAndNestedScroll(
-  sourceDocument: Document,
-  sourceWindow: Window,
-  snapshot: ScrollSnapshot,
-): void {
-  restorePageScroll(sourceDocument, sourceWindow, snapshot.page);
-  restoreNestedScroll(sourceDocument, snapshot);
-}

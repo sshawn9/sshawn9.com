@@ -26,6 +26,8 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
+        // Use the full browser's popup lifecycle instead of headless shell.
+        channel: 'chromium',
         launchOptions: { env: browserEnv, ...(executablePath ? { executablePath } : {}) },
       },
     },
