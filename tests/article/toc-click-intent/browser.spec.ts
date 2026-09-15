@@ -3,13 +3,6 @@ import { expect, test, type Page } from '@playwright/test';
 const articlePath = '/en/blog/git-operations-reference/';
 const tocLinks = '#article-sidebar [data-article-toc] a[data-toc-slug]';
 
-test.beforeEach(async ({ context }) => {
-  // Popups share these routes too; none of these cases needs the live wallpaper API.
-  await context.route('**/api/wallpapers', (route) =>
-    route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }),
-  );
-});
-
 async function openArticle(page: Page, path = articlePath) {
   await page.goto(path);
   await expect(page.locator('[data-article-page]')).toHaveAttribute(

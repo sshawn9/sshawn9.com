@@ -12,7 +12,7 @@ import {
 } from '../locale-navigation-transfer';
 import { prepareRequiredFonts } from '../required-fonts';
 import { reflectPageBusy } from '../navigation-feedback';
-import { restorePageAndNestedScroll, restorePageScroll } from '../scroll-state';
+import { restoreNestedScroll, restorePageScroll } from '../scroll-state';
 import { decodeScrollSnapshot } from '../state-ledger';
 
 // Astro alone cannot prepare this site's fonts and page state. Until the site
@@ -50,9 +50,10 @@ try {
   const commitPlacement = (): void => {
     if (placementCommitted) return;
     placementCommitted = true;
-    if (localeTransfer) restorePageScroll(document, window, localeTransfer);
-    else if (snapshot) restorePageAndNestedScroll(document, window, snapshot);
+    if (initialPoint) restorePageScroll(document, window, initialPoint);
     synchronizeArticleToc(document, window);
+    // Active-link wrapping must settle before restoring nested scroll positions.
+    if (!localeTransfer && snapshot) restoreNestedScroll(document, snapshot);
   };
   const commitReadyDocument = (): void => {
     // A client navigation may have replaced this body while its fonts loaded.
