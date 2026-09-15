@@ -33,7 +33,10 @@ class FigureFocusController extends HTMLElement {
     else this.#openFigure(figure);
   };
 
-  #handleClose = (): void => this.#restoreFigure();
+  #handleClose = (): void => {
+    // A queued close event can arrive after the same dialog has reopened.
+    if (!this.#dialog?.open) this.#restoreFigure();
+  };
   #handleBeforeSwap = (): void => this.#restoreFigure(false);
 
   connectedCallback(): void {
@@ -73,18 +76,13 @@ class FigureFocusController extends HTMLElement {
   }
 
   #restorePagePosition(state: FocusState): void {
-    window.scrollTo(state.scrollX, state.scrollY);
-    requestAnimationFrame(() => window.scrollTo(state.scrollX, state.scrollY));
+    window.scrollTo({ left: state.scrollX, top: state.scrollY, behavior: 'instant' });
   }
 
   #restoreFigure(restoreFocus = true): void {
     const dialog = this.#dialog;
     const state = this.#state;
-    if (!dialog || !state) {
-      this.ownerDocument.documentElement.removeAttribute('data-figure-focus-open');
-      if (dialog?.open) dialog.close();
-      return;
-    }
+    if (!dialog || !state) return;
 
     this.#state = undefined;
     const { figure, parent, nextSibling, placeholder } = state;
@@ -97,8 +95,11 @@ class FigureFocusController extends HTMLElement {
     const toggle = this.#updateToggle(figure, false);
     this.ownerDocument.documentElement.removeAttribute('data-figure-focus-open');
     if (dialog.open) dialog.close();
+    // Detached controllers only release their DOM state, not the new page's
+    // scroll or focus. Connected restores finish before a newer user intent.
+    if (!this.isConnected) return;
+    if (restoreFocus) toggle?.focus({ preventScroll: true });
     this.#restorePagePosition(state);
-    if (restoreFocus) requestAnimationFrame(() => toggle?.focus({ preventScroll: true }));
   }
 
   #openFigure(figure: HTMLElement): void {
