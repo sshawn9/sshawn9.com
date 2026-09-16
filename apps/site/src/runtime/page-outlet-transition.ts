@@ -1,4 +1,5 @@
 import type { TransitionBeforeSwapEvent } from 'astro:transitions/client';
+import { runCleanups } from './cleanup';
 
 export const PAGE_OUTLET_FADE_MS = 180;
 
@@ -6,9 +7,9 @@ const OUTLET_SELECTOR = '.page-outlet';
 const ENTERING_ATTRIBUTE = 'data-page-outlet-entering';
 const LEAVING_ATTRIBUTE = 'data-page-outlet-leaving';
 
-type OwnedAnimation = {
+type OwnedOutlet = {
   element: HTMLElement;
-  animation: Animation;
+  animation?: Animation;
 };
 
 /**
@@ -20,8 +21,8 @@ export class PageOutletTransition {
   readonly #document: Document;
   readonly #window: Window;
   readonly #reducedMotion: MediaQueryList;
-  #leaving?: OwnedAnimation;
-  #entering?: OwnedAnimation;
+  #leaving?: OwnedOutlet;
+  #entering?: OwnedOutlet;
   #enterAfterSwap = false;
 
   constructor(sourceDocument: Document, sourceWindow: Window) {
@@ -40,6 +41,8 @@ export class PageOutletTransition {
     if (!outlet || typeof outlet.animate !== 'function') return;
 
     const initialOpacity = this.#window.getComputedStyle(outlet).opacity;
+    const owned: OwnedOutlet = { element: outlet };
+    this.#leaving = owned;
     outlet.style.opacity = initialOpacity;
     outlet.setAttribute(LEAVING_ATTRIBUTE, '');
     const animation = outlet.animate([{ opacity: initialOpacity }, { opacity: 0 }], {
@@ -47,8 +50,7 @@ export class PageOutletTransition {
       easing: 'ease',
       fill: 'forwards',
     });
-    const owned = { element: outlet, animation };
-    this.#leaving = owned;
+    owned.animation = animation;
     const cancel = (): void => animation.cancel();
     signal.addEventListener('abort', cancel, { once: true });
 
@@ -70,6 +72,9 @@ export class PageOutletTransition {
       this.#enterAfterSwap = false;
       return;
     }
+    // Own the hidden target before mounting starts: initialization can fail
+    // after the swap but before an entering animation has been created.
+    this.#entering = { element: targetOutlet };
     targetOutlet.style.opacity = '0';
     targetOutlet.setAttribute(ENTERING_ATTRIBUTE, '');
   }
@@ -79,12 +84,15 @@ export class PageOutletTransition {
     if (!this.#enterAfterSwap) return;
     this.#enterAfterSwap = false;
 
-    const outlet = this.#document.querySelector<HTMLElement>(
-      `${OUTLET_SELECTOR}[${ENTERING_ATTRIBUTE}]`,
-    );
-    if (!outlet) return;
+    const owned = this.#entering;
+    if (!owned) return;
+    const outlet = owned.element;
+    if (!outlet.isConnected || outlet.ownerDocument !== this.#document) {
+      this.#cancelEntering();
+      return;
+    }
     if (typeof outlet.animate !== 'function') {
-      this.#resetElement(outlet, ENTERING_ATTRIBUTE);
+      this.#cancelEntering();
       return;
     }
     const animation = outlet.animate([{ opacity: 0 }, { opacity: 1 }], {
@@ -92,8 +100,7 @@ export class PageOutletTransition {
       easing: 'ease',
       fill: 'forwards',
     });
-    const owned = { element: outlet, animation };
-    this.#entering = owned;
+    owned.animation = animation;
     void animation.finished
       .catch(() => undefined)
       .then(() => {
@@ -106,8 +113,10 @@ export class PageOutletTransition {
 
   cancel(): void {
     this.#enterAfterSwap = false;
-    this.#cancelLeaving();
-    this.#cancelEntering();
+    runCleanups(
+      () => this.#cancelLeaving(),
+      () => this.#cancelEntering(),
+    );
   }
 
   dispose(): void {
@@ -118,7 +127,7 @@ export class PageOutletTransition {
     const owned = this.#entering;
     if (!owned) return;
     const opacity = this.#window.getComputedStyle(owned.element).opacity;
-    owned.animation.cancel();
+    owned.animation?.cancel();
     this.#entering = undefined;
     owned.element.style.opacity = opacity;
     owned.element.removeAttribute(ENTERING_ATTRIBUTE);
@@ -127,25 +136,25 @@ export class PageOutletTransition {
   #cancelEntering(): void {
     const owned = this.#entering;
     if (!owned) return;
-    owned.animation.cancel();
     this.#entering = undefined;
-    this.#resetElement(owned.element, ENTERING_ATTRIBUTE);
+    runCleanups(
+      () => owned.animation?.cancel(),
+      () => this.#resetElement(owned.element, ENTERING_ATTRIBUTE),
+    );
   }
 
   #cancelLeaving(): void {
     const owned = this.#leaving;
     if (!owned) return;
-    owned.animation.cancel();
     this.#leaving = undefined;
-    this.#resetElement(owned.element, LEAVING_ATTRIBUTE);
+    runCleanups(
+      () => owned.animation?.cancel(),
+      () => this.#resetElement(owned.element, LEAVING_ATTRIBUTE),
+    );
   }
 
   #releaseLeavingAfterSwap(): void {
-    const owned = this.#leaving;
-    if (!owned) return;
-    owned.animation.cancel();
-    this.#leaving = undefined;
-    this.#resetElement(owned.element, LEAVING_ATTRIBUTE);
+    this.#cancelLeaving();
   }
 
   #resetElement(element: HTMLElement, attribute: string): void {

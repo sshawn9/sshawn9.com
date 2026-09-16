@@ -2,6 +2,7 @@
   "extends": "astro/tsconfigs/strict",
   "include": [
     "apps/site/.astro/types.d.ts",
+    "apps/site/src/env.d.ts",
     "worker/**/*.ts",
     "tests/**/*.ts",
     "vitest.config.ts",

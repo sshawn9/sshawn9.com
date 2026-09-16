@@ -12,6 +12,7 @@ import {
   type PageView,
 } from './page-navigation';
 import { readCurrentScroll } from './scroll-state';
+import { rethrowAfterCleanup } from './cleanup';
 
 export type PageRuntime = {
   resolveView(targetUrl: URL): PageView | undefined;
@@ -33,9 +34,10 @@ export function createPageRuntime(
   let disposed = false;
 
   const destroyCurrentPage = (): void => {
-    controller?.destroy();
+    const previous = controller;
     controller = undefined;
     mountedPage = undefined;
+    previous?.destroy();
   };
 
   return {
@@ -64,20 +66,28 @@ export function createPageRuntime(
       const page = sourceDocument.querySelector('main');
       if (page && page === mountedPage) return;
       destroyCurrentPage();
-      mountedPage = page ?? undefined;
-      controller = mountBlogPage(sourceDocument, sourceWindow, navigation);
-      controller ??= mountArticlePage(sourceDocument, sourceWindow);
-      controller ??= mountSearchPage(sourceDocument, sourceWindow, navigation, pendingSearchScroll);
-      pendingSearchScroll = undefined;
-      if (controller?.view) {
-        navigation.replaceViewUrl(controller.view.normalize(new URL(sourceWindow.location.href)));
+      try {
+        const next: PageController | undefined =
+          mountBlogPage(sourceDocument, sourceWindow, navigation) ??
+          mountArticlePage(sourceDocument, sourceWindow) ??
+          mountSearchPage(sourceDocument, sourceWindow, navigation, pendingSearchScroll);
+        // URL canonicalization consults resolveView(), so publish the completed
+        // controller first and roll that publication back if canonicalization fails.
+        controller = next;
+        mountedPage = page ?? undefined;
+        if (next?.view) {
+          navigation.replaceViewUrl(next.view.normalize(new URL(sourceWindow.location.href)));
+        }
+        pendingSearchScroll = undefined;
+      } catch (error) {
+        rethrowAfterCleanup(error, destroyCurrentPage);
       }
     },
     dispose() {
       if (disposed) return;
       disposed = true;
-      destroyCurrentPage();
       pendingSearchScroll = undefined;
+      destroyCurrentPage();
     },
   };
 }

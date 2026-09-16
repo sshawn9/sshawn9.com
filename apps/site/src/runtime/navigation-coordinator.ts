@@ -5,6 +5,7 @@ import {
 } from 'astro:transitions/client';
 import { decideBuildNavigation, readDocumentBuildId } from './build-generation';
 import { CURRENT_BUILD_ID } from './build-identity';
+import { rethrowAfterCleanup, runCleanups } from './cleanup';
 import {
   consumeLocaleNavigationTransfer,
   discardLocaleNavigationTransfer,
@@ -113,6 +114,7 @@ export function installNavigationCoordinator(
     reflectNavigationFeedback(sourceDocument, state),
   );
   const pageTransition = new PageOutletTransition(sourceDocument, sourceWindow);
+  const listeners = new AbortController();
   let sequence = 0;
   let phase: NavigationPhase = { kind: 'idle' };
   let restoringTraversal = false;
@@ -187,6 +189,51 @@ export function installNavigationCoordinator(
 
   function isCurrentTransaction(id: number): boolean {
     return !disposed && phase.kind !== 'idle' && phase.id === id;
+  }
+
+  function settleDocumentNavigation(
+    transaction: Extract<NavigationPhase, { kind: 'document' }>,
+    failed: boolean,
+  ): void {
+    if (disposed || phase !== transaction) return;
+    restoringTraversal = false;
+    phase = { kind: 'idle' };
+    if (failed) {
+      runCleanups(
+        () => pageTransition.cancel(),
+        () => feedback.cancel(transaction.feedbackId),
+      );
+    } else {
+      feedback.finish(transaction.feedbackId);
+    }
+  }
+
+  function failDocumentNavigation(
+    transaction: Extract<NavigationPhase, { kind: 'document' }>,
+    error: unknown,
+    cleanup: () => void = () => {},
+  ): never {
+    // Traversal changes the URL before the document commits. Only that failed
+    // current transaction needs a native load of the already-selected entry.
+    const reloadTraversal =
+      !disposed &&
+      phase === transaction &&
+      transaction.navigationType === 'traverse' &&
+      !locationMatchesPage();
+    try {
+      rethrowAfterCleanup(error, () => {
+        if (disposed || phase !== transaction) return;
+        runCleanups(() => settleDocumentNavigation(transaction, true), cleanup);
+      });
+    } catch (failure) {
+      if (reloadTraversal && !disposed && sequence === transaction.id) {
+        // Do not rely on a later unhandledrejection: unloading can discard it.
+        // Still reject below so Astro cannot continue a failed preparation/swap.
+        sourceWindow.reportError(failure);
+        if (!disposed && sequence === transaction.id) sourceWindow.location.reload();
+      }
+      throw failure;
+    }
   }
 
   function cancelScheduledScrollSave(): void {
@@ -266,7 +313,6 @@ export function installNavigationCoordinator(
 
     viewRequests.length = 0;
     const feedbackId = feedback.begin(event.to.href);
-    dependencies.closeDocumentOverlays();
     const focusMainContent = pendingMainFocus?.href === event.to.href;
     pendingMainFocus = undefined;
 
@@ -277,16 +323,9 @@ export function installNavigationCoordinator(
         ? pendingLocaleTransfer
         : undefined;
     pendingLocaleTransfer = undefined;
-    if (transferStorage) {
-      if (localeTransfer) {
-        persistLocaleNavigationTransfer(transferStorage, event.to, localeTransfer.point);
-      } else {
-        discardLocaleNavigationTransfer(transferStorage);
-      }
-    }
     let handingOffToDocument = false;
 
-    phase = {
+    const transaction: Extract<NavigationPhase, { kind: 'document' }> = {
       kind: 'document',
       stage: 'preparing',
       id,
@@ -294,6 +333,7 @@ export function installNavigationCoordinator(
       navigationType,
       focusMainContent,
     };
+    phase = transaction;
 
     event.signal.addEventListener(
       'abort',
@@ -302,51 +342,66 @@ export function installNavigationCoordinator(
           discardLocaleNavigationTransfer(transferStorage, event.to);
         }
         if (phase.kind === 'idle' || phase.id !== id) return;
-        pageTransition.cancel();
         restoringTraversal = false;
         phase = { kind: 'idle' };
         // Astro aborts A immediately before preparing its replacement B. Let B
         // inherit A's feedback; with no replacement, clear it before the next paint.
         sourceWindow.queueMicrotask(() => feedback.cancel(feedbackId));
+        pageTransition.cancel();
       },
       { once: true },
     );
 
     const frameworkLoader = event.loader;
     event.loader = async () => {
-      await frameworkLoader();
-      if (event.defaultPrevented || event.signal.aborted || !isCurrentTransaction(id)) {
-        return;
-      }
-
-      const generation = decideBuildNavigation(
-        CURRENT_BUILD_ID,
-        readDocumentBuildId(sourceDocument),
-        readDocumentBuildId(event.newDocument),
-      );
-      if (generation.mode === 'document') {
-        // Astro 7.1.6 converts a cancelled preparation into a document
-        // navigation. This is the only router-version-specific seam here.
-        handingOffToDocument = true;
-        event.preventDefault();
-        return;
-      }
-
-      dependencies.pages.prepareTargetDocument(event.newDocument, event.to);
-
       try {
+        // Preparation failures must reject the loader, not just throw from the
+        // before-preparation listener (dispatchEvent does not propagate those).
+        dependencies.closeDocumentOverlays();
+        if (transferStorage) {
+          if (localeTransfer) {
+            persistLocaleNavigationTransfer(transferStorage, event.to, localeTransfer.point);
+          } else {
+            discardLocaleNavigationTransfer(transferStorage);
+          }
+        }
+        await frameworkLoader();
+        if (event.defaultPrevented || event.signal.aborted || !isCurrentTransaction(id)) {
+          return;
+        }
+
+        const generation = decideBuildNavigation(
+          CURRENT_BUILD_ID,
+          readDocumentBuildId(sourceDocument),
+          readDocumentBuildId(event.newDocument),
+        );
+        if (generation.mode === 'document') {
+          // Astro 7.1.6 converts a cancelled preparation into a document
+          // navigation. This is the only router-version-specific seam here.
+          handingOffToDocument = true;
+          event.preventDefault();
+          return;
+        }
+
+        dependencies.pages.prepareTargetDocument(event.newDocument, event.to);
+
         const fontPreparation = prepareRequiredFonts(sourceDocument, event.newDocument, {
           signal: event.signal,
         });
         if (fontPreparation) await fontPreparation;
+        if (!event.signal.aborted && isCurrentTransaction(id)) {
+          event.newDocument.documentElement.dataset.fontState = 'ready';
+          feedback.prepared(feedbackId);
+          await pageTransition.prepareOutgoing(event.signal);
+        }
       } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-        throw error;
-      }
-      if (!event.signal.aborted && isCurrentTransaction(id)) {
-        event.newDocument.documentElement.dataset.fontState = 'ready';
-        feedback.prepared(feedbackId);
-        await pageTransition.prepareOutgoing(event.signal);
+        if (event.signal.aborted && error instanceof DOMException && error.name === 'AbortError')
+          return;
+        failDocumentNavigation(transaction, error, () => {
+          if (!handingOffToDocument && transferStorage && localeTransfer) {
+            discardLocaleNavigationTransfer(transferStorage, event.to);
+          }
+        });
       }
     };
   }
@@ -369,13 +424,18 @@ export function installNavigationCoordinator(
     }
     if (phase.kind !== 'document' || phase.stage !== 'preparing') return;
 
-    reflectNavigationFeedback(event.newDocument, feedback.current());
-    pageTransition.prepareSwap(event);
+    const transaction = phase;
     const frameworkSwap = event.swap;
     event.swap = () => {
-      dependencies.closeDocumentOverlays();
-      dependencies.pages.beforeDocumentSwap(event.newDocument, event.to);
-      frameworkSwap();
+      try {
+        reflectNavigationFeedback(event.newDocument, feedback.current());
+        pageTransition.prepareSwap(event);
+        dependencies.closeDocumentOverlays();
+        dependencies.pages.beforeDocumentSwap(event.newDocument, event.to);
+        frameworkSwap();
+      } catch (error) {
+        failDocumentNavigation(transaction, error);
+      }
     };
     phase.stage = 'swapping';
   }
@@ -406,42 +466,51 @@ export function installNavigationCoordinator(
       return;
     }
     if (phase.kind !== 'document' || phase.stage !== 'swapping') return;
-    committedUrl = new URL(sourceWindow.location.href);
+    const transaction = phase;
+    try {
+      committedUrl = new URL(sourceWindow.location.href);
 
-    const transferStorage = readableSessionStorage(sourceWindow);
-    const localePoint = transferStorage
-      ? consumeLocaleNavigationTransfer(transferStorage, sourceWindow.location)
-      : undefined;
-    const snapshot =
-      !localePoint && phase.navigationType === 'traverse'
-        ? readCurrentScroll(sourceWindow)
+      const transferStorage = readableSessionStorage(sourceWindow);
+      const localePoint = transferStorage
+        ? consumeLocaleNavigationTransfer(transferStorage, sourceWindow.location)
         : undefined;
-    if (localePoint) {
-      restorePageScroll(sourceDocument, sourceWindow, localePoint);
-    } else if (snapshot) {
-      // Starting a replacement navigation can update Astro's own root-scroll
-      // cache while the outgoing DOM is still visible. Our entry snapshot
-      // remains authoritative for both root and nested restoration.
-      restorePageScroll(sourceDocument, sourceWindow, snapshot.page);
+      const snapshot =
+        !localePoint && transaction.navigationType === 'traverse'
+          ? readCurrentScroll(sourceWindow)
+          : undefined;
+      if (localePoint) {
+        restorePageScroll(sourceDocument, sourceWindow, localePoint);
+      } else if (snapshot) {
+        // Starting a replacement navigation can update Astro's own root-scroll
+        // cache while the outgoing DOM is still visible. Our entry snapshot
+        // remains authoritative for both root and nested restoration.
+        restorePageScroll(sourceDocument, sourceWindow, snapshot.page);
+      }
+      dependencies.pages.prepareCurrentDocument();
+      if (snapshot) restoreNestedScroll(sourceDocument, snapshot);
+      if (transaction.focusMainContent) {
+        sourceDocument.querySelector<HTMLElement>('#main-content')?.focus({ preventScroll: true });
+      }
+      if (phase !== transaction) return;
+      pageTransition.enterTarget();
+      restoringTraversal = false;
+      transaction.stage = 'settling';
+    } catch (error) {
+      failDocumentNavigation(transaction, error);
     }
-    dependencies.pages.prepareCurrentDocument();
-    if (snapshot) restoreNestedScroll(sourceDocument, snapshot);
-    if (phase.focusMainContent) {
-      sourceDocument.querySelector<HTMLElement>('#main-content')?.focus({ preventScroll: true });
-    }
-    pageTransition.enterTarget();
-    restoringTraversal = false;
-    phase.stage = 'settling';
   }
 
   function finishNavigation(): void {
     // A page-load can arrive after another navigation has begun preparing.
     // Mount the current document by identity, independently of that new flight.
-    dependencies.documentReady();
-    if (phase.kind !== 'document' || phase.stage !== 'settling') return;
-    feedback.finish(phase.feedbackId);
-    restoringTraversal = false;
-    phase = { kind: 'idle' };
+    const transaction = phase.kind === 'document' && phase.stage === 'settling' ? phase : undefined;
+    try {
+      dependencies.documentReady();
+    } catch (error) {
+      if (transaction) failDocumentNavigation(transaction, error);
+      throw error;
+    }
+    if (transaction) settleDocumentNavigation(transaction, false);
   }
 
   function inspectNavigationClick(rawEvent: Event): void {
@@ -493,35 +562,49 @@ export function installNavigationCoordinator(
     if (phase.kind === 'idle') persistPageScroll();
   }
 
-  sourceDocument.addEventListener('astro:before-preparation', prepareNavigation);
-  sourceDocument.addEventListener('astro:before-swap', prepareSwap);
-  sourceDocument.addEventListener('astro:after-swap', afterSwap);
-  sourceDocument.addEventListener('astro:page-load', finishNavigation);
-  sourceDocument.addEventListener('click', inspectNavigationClick, true);
-  sourceDocument.addEventListener('scroll', scheduleScrollSave, { capture: true, passive: true });
-  sourceWindow.addEventListener('pagehide', persistBeforeDocumentLeaves);
-
-  return {
+  const coordinator = {
     requestViewUpdate,
     replaceViewUrl,
     dispose() {
       if (disposed) return;
       disposed = true;
-      cancelScheduledScrollSave();
       viewRequests.length = 0;
       pendingLocaleTransfer = undefined;
       pendingMainFocus = undefined;
       restoringTraversal = false;
       phase = { kind: 'idle' };
-      feedback.dispose();
-      pageTransition.dispose();
-      sourceDocument.removeEventListener('astro:before-preparation', prepareNavigation);
-      sourceDocument.removeEventListener('astro:before-swap', prepareSwap);
-      sourceDocument.removeEventListener('astro:after-swap', afterSwap);
-      sourceDocument.removeEventListener('astro:page-load', finishNavigation);
-      sourceDocument.removeEventListener('click', inspectNavigationClick, true);
-      sourceDocument.removeEventListener('scroll', scheduleScrollSave, true);
-      sourceWindow.removeEventListener('pagehide', persistBeforeDocumentLeaves);
+      runCleanups(
+        () => listeners.abort(),
+        cancelScheduledScrollSave,
+        () => feedback.dispose(),
+        () => pageTransition.dispose(),
+      );
     },
   };
+
+  try {
+    sourceDocument.addEventListener('astro:before-preparation', prepareNavigation, {
+      signal: listeners.signal,
+    });
+    sourceDocument.addEventListener('astro:before-swap', prepareSwap, { signal: listeners.signal });
+    sourceDocument.addEventListener('astro:after-swap', afterSwap, { signal: listeners.signal });
+    sourceDocument.addEventListener('astro:page-load', finishNavigation, {
+      signal: listeners.signal,
+    });
+    sourceDocument.addEventListener('click', inspectNavigationClick, {
+      capture: true,
+      signal: listeners.signal,
+    });
+    sourceDocument.addEventListener('scroll', scheduleScrollSave, {
+      capture: true,
+      passive: true,
+      signal: listeners.signal,
+    });
+    sourceWindow.addEventListener('pagehide', persistBeforeDocumentLeaves, {
+      signal: listeners.signal,
+    });
+    return coordinator;
+  } catch (error) {
+    rethrowAfterCleanup(error, coordinator.dispose);
+  }
 }

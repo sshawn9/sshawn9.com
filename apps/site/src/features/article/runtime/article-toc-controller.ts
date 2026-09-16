@@ -5,6 +5,7 @@ import {
   setActiveArticleToc,
   synchronizeArticleToc,
 } from './article-toc-state';
+import { rethrowAfterCleanup, runCleanups } from '../../../runtime/cleanup';
 
 export type ArticleTocController = {
   destroy(): void;
@@ -34,6 +35,7 @@ export function createArticleTocController(
   sourceWindow: Window,
 ): ArticleTocController {
   const listeners = new AbortController();
+  let destroyed = false;
   let frame = 0;
   let pendingTarget: { slug: string; y: number } | undefined;
 
@@ -121,37 +123,50 @@ export function createArticleTocController(
     scheduleReconcile();
   };
 
-  article.addEventListener('click', handleClick, { signal: listeners.signal });
-  sourceDocument.addEventListener('scroll', scheduleReconcile, {
-    capture: true,
-    passive: true,
-    signal: listeners.signal,
-  });
-  sourceWindow.addEventListener('resize', scheduleReconcile, { signal: listeners.signal });
-  sourceWindow.addEventListener('scrollend', scheduleReconcile, { signal: listeners.signal });
-  sourceWindow.addEventListener('wheel', cancelPendingTarget, {
-    passive: true,
-    signal: listeners.signal,
-  });
-  sourceWindow.addEventListener('touchstart', cancelPendingTarget, {
-    passive: true,
-    signal: listeners.signal,
-  });
-  sourceWindow.addEventListener(
-    'keydown',
-    (event) => {
-      if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) {
-        cancelPendingTarget();
-      }
-    },
-    { signal: listeners.signal },
-  );
-  synchronizeArticleToc(sourceDocument, sourceWindow);
-
-  return {
-    destroy() {
-      if (frame !== 0) sourceWindow.cancelAnimationFrame(frame);
-      listeners.abort();
-    },
+  const destroy = () => {
+    if (destroyed) return;
+    destroyed = true;
+    runCleanups(
+      () => listeners.abort(),
+      () => {
+        if (frame !== 0) sourceWindow.cancelAnimationFrame(frame);
+        frame = 0;
+      },
+    );
   };
+
+  try {
+    article.addEventListener('click', handleClick, { signal: listeners.signal });
+    sourceDocument.addEventListener('scroll', scheduleReconcile, {
+      capture: true,
+      passive: true,
+      signal: listeners.signal,
+    });
+    sourceWindow.addEventListener('resize', scheduleReconcile, { signal: listeners.signal });
+    sourceWindow.addEventListener('scrollend', scheduleReconcile, { signal: listeners.signal });
+    sourceWindow.addEventListener('wheel', cancelPendingTarget, {
+      passive: true,
+      signal: listeners.signal,
+    });
+    sourceWindow.addEventListener('touchstart', cancelPendingTarget, {
+      passive: true,
+      signal: listeners.signal,
+    });
+    sourceWindow.addEventListener(
+      'keydown',
+      (event) => {
+        if (
+          ['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)
+        ) {
+          cancelPendingTarget();
+        }
+      },
+      { signal: listeners.signal },
+    );
+    synchronizeArticleToc(sourceDocument, sourceWindow);
+
+    return { destroy };
+  } catch (error) {
+    rethrowAfterCleanup(error, destroy);
+  }
 }

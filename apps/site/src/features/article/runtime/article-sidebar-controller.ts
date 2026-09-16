@@ -5,6 +5,7 @@ import {
   readArticleSidebarState,
   type ArticleSidebarState,
 } from './article-sidebar-state';
+import { rethrowAfterCleanup, runCleanups } from '../../../runtime/cleanup';
 
 const DESKTOP_MEDIA = '(min-width: 64rem)';
 const KEYBOARD_STEP = 16;
@@ -53,10 +54,51 @@ export function createArticleSidebarController(
   let animationTimer: number | undefined;
   let destroyed = false;
 
+  const restoreStaticFallback = () => {
+    runCleanups(
+      () => {
+        sidebar.inert = false;
+        sidebar.removeAttribute('aria-hidden');
+      },
+      () => {
+        toggle.disabled = true;
+        toggle.setAttribute('aria-disabled', 'true');
+        toggle.setAttribute('aria-expanded', 'true');
+        toggle.setAttribute('aria-label', collapseLabel);
+        toggle.removeAttribute('data-article-sidebar-expand');
+        toggle.setAttribute('data-article-sidebar-collapse', '');
+      },
+      () => {
+        resizer.tabIndex = -1;
+        resizer.setAttribute('aria-disabled', 'true');
+        resizer.removeAttribute('data-dragging');
+      },
+      () => {
+        layout.removeAttribute('data-sidebar-animating');
+        layout.removeAttribute('data-sidebar-collapsed');
+        layout.removeAttribute('data-sidebar-dragging');
+        layout.removeAttribute('data-sidebar-controlled');
+        layout.style.setProperty('--article-sidebar-current-width', `${state.width}px`);
+        layout.style.setProperty(
+          '--article-sidebar-current-track',
+          'var(--article-sidebar-current-width)',
+        );
+      },
+    );
+  };
+
+  const enableControls = () => {
+    toggle.disabled = false;
+    toggle.removeAttribute('aria-disabled');
+    resizer.tabIndex = 0;
+    resizer.removeAttribute('aria-disabled');
+  };
+
   const clearAnimation = () => {
-    if (animationTimer !== undefined) sourceWindow.clearTimeout(animationTimer);
+    const timer = animationTimer;
     animationTimer = undefined;
     layout.removeAttribute('data-sidebar-animating');
+    if (timer !== undefined) sourceWindow.clearTimeout(timer);
   };
 
   const applyState = (nextState: ArticleSidebarState) => {
@@ -147,41 +189,46 @@ export function createArticleSidebarController(
     commitState();
   };
 
-  toggle.addEventListener('click', () => setCollapsed(!state.collapsed), {
-    signal: listeners.signal,
-  });
-  resizer.addEventListener('pointerdown', handlePointerDown, { signal: listeners.signal });
-  resizer.addEventListener('pointermove', handlePointerMove, { signal: listeners.signal });
-  resizer.addEventListener('pointerup', finishDragging, { signal: listeners.signal });
-  resizer.addEventListener('pointercancel', finishDragging, { signal: listeners.signal });
-  resizer.addEventListener('lostpointercapture', () => finishDragging(), {
-    signal: listeners.signal,
-  });
-  resizer.addEventListener('keydown', handleKeyDown, { signal: listeners.signal });
-  layout.addEventListener(
-    'transitionend',
-    (event) => {
-      if (event.target === layout && event.propertyName === 'grid-template-columns') {
-        clearAnimation();
-      }
-    },
-    { signal: listeners.signal },
-  );
-  media.addEventListener('change', () => applyState(state), { signal: listeners.signal });
-
-  applyState(state);
-  layout.setAttribute('data-sidebar-controlled', '');
-
-  return {
-    destroy() {
-      if (destroyed) return;
-      destroyed = true;
-      finishDragging();
-      listeners.abort();
-      clearAnimation();
-      layout.removeAttribute('data-sidebar-dragging');
-      layout.removeAttribute('data-sidebar-controlled');
-      resizer.removeAttribute('data-dragging');
-    },
+  const destroy = () => {
+    if (destroyed) return;
+    destroyed = true;
+    runCleanups(
+      () => listeners.abort(),
+      () => finishDragging(),
+      clearAnimation,
+      restoreStaticFallback,
+    );
   };
+
+  try {
+    toggle.addEventListener('click', () => setCollapsed(!state.collapsed), {
+      signal: listeners.signal,
+    });
+    resizer.addEventListener('pointerdown', handlePointerDown, { signal: listeners.signal });
+    resizer.addEventListener('pointermove', handlePointerMove, { signal: listeners.signal });
+    resizer.addEventListener('pointerup', finishDragging, { signal: listeners.signal });
+    resizer.addEventListener('pointercancel', finishDragging, { signal: listeners.signal });
+    resizer.addEventListener('lostpointercapture', () => finishDragging(), {
+      signal: listeners.signal,
+    });
+    resizer.addEventListener('keydown', handleKeyDown, { signal: listeners.signal });
+    layout.addEventListener(
+      'transitionend',
+      (event) => {
+        if (event.target === layout && event.propertyName === 'grid-template-columns') {
+          clearAnimation();
+        }
+      },
+      { signal: listeners.signal },
+    );
+    media.addEventListener('change', () => applyState(state), { signal: listeners.signal });
+
+    applyState(state);
+    layout.setAttribute('data-sidebar-controlled', '');
+    enableControls();
+
+    return { destroy };
+  } catch (error) {
+    rethrowAfterCleanup(error, destroy);
+  }
 }

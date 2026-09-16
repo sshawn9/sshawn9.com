@@ -8,16 +8,6 @@
 
 ## 已确认、尚未修复
 
-### A01：初始化中途失败，没有完整收尾
-
-页面增强初始化抛错时，可能留下持续等待的导航反馈、不能再次正常挂载的页面标记，以及初始化一半的控制器资源。
-
-- 当前代码仍在创建页面控制器之前设置 `mountedPage`；文章控制器先创建侧栏，再创建目录和媒体控制器，没有覆盖中途失败的组合清理；导航完成入口先调用 `documentReady()`，异常会跳过后续反馈收尾。
-- 需要让成功挂载、部分资源回收和导航失败收尾形成完整边界，并保留错误信息。不能只让进度条消失。
-- **状态：按此前决定暂缓，先讨论错误收集机制。** 错误收集只能帮助发现故障，不能代替这项生命周期修复。
-
-源码：[page-runtime.ts](../../apps/site/src/runtime/page-runtime.ts)、[article-controller.ts](../../apps/site/src/features/article/runtime/article-controller.ts)、[navigation-coordinator.ts](../../apps/site/src/runtime/navigation-coordinator.ts)。
-
 ### B05：旧壁纸还能保留，但照片淘汰后无法上报下载
 
 浏览器的当前照片不会因为候选名单更新就强制替换；服务器却只在当前候选池中查找下载上报身份。两者有效期不同。

@@ -1,3 +1,5 @@
+import { rethrowAfterCleanup, runCleanups } from './cleanup';
+
 const TRANSIENT_OVERLAY_SELECTOR = '[data-transient-overlay]';
 
 type PopoverToggleEvent = Event & {
@@ -25,6 +27,7 @@ export function installTransientOverlayController(
   const openingInvokers = new WeakMap<HTMLElement, HTMLElement>();
   const pendingFocusRestoration = new WeakSet<HTMLElement>();
   let validationFrame = 0;
+  let disposed = false;
 
   const overlays = (): HTMLElement[] =>
     Array.from(sourceDocument.querySelectorAll<HTMLElement>(TRANSIENT_OVERLAY_SELECTOR));
@@ -132,28 +135,42 @@ export function installTransientOverlayController(
     }
   };
 
-  const closeForNavigation = (): void => closeAll(true);
+  const closeForNavigation = (): void => {
+    if (!disposed) closeAll(true);
+  };
 
-  sourceDocument.addEventListener('beforetoggle', handleBeforeToggle, {
-    capture: true,
-    signal: listeners.signal,
-  });
-  sourceDocument.addEventListener('toggle', handleToggle, {
-    capture: true,
-    signal: listeners.signal,
-  });
-  sourceWindow.addEventListener('resize', scheduleValidation, { signal: listeners.signal });
-  sourceWindow.addEventListener('orientationchange', scheduleValidation, {
-    signal: listeners.signal,
-  });
-
-  return {
+  const controller = {
     closeForNavigation,
     dispose() {
-      listeners.abort();
-      if (validationFrame !== 0) sourceWindow.cancelAnimationFrame(validationFrame);
+      if (disposed) return;
+      disposed = true;
+      const frame = validationFrame;
       validationFrame = 0;
-      closeAll(false);
+      runCleanups(
+        () => listeners.abort(),
+        () => {
+          if (frame !== 0) sourceWindow.cancelAnimationFrame(frame);
+        },
+        () => closeAll(false),
+      );
     },
   };
+
+  try {
+    sourceDocument.addEventListener('beforetoggle', handleBeforeToggle, {
+      capture: true,
+      signal: listeners.signal,
+    });
+    sourceDocument.addEventListener('toggle', handleToggle, {
+      capture: true,
+      signal: listeners.signal,
+    });
+    sourceWindow.addEventListener('resize', scheduleValidation, { signal: listeners.signal });
+    sourceWindow.addEventListener('orientationchange', scheduleValidation, {
+      signal: listeners.signal,
+    });
+    return controller;
+  } catch (error) {
+    rethrowAfterCleanup(error, controller.dispose);
+  }
 }

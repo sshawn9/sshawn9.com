@@ -7,6 +7,7 @@ import {
   createArticleMediaController,
   type ArticleMediaController,
 } from './article-media-controller';
+import { rethrowAfterCleanup, runCleanups } from '../../../runtime/cleanup';
 
 type ArticlePageController = {
   destroy(): void;
@@ -17,26 +18,31 @@ function createArticlePageController(
   sourceDocument: Document,
   sourceWindow: Window,
 ): ArticlePageController {
-  const layout = article.querySelector<HTMLElement>('[data-article-sidebar-layout]');
-  const sidebarController: ArticleSidebarController | undefined = layout
-    ? createArticleSidebarController(layout, sourceWindow)
-    : undefined;
-  const tocController: ArticleTocController = createArticleTocController(
-    article,
-    sourceDocument,
-    sourceWindow,
-  );
-  const mediaController: ArticleMediaController = createArticleMediaController(article);
-
-  article.setAttribute('data-article-runtime-ready', '');
-  return {
-    destroy() {
-      tocController.destroy();
-      mediaController.destroy();
-      sidebarController?.destroy();
-      article.removeAttribute('data-article-runtime-ready');
-    },
+  let sidebarController: ArticleSidebarController | undefined;
+  let tocController: ArticleTocController | undefined;
+  let mediaController: ArticleMediaController | undefined;
+  let destroyed = false;
+  const destroy = () => {
+    if (destroyed) return;
+    destroyed = true;
+    runCleanups(
+      () => mediaController?.destroy(),
+      () => tocController?.destroy(),
+      () => sidebarController?.destroy(),
+      () => article.removeAttribute('data-article-runtime-ready'),
+    );
   };
+
+  try {
+    const layout = article.querySelector<HTMLElement>('[data-article-sidebar-layout]');
+    sidebarController = layout ? createArticleSidebarController(layout, sourceWindow) : undefined;
+    tocController = createArticleTocController(article, sourceDocument, sourceWindow);
+    mediaController = createArticleMediaController(article);
+    article.setAttribute('data-article-runtime-ready', '');
+    return { destroy };
+  } catch (error) {
+    rethrowAfterCleanup(error, destroy);
+  }
 }
 
 export function mountArticlePage(
