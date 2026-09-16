@@ -54,36 +54,28 @@ test('the fade start releases next, and another click can advance during the unf
       originalImage: getComputedStyle(original).backgroundImage,
     };
     Object.assign(window, { __advanceProbe: probe });
-    // Hold real transitions after transitionstart, not by fabricating events.
-    document.addEventListener(
-      'transitionstart',
-      (event) => {
-        const layer = event.target;
-        if (
-          !(layer instanceof HTMLElement) ||
-          !layer.matches('.wallpaper__image') ||
-          event.propertyName !== 'opacity'
-        )
-          return;
-        for (const animation of layer.getAnimations()) {
-          if (!(animation instanceof CSSTransition) || animation.transitionProperty !== 'opacity')
-            continue;
+    // Hold the actual animation after the browser has assigned its timeline.
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args) {
+      const animation = animate.apply(this, args);
+      const layer = this;
+      if (layer.matches('.wallpaper__image')) {
+        void animation.ready.then(() => {
           animation.pause();
           animation.currentTime = Number(animation.effect!.getTiming().duration) / 3;
-        }
-        if (!layer.hasAttribute('data-wallpaper-current')) return;
-        requestAnimationFrame(() => {
-          const button = document.querySelector<HTMLButtonElement>('[data-wallpaper-next]')!;
-          probe.samples.push({
-            id: document.documentElement.dataset.wallpaperPhotoId,
-            busy: button.ariaBusy,
-            disabled: button.disabled,
-            opacity: Number(getComputedStyle(layer).opacity),
+          requestAnimationFrame(() => {
+            const button = document.querySelector<HTMLButtonElement>('[data-wallpaper-next]')!;
+            probe.samples.push({
+              id: document.documentElement.dataset.wallpaperPhotoId,
+              busy: button.ariaBusy,
+              disabled: button.disabled,
+              opacity: Number(getComputedStyle(layer).opacity),
+            });
           });
         });
-      },
-      true,
-    );
+      }
+      return animation;
+    };
   });
   const samples = () =>
     page.evaluate(
@@ -147,13 +139,23 @@ test('the fade start releases next, and another click can advance during the unf
   }
 });
 
-test('missing transition events cannot leave the next control busy indefinitely', async ({
+test('a stalled animation start commits the image instead of leaving next busy indefinitely', async ({
   page,
 }) => {
   await routeWallpaperResources(page);
   await seedTwoSlots(page, 1600);
   await page.goto('/en/blog/');
-  await page.addStyleTag({ content: '.wallpaper__image { transition: none !important; }' });
+  await page.evaluate(() => {
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args) {
+      const animation = animate.apply(this, args);
+      if (this.matches('.wallpaper__image')) {
+        animation.pause();
+        animation.currentTime = 0;
+      }
+      return animation;
+    };
+  });
   await page.locator('[data-wallpaper-menu-trigger]').click();
   const next = page.locator('#wallpaper-settings [data-wallpaper-next]');
   await next.click();

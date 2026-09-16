@@ -244,37 +244,24 @@ test('off and on during a committed fade preserve the photo and start rotation o
       probe.active = probe.active.filter((active) => active !== id);
       cancel(id);
     };
-    document.addEventListener(
-      'transitionstart',
-      (event) => {
-        if (
-          !(event.target instanceof HTMLElement) ||
-          !event.target.matches('[data-wallpaper-current]') ||
-          event.propertyName !== 'opacity'
-        )
-          return;
-        for (const animation of event.target.getAnimations()) {
-          if (!(animation instanceof CSSTransition) || animation.transitionProperty !== 'opacity')
-            continue;
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args) {
+      const animation = animate.apply(this, args);
+      if (this.matches('.wallpaper__image')) {
+        void animation.ready.then(() => {
           animation.pause();
           animation.currentTime = Number(animation.effect!.getTiming().duration) / 3;
           probe.held = true;
-        }
-      },
-      true,
-    );
-    document.addEventListener(
-      'transitionend',
-      (event) => {
-        if (
-          event.target instanceof HTMLElement &&
-          event.target.matches('[data-wallpaper-current]') &&
-          event.propertyName === 'opacity'
-        )
-          probe.finished = true;
-      },
-      true,
-    );
+        });
+        void animation.finished.then(
+          () => {
+            probe.finished = true;
+          },
+          () => {},
+        );
+      }
+      return animation;
+    };
   });
   const readFade = () =>
     page.evaluate(

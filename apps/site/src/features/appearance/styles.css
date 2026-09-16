@@ -32,38 +32,18 @@
 .wallpaper__image {
   background-position: center;
   background-size: cover;
-  opacity: 0;
+  opacity: 1;
   filter: saturate(var(--wallpaper-filter-saturation)) contrast(var(--wallpaper-filter-contrast))
     brightness(var(--wallpaper-filter-brightness));
 }
 
-.wallpaper__image[data-wallpaper-slot='a'] {
-  background-image: var(--wallpaper-slot-a-image, none);
-}
-
-.wallpaper__image[data-wallpaper-slot='b'] {
-  background-image: var(--wallpaper-slot-b-image, none);
-}
-
-:root[data-wallpaper-active-slot='a']
-  .wallpaper:not([data-wallpaper-has-current])
-  .wallpaper__image[data-wallpaper-slot='a'],
-:root[data-wallpaper-active-slot='b']
-  .wallpaper:not([data-wallpaper-has-current])
-  .wallpaper__image[data-wallpaper-slot='b'],
-.wallpaper[data-wallpaper-active-slot='a'] .wallpaper__image[data-wallpaper-slot='a'],
-.wallpaper[data-wallpaper-active-slot='b'] .wallpaper__image[data-wallpaper-slot='b'],
-.wallpaper__image[data-wallpaper-current] {
-  opacity: 1;
+.wallpaper__image[data-wallpaper-initial] {
+  background-image: var(--wallpaper-initial-image, none);
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .wallpaper[data-wallpaper-mode-transition='active'] .wallpaper__stage {
     transition: opacity 720ms ease;
-  }
-
-  .wallpaper__image[data-wallpaper-transitioning] {
-    transition: opacity 1.4s ease;
   }
 }
 

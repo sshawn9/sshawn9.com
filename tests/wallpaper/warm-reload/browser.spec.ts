@@ -52,9 +52,7 @@ test('a saved photo and attribution own every warm-refresh first frame without r
       if (!entries.getEntries().some((entry) => entry.name === 'first-contentful-paint')) return;
       self.disconnect();
       const root = document.documentElement;
-      const active = document.querySelector<HTMLElement>(
-        '.wallpaper__image[data-wallpaper-slot="a"]',
-      );
+      const active = document.querySelector<HTMLElement>('.wallpaper__image');
       const credit = document.querySelector<HTMLElement>('[data-wallpaper-credit]');
       const creditVisible =
         credit !== null &&
