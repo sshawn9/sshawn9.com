@@ -3,10 +3,7 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
 const repositoryRoot = new URL('../../../', import.meta.url);
 
-/**
- * Both site applications compile the same message catalog and locale strategy.
- * Keeping this configuration here prevents their generated runtimes from drifting.
- */
+/** Shared message catalog compilation and locale strategy for the site. */
 export function createSiteParaglidePlugin() {
   return paraglideVitePlugin({
     project: fileURLToPath(new URL('project.inlang', repositoryRoot)),
