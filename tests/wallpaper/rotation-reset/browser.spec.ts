@@ -38,25 +38,26 @@ test('fade completion starts a fresh rotation period before spare-image loading 
       probe.active = probe.active.filter((active) => active !== id);
       cancel(id);
     };
-    document.addEventListener(
-      'transitionend',
-      (event) => {
-        if (
-          !(event.target instanceof HTMLElement) ||
-          !event.target.matches('[data-wallpaper-current]') ||
-          event.propertyName !== 'opacity'
-        )
-          return;
-        probe.ended.push(document.documentElement.dataset.wallpaperPhotoId ?? '');
-        requestAnimationFrame(() =>
-          probe.completed.push({
-            photo: document.documentElement.dataset.wallpaperPhotoId,
-            timers: probe.scheduled.length,
-          }),
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args) {
+      const animation = animate.apply(this, args);
+      const layer = this;
+      if (layer.matches('.wallpaper__image'))
+        void animation.finished.then(
+          () => {
+            if (!layer.hasAttribute('data-wallpaper-current')) return;
+            probe.ended.push(document.documentElement.dataset.wallpaperPhotoId ?? '');
+            requestAnimationFrame(() =>
+              probe.completed.push({
+                photo: document.documentElement.dataset.wallpaperPhotoId,
+                timers: probe.scheduled.length,
+              }),
+            );
+          },
+          () => {},
         );
-      },
-      true,
-    );
+      return animation;
+    };
   });
   let releaseSpare!: () => void;
   const spareGate = new Promise<void>((resolve) => {

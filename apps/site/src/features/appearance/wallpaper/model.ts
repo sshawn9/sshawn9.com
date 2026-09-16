@@ -18,8 +18,9 @@ export const MAX_DATA_URL_LENGTH = Math.ceil((MAX_IMAGE_BYTES * 4) / 3) + 128;
 export const IMAGE_TIMEOUT_MS = 10_000;
 export const DOWNLOAD_TIMEOUT_MS = 120_000;
 export const MAX_CANDIDATE_ATTEMPTS = 4;
+export const IMAGE_FADE_MS = 1400;
 export const IMAGE_TRANSITION_START_WATCHDOG_MS = 250;
-// Upper bound for settling a layer if its opacity completion event is lost.
+// Upper bound for committing a visible layer if its animation stalls.
 export const IMAGE_TRANSITION_SETTLE_WATCHDOG_MS = 3000;
 export const MODE_TRANSITION_MS = 720;
 export const THEME_TRANSITION_MS = 650;

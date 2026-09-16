@@ -236,6 +236,7 @@ export class WallpaperSystem {
   };
 
   private handleReducedMotion = (): void => {
+    if (this.reducedMotion.matches) this.view.finishPresentation();
     this.reload();
   };
 
@@ -448,7 +449,12 @@ export class WallpaperSystem {
    */
   advance(): Promise<void> {
     if (this.advancePromise) return this.advancePromise;
-    if (!this.preferences.enabled || !this.current || !this.state.currentSlot) {
+    if (
+      !this.preferences.enabled ||
+      !this.current ||
+      !this.state.currentSlot ||
+      !this.view.connectSurface()
+    ) {
       return Promise.resolve();
     }
 
@@ -512,6 +518,7 @@ export class WallpaperSystem {
       return;
     }
     if (this.store.readMeta(nextSlot)?.photo.id !== stored.photo.id) return;
+    if (!this.view.connectSurface()) return;
 
     const nextState: WallpaperTabState = { ...this.state, currentSlot: nextSlot };
     if (!this.store.writeState(nextState)) return;
@@ -522,16 +529,11 @@ export class WallpaperSystem {
     this.state = nextState;
     this.current = stored;
     this.next = undefined;
-    const presentation = this.view.presentAdvance(
-      previousSlot,
-      nextSlot,
-      stored,
-      !this.reducedMotion.matches,
-    );
+    const presentation = this.view.presentAdvance(nextSlot, stored, !this.reducedMotion.matches);
     this.presentationPending = true;
-    void presentation.finished.then(() => {
+    void presentation.finished.then((result) => {
       // An earlier layer may finish retiring after a newer photo was committed.
-      if (this.current !== stored) return;
+      if (this.disposed || this.current !== stored || result !== 'shown') return;
       this.presentationPending = false;
       this.resetRotationTimer();
     });
