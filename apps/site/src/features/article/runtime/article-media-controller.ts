@@ -1,6 +1,7 @@
 import type PhotoSwipe from 'photoswipe';
 import type PhotoSwipeLightbox from 'photoswipe/lightbox';
 import photoSwipeStylesheetHref from 'photoswipe/style.css?url';
+import { rethrowAfterCleanup, runCleanups } from '../../../runtime/cleanup';
 
 export type ArticleMediaController = {
   destroy(): void;
@@ -49,6 +50,7 @@ export function createArticleMediaController(article: HTMLElement): ArticleMedia
   let lightbox: PhotoSwipeLightbox | undefined;
   let closingViewer: PhotoSwipe | undefined;
   const sourceDocument = article.ownerDocument;
+  const sourceWindow = sourceDocument.defaultView ?? window;
   const closeViewer = () => {
     if (!lightbox) return;
     // Cancel only an already requested open. The next click starts a new one.
@@ -74,53 +76,67 @@ export function createArticleMediaController(article: HTMLElement): ArticleMedia
     };
     viewer.on('openingAnimationEnd', closeAfterOpening);
   };
-  gallery.dataset.articleMediaRuntime = 'loading';
-  sourceDocument.addEventListener('astro:before-preparation', closeViewer);
-
-  void Promise.all([
-    import('photoswipe/lightbox'),
-    import('photoswipe'),
-    preparePhotoSwipeStylesheet(article.ownerDocument),
-  ])
-    .then(([{ default: PhotoSwipeLightbox }, { default: PhotoSwipe }]) => {
-      if (destroyed || !gallery.isConnected) return;
-
-      lightbox = new PhotoSwipeLightbox({
-        gallery,
-        children: 'a[data-article-media-item]',
-        pswpModule: PhotoSwipe,
-        bgOpacity: 0.92,
-      });
-      lightbox.on('openingAnimationEnd', () => {
-        if (destroyed) return;
-        gallery.dataset.articleMediaViewer = 'open';
-      });
-      lightbox.on('closingAnimationStart', () => {
-        if (!destroyed) gallery.dataset.articleMediaViewer = 'closing';
-      });
-      lightbox.on('destroy', () => {
-        if (!destroyed) delete gallery.dataset.articleMediaViewer;
-      });
-      // Do not intercept image links until every viewer dependency is ready.
-      lightbox.init();
-      gallery.dataset.articleMediaRuntime = 'ready';
-    })
-    .catch((error: unknown) => {
-      if (destroyed) return;
-      gallery.dataset.articleMediaRuntime = 'fallback';
-      console.error('Failed to prepare the article image viewer', error);
-    });
-
-  return {
-    destroy() {
-      if (destroyed) return;
-      destroyed = true;
-      sourceDocument.removeEventListener('astro:before-preparation', closeViewer);
-      closeViewer();
-      lightbox?.destroy();
-      lightbox = undefined;
-      delete gallery.dataset.articleMediaRuntime;
-      delete gallery.dataset.articleMediaViewer;
-    },
+  const destroy = () => {
+    if (destroyed) return;
+    destroyed = true;
+    runCleanups(
+      () => sourceDocument.removeEventListener('astro:before-preparation', closeViewer),
+      closeViewer,
+      () => {
+        const ownedLightbox = lightbox;
+        lightbox = undefined;
+        ownedLightbox?.destroy();
+      },
+      () => delete gallery.dataset.articleMediaRuntime,
+      () => delete gallery.dataset.articleMediaViewer,
+    );
   };
+
+  try {
+    gallery.dataset.articleMediaRuntime = 'loading';
+    sourceDocument.addEventListener('astro:before-preparation', closeViewer);
+    // Finish synchronous setup before starting imports, so a setup exception
+    // cannot leave those import promises without their rejection handler.
+    const stylesheet = preparePhotoSwipeStylesheet(sourceDocument);
+    void Promise.all([import('photoswipe/lightbox'), import('photoswipe'), stylesheet])
+      .then(([{ default: PhotoSwipeLightbox }, { default: PhotoSwipe }]) => {
+        if (destroyed || !gallery.isConnected) return;
+
+        lightbox = new PhotoSwipeLightbox({
+          gallery,
+          children: 'a[data-article-media-item]',
+          pswpModule: PhotoSwipe,
+          bgOpacity: 0.92,
+        });
+        lightbox.on('openingAnimationEnd', () => {
+          if (destroyed) return;
+          gallery.dataset.articleMediaViewer = 'open';
+        });
+        lightbox.on('closingAnimationStart', () => {
+          if (!destroyed) gallery.dataset.articleMediaViewer = 'closing';
+        });
+        lightbox.on('destroy', () => {
+          if (!destroyed) delete gallery.dataset.articleMediaViewer;
+        });
+        // Do not intercept image links until every viewer dependency is ready.
+        lightbox.init();
+        gallery.dataset.articleMediaRuntime = 'ready';
+      })
+      .catch((error: unknown) => {
+        if (destroyed) return;
+        try {
+          rethrowAfterCleanup(error, () =>
+            runCleanups(destroy, () => {
+              gallery.dataset.articleMediaRuntime = 'fallback';
+            }),
+          );
+        } catch (failure) {
+          sourceWindow.reportError(failure);
+        }
+      });
+
+    return { destroy };
+  } catch (error) {
+    rethrowAfterCleanup(error, destroy);
+  }
 }

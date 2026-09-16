@@ -1,5 +1,6 @@
 import { createBlogSidebarController, type BlogSidebarController } from './blog-sidebar-controller';
 import { applyBlogViewState, createBlogViewUrl, deriveBlogViewState } from './blog-view-state';
+import { rethrowAfterCleanup, runCleanups } from '../../../runtime/cleanup';
 import type { PageController, PageNavigation } from '../../../runtime/page-navigation';
 
 function isUnmodifiedPrimaryClick(event: MouseEvent): boolean {
@@ -19,13 +20,39 @@ function createBlogPageController(
 ): PageController {
   const listeners = new AbortController();
   const layout = listing.querySelector<HTMLElement>('[data-blog-sidebar-layout]');
-  const sidebarController: BlogSidebarController | undefined = layout
-    ? createBlogSidebarController(layout, sourceWindow)
-    : undefined;
+  let sidebarController: BlogSidebarController | undefined;
   const mobileDisclosure = listing.querySelector<HTMLButtonElement>('[data-blog-mobile-toggle]');
   const mobilePanel = listing.querySelector<HTMLElement>('[data-blog-mobile-panel]');
   const mobileMedia = sourceWindow.matchMedia('(max-width: 63.999rem)');
   let mobileExpanded = true;
+  let destroyed = false;
+
+  const restoreMobileFallback = () => {
+    mobileDisclosure?.setAttribute('disabled', '');
+    mobileDisclosure?.setAttribute('aria-disabled', 'true');
+    mobileDisclosure?.setAttribute('aria-expanded', 'true');
+    if (mobilePanel) mobilePanel.inert = false;
+    mobilePanel?.removeAttribute('aria-hidden');
+    layout?.removeAttribute('data-mobile-tags-collapsed');
+  };
+
+  const enableMobileDisclosure = () => {
+    mobileDisclosure?.removeAttribute('disabled');
+    mobileDisclosure?.removeAttribute('aria-disabled');
+  };
+
+  const destroy = () => {
+    if (destroyed) return;
+    destroyed = true;
+    const sidebar = sidebarController;
+    sidebarController = undefined;
+    runCleanups(
+      () => listeners.abort(),
+      () => sidebar?.destroy(),
+      restoreMobileFallback,
+      () => listing.removeAttribute('data-blog-runtime-ready'),
+    );
+  };
 
   const handleClick = (event: MouseEvent) => {
     if (!isUnmodifiedPrimaryClick(event)) return;
@@ -66,20 +93,26 @@ function createBlogPageController(
     else mobilePanel.removeAttribute('aria-hidden');
   };
 
-  listing.addEventListener('click', handleClick, { signal: listeners.signal });
-  mobileDisclosure?.addEventListener(
-    'click',
-    () => {
-      mobileExpanded = !mobileExpanded;
-      applyMobileDisclosure();
-    },
-    { signal: listeners.signal },
-  );
-  mobileMedia.addEventListener('change', applyMobileDisclosure, { signal: listeners.signal });
+  try {
+    sidebarController = layout ? createBlogSidebarController(layout, sourceWindow) : undefined;
+    listing.addEventListener('click', handleClick, { signal: listeners.signal });
+    mobileDisclosure?.addEventListener(
+      'click',
+      () => {
+        mobileExpanded = !mobileExpanded;
+        applyMobileDisclosure();
+      },
+      { signal: listeners.signal },
+    );
+    mobileMedia.addEventListener('change', applyMobileDisclosure, { signal: listeners.signal });
 
-  applyBlogViewState(listing, new URL(sourceWindow.location.href));
-  applyMobileDisclosure();
-  listing.setAttribute('data-blog-runtime-ready', '');
+    applyBlogViewState(listing, new URL(sourceWindow.location.href));
+    applyMobileDisclosure();
+    listing.setAttribute('data-blog-runtime-ready', '');
+    enableMobileDisclosure();
+  } catch (error) {
+    rethrowAfterCleanup(error, destroy);
+  }
 
   return {
     view: {
@@ -91,11 +124,7 @@ function createBlogPageController(
         applyBlogViewState(listing, url);
       },
     },
-    destroy() {
-      listeners.abort();
-      sidebarController?.destroy();
-      listing.removeAttribute('data-blog-runtime-ready');
-    },
+    destroy,
   };
 }
 

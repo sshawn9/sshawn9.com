@@ -22,6 +22,7 @@ const mobilePanelId = 'blog-tag-panel';
       type="button"
       class="blog-sidebar-toggle"
       data-blog-sidebar-toggle
+      disabled
       data-blog-sidebar-collapse
       data-collapse-label={copy.blogSidebarCollapse}
       data-expand-label={copy.blogSidebarExpand}
@@ -48,6 +49,7 @@ const mobilePanelId = 'blog-tag-panel';
             type="button"
             class="blog-mobile-tag-toggle"
             data-blog-mobile-toggle
+            disabled
             aria-controls={mobilePanelId}
             aria-expanded="true"
           >
@@ -98,7 +100,8 @@ const mobilePanelId = 'blog-tag-panel';
         aria-valuemin={BLOG_SIDEBAR_LIMITS.minWidth}
         aria-valuemax={BLOG_SIDEBAR_LIMITS.maxWidth}
         aria-valuenow={BLOG_SIDEBAR_LIMITS.defaultWidth}
-        tabindex="0"
+        tabindex="-1"
+        aria-disabled="true"
         data-blog-sidebar-resizer
       >
         <span data-blog-sidebar-boundary></span>

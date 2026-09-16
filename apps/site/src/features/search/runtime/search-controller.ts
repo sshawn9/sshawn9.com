@@ -1,4 +1,5 @@
 import { readCurrentScroll, restorePageScroll } from '../../../runtime/scroll-state';
+import { runCleanups } from '../../../runtime/cleanup';
 import type { PageController, PageNavigation, PageView } from '../../../runtime/page-navigation';
 import { prepareRequiredFonts } from '../../../runtime/required-fonts';
 import { createSearchQueryUrl, normalizeSearchQuery, readSearchQuery } from './search-query-state';
@@ -70,21 +71,49 @@ function createSearchPageController(
     clearTimers();
   };
 
-  const showFailure = () => {
-    if (destroyed || failed) return;
-    failed = true;
-    sourceWindow.clearTimeout(startupTimer);
-    invalidate();
-    listeners.abort();
-    view?.destroy();
-    client?.destroy();
+  const cleanup = () => {
+    const resultsView = view;
+    const pagefindClient = client;
+    view = undefined;
+    client = undefined;
+    applyViewUrl = undefined;
+    runCleanups(
+      () => sourceWindow.clearTimeout(startupTimer),
+      invalidate,
+      () => listeners.abort(),
+      () => resultsView?.destroy(),
+      () => pagefindClient?.destroy(),
+    );
+  };
+
+  const restoreStaticFallback = () => {
     loading?.setAttribute('hidden', '');
     interactive?.setAttribute('hidden', '');
     fallback?.removeAttribute('hidden');
     root.removeAttribute('data-search-ready');
-    root.setAttribute('data-search-failed', '');
+    root.removeAttribute('data-search-failed');
   };
-  const startupTimer = sourceWindow.setTimeout(showFailure, SEARCH_RESPONSE_TIMEOUT_MS);
+
+  const showFailure = (error: unknown = new Error('Search initialization failed')) => {
+    if (destroyed || failed) return;
+    failed = true;
+    try {
+      runCleanups(cleanup, () => {
+        restoreStaticFallback();
+        root.setAttribute('data-search-failed', '');
+      });
+    } catch (cleanupError) {
+      sourceWindow.reportError(
+        new AggregateError([error, cleanupError], 'Search initialization failed during cleanup'),
+      );
+      return;
+    }
+    sourceWindow.reportError(error);
+  };
+  const startupTimer = sourceWindow.setTimeout(
+    () => showFailure(new Error('Search initialization timed out')),
+    SEARCH_RESPONSE_TIMEOUT_MS,
+  );
 
   const reflectQuery = (query: string) => {
     const nextUrl = createSearchQueryUrl(new URL(sourceWindow.location.href), query);
@@ -320,11 +349,7 @@ function createSearchPageController(
     destroy() {
       if (destroyed) return;
       destroyed = true;
-      sourceWindow.clearTimeout(startupTimer);
-      invalidate();
-      listeners.abort();
-      view?.destroy();
-      client?.destroy();
+      runCleanups(cleanup, restoreStaticFallback);
     },
   };
 }

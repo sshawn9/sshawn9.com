@@ -1,3 +1,5 @@
+import { rethrowAfterCleanup, runCleanups } from '../../../runtime/cleanup';
+
 export type SearchResultItem = {
   url: string;
   title: string;
@@ -193,8 +195,12 @@ export function createSearchResultsView(
     destroy() {
       if (destroyed) return;
       destroyed = true;
-      listeners.abort();
-      observer?.disconnect();
+      const currentObserver = observer;
+      observer = undefined;
+      runCleanups(
+        () => listeners.abort(),
+        () => currentObserver?.disconnect(),
+      );
     },
   };
 
@@ -251,17 +257,21 @@ export function createSearchResultsView(
     },
     { signal: listeners.signal },
   );
-  observer = !sourceWindow?.IntersectionObserver
-    ? undefined
-    : new sourceWindow.IntersectionObserver(
-        (entries) => {
-          if (entries.some((entry) => entry.isIntersecting) && !more.hidden) {
-            void options.loadMore().catch(() => undefined);
-          }
-        },
-        { rootMargin: '320px' },
-      );
-  observer?.observe(more);
+  try {
+    observer = !sourceWindow?.IntersectionObserver
+      ? undefined
+      : new sourceWindow.IntersectionObserver(
+          (entries) => {
+            if (entries.some((entry) => entry.isIntersecting) && !more.hidden) {
+              void options.loadMore().catch(() => undefined);
+            }
+          },
+          { rootMargin: '320px' },
+        );
+    observer?.observe(more);
+  } catch (error) {
+    rethrowAfterCleanup(error, view.destroy);
+  }
 
   return view;
 }

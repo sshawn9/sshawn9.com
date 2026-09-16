@@ -193,7 +193,8 @@ const fallbackNotice = formatUiCopy(copy.articleFallbackNoticeTemplate, {
             aria-valuemin="208"
             aria-valuemax="352"
             aria-valuenow="224"
-            tabindex="0"
+            tabindex="-1"
+            aria-disabled="true"
             data-article-sidebar-resizer
           >
             <span aria-hidden="true" data-article-sidebar-boundary></span>
@@ -274,6 +275,7 @@ const fallbackNotice = formatUiCopy(copy.articleFallbackNoticeTemplate, {
             data-collapse-label={copy.articleSidebarCollapse}
             data-expand-label={copy.articleSidebarExpand}
             data-article-sidebar-toggle
+            disabled
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
               <rect width="18" height="18" x="3" y="3" rx="2"></rect>
