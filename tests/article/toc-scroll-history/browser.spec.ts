@@ -37,6 +37,26 @@ test('the static TOC synchronizes fragment state and restores page scroll across
     })),
   );
   await targetLink.evaluate((link) => link.setAttribute('data-identity-probe', 'original'));
+  await targetLink.evaluate((link) => {
+    // Arm at activation, not before Playwright scrolls the link into view.
+    // Being within 2px of the heading does not mean smooth scrolling has ended.
+    link.addEventListener(
+      'click',
+      () => {
+        const slug = (link as HTMLElement).dataset.tocSlug!;
+        const onScrollEnd = (event: Event) => {
+          if (event.target !== document || location.hash !== `#${slug}`) return;
+          const heading = document.getElementById(slug)!;
+          const offset = Number.parseFloat(getComputedStyle(heading).scrollMarginTop);
+          if (Math.abs(heading.getBoundingClientRect().top - offset) >= 2) return;
+          document.removeEventListener('scrollend', onScrollEnd);
+          document.documentElement.dataset.tocSelectionScrollEnded = slug;
+        };
+        document.addEventListener('scrollend', onScrollEnd);
+      },
+      { once: true },
+    );
+  });
   await targetLink.click();
 
   await expect(page).toHaveURL(new RegExp(`#${targetSlug}$`));
@@ -61,6 +81,10 @@ test('the static TOC synchronizes fragment state and restores page scroll across
       }),
     )
     .toBeLessThan(2);
+  await expect(page.locator('html')).toHaveAttribute(
+    'data-toc-selection-scroll-ended',
+    targetSlug!,
+  );
 
   const settledPageY = await page.evaluate(() => scrollY);
   const settledTocY = await tocRegion.evaluate((element) => element.scrollTop);
