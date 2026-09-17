@@ -309,14 +309,18 @@ test('SSR fixed figures render without scripts in an isolated component document
   }
 });
 
-test('fixed diagrams keep painted panels and labels inside narrow and wide layouts without loading Plotly', async ({
-  page,
-}) => {
-  const plotlyRequests: string[] = [];
-  page.on('request', (request) => {
-    if (plotlyRuntime.test(request.url())) plotlyRequests.push(request.url());
-  });
-  for (const article of articles) {
+for (const article of articles) {
+  test(`${article.slug}: fixed diagrams keep painted panels and labels inside narrow and wide layouts without loading Plotly`, async ({
+    page,
+  }) => {
+    const plotlyRequests: string[] = [];
+    page.on('request', (request) => {
+      if (plotlyRuntime.test(request.url())) plotlyRequests.push(request.url());
+    });
+    // Preserve the original layout coverage without inheriting another article's theme toggle.
+    await page.emulateMedia({
+      colorScheme: article.slug === 'planar-frenet-frame' ? 'light' : 'dark',
+    });
     await page.goto(`/en/blog/${article.slug}/`);
     await page.evaluate(() => document.fonts.ready);
     for (const width of [320, 390, 768, 1024, 1440]) {
@@ -391,6 +395,20 @@ test('fixed diagrams keep painted panels and labels inside narrow and wide layou
       }
       await page.getByRole('button', { name: 'Expand article sidebar' }).click();
     }
+    await expect(page.locator('[data-plotly-figure], .plot-container')).toHaveCount(0);
+    expect(plotlyRequests).toEqual([]);
+  });
+
+  test(`${article.slug}: fixed diagram labels follow light and dark theme changes without loading Plotly`, async ({
+    page,
+  }) => {
+    const plotlyRequests: string[] = [];
+    page.on('request', (request) => {
+      if (plotlyRuntime.test(request.url())) plotlyRequests.push(request.url());
+    });
+    await page.emulateMedia({ colorScheme: 'light' });
+    await page.goto(`/en/blog/${article.slug}/`);
+    await page.evaluate(() => document.fonts.ready);
     const ink = page.locator('[data-research-figure]').last().getByText('(a)', { exact: true });
     // Theme-dependent text may be SVG text or HTML; read the actual paint
     // property without requiring one label implementation.
@@ -399,13 +417,16 @@ test('fixed diagrams keep painted panels and labels inside narrow and wide layou
         const style = getComputedStyle(label);
         return label instanceof SVGElement ? style.fill : style.color;
       });
-    const before = await readPaint();
-    await page.locator('[data-theme-toggle]').first().click();
-    await expect.poll(readPaint).not.toBe(before);
+    for (const theme of ['dark', 'light']) {
+      const before = await readPaint();
+      await page.locator('[data-theme-toggle]').first().click();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await expect.poll(readPaint).not.toBe(before);
+    }
     await expect(page.locator('[data-plotly-figure], .plot-container')).toHaveCount(0);
-  }
-  expect(plotlyRequests).toEqual([]);
-});
+    expect(plotlyRequests).toEqual([]);
+  });
+}
 
 test('narrow figure focus starts at the top, exposes close, and restores the page after reaching the caption', async ({
   page,
