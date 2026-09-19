@@ -19,6 +19,7 @@ node_modules/
 # local Nix environment
 .direnv/
 .devenv/
+/.tools/bin/
 
 # logs
 npm-debug.log*

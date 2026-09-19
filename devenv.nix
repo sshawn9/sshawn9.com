@@ -3,6 +3,8 @@ let
   nodeMajor = lib.trim (builtins.readFile ./.nvmrc);
 in
 {
+  languages.go.enable = true;
+
   languages.javascript = {
     enable = true;
     package = pkgs."nodejs_${nodeMajor}";

@@ -45,6 +45,8 @@ direnv 通过 `use devenv` 加载环境，不需要 nix-direnv。Node 大版本�
 | `npm run build`                           | 只生成 `apps/site/dist/` 部署产物，不启动服务              | `just build`           |
 | `npm run inventory`                       | 分析已有构建，导出页面、资源和双向对应清单；不构建、不联网 | `just inventory`       |
 | `npm run cache:probe`                     | 读取线上生产部署清单探测缓存，按出口 IP 保留轮次及增量汇总 | `just cache-probe`     |
+| `npm run globalping:install`              | 通过 Go 安装或更新官方最新 Globalping CLI                  | —                      |
+| `npm run globalping:record`               | 官方 CLI 探测单个 URL，每节点解析结果追加到单表 SQLite     | —                      |
 | `npm test`                                | 单测 → 一次构建 → 浏览器测试，不必先 build                 | `just test`            |
 | `npm run check`                           | 工作区和根项目类型检查                                     | `just check`           |
 | `npm run format`                          | 使用项目锁定的 Prettier 格式化                             | `just fmt`             |
@@ -110,6 +112,18 @@ npm run cache:probe -- --inventory /path/to/deployed-resource-inventory.json
 报告记录输入清单的 URL 或文件路径、实际解析的 JSON 字节数及 SHA-256，以及各资源的 HTTP、缓存状态、机房、连接复用、实际 socket IP、编码及解码字节数、响应头到达时间和完整下载时间。计时从资源请求交给客户端开始，不含补位或清单下载等待；需要建连时包含建连耗时，不是纯服务端耗时。不输出无法可靠获取的独立 DNS、建连、TLS 或排队耗时。
 
 退出码：`0` 为当前资源均达到历史命中条件，`2` 为尝试耗尽仍未达标，`3` 为访问被拦截，`1` 为执行错误，`130`/`143` 为 SIGINT/SIGTERM 中断。报告包含公网 IP、主机标识和 URL，不自动上传；对外分享前自行检查。
+
+### Globalping 单 URL 探测记录
+
+先执行 `npm run globalping:install`，通过 Go 的 `@latest` 安装官方 CLI 到项目 `.tools/bin/globalping-cli`；devenv 提供 Go 工具链。然后执行：
+
+```sh
+npm run globalping:record -- --url 'https://sshawn9.com/zh/' --from 'China+Shanghai' --limit 1
+```
+
+使用官方 CLI 的 `--json --ci`，默认 GET。每个节点结果保存到 `apps/site/.reports/globalping/measurements.sqlite` 的唯一业务表 `measurements`，固定 57 列，仅解析已确认的查询字段，完整源结果另存 JSON。终端默认显示摘要，加 `--json` 可输出完整结果。历史全部追加，不读取历史决定跳过，不计算累计 HIT，不自动清理或重试。
+
+目标输入仅一个 `--url`，外层程序自行读取资源清单、循环及调度。该入口与 `cache:probe` 独立。完整参数、SQL 示例、Node 调用和错误处理见 [Globalping 工具说明](apps/site/tools/globalping/README.md)，字段与边界见 [实施方案](docs/globalping-redesign-plan.md)。
 
 ## 国际化
 
