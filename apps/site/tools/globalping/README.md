@@ -1,6 +1,6 @@
 # Globalping 单 URL 探测与 SQLite 记录
 
-输入一个 URL，执行一次官方 Globalping CLI HTTP 测量，将每个节点的结果追加到 SQLite。只有一张 `measurements` 表、57 列。外层负责读取资源清单、批量循环、历史策略及清理；本工具不自动重试或按历史跳过。
+输入一个 URL，执行一次官方 Globalping CLI HTTP GET 测量，将每个节点的结果追加到 SQLite。只有一张 `measurements` 表、57 列。外层负责读取资源清单、批量循环、历史策略及清理；本工具不自动重试或按历史跳过。
 
 ## 安装和使用
 
@@ -11,26 +11,24 @@ npm run globalping:install
 npm run globalping:record -- --url 'https://sshawn9.com/zh/' --from 'China+Shanghai' --limit 1
 ```
 
-非交互任务使用 `devenv shell -- ...`。安装通过 Go 的 `@latest` 将官方程序放到项目 `.tools/bin/globalping-cli`，显示版本并验证 JSON/CI 参数；测量时直接执行一次 `http ... --json --ci`，不再额外查询版本，不使用 PATH 中的其他安装。
+非交互任务使用 `devenv shell -- ...`。安装通过 Go 的 `@latest` 将官方程序放到项目 `.tools/bin/globalping-cli`，显示安装路径和版本；测量时直接执行一次 `http ... --method GET --json --ci`，不再额外查询版本，不使用 PATH 中的其他安装。
 
 认证沿用 `.tools/bin/globalping-cli auth login` 或环境变量 `GLOBALPING_TOKEN`。本工具不读取认证文件、不记录整个环境；显式目标请求头和测量结果照常保存。
 
-| 参数                                                                | 行为                                                                                       |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `--url URL`                                                         | 必填，一个 HTTP(S) URL，不带凭据或 fragment                                                |
-| `--from LOCATION`                                                   | 必填，位置表达式或明确的测量 ID                                                            |
-| `--limit N`                                                         | 默认 1，正整数；实际取得数量以返回为准                                                     |
-| `--method METHOD`                                                   | 默认 GET，交给官方 CLI 校验                                                                |
-| `--database PATH`                                                   | 默认项目 `apps/site/.reports/globalping/measurements.sqlite`；相对自定义路径基于调用者 cwd |
-| `--process-timeout SEC`                                             | 可选本地 CLI 进程总时限，默认不额外限制                                                    |
-| `--timeout SEC`                                                     | 节点期限，官方 CLI 校验，单位为秒                                                          |
-| `--protocol`、`--port`、`--host`、`--path`、`--query`、`--resolver` | 本次 HTTP 参数，显式值覆盖 URL 对应值                                                      |
-| `--header 'Key: Value'`                                             | 可重复，保留顺序，交给官方 CLI 处理                                                        |
-| `--ipv4` / `--ipv6`                                                 | 二选一                                                                                     |
-| `--json`                                                            | 输出完整结果 JSON，默认只显示节点摘要和入库状态                                            |
-| `--help`                                                            | 帮助，不创建数据库、不测量                                                                 |
+| 参数                    | 行为                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------ |
+| `--url URL`             | 必填，一个 HTTP(S) URL，不带凭据或 fragment                                                |
+| `--from LOCATION`       | 必填，位置表达式或明确的测量 ID                                                            |
+| `--limit N`             | 默认 1，正整数；实际取得数量以返回为准                                                     |
+| `--database PATH`       | 默认项目 `apps/site/.reports/globalping/measurements.sqlite`；相对自定义路径基于调用者 cwd |
+| `--process-timeout SEC` | 可选本地 CLI 进程总时限，默认不额外限制                                                    |
+| `--timeout SEC`         | 节点期限，官方 CLI 校验，单位为秒                                                          |
+| `--header 'Key: Value'` | 可重复，保留顺序，交给官方 CLI 处理                                                        |
+| `--ipv4` / `--ipv6`     | 二选一                                                                                     |
+| `--json`                | 输出完整结果 JSON，默认只显示节点摘要和入库状态                                            |
+| `--help`                | 帮助，不创建数据库、不测量                                                                 |
 
-URL 分解为主机和独立参数，保留编码路径、重复查询参数、IPv6 方括号和明确端口。不添加绕缓存参数。不支持请求 JSON/清单输入、多个 URL、重复单值参数，以及 `last` / `previous` / `first` / `@序号`。`--from ID` 创建新测量并复用节点，不补取旧结果。
+请求固定 GET，DNS 沿用探测节点默认设置。协议、连接端口、路径和查询参数从完整 `--url` 提取，内部以独立参数传给官方 CLI，保留编码路径、重复查询参数和 IPv6 方括号。不提供 `--host`、`--path`、`--query`、`--protocol`、`--port`、`--method`、`--resolver` 选项。不添加绕缓存参数。不支持请求 JSON/清单输入、多个 URL、重复单值参数，以及 `last` / `previous` / `first` / `@序号`。`--from ID` 创建新测量并复用节点，不补取旧结果。
 
 ## 记录与查询
 
@@ -67,8 +65,9 @@ npm run --silent globalping:record -- --url 'https://sshawn9.com/zh/' --from 'Ch
 核心函数始终返回完整对象：`invocationId`、`measurementId`、`database`、`saved`、`collectionStatus`、`exitCode`、`recordIds`、`records`、`errors`、`cliStderr`。`records` 每行恰好 57 列，JSON 列仍为 JSON 文本。失败原始字节在输出 JSON 中采用 Node Buffer 的 `{type:"Buffer",data:[...]}` 形式。
 
 ```js
+import { parseArguments } from './apps/site/tools/globalping/runner.mjs';
 import { recordMeasurement } from './apps/site/tools/globalping/probe.mjs';
-const result = await recordMeasurement([
+const config = parseArguments([
   '--url',
   'https://sshawn9.com/zh/',
   '--from',
@@ -76,10 +75,11 @@ const result = await recordMeasurement([
   '--limit',
   '1',
 ]);
+const result = await recordMeasurement(config);
 // 外层根据 saved、exitCode 和 errors 决定下一步。
 ```
 
-第二个参数可传 `{signal: controller.signal}` 取消。核心函数不安装全局信号处理器。
+参数在调用入口解析一次，解析失败直接报错；`recordMeasurement()` 只接收解析后的测量配置，不接受原始参数数组。第二个参数可传 `{signal: controller.signal}` 取消。核心函数不安装全局信号处理器。
 
 | 情况                                                    | 行为                                                                |
 | ------------------------------------------------------- | ------------------------------------------------------------------- |

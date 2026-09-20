@@ -45,6 +45,11 @@ function successful(data = measurement()) {
 function args(...extra: string[]) {
   return [...input, '--database', database, ...extra];
 }
+function requestConfig(...extra: string[]) {
+  const { request, args: cliArgs, database } = parseArguments(args(...extra));
+  if (!request || !cliArgs || !database) throw new Error('Expected measurement configuration');
+  return { request, args: cliArgs, database };
+}
 // Run the real entry point with an isolated installation of the fake executable.
 function runCLI(executable: string, ...extra: string[]) {
   const project = join(directory, 'cli-project');
@@ -111,37 +116,25 @@ describe('single URL CLI contract', () => {
     expect(config.args).toContain('X-A: $(touch nope)');
     expect(config.args?.slice(-2)).toEqual(['--json', '--ci']);
   });
-  it('handles IPv6, ports and explicit overrides', () => {
+  it('takes the protocol, port, encoded path and query from the URL with an IPv6 host', () => {
     const config = parseArguments([
       '--url',
-      'http://[2001:db8::1]:8080/a',
+      'http://[2001:db8::1]:8080/a%2Fb?x=1&x=2',
       '--from',
       'id12345678901234',
-      '--protocol',
-      'HTTPS',
-      '--port',
-      '8443',
-      '--host',
-      'example.com',
-      '--path',
-      '/override%2F',
-      '--query',
-      'a=1&a=2',
       '--ipv6',
     ]);
     expect(config.args).toEqual([
       'http',
       '[2001:db8::1]',
       '--protocol',
-      'HTTPS',
+      'HTTP',
       '--port',
-      '8443',
+      '8080',
       '--path',
-      '/override%2F',
+      '/a%2Fb',
       '--query',
-      'a=1&a=2',
-      '--host',
-      'example.com',
+      'x=1&x=2',
       '--method',
       'GET',
       '--from',
@@ -153,21 +146,32 @@ describe('single URL CLI contract', () => {
       '--ci',
     ]);
   });
-  it('matches protocol overrides while preserving explicitly supplied default ports', () => {
-    expect(
-      parseArguments(['--url', 'https://example.com/a', '--from', 'Shanghai', '--protocol', 'HTTP'])
-        .args?.[5],
-    ).toBe('80');
-    expect(
-      parseArguments([
-        '--url',
-        'https://example.com:443/a',
-        '--from',
-        'Shanghai',
-        '--protocol',
-        'HTTP',
-      ]).args?.[5],
-    ).toBe('443');
+  it.each([
+    ['http://example.com/a', 'HTTP', '80'],
+    ['https://example.com/a', 'HTTPS', '443'],
+    ['http://example.com:443/a', 'HTTP', '443'],
+    ['https://example.com:80/a', 'HTTPS', '80'],
+  ])('uses the scheme and port in %s', (url, protocol, port) => {
+    const { args } = parseArguments(['--url', url, '--from', 'CN+Shanghai']);
+    if (!args) throw new Error('Expected measurement arguments');
+    expect(args[args.indexOf('--protocol') + 1]).toBe(protocol);
+    expect(args[args.indexOf('--port') + 1]).toBe(port);
+  });
+  it.each([
+    ['--host', 'example.com'],
+    ['--path', '/another.css'],
+    ['--query', 'v=2'],
+    ['--protocol', 'HTTP'],
+    ['--port', '8443'],
+    ['--method', 'HEAD'],
+    ['--resolver', '1.1.1.1'],
+  ])('rejects removed option %s before creating a database or running the CLI', (flag, value) => {
+    const result = runCLI(successful(), flag, value);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('INVALID_ARGUMENT');
+    expect(result.stderr).toContain(flag);
+    expect(existsSync(database)).toBe(false);
+    expect(existsSync(join(directory, 'calls.jsonl'))).toBe(false);
   });
   it.each([
     ['--request', 'request.json'],
@@ -190,7 +194,7 @@ describe('single URL CLI contract', () => {
   ])('rejects non-self-contained or invalid input %j', (...argv) => {
     expect(() => parseArguments(argv)).toThrow();
   });
-  it('help and input failures create no database or measurement', async () => {
+  it('help creates no database or measurement', () => {
     const output = spawnSync(
       process.execPath,
       ['apps/site/tools/globalping/cli.mjs', '--help', '--database', database],
@@ -199,10 +203,6 @@ describe('single URL CLI contract', () => {
     expect(output.status).toBe(0);
     expect(output.stdout).toContain('--url');
     expect(existsSync(database)).toBe(false);
-    expect(await recordMeasurement(['--request', 'request.json'])).toMatchObject({
-      saved: false,
-      cliStderr: '',
-    });
   });
 });
 
@@ -481,7 +481,7 @@ describe('retained HTTP fields', () => {
 describe('single-table recording and failure boundaries', () => {
   it('writes exactly N independent node rows, supports SQL filtering, and always appends repeated calls', async () => {
     const executable = successful();
-    const first = await recordMeasurement(args('--limit', '3'), { executable });
+    const first = await recordMeasurement(requestConfig('--limit', '3'), { executable });
     expect(first.errors).toEqual([]);
     expect(first).toMatchObject({ saved: true, collectionStatus: 'stored', exitCode: 0 });
     expect(first.recordIds).toHaveLength(3);
@@ -497,7 +497,7 @@ describe('single-table recording and failure boundaries', () => {
     );
     expect(matches).toHaveLength(1);
     expect(matches[0]).toMatchObject({ total_ms: 703, cc_max_age_seconds: 400 });
-    const second = await recordMeasurement(args(), { executable });
+    const second = await recordMeasurement(requestConfig(), { executable });
     expect(second.saved).toBe(true);
     expect(second.invocationId).not.toBe(first.invocationId);
     expect(select()).toHaveLength(6);
@@ -517,7 +517,7 @@ describe('single-table recording and failure boundaries', () => {
     const executable = fake(
       'process.stderr.write("Error: rate limit exceeded; wait 60 seconds"); process.exitCode=1;',
     );
-    const result = await recordMeasurement(args(), { executable });
+    const result = await recordMeasurement(requestConfig(), { executable });
     expect(result).toMatchObject({ saved: true, collectionStatus: 'cli_error', exitCode: 1 });
     expect(result.cliStderr).toContain('rate limit');
     expect(select()[0]).toMatchObject({
@@ -529,7 +529,9 @@ describe('single-table recording and failure boundaries', () => {
   it('treats target HTTP 429 and failed/offline nodes as recorded observations', async () => {
     const data = measurement();
     data.results[0].result.statusCode = 429;
-    expect(await recordMeasurement(args(), { executable: successful(data) })).toMatchObject({
+    expect(
+      await recordMeasurement(requestConfig(), { executable: successful(data) }),
+    ).toMatchObject({
       saved: true,
       exitCode: 0,
       collectionStatus: 'stored',
@@ -540,7 +542,7 @@ describe('single-table recording and failure boundaries', () => {
     const executable = fake(
       'process.stdout.write(Buffer.from([0xff,0x7b])); process.stderr.write("partial");',
     );
-    expect(await recordMeasurement(args(), { executable })).toMatchObject({
+    expect(await recordMeasurement(requestConfig(), { executable })).toMatchObject({
       saved: true,
       exitCode: 1,
       collectionStatus: 'parse_error',
@@ -555,7 +557,7 @@ describe('single-table recording and failure boundaries', () => {
     const executable = fake(
       `process.stdout.write(${JSON.stringify(JSON.stringify(data))}); process.stderr.write('post-output error'); process.exitCode=1;`,
     );
-    const result = await recordMeasurement(args(), { executable });
+    const result = await recordMeasurement(requestConfig(), { executable });
     expect(result).toMatchObject({ saved: true, exitCode: 1, collectionStatus: 'cli_error' });
     expect(select()).toHaveLength(3);
     expect(select()[0].tcp_ms).toBeNull();
@@ -565,7 +567,7 @@ describe('single-table recording and failure boundaries', () => {
     async ({ results }) => {
       const data = { ...measurement(), results };
       const raw = JSON.stringify(data);
-      const result = await recordMeasurement(args(), {
+      const result = await recordMeasurement(requestConfig(), {
         executable: fake(`process.stdout.write(${JSON.stringify(raw)});`),
       });
       expect(result).toMatchObject({ saved: true, collectionStatus: 'parse_error', exitCode: 1 });
@@ -580,14 +582,16 @@ describe('single-table recording and failure boundaries', () => {
     },
   );
   it('records missing binary before any measurement and points to installation', async () => {
-    const result = await recordMeasurement(args(), { executable: join(directory, 'missing') });
+    const result = await recordMeasurement(requestConfig(), {
+      executable: join(directory, 'missing'),
+    });
     expect(result).toMatchObject({ saved: true, exitCode: 1, collectionStatus: 'cli_error' });
     expect(result.errors.some((e) => e.code === 'ENOENT')).toBe(true);
   });
   it('saves all observations but returns parse_error when a successful CLI delivers invalid fixed fields', async () => {
     const data: any = measurement();
     data.results[0].result.headers.Age = 'invalid';
-    const result = await recordMeasurement(args(), { executable: successful(data) });
+    const result = await recordMeasurement(requestConfig(), { executable: successful(data) });
     expect(result).toMatchObject({ saved: true, exitCode: 1, collectionStatus: 'parse_error' });
     expect(select()).toHaveLength(3);
     expect(JSON.parse(select()[0].parse_issues_json as string)[0].path).toBe('headers.age');
@@ -595,7 +599,7 @@ describe('single-table recording and failure boundaries', () => {
   it('does not spawn a CLI for a pre-aborted call', async () => {
     const controller = new AbortController();
     controller.abort('SIGTERM');
-    const result = await recordMeasurement(args(), {
+    const result = await recordMeasurement(requestConfig(), {
       executable: successful(),
       signal: controller.signal,
     });
@@ -631,7 +635,9 @@ describe('single-table recording and failure boundaries', () => {
   }, 10000);
   it('terminates on local timeout and saves partial output', async () => {
     const executable = fake('process.stdout.write("{partial"); setInterval(()=>{},1000);');
-    const result = await recordMeasurement(args('--process-timeout', '0.3'), { executable });
+    const result = await recordMeasurement(requestConfig('--process-timeout', '0.3'), {
+      executable,
+    });
     expect(result).toMatchObject({ saved: true, exitCode: 1, collectionStatus: 'cli_error' });
     expect(result.errors.some((e) => e.code === 'PROCESS_TIMEOUT')).toBe(true);
     expect(Buffer.from(select()[0].unparsed_stdout as Uint8Array).toString()).toBe('{partial');
@@ -641,7 +647,7 @@ describe('single-table recording and failure boundaries', () => {
     const waitForSignal = `process.on('SIGINT',()=>{process.stderr.write('got SIGINT');process.exit(0)});process.on('SIGTERM',()=>{process.stderr.write('got SIGTERM');process.exit(0)});writeFileSync(${JSON.stringify(marker)},'ready');setInterval(()=>{},1000);`;
     const executable = fake(waitForSignal);
     const controller = new AbortController();
-    const pending = recordMeasurement(args(), { executable, signal: controller.signal });
+    const pending = recordMeasurement(requestConfig(), { executable, signal: controller.signal });
     for (let i = 0; i < 100 && !existsSync(marker); i++)
       await new Promise((r) => setTimeout(r, 10));
     controller.abort(signal);
@@ -657,13 +663,13 @@ describe('single-table recording and failure boundaries', () => {
   });
   it('rolls back the entire node group on a database write failure', async () => {
     const executable = successful();
-    await recordMeasurement(args(), { executable });
+    await recordMeasurement(requestConfig(), { executable });
     const store = new MeasurementStore(database);
     store.db.exec(
       "CREATE TRIGGER fail_second BEFORE INSERT ON measurements WHEN NEW.probe_index=1 BEGIN SELECT RAISE(ABORT,'injected failure'); END;",
     );
     store.close();
-    const result = await recordMeasurement(args(), { executable });
+    const result = await recordMeasurement(requestConfig(), { executable });
     expect(result).toMatchObject({ saved: false, exitCode: 1 });
     expect(result.recordIds).toEqual([]);
     expect(select()).toHaveLength(4);
@@ -677,7 +683,7 @@ describe('single-table recording and failure boundaries', () => {
     const db = new DatabaseSync(database);
     db.exec(sql);
     db.close();
-    const result = await recordMeasurement(args(), { executable: successful() });
+    const result = await recordMeasurement(requestConfig(), { executable: successful() });
     expect(result.saved).toBe(false);
     expect(result.cliStderr).toBe('');
     expect(select('SELECT * FROM unrelated')).toEqual([{ value: 'keep' }]);
@@ -686,7 +692,7 @@ describe('single-table recording and failure boundaries', () => {
   it('allows independent processes to append concurrently without mixed invocations', async () => {
     const executable = successful();
     const module = resolve('apps/site/tools/globalping/probe.mjs');
-    const script = `import {recordMeasurement} from ${JSON.stringify(module)};const r=await recordMeasurement(${JSON.stringify(args())},{executable:${JSON.stringify(executable)}});process.stdout.write(JSON.stringify(r));process.exitCode=r.exitCode;`;
+    const script = `import {recordMeasurement} from ${JSON.stringify(module)};const r=await recordMeasurement(${JSON.stringify(requestConfig())},{executable:${JSON.stringify(executable)}});process.stdout.write(JSON.stringify(r));process.exitCode=r.exitCode;`;
     const output = await Promise.all([
       runProcess(process.execPath, ['--input-type=module', '-e', script]),
       runProcess(process.execPath, ['--input-type=module', '-e', script]),
@@ -709,7 +715,7 @@ describe('single-table recording and failure boundaries', () => {
     const closed = once(child, 'close');
     child.kill('SIGKILL');
     await closed;
-    await recordMeasurement(args(), { executable });
+    await recordMeasurement(requestConfig(), { executable });
     expect(select()).toHaveLength(4);
     expect(select()[0].collection_status).toBe('running');
   });

@@ -10,7 +10,7 @@
 单 URL 与本次参数 → 官方 CLI → 解析 57 列中的结果字段 → SQLite 事务提交 → 返回结果
 ```
 
-`npm run globalping:install` 使用 `GOBIN="$PWD/.tools/bin" go install github.com/jsdelivr/globalping-cli@latest`，显示安装路径、实际版本并核对 JSON/CI 参数。devenv 提供 Go 工具链，项目不维护 Go 应用或 Globalping Nix 包。
+`npm run globalping:install` 使用 `GOBIN="$PWD/.tools/bin" go install github.com/jsdelivr/globalping-cli@latest`，检查安装结果并显示安装路径、实际版本。devenv 提供 Go 工具链，项目不维护 Go 应用或 Globalping Nix 包。
 
 测量固定调用项目 `.tools/bin/globalping-cli` 的绝对路径，使用 `spawn` 参数数组、`shell:false`。测量时不安装、升级或另外执行版本查询。认证沿用官方 CLI 登录状态或 `GLOBALPING_TOKEN`；程序不读取认证文件、不归档整个环境。用户显式提供的目标请求头仍作为输入保存。
 
@@ -18,9 +18,9 @@
 npm run globalping:record -- --url 'https://sshawn9.com/zh/' --from 'China+Shanghai' --limit 1
 ```
 
-`--url` 与 `--from` 必填，默认 GET、limit 1。默认数据库是 `apps/site/.reports/globalping/measurements.sqlite`。`--database` 可指定新路径；`--process-timeout` 是可选的本地进程总时限，`--timeout` 是节点期限，单位均为秒。
+`--url` 与 `--from` 必填，固定 GET、limit 默认 1，DNS 沿用探测节点默认设置。默认数据库是 `apps/site/.reports/globalping/measurements.sqlite`。`--database` 可指定新路径；`--process-timeout` 是可选的本地进程总时限，`--timeout` 是节点期限，单位均为秒。
 
-支持 `--protocol`、`--port`、`--host`、`--path`、`--query`、`--resolver`、可重复的 `--header`，以及互斥的 `--ipv4` / `--ipv6`。URL 拆成主机与独立参数，保留编码路径、查询顺序及重复查询参数，IPv6 主机带方括号。显式 HTTP 参数覆盖相应 URL 值，不添加绕缓存参数。
+支持可重复的 `--header`，以及互斥的 `--ipv4` / `--ipv6`。协议、连接端口、路径和查询参数只从完整 URL 提取，内部以独立参数传给官方 CLI，保留编码路径、查询顺序、重复查询参数及 IPv6 主机的方括号。不提供 `--host`、`--path`、`--query`、`--protocol`、`--port`、`--method`、`--resolver` 选项，不添加绕缓存参数。
 
 拒绝 URL 内嵌凭据、片段、多 URL、重复单值选项和隐式会话选择器 `last` / `previous` / `first` / `@序号`。允许 `--from` 显式测量 ID，为新测量复用节点；不将它当成补取旧结果。没有 `--request`、清单输入、`--table`、`--latency` 或 `--full` 入口。
 
@@ -48,12 +48,12 @@ TEXT 保存文本，INTEGER 保存整数和 0/1 布尔值，REAL 保存本地期
 | `measurement_id`           | TEXT    | 返回的 id，关联远端测量及外层复用节点                                  |
 | `measurement_created_at`   | TEXT    | 返回的 createdAt，转 UTC ISO 时间，查询历史时间窗口                    |
 | `url`                      | TEXT    | 输入 URL 原文，按资源查历史                                            |
-| `request_method`           | TEXT    | 实际传给 CLI 的方法，区分 GET / HEAD 等请求                            |
+| `request_method`           | TEXT    | 实际传给 CLI 的方法，固定 GET                                          |
 | `request_from`             | TEXT    | 请求的位置表达式或测量 ID，包含未取得节点的调用                        |
 | `request_limit`            | INTEGER | 本次希望使用的节点数量                                                 |
 | `measurement_probes_count` | INTEGER | 返回的 probesCount，记录实际数量，不从保留行数反推                     |
 | `request_headers_json`     | TEXT    | 实际请求头参数列表，区分请求条件                                       |
-| `cli_argv_json`            | TEXT    | 完整 CLI 参数数组，保存不再单列的协议、端口、路径覆盖等输入            |
+| `cli_argv_json`            | TEXT    | 完整 CLI 参数数组，保存从 URL 提取的目标信息及其他测量选项             |
 | `process_timeout_s`        | REAL    | 本地进程期限；不属于官方 CLI 参数，未指定为 NULL                       |
 | `probe_country`            | TEXT    | probe.country，按实际国家查询                                          |
 | `probe_state`              | TEXT    | probe.state，区分同国同名城市                                          |
@@ -162,9 +162,9 @@ CLI 错误不能仅凭 exit 1 判断为 API 429。保存实际 stderr，不捏�
 
 ## 7. 实现与验证
 
-`cli.mjs` 负责终端输出和信号，`runner.mjs` 负责参数与子进程，`probe.mjs` 串联一次调用，`parse.mjs` / `headers.mjs` 只映射保留字段，`schema.mjs` 定义 57 列，`store.mjs` 负责单表事务，`install.mjs` 安装官方 CLI。
+`cli.mjs` 调用 `runner.mjs` 的 `parseArguments()` 解析一次参数，并负责终端输出和信号。`probe.mjs` 的 `recordMeasurement(config)` 只接收解析后的测量配置，串联一次调用，不接受原始参数数组或重复解析。`runner.mjs` 还负责子进程，`parse.mjs` / `headers.mjs` 只映射保留字段，`schema.mjs` 定义 57 列，`store.mjs` 负责单表事务，`install.mjs` 安装官方 CLI。
 
-针对性测试使用模拟 CLI 与临时 SQLite，不消耗真实额度。验证参数编码与覆盖、恰好 57 列、源结果完整保留、保留字段类型与头语法、实际 SQL 查询、历史追加、并发、回滚、默认摘要/完整 JSON、限流与取消。删除字段不再要求专用解析测试，也不保留版本查询阶段的测试。
+针对性测试使用模拟 CLI 与临时 SQLite，不消耗真实额度。验证 URL 参数传递、已移除覆盖选项被拒绝、恰好 57 列、源结果完整保留、保留字段类型与头语法、实际 SQL 查询、历史追加、并发、回滚、默认摘要/完整 JSON、限流与取消。删除字段不再要求专用解析测试，也不保留版本查询阶段的测试。
 
 ```sh
 devenv shell -- npm exec -- vitest run tests/development/globalping-recording/unit.test.ts

@@ -12,15 +12,8 @@ const values = new Set([
   'url',
   'from',
   'limit',
-  'method',
   'database',
   'process-timeout',
-  'protocol',
-  'port',
-  'host',
-  'path',
-  'query',
-  'resolver',
   'header',
   'timeout',
 ]);
@@ -68,27 +61,12 @@ export function parseArguments(argv) {
     throw new Error('URL 必须使用 HTTP(S)，且不包含用户名、密码或片段。');
   if (url.hostname.includes(',') || url.hostname.startsWith('-'))
     throw new Error('URL 主机名不能包含逗号或以连字符开头。');
-  const integer = (name, fallback, max = Number.MAX_SAFE_INTEGER) => {
+  const integer = (name, fallback) => {
     const value = options[name] ?? fallback;
-    if (
-      !/^\d+$/.test(String(value)) ||
-      !Number.isSafeInteger(Number(value)) ||
-      Number(value) < 1 ||
-      Number(value) > max
-    )
-      throw new Error(`--${name} 必须是 1–${max} 的整数。`);
+    if (!/^\d+$/.test(String(value)) || !Number.isSafeInteger(Number(value)) || Number(value) < 1)
+      throw new Error(`--${name} 必须是正的安全整数。`);
     return Number(value);
   };
-  const protocol = options.protocol ?? url.protocol.slice(0, -1).toUpperCase();
-  // URL.port drops explicit default ports; preserve that distinction when the
-  // caller overrides the protocol, matching the official CLI override rules.
-  const authority = /^[a-z][a-z\d+.-]*:\/\/([^/?#]*)/i.exec(options.url)?.[1];
-  const explicitPort = authority?.match(/:(\d+)$/)?.[1];
-  const port = integer(
-    'port',
-    explicitPort || url.port || (protocol.toUpperCase() === 'HTTP' ? 80 : 443),
-    65535,
-  );
   let processTimeout = null;
   if (options['process-timeout'] !== undefined) {
     processTimeout = Number(options['process-timeout']);
@@ -100,15 +78,13 @@ export function parseArguments(argv) {
       throw new Error('--process-timeout 必须是有效的正秒数（最多 2147483.647 秒）。');
   }
   const http = {
-    protocol,
-    port,
-    path: options.path ?? url.pathname,
-    query: options.query ?? (url.search ? url.search.slice(1) : null),
-    host: options.host ?? null,
-    method: options.method ?? 'GET',
+    protocol: url.protocol.slice(0, -1).toUpperCase(),
+    port: Number(url.port || (url.protocol === 'http:' ? 80 : 443)),
+    path: url.pathname,
+    query: url.search ? url.search.slice(1) : null,
+    method: 'GET',
     from: options.from,
     limit: integer('limit', 1),
-    resolver: options.resolver ?? null,
     timeout: options.timeout === undefined ? null : integer('timeout', null),
   };
   const args = ['http', url.hostname];

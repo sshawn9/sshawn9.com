@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { cliPath, parseArguments, runProcess } from './runner.mjs';
+import { cliPath, runProcess } from './runner.mjs';
 import { emptyRow } from './schema.mjs';
 import { MeasurementStore } from './store.mjs';
 import { parseMeasurement } from './parse.mjs';
 
 /** @param {string|null} [invocationId] */
-function failure(stage, code, error, invocationId = null) {
+export function failure(stage, code, error, invocationId = null) {
   return {
     saved: false,
     collectionStatus: null,
@@ -19,19 +19,12 @@ function failure(stage, code, error, invocationId = null) {
   };
 }
 
-/** A single invocation, never a scheduler. Pass the same flags as the CLI.
- * @param {string[]} argv
+/** Execute one measurement using the configuration returned by parseArguments.
+ * @param {{request: object, args: string[], database: string}} config
  * @param {{signal?: AbortSignal, executable?: string}} [dependencies]
  * executable is an explicit test dependency, never an automatic PATH fallback.
  */
-export async function recordMeasurement(argv, { signal, executable = cliPath } = {}) {
-  let config;
-  try {
-    config = parseArguments(argv);
-    if (config.help) throw new Error('核心函数需要测量参数；帮助请使用命令行 --help。');
-  } catch (error) {
-    return failure('input', 'INVALID_ARGUMENT', error);
-  }
+export async function recordMeasurement(config, { signal, executable = cliPath } = {}) {
   const invocationId = randomUUID(),
     started = new Date().toISOString();
   const start = {

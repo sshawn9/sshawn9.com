@@ -1,5 +1,5 @@
 import { parseArguments } from './runner.mjs';
-import { recordMeasurement } from './probe.mjs';
+import { failure, recordMeasurement } from './probe.mjs';
 
 const help = `Globalping 单 URL 探测与 SQLite 记录
 
@@ -9,25 +9,23 @@ const help = `Globalping 单 URL 探测与 SQLite 记录
 --url URL              必填，一个 HTTP(S) 资源
 --from LOCATION        必填，地区表达式或明确的测量 ID
 --limit N              节点数量，默认 1
---method METHOD        默认 GET
 --database PATH        默认 apps/site/.reports/globalping/measurements.sqlite
 --process-timeout SEC  本地子进程总时限，默认不额外限制
---protocol --port --host --path --query --resolver --timeout
-                       传给官方 CLI 的 HTTP 参数（timeout 单位为秒）
+--timeout SEC          节点探测期限，单位为秒
 --header VALUE         可重复；--ipv4 / --ipv6 二选一
 --json                 输出完整结果 JSON；默认显示节点摘要和入库状态
 --help                 本帮助；不创建数据库、不发起测量
 
-内部调用官方 CLI 固定使用 --json --ci；每次只执行一条测量命令。
+固定使用 GET，内部调用官方 CLI 使用 --json --ci；每次只执行一条测量命令。
 历史默认全部保留。外层程序负责资源循环、历史策略和限流重试。
 `;
 
 const argv = process.argv.slice(2);
-let options;
+let options, result;
 try {
   options = parseArguments(argv);
-} catch {
-  /* Core returns a structured input error. */
+} catch (error) {
+  result = failure('input', 'INVALID_ARGUMENT', error);
 }
 if (options?.help) process.stdout.write(help);
 else {
@@ -37,7 +35,7 @@ else {
   process.on('SIGINT', interrupt);
   process.on('SIGTERM', terminate);
   try {
-    const result = await recordMeasurement(argv, { signal: controller.signal });
+    result ??= await recordMeasurement(options, { signal: controller.signal });
     // Preserve machine-readable input errors too, before valid options exist.
     if (options?.json ?? argv.includes('--json'))
       process.stdout.write(`${JSON.stringify(result)}\n`);
