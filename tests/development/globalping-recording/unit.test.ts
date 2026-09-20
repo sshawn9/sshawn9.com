@@ -45,10 +45,13 @@ function successful(data = measurement()) {
 function args(...extra: string[]) {
   return [...input, '--database', database, ...extra];
 }
+function parseRequest(argv: string[]) {
+  const config = parseArguments(argv);
+  if (!('request' in config)) throw new Error('Expected measurement configuration');
+  return config;
+}
 function requestConfig(...extra: string[]) {
-  const { request, args: cliArgs, database } = parseArguments(args(...extra));
-  if (!request || !cliArgs || !database) throw new Error('Expected measurement configuration');
-  return { request, args: cliArgs, database };
+  return parseRequest(args(...extra));
 }
 // Run the real entry point with an isolated installation of the fake executable.
 function runCLI(executable: string, ...extra: string[]) {
@@ -78,7 +81,7 @@ const parsed = (data = measurement()) => parseMeasurement(Buffer.from(JSON.strin
 
 describe('single URL CLI contract', () => {
   it('keeps URL encoding, commas, repeated query parameters, and headers in distinct argv entries', () => {
-    const config = parseArguments([
+    const config = parseRequest([
       '--url',
       'https://example.com/a%2Fb,c?x=1&x=2&x=%2F,3',
       '--from',
@@ -117,7 +120,7 @@ describe('single URL CLI contract', () => {
     expect(config.args?.slice(-2)).toEqual(['--json', '--ci']);
   });
   it('takes the protocol, port, encoded path and query from the URL with an IPv6 host', () => {
-    const config = parseArguments([
+    const config = parseRequest([
       '--url',
       'http://[2001:db8::1]:8080/a%2Fb?x=1&x=2',
       '--from',
@@ -152,8 +155,7 @@ describe('single URL CLI contract', () => {
     ['http://example.com:443/a', 'HTTP', '443'],
     ['https://example.com:80/a', 'HTTPS', '80'],
   ])('uses the scheme and port in %s', (url, protocol, port) => {
-    const { args } = parseArguments(['--url', url, '--from', 'CN+Shanghai']);
-    if (!args) throw new Error('Expected measurement arguments');
+    const { args } = parseRequest(['--url', url, '--from', 'CN+Shanghai']);
     expect(args[args.indexOf('--protocol') + 1]).toBe(protocol);
     expect(args[args.indexOf('--port') + 1]).toBe(port);
   });
@@ -240,7 +242,7 @@ describe('terminal output', () => {
     expect(result).toMatchObject({ saved: true, collectionStatus: 'stored' });
     expect(result.records).toEqual(select());
     expect(JSON.parse(result.records[0].source_json).observation).toEqual(measurement().results[0]);
-    expect(JSON.parse(result.records[0].cli_argv_json)).toEqual(parseArguments(args()).args);
+    expect(JSON.parse(result.records[0].cli_argv_json)).toEqual(parseRequest(args()).args);
   });
   it('prints bounded CLI errors while archiving their complete text', () => {
     const error = `rate limit exceeded\n${'diagnostic '.repeat(500)}`;

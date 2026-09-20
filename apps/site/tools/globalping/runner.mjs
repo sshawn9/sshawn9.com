@@ -8,23 +8,17 @@ export const cliPath = fileURLToPath(
 export const defaultDatabase = fileURLToPath(
   new URL('../../.reports/globalping/measurements.sqlite', import.meta.url),
 );
-const values = new Set([
-  'url',
-  'from',
-  'limit',
-  'database',
-  'process-timeout',
-  'header',
-  'timeout',
-]);
-const switches = new Set(['help', 'json', 'ipv4', 'ipv6']);
+export const measurementValues = ['limit', 'database', 'process-timeout', 'header', 'timeout'];
+export const measurementSwitches = ['ipv4', 'ipv6'];
 
-export function parseArguments(argv) {
+export function parseOptions(argv, valueNames, switchNames) {
   if (
     !Array.isArray(argv) ||
     argv.some((value) => typeof value !== 'string' || value.includes('\0'))
   )
     throw new Error('参数必须是字符串数组，且不能包含 NUL 字符。');
+  const values = new Set(valueNames),
+    switches = new Set(switchNames);
   const options = { header: [] };
   for (let i = 0; i < argv.length; i++) {
     const match = /^--([a-z0-9-]+)(?:=(.*))?$/s.exec(argv[i]);
@@ -44,7 +38,25 @@ export function parseArguments(argv) {
       else options[name] = value;
     }
   }
-  if (options.help) return { help: true };
+  return options;
+}
+
+export function positiveInteger(value, name) {
+  if (!/^\d+$/.test(String(value)) || !Number.isSafeInteger(Number(value)) || Number(value) < 1)
+    throw new Error(`--${name} 必须是正的安全整数。`);
+  return Number(value);
+}
+
+export function parseArguments(argv) {
+  const options = parseOptions(
+    argv,
+    ['url', 'from', ...measurementValues],
+    ['help', 'json', ...measurementSwitches],
+  );
+  return options.help ? { help: true } : createMeasurementConfig(options);
+}
+
+export function createMeasurementConfig(options) {
   if (!options.url || !options.from?.trim())
     throw new Error('必须提供一个 --url 和明确的 --from。');
   if (options.ipv4 && options.ipv6) throw new Error('--ipv4 与 --ipv6 不能同时使用。');
@@ -61,12 +73,6 @@ export function parseArguments(argv) {
     throw new Error('URL 必须使用 HTTP(S)，且不包含用户名、密码或片段。');
   if (url.hostname.includes(',') || url.hostname.startsWith('-'))
     throw new Error('URL 主机名不能包含逗号或以连字符开头。');
-  const integer = (name, fallback) => {
-    const value = options[name] ?? fallback;
-    if (!/^\d+$/.test(String(value)) || !Number.isSafeInteger(Number(value)) || Number(value) < 1)
-      throw new Error(`--${name} 必须是正的安全整数。`);
-    return Number(value);
-  };
   let processTimeout = null;
   if (options['process-timeout'] !== undefined) {
     processTimeout = Number(options['process-timeout']);
@@ -84,8 +90,8 @@ export function parseArguments(argv) {
     query: url.search ? url.search.slice(1) : null,
     method: 'GET',
     from: options.from,
-    limit: integer('limit', 1),
-    timeout: options.timeout === undefined ? null : integer('timeout', null),
+    limit: positiveInteger(options.limit ?? 1, 'limit'),
+    timeout: options.timeout === undefined ? null : positiveInteger(options.timeout, 'timeout'),
   };
   const args = ['http', url.hostname];
   for (const [name, value] of Object.entries(http)) {

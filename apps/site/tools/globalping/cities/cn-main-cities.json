@@ -1,0 +1,17 @@
+[
+  {
+    "country": "CN",
+    "city": "Beijing",
+    "count": 12
+  },
+  {
+    "country": "CN",
+    "city": "Shanghai",
+    "count": 12
+  },
+  {
+    "country": "CN",
+    "city": "Guangzhou",
+    "count": 9
+  }
+]

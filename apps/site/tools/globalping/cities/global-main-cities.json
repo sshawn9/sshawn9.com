@@ -1,0 +1,267 @@
+[
+  {
+    "country": "NL",
+    "city": "Amsterdam",
+    "count": 208
+  },
+  {
+    "country": "DE",
+    "city": "Frankfurt",
+    "count": 195
+  },
+  {
+    "country": "SG",
+    "city": "Singapore",
+    "count": 150
+  },
+  {
+    "country": "US",
+    "city": "Los Angeles",
+    "count": 143
+  },
+  {
+    "country": "JP",
+    "city": "Tokyo",
+    "count": 123
+  },
+  {
+    "country": "GB",
+    "city": "London",
+    "count": 110
+  },
+  {
+    "country": "HK",
+    "city": "Hong Kong",
+    "count": 109
+  },
+  {
+    "country": "RU",
+    "city": "Moscow",
+    "count": 103
+  },
+  {
+    "country": "FI",
+    "city": "Helsinki",
+    "count": 92
+  },
+  {
+    "country": "AU",
+    "city": "Sydney",
+    "count": 63
+  },
+  {
+    "country": "FR",
+    "city": "Paris",
+    "count": 59
+  },
+  {
+    "country": "SE",
+    "city": "Stockholm",
+    "count": 59
+  },
+  {
+    "country": "BR",
+    "city": "Sao Paulo",
+    "count": 54
+  },
+  {
+    "country": "US",
+    "city": "New York",
+    "count": 54
+  },
+  {
+    "country": "PL",
+    "city": "Warsaw",
+    "count": 53
+  },
+  {
+    "country": "CA",
+    "city": "Toronto",
+    "count": 51
+  },
+  {
+    "country": "US",
+    "city": "Chicago",
+    "count": 51
+  },
+  {
+    "country": "TW",
+    "city": "Taipei",
+    "count": 45
+  },
+  {
+    "country": "US",
+    "city": "Dallas",
+    "count": 42
+  },
+  {
+    "country": "ID",
+    "city": "Jakarta",
+    "count": 41
+  },
+  {
+    "country": "ES",
+    "city": "Madrid",
+    "count": 35
+  },
+  {
+    "country": "IN",
+    "city": "Mumbai",
+    "count": 35
+  },
+  {
+    "country": "KR",
+    "city": "Seoul",
+    "count": 28
+  },
+  {
+    "country": "RO",
+    "city": "Bucharest",
+    "count": 28
+  },
+  {
+    "country": "DE",
+    "city": "Berlin",
+    "count": 27
+  },
+  {
+    "country": "IE",
+    "city": "Dublin",
+    "count": 26
+  },
+  {
+    "country": "US",
+    "city": "Seattle",
+    "count": 26
+  },
+  {
+    "country": "TH",
+    "city": "Bangkok",
+    "count": 25
+  },
+  {
+    "country": "TR",
+    "city": "Istanbul",
+    "count": 25
+  },
+  {
+    "country": "IT",
+    "city": "Milan",
+    "count": 23
+  },
+  {
+    "country": "ZA",
+    "city": "Johannesburg",
+    "count": 23
+  },
+  {
+    "country": "CL",
+    "city": "Santiago",
+    "count": 22
+  },
+  {
+    "country": "RU",
+    "city": "Saint Petersburg",
+    "count": 22
+  },
+  {
+    "country": "VN",
+    "city": "Ho Chi Minh City",
+    "count": 19
+  },
+  {
+    "country": "NL",
+    "city": "Rotterdam",
+    "count": 18
+  },
+  {
+    "country": "BD",
+    "city": "Dhaka",
+    "count": 17
+  },
+  {
+    "country": "NZ",
+    "city": "Auckland",
+    "count": 17
+  },
+  {
+    "country": "NO",
+    "city": "Sandefjord",
+    "count": 16
+  },
+  {
+    "country": "RO",
+    "city": "Oradea",
+    "count": 16
+  },
+  {
+    "country": "FR",
+    "city": "Marseille",
+    "count": 15
+  },
+  {
+    "country": "IL",
+    "city": "Tel Aviv",
+    "count": 15
+  },
+  {
+    "country": "UA",
+    "city": "Kyiv",
+    "count": 15
+  },
+  {
+    "country": "JP",
+    "city": "Osaka",
+    "count": 13
+  },
+  {
+    "country": "PT",
+    "city": "Lisbon",
+    "count": 13
+  },
+  {
+    "country": "AU",
+    "city": "Melbourne",
+    "count": 12
+  },
+  {
+    "country": "CN",
+    "city": "Beijing",
+    "count": 12
+  },
+  {
+    "country": "CN",
+    "city": "Shanghai",
+    "count": 12
+  },
+  {
+    "country": "IN",
+    "city": "Bengaluru",
+    "count": 12
+  },
+  {
+    "country": "VN",
+    "city": "Hanoi",
+    "count": 12
+  },
+  {
+    "country": "CA",
+    "city": "Vancouver",
+    "count": 11
+  },
+  {
+    "country": "MY",
+    "city": "Kuala Lumpur",
+    "count": 11
+  },
+  {
+    "country": "MX",
+    "city": "Queretaro",
+    "count": 10
+  },
+  {
+    "country": "ZA",
+    "city": "Cape Town",
+    "count": 10
+  }
+]

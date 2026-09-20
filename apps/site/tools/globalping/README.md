@@ -1,6 +1,6 @@
-# Globalping 单 URL 探测与 SQLite 记录
+# Globalping 探测与 SQLite 记录
 
-输入一个 URL，执行一次官方 Globalping CLI HTTP GET 测量，将每个节点的结果追加到 SQLite。只有一张 `measurements` 表、57 列。外层负责读取资源清单、批量循环、历史策略及清理；本工具不自动重试或按历史跳过。
+单次入口输入一个 URL，执行一次官方 Globalping CLI HTTP GET 测量，将每个节点的结果追加到 SQLite。只有一张 `measurements` 表、57 列。批量入口在外层读取资源和城市清单，按历史 HIT 次数跳过已达标的资源、城市组合。两个入口均不自动重试或清理历史。
 
 ## 安装和使用
 
@@ -29,6 +29,36 @@ npm run globalping:record -- --url 'https://sshawn9.com/zh/' --from 'China+Shang
 | `--help`                | 帮助，不创建数据库、不测量                                                                 |
 
 请求固定 GET，DNS 沿用探测节点默认设置。协议、连接端口、路径和查询参数从完整 `--url` 提取，内部以独立参数传给官方 CLI，保留编码路径、重复查询参数和 IPv6 方括号。不提供 `--host`、`--path`、`--query`、`--protocol`、`--port`、`--method`、`--resolver` 选项。不添加绕缓存参数。不支持请求 JSON/清单输入、多个 URL、重复单值参数，以及 `last` / `previous` / `first` / `@序号`。`--from ID` 创建新测量并复用节点，不补取旧结果。
+
+## 批量探测
+
+```sh
+npm run globalping:batch -- --cities globalping-cn-cities.json --history-days 1
+```
+
+默认读取 `apps/site/.reports/resource-inventory.json`，使用同一个默认 SQLite；`--rounds`、`--limit`、`--skip-hit-count` 默认均为 `1`。`--history-days` 必填，可用小数表示不足一天，例如 `0.5` 表示最近 12 小时。
+
+```sh
+npm run globalping:batch -- \
+  --resources apps/site/.reports/resource-inventory.json \
+  --cities globalping-cities.json \
+  --history-days 1 \
+  --skip-hit-count 2 \
+  --rounds 3 \
+  --limit 1
+```
+
+顺序固定为 **轮次 → 资源 → 城市**。资源按 `resourcePages[url].length` 降序、同引用数按 URL 排序，零引用资源仍参与。资源清单须与线上部署配套，批量程序不重新构建网站。
+
+城市列表是含 `country`、`city` 的 JSON 数组，使用国家代码，例如 `{"country":"CN","city":"Shanghai"}`。按文件顺序执行，重复国家、城市组合只保留首项；存在 `count` 时忽略它。
+
+每个任务开始前查询最新 SQLite，以完整 URL、实际国家和城市为条件，统计最近 N×24 小时内 `finished + HTTP 200 + HIT` 的节点记录。达到 M 次即跳过，本次新记录立即影响后续轮次。三个合格节点计三次，MISS 不清零已有计数；跳过不发请求、不新增记录。没有达到阈值也不额外增加轮数。
+
+支持 `--database`、`--header`、`--ipv4` / `--ipv6`、`--timeout`、`--process-timeout`。默认路径相对于项目根目录，显式相对路径相对于当前工作目录。用 `npm run globalping:batch -- --help` 查看全部参数。
+
+默认每次测量打印一行概况，每轮和批次结束汇总调用、跳过、保存记录和异常节点数；异常节点指节点未完成或 HTTP 状态不是 200。CLI、解析或数据库错误时停止并保留已提交记录；正常返回的失败节点或 HTTP 429 等结果仍保存并继续。退出 0 表示循环完成，不表示所有资源都已命中缓存。
+
+实现见 [batch.mjs](batch.mjs)，规则与边界见 [批量方案](../../../../docs/globalping-batch-plan.md)。GitHub Actions 的 Artifact 恢复与上传另行接入，批量程序只处理本地清单和数据库。
 
 ## 记录与查询
 

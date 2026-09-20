@@ -1,4 +1,4 @@
-# Globalping 单 URL / 57 列 SQLite 验收
+# Globalping 单次与批量探测验收
 
 使用临时目录中的模拟 CLI 与真实 SQLite；命令行展示测试在临时项目中运行真实入口。结束后清理测试数据，不访问 Globalping 或生产站。
 
@@ -11,4 +11,13 @@
 
 `fixture.mjs` 保留丰富的合成 API 源对象，用于验证未列化的数据仍完整归档。没有旧数据库兼容或迁移测试。
 
-运行：`devenv shell -- npm exec -- vitest run tests/development/globalping-recording/unit.test.ts`。
+`batch/unit.test.ts` 使用模拟 CLI、真实单次记录函数及临时 SQLite 验证外层：
+
+- 轮次、引用页面数量、城市顺序；URL 和城市去重，零引用资源保留，城市 count 不参与节点数量。
+- URL（含查询参数）、国家、城市独立计数，时间窗口两端、过期/未来/缺失时间和小数天数。
+- 仅计 finished、HTTP 200、HIT；多节点独立累计，MISS 不清零，新入库结果及其他连接的提交立即可见。
+- 跳过不调用 CLI、不新增记录，达到最大轮数后结束，不自动重试。
+- CLI、解析、数据库异常停止；目标 HTTP 429 和失败节点继续；取消时停止调度和传递信号。
+- 真实批量 CLI 的简洁输出、完整结果入库，以及第二次运行根据第一份数据库跳过。
+
+运行：`devenv shell -- npm exec -- vitest run tests/development/globalping-recording`。
