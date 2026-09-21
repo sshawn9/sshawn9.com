@@ -19,6 +19,10 @@ test('mobile tag disclosure remains usable after a collapsed desktop sidebar', a
   await expect(sidebar).toBeVisible();
   await expect(sidebar).not.toHaveAttribute('aria-hidden', 'true');
   await expect(mobileToggle).toBeVisible();
+  await expect(mobileToggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(tagDefinitions.first()).toBeHidden();
+  await mobileToggle.click();
+  await expect(mobileToggle).toHaveAttribute('aria-expanded', 'true');
   await expect(tagDefinitions.first()).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 900 });
@@ -42,12 +46,14 @@ test('mobile pagination and traversal retain the live tag disclosure state', asy
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(blogPath);
   const disclosure = page.locator('[data-blog-mobile-toggle]');
-  await disclosure.click();
   await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('[data-blog-mobile-panel]')).toBeHidden();
+  await disclosure.click();
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
   await page.locator('[data-blog-page="next"]').click();
   await expect(blogListing(page)).toHaveAttribute('data-current-page', '2');
-  await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
   await page.goBack();
   await expect(blogListing(page)).toHaveAttribute('data-current-page', '1');
-  await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
 });

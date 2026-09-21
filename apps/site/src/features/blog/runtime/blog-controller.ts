@@ -24,7 +24,7 @@ function createBlogPageController(
   const mobileDisclosure = listing.querySelector<HTMLButtonElement>('[data-blog-mobile-toggle]');
   const mobilePanel = listing.querySelector<HTMLElement>('[data-blog-mobile-panel]');
   const mobileMedia = sourceWindow.matchMedia('(max-width: 63.999rem)');
-  let mobileExpanded = true;
+  let mobileExpanded = false;
   let destroyed = false;
 
   const restoreMobileFallback = () => {

@@ -50,7 +50,6 @@ for (const width of [1440, 390]) {
     await expect(page.locator('[data-blog-runtime-ready]')).toBeVisible();
     if (width < 1024) {
       const toggle = page.locator('[data-blog-mobile-toggle]');
-      await toggle.click();
       await expect(toggle).toHaveAttribute('aria-expanded', 'false');
       await expect(tags).toHaveAttribute('aria-hidden', 'true');
       await toggle.click();
