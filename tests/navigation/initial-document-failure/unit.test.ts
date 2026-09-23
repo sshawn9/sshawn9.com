@@ -56,12 +56,12 @@ function fixture() {
   );
   const reportError = vi.fn();
   const history = { state: null, scrollRestoration: 'auto' } as unknown as History;
-  const sourceWindow = {
+  const sourceWindow = Object.assign(new EventTarget(), {
     location: new URL('https://sshawn9.com/en/blog/'),
     history,
     sessionStorage: {},
     reportError,
-  } as unknown as Window;
+  }) as unknown as Window;
   return {
     document: document as unknown as Document,
     sourceWindow,
@@ -158,7 +158,7 @@ describe('initial document failure boundary', () => {
   });
 
   it('keeps root-scroll, TOC, and nested-scroll ordering on success', () => {
-    const { document, sourceWindow } = fixture();
+    const { document, sourceWindow, reportError } = fixture();
     const order: string[] = [];
     const point = { x: 10, y: 20 };
     hooks.snapshot.mockReturnValue({ page: point });
@@ -169,6 +169,7 @@ describe('initial document failure boundary', () => {
     installInitialDocumentRuntime(document, sourceWindow);
 
     expect(order).toEqual(['root', 'toc', 'nested']);
+    expect(reportError).not.toHaveBeenCalled();
   });
 
   it('keeps full-document navigation guarded until runtime ready, then releases it', () => {
