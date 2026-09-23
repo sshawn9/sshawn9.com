@@ -51,7 +51,7 @@ export type FoundationCopy = {
   homeReadBlog: string;
   homeProjectsTitle: string;
   homeAllProjects: string;
-  homeLatestArticles: string;
+  homeRecentlyUpdatedArticles: string;
   homeAllArticles: string;
   aboutPageTitle: string;
   aboutUnderConstruction: string;
@@ -177,7 +177,7 @@ export function getFoundationCopy(locale: Locale): FoundationCopy {
     homeReadBlog: staticMessage(m.home_read_blog),
     homeProjectsTitle: staticMessage(m.home_projects_title),
     homeAllProjects: staticMessage(m.home_all_projects),
-    homeLatestArticles: staticMessage(m.home_latest_articles),
+    homeRecentlyUpdatedArticles: staticMessage(m.home_recently_updated_articles),
     homeAllArticles: staticMessage(m.home_all_articles),
     aboutPageTitle: staticMessage(m.about_page_title),
     aboutUnderConstruction: staticMessage(m.about_under_construction),

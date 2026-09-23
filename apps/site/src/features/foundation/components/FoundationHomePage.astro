@@ -1,4 +1,5 @@
 ---
+import { getArticleUpdatedAt } from '@sshawn9/site-domain/articles';
 import type { Locale } from '@sshawn9/site-domain/locales';
 import type { SiteArticle } from '../../../content/article-catalog';
 import type { SiteProject } from '../../../content/project-catalog';
@@ -17,6 +18,17 @@ interface Props {
 const { locale, articles, projects } = Astro.props;
 const copy = getFoundationCopy(locale);
 const featuredProjects = projects.slice(0, 2);
+const recentlyUpdatedArticles = articles
+  .map((article) => ({
+    article,
+    updatedAt: getArticleUpdatedAt(article.current) ?? article.current.entry.data.publishedAt,
+  }))
+  .sort(
+    (left, right) =>
+      right.updatedAt.getTime() - left.updatedAt.getTime() ||
+      left.article.id.localeCompare(right.article.id),
+  )
+  .slice(0, 5);
 const dateFormatter = new Intl.DateTimeFormat(locale === 'zh' ? 'zh-CN' : 'en', {
   year: 'numeric',
   month: 'short',
@@ -61,17 +73,16 @@ const dateFormatter = new Intl.DateTimeFormat(locale === 'zh' ? 'zh-CN' : 'en', 
 }
 
 {
-  articles.length > 0 && (
+  recentlyUpdatedArticles.length > 0 && (
     <section class="home-articles" aria-labelledby="recent-articles-heading">
       <div class="content-shell">
         <div class="section-heading">
-          <h2 id="recent-articles-heading">{copy.homeLatestArticles}</h2>
+          <h2 id="recent-articles-heading">{copy.homeRecentlyUpdatedArticles}</h2>
           <a href={`/${locale}/blog/`}>{copy.homeAllArticles}</a>
         </div>
         <ol class="foundation-article-list">
-          {articles.map((article) => {
+          {recentlyUpdatedArticles.map(({ article, updatedAt }) => {
             const version = article.current;
-            const publishedAt = article.versions[0].entry.data.publishedAt;
             return (
               <li>
                 <article
@@ -84,9 +95,7 @@ const dateFormatter = new Intl.DateTimeFormat(locale === 'zh' ? 'zh-CN' : 'en', 
                     </h3>
                     {version.entry.data.description && <p>{version.entry.data.description}</p>}
                   </div>
-                  <time datetime={publishedAt.toISOString()}>
-                    {dateFormatter.format(publishedAt)}
-                  </time>
+                  <time datetime={updatedAt.toISOString()}>{dateFormatter.format(updatedAt)}</time>
                 </article>
               </li>
             );
