@@ -14,6 +14,7 @@
     "dev": "cd apps/site && SITE_MODE=${SITE_MODE:-preview} ASTRO_DEV_BACKGROUND=0 astro dev --config astro.local.config.mjs --host 127.0.0.1 --port ${SITE_PORT:-4332}",
     "build": "npm run build --workspace @sshawn9/site",
     "inventory": "node apps/site/tools/resource-inventory/cli.mjs",
+    "inventory:diff": "node apps/site/tools/resource-inventory/diff-cli.mjs",
     "cache:probe": "node apps/site/tools/cache-probe/cli.mjs",
     "globalping:install": "node apps/site/tools/globalping/install.mjs",
     "globalping:record": "node apps/site/tools/globalping/cli.mjs",

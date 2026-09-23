@@ -12,7 +12,8 @@ permissions:
 concurrency:
   # Preserve the existing lock key independently of the workflow display name.
   group: site-Site-${{ github.ref }}
-  cancel-in-progress: true
+  # Let main finish deployment and its inventory report before the next run starts.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   verify:
@@ -41,7 +42,7 @@ jobs:
     needs: verify
     concurrency:
       group: deploy-production
-      cancel-in-progress: true
+      cancel-in-progress: false
     uses: ./.github/workflows/site-deployment.yml
     with:
       artifact_name: site-production-${{ github.sha }}

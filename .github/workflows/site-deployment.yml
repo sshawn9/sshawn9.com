@@ -24,6 +24,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      INVENTORY_REPORT_DIRECTORY: apps/site/.reports/production-inventory
     environment:
       name: ${{ inputs.deployment_type }}
       url: ${{ inputs.deployment_type == 'production' && 'https://sshawn9.com' || steps.urls.outputs.stable-url }}
@@ -91,6 +93,30 @@ jobs:
           fi
 
           echo "alias=$alias" >> "$GITHUB_OUTPUT"
+      - name: Snapshot production inventories
+        id: inventory-snapshot
+        if: ${{ inputs.deployment_type == 'production' && github.ref == 'refs/heads/main' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$INVENTORY_REPORT_DIRECTORY"
+          cp apps/site/dist/resource-inventory.json "$INVENTORY_REPORT_DIRECTORY/after.json"
+
+          for attempt in 1 2 3; do
+            if curl --fail --silent --show-error --connect-timeout 5 --max-time 20 \
+              --output "$INVENTORY_REPORT_DIRECTORY/before.json" \
+              https://sshawn9.com/resource-inventory.json \
+              && npm run inventory:diff -- \
+                "$INVENTORY_REPORT_DIRECTORY/before.json" \
+                "$INVENTORY_REPORT_DIRECTORY/after.json" --check; then
+              exit 0
+            fi
+            if [[ "$attempt" != 3 ]]; then sleep 2; fi
+          done
+
+          echo "::error::Could not save valid production inventories. Deployment stopped."
+          echo "Production deployment stopped: the inventory snapshot or validation failed after three attempts." >> "$GITHUB_STEP_SUMMARY"
+          exit 1
       - name: Deploy to Cloudflare Workers
         id: deploy
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
@@ -157,3 +183,33 @@ jobs:
             echo "- Stable branch URL: $stable_url"
             echo "- Immutable version URL: $version_url"
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Compare production inventories
+        if: ${{ inputs.deployment_type == 'production' && github.ref == 'refs/heads/main' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! npm run inventory:diff -- \
+            "$INVENTORY_REPORT_DIRECTORY/before.json" \
+            "$INVENTORY_REPORT_DIRECTORY/after.json" \
+            --output "$INVENTORY_REPORT_DIRECTORY" --summary "$GITHUB_STEP_SUMMARY"; then
+            echo "::error::Production deployment succeeded, but its inventory report failed."
+            echo "Production deployment succeeded, but its inventory report failed." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+      - name: Upload production inventory report
+        id: inventory-artifact
+        if: ${{ always() && inputs.deployment_type == 'production' && github.ref == 'refs/heads/main' && steps.inventory-snapshot.outcome != 'skipped' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-inventory-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.INVENTORY_REPORT_DIRECTORY }}/
+          include-hidden-files: true
+          retention-days: 30
+          if-no-files-found: ignore
+      - name: Link production inventory report
+        if: ${{ always() && steps.inventory-artifact.outputs.artifact-url != '' }}
+        shell: bash
+        env:
+          ARTIFACT_URL: ${{ steps.inventory-artifact.outputs.artifact-url }}
+        run: |
+          printf '\n[Download production inventory snapshots and report](%s)\n' "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"

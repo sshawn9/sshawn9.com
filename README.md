@@ -44,6 +44,7 @@ direnv 通过 `use devenv` 加载环境，不需要 nix-direnv。Node 大版本�
 | `npm run worker:dev`                      | 仅调试本地 Worker API，不启动站点                          | `just worker-dev`      |
 | `npm run build`                           | 只生成 `apps/site/dist/` 部署产物，不启动服务              | `just build`           |
 | `npm run inventory`                       | 分析已有构建，导出页面、资源和双向对应清单；不构建、不联网 | `just inventory`       |
+| `npm run inventory:diff`                  | 校验两份生产清单，离线比较页面和资源 URL 的增减            | —                      |
 | `npm run cache:probe`                     | 读取线上生产部署清单探测缓存，按出口 IP 保留轮次及增量汇总 | `just cache-probe`     |
 | `npm run globalping:install`              | 通过 Go 安装或更新官方最新 Globalping CLI                  | —                      |
 | `npm run globalping:record`               | 官方 CLI 探测单个 URL，每节点解析结果追加到单表 SQLite     | —                      |
@@ -84,7 +85,7 @@ Playwright 由 npm 锁定和升级，浏览器由其官方安装器下载，不�
 
 `cache:probe` 每次运行开始时下载一次 `https://sshawn9.com/resource-inventory.json`，整个运行使用这份生产部署清单，不构建、不爬取页面、不清缓存，也不更改部署。下载失败或内容无效就报错，不回退到本地清单。可用 `--inventory PATH|URL` 显式指定本地文件或 HTTP(S) 地址；不要求运行机器上有 `dist`，也不需要 GitHub 凭据。使用项目 Node 环境与 npm 安装的 Undici，只探测清单内的本站资源（包含 HTML），完整保留查询参数；外站资源单独列为未探测项。没有接入 GitHub Actions 自动预热或 Globalping。
 
-生产 CI 在构建和测试通过后运行 `npm run inventory`，再把 JSON 放进同一份 `dist` 部署产物。清单与网站一起切换生产版本，不另维护“最新 CI 产物”指针；失败的构建或尚未上线的产物不会通过该生产地址提供。清单地址设置 `Cache-Control: no-store`，不复用客户端保存的旧清单；Cloudflare 的静态资源与 Worker 随同一次部署发布，见[官方说明](https://developers.cloudflare.com/workers/static-assets/#how-it-works)。清单是打包时附加的部署元数据，不把自身列为待预热资源；本地 `inventory` 命令仍只生成 `.reports` 报告。首次部署这项改动之前，生产清单地址尚不存在。
+生产 CI 在构建和测试通过后运行 `npm run inventory`，再把 JSON 放进同一份 `dist` 部署产物。清单与网站一起切换生产版本，不另维护“最新 CI 产物”指针；失败的构建或尚未上线的产物不会通过该生产地址提供。清单地址设置 `Cache-Control: no-store`，不复用客户端保存的旧清单；Cloudflare 的静态资源与 Worker 随同一次部署发布，见[官方说明](https://developers.cloudflare.com/workers/static-assets/#how-it-works)。清单是打包时附加的部署元数据，不把自身列为待预热资源；本地 `inventory` 命令仍只生成 `.reports` 报告。
 
 ```sh
 npm run cache:probe
@@ -248,7 +249,21 @@ Paraglide 负责页面级文案和界面文案，长篇文章与项目记录仍�
 
 - 分支推送或手动触发：验证后发布 Preview；`main` 更新 `sshawn9-com-preview` 的当前部署，其他分支只上传带稳定别名的版本。部署摘要提供稳定分支 URL 和不可变版本 URL。
 - `main` 还会独立验证并部署 Production；拉取请求只验证 Preview，不使用部署密钥。
+- `main` 的正在运行流程和生产部署不会被后续推送自动取消，保证旧清单快照、部署和报告顺序完成；新任务需要等待，多个待运行任务仍只保留最新一个。其他分支保留自动取消旧运行的行为。
 - Preview 包含草稿、不生成 sitemap，并在 HTML 和 `_headers` 中声明 `noindex`；Production 排除草稿并生成 sitemap。工作流不主动清理已删除分支的预览别名。
+
+生产部署在 Wrangler 执行前下载线上 `resource-inventory.json` 为 `before.json`，并把本次已验证产物中的清单复制为 `after.json`。下载及清单校验最多尝试三次，每次请求最多 20 秒，失败间隔 2 秒；404、网络失败、JSON/必要字段无效或两份清单站点不一致都会阻止部署，不使用空清单替代旧版本。快照保存在 `apps/site/.reports/production-inventory/`，不进入部署目录。
+
+部署成功后，直接离线比较这两份清单，不再请求线上新清单。Actions Summary 显示旧、新构建标识、数量和新增/减少页面、资源四组列表；页面按 `pages[].url`，资源按 `resources[].url` 排除各自清单中的页面 URL，完整保留查询参数。文件名哈希变化体现为旧 URL 减少、新 URL 增加；同一 URL 的标题、大小或内容变化不计入增减，外部资源标明为外部引用。报告失败会使任务失败并注明生产部署已成功。
+
+快照和完整的 `diff.json`、`diff.md` 保存为 `production-inventory-<run_id>-<run_attempt>` artifact，保留 30 天，摘要提供下载链接。摘要过长时仅截断展示列表，artifact 保留完整报告；部署前校验或部署失败时也尽量上传已保存的快照，此时 `after.json` 只代表待部署产物，不代表已上线，且不会生成成功部署的差异报告。
+
+可在项目环境中离线校验或复算下载的快照（不构建、不联网、不部署）：
+
+```sh
+npm run inventory:diff -- before.json after.json --check
+npm run inventory:diff -- before.json after.json --output apps/site/.reports/production-inventory
+```
 
 需要配置以下 GitHub Actions 仓库密钥：
 
