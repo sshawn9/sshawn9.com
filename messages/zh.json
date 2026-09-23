@@ -159,6 +159,7 @@
   "blog_article_count": "共 {count} 篇",
   "blog_article_range": "第 {range} 篇，共 {count} 篇",
   "blog_page_count": "第 {current}/{total} 页",
+  "blog_display_compact": "紧凑模式",
   "blog_page_size": "每页篇数",
   "blog_page_size_display": "每页 {count} 篇",
   "blog_empty": "没有符合当前视图的公开文章。",

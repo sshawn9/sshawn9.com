@@ -101,6 +101,7 @@ export type FoundationCopy = {
   blogArticleCountTemplate: string;
   blogArticleRangeTemplate: string;
   blogPageCountTemplate: string;
+  blogDisplayCompact: string;
   blogPageSize: string;
   blogPageSizeDisplayTemplate: string;
   blogEmpty: string;
@@ -235,6 +236,7 @@ export function getFoundationCopy(locale: Locale): FoundationCopy {
     blogArticleCountTemplate: m.blog_article_count({ count: '{count}' }, options),
     blogArticleRangeTemplate: m.blog_article_range({ range: '{range}', count: '{count}' }, options),
     blogPageCountTemplate: m.blog_page_count({ current: '{current}', total: '{total}' }, options),
+    blogDisplayCompact: staticMessage(m.blog_display_compact),
     blogPageSize: staticMessage(m.blog_page_size),
     blogPageSizeDisplayTemplate: m.blog_page_size_display({ count: '{count}' }, options),
     blogEmpty: staticMessage(m.blog_empty),

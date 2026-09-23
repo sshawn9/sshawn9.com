@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BLOG_PAGE_SIZES,
+  BLOG_DISPLAY_MODES,
   deriveBlogViewState,
   readBlogPageSize,
 } from '../../../apps/site/src/features/blog/runtime/blog-state';
@@ -16,13 +16,28 @@ const catalog = createBlogCatalog({
 const url = (query = '') => new URL(`https://sshawn9.com/en/blog/${query}`);
 
 describe('pagination from route and preference', () => {
-  it.each(BLOG_PAGE_SIZES)('retains page three with a preference of %i', (pageSize) => {
-    const state = deriveBlogViewState(catalog, url('?page=3'), pageSize);
-    expect(state.page).toBe(3);
-    expect(state.pageSize).toBe(pageSize);
-    expect(state.rangeStart).toBe(2 * pageSize + 1);
-    expect(state.rangeEnd).toBe(Math.min(3 * pageSize, 123));
-    expect(state.normalizedUrl.search).toBe('?page=3');
+  it.each(BLOG_DISPLAY_MODES.detailed.pageSizes)(
+    'retains page three with a preference of %i',
+    (pageSize) => {
+      const state = deriveBlogViewState(catalog, url('?page=3'), pageSize);
+      expect(state.page).toBe(3);
+      expect(state.pageSize).toBe(pageSize);
+      expect(state.rangeStart).toBe(2 * pageSize + 1);
+      expect(state.rangeEnd).toBe(Math.min(3 * pageSize, 123));
+      expect(state.normalizedUrl.search).toBe('?page=3');
+    },
+  );
+
+  it('uses the same paging rules for 100 articles per page', () => {
+    const state = deriveBlogViewState(catalog, url('?page=3'), 100);
+    expect(state.page).toBe(2);
+    expect(state.rangeStart).toBe(101);
+    expect(state.rangeEnd).toBe(123);
+    expect(state.previousUrl?.search).toBe('');
+    expect(state.nextUrl).toBeUndefined();
+    expect(readBlogPageSize('100', 'compact')).toBe(100);
+    expect(readBlogPageSize('5', 'compact')).toBe(15);
+    expect(readBlogPageSize('100', 'detailed')).toBe(5);
   });
 
   it('starts later operations at the clamped page without resurrecting the old page number', () => {
@@ -117,7 +132,9 @@ describe('pagination from route and preference', () => {
   });
 
   it('covers every article once for each preference and normalizes idempotently', () => {
-    for (const size of BLOG_PAGE_SIZES) {
+    for (const size of new Set(
+      Object.values(BLOG_DISPLAY_MODES).flatMap((mode) => mode.pageSizes),
+    )) {
       let state = deriveBlogViewState(catalog, url('?page=01&tag=Beta&tag=beta&tag=unknown'), size);
       const indices: number[] = [];
       for (;;) {

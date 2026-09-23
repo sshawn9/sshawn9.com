@@ -57,25 +57,40 @@ for (const width of [1440, 390]) {
   });
 }
 
-test('another tab synchronizes preference without adding history or moving a top-aligned page', async ({
+test('tabs keep their page sizes through navigation and reload while new tabs inherit the latest choice', async ({
   page,
   context,
 }) => {
   await page.goto('/en/blog/');
   await expect(size(page)).toBeEnabled();
   const other = await context.newPage();
-  await other.goto('/en/blog/?page=3');
-  await expect(size(other)).toBeEnabled();
-  const historyLength = await other.evaluate(() => history.length);
-  await choose(page, 20);
-  await expect(size(other)).toHaveAttribute('value', '20');
-  await expect(other).toHaveURL(/\/en\/blog\/$/);
-  expect(await other.evaluate(() => history.length)).toBe(historyLength);
-  expect(await other.evaluate(() => scrollY)).toBe(0);
-  await choose(other, 5);
-  await expect(size(page)).toHaveAttribute('value', '5');
-  await expect(page).toHaveURL(/\/en\/blog\/$/);
-  await other.close();
+  const fresh = await context.newPage();
+  try {
+    await other.goto('/en/blog/?page=3');
+    await expect(size(other)).toHaveAttribute('value', '5');
+    const historyLength = await other.evaluate(() => history.length);
+    await choose(page, 20);
+    await expect(size(other)).toHaveAttribute('value', '5');
+    await expect(other).toHaveURL(/\?page=3$/);
+    expect(await other.evaluate(() => history.length)).toBe(historyLength);
+    expect(await other.evaluate(() => scrollY)).toBe(0);
+    await other.reload();
+    await expect(size(other)).toHaveAttribute('value', '5');
+    expect(await other.evaluate(() => localStorage.getItem('blog-page-size'))).toBe('20');
+    await nav(page, 'Projects');
+    await expect(page).toHaveURL(/\/en\/projects\/$/);
+    await choose(other, 10);
+    await nav(page, 'Blog');
+    await expect(size(page)).toHaveAttribute('value', '20');
+    await page.reload();
+    await expect(size(page)).toHaveAttribute('value', '20');
+    expect(await page.evaluate(() => localStorage.getItem('blog-page-size'))).toBe('10');
+    await fresh.goto(new URL('/en/blog/', page.url()).href);
+    await expect(size(fresh)).toHaveAttribute('value', '10');
+  } finally {
+    await other.close();
+    await fresh.close();
+  }
 });
 
 test('denied storage retains the setting in memory across document navigation', async ({
@@ -121,11 +136,11 @@ test('history restores route state with the current preference and silently clam
   await expect(page).toHaveURL(/\?page=2$/);
 });
 
-test('the saved preference is applied before visible content and reconciled on pageshow', async ({
+test('the initial preference is visible immediately and pageshow preserves this tab’s choice', async ({
   page,
 }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('blog-page-size', '10');
+    if (!sessionStorage.getItem('blog-page-size')) localStorage.setItem('blog-page-size', '10');
     const sizes: string[] = [];
     Object.assign(window, { __blogSizes: sizes });
     const sample = () => {
@@ -150,10 +165,13 @@ test('the saved preference is applied before visible content and reconciled on p
     localStorage.setItem('blog-page-size', '20');
     dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
   });
-  await expect(size(page)).toHaveAttribute('value', '20');
+  await expect(size(page)).toHaveAttribute('value', '10');
+  await page.reload();
+  await expect(size(page)).toHaveAttribute('value', '10');
+  expect(await page.evaluate(() => localStorage.getItem('blog-page-size'))).toBe('20');
 });
 
-test('a preference changed after target preparation is applied before the client document swap', async ({
+test('another tab cannot replace this tab’s settings during a prepared document navigation', async ({
   page,
   context,
 }) => {
@@ -190,16 +208,16 @@ test('a preference changed after target preparation is applied before the client
       )
       .toBe('paused');
     await choose(other, 20);
-    // Storage is committed while the old document's pending render is discarded.
+    // Another tab changes the defaults for future tabs, not this prepared document.
     await expect.poll(() => page.evaluate(() => localStorage.getItem('blog-page-size'))).toBe('20');
     await page.evaluate(() =>
       (window as Window & { __blogOutgoing?: Animation }).__blogOutgoing?.finish(),
     );
     await expect(page).toHaveURL(/\/zh\/blog\/$/);
-    await expect(size(page)).toHaveAttribute('value', '20');
+    await expect(size(page)).toHaveAttribute('value', '5');
     expect(
       await page.evaluate(() => (window as Window & { __blogSwapSize?: string }).__blogSwapSize),
-    ).toBe('20');
+    ).toBe('5');
   } finally {
     await page.evaluate(() => {
       const animation = (window as Window & { __blogOutgoing?: Animation }).__blogOutgoing;

@@ -1,9 +1,21 @@
-export const BLOG_PAGE_SIZES = [5, 10, 20, 50] as const;
-export const DEFAULT_BLOG_PAGE_SIZE = 5;
+export const BLOG_DISPLAY_MODES = {
+  detailed: { pageSizes: [5, 10, 20, 50], defaultPageSize: 5 },
+  compact: { pageSizes: [15, 50, 100], defaultPageSize: 15 },
+} as const;
+export const DEFAULT_BLOG_DISPLAY_MODE = 'detailed';
 // Include the retired parameter so incoming development URLs can be cleaned locally.
 export const BLOG_VIEW_PARAMETERS = ['tag', 'page', 'pageSize'] as const;
 
-export type BlogPageSize = (typeof BLOG_PAGE_SIZES)[number];
+export type BlogDisplayMode = keyof typeof BLOG_DISPLAY_MODES;
+export type BlogPageSize = (typeof BLOG_DISPLAY_MODES)[BlogDisplayMode]['pageSizes'][number];
+export type BlogReadingSettings = {
+  readonly mode: BlogDisplayMode;
+  readonly pageSizes: Readonly<Record<BlogDisplayMode, BlogPageSize>>;
+};
+
+export function readBlogDisplayMode(value: string | undefined): BlogDisplayMode {
+  return value === 'compact' ? 'compact' : DEFAULT_BLOG_DISPLAY_MODE;
+}
 
 export type BlogCatalog = {
   filterable: boolean;
@@ -36,8 +48,12 @@ function singleParameter(url: URL, name: string): string | undefined {
   return values.length === 1 ? values[0] : undefined;
 }
 
-export function readBlogPageSize(value: string | undefined): BlogPageSize {
-  return BLOG_PAGE_SIZES.find((size) => String(size) === value) ?? DEFAULT_BLOG_PAGE_SIZE;
+export function readBlogPageSize(
+  value: string | undefined,
+  mode: BlogDisplayMode = DEFAULT_BLOG_DISPLAY_MODE,
+): BlogPageSize {
+  const { pageSizes, defaultPageSize } = BLOG_DISPLAY_MODES[mode];
+  return pageSizes.find((size) => String(size) === value) ?? defaultPageSize;
 }
 
 function readPage(value: string | undefined): number {

@@ -1,6 +1,10 @@
 ---
 import { formatUiCopy, type FoundationCopy } from '@sshawn9/site-i18n/copy';
-import { BLOG_PAGE_SIZES, DEFAULT_BLOG_PAGE_SIZE } from '../runtime/blog-state';
+import { BLOG_DISPLAY_MODES } from '../runtime/blog-state';
+const { pageSizes: detailedSizes, defaultPageSize } = BLOG_DISPLAY_MODES.detailed;
+const pageSizes = [
+  ...new Set(Object.values(BLOG_DISPLAY_MODES).flatMap((config) => config.pageSizes)),
+].sort((a, b) => a - b);
 
 interface Props {
   copy: FoundationCopy;
@@ -16,7 +20,7 @@ const menuId = 'blog-page-size-options';
     class="blog-page-size"
     data-blog-page-size
     data-page-size-template={copy.blogPageSizeDisplayTemplate}
-    value={DEFAULT_BLOG_PAGE_SIZE}
+    value={defaultPageSize}
     aria-label={copy.blogPageSize}
     aria-haspopup="listbox"
     aria-controls={menuId}
@@ -24,8 +28,15 @@ const menuId = 'blog-page-size-options';
     popovertarget={menuId}
     disabled
   >
-    <span class="blog-page-size-copy" data-blog-page-size-value>
-      {formatUiCopy(copy.blogPageSizeDisplayTemplate, { count: DEFAULT_BLOG_PAGE_SIZE })}
+    <span
+      class="blog-page-size-copy"
+      data-width-label={formatUiCopy(copy.blogPageSizeDisplayTemplate, {
+        count: Math.max(...pageSizes),
+      })}
+    >
+      <span data-blog-page-size-value>
+        {formatUiCopy(copy.blogPageSizeDisplayTemplate, { count: defaultPageSize })}
+      </span>
     </span>
     <svg
       class="blog-page-size-chevron"
@@ -54,14 +65,15 @@ const menuId = 'blog-page-size-options';
     hidden
   >
     {
-      BLOG_PAGE_SIZES.map((size) => (
+      pageSizes.map((size) => (
         <div
           id={`${menuId}-${size}`}
           class="blog-page-size-option"
           data-blog-page-size-option
           data-value={size}
+          hidden={!detailedSizes.some((value) => value === size)}
           role="option"
-          aria-selected={size === DEFAULT_BLOG_PAGE_SIZE}
+          aria-selected={size === defaultPageSize}
         >
           <svg
             class="blog-page-size-check"

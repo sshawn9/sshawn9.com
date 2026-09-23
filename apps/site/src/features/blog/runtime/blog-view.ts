@@ -2,7 +2,9 @@ import { formatUiCopy } from '@sshawn9/site-i18n/copy';
 import {
   deriveBlogViewState,
   type BlogCatalog,
-  type BlogPageSize,
+  DEFAULT_BLOG_DISPLAY_MODE,
+  type BlogDisplayMode,
+  type BlogReadingSettings,
   type BlogViewState,
 } from './blog-state';
 import { createBlogPageSizeView } from './blog-page-size-view';
@@ -72,6 +74,7 @@ export function createBlogView(listing: HTMLElement) {
   const currentPage = listing.querySelector<HTMLElement>('[data-blog-page-current]');
   const totalPages = listing.querySelector<HTMLElement>('[data-blog-page-total]');
   const pageSize = createBlogPageSizeView(listing);
+  const compactToggle = listing.querySelector<HTMLButtonElement>('[data-blog-compact-toggle]');
   const empty = listing.querySelector<HTMLElement>('[data-blog-empty]');
   const pagination = listing.querySelector<HTMLElement>('[data-blog-pagination]');
   const pageTargetTemplate = pagination?.dataset.pageTargetTemplate ?? '{page}';
@@ -81,8 +84,12 @@ export function createBlogView(listing: HTMLElement) {
   return {
     catalog,
     pageSize,
-    render(state: BlogViewState): void {
-      const paginationHadFocus = pagination?.contains(listing.ownerDocument.activeElement);
+    render(state: BlogViewState, mode: BlogDisplayMode = DEFAULT_BLOG_DISPLAY_MODE): void {
+      const activeElement = listing.ownerDocument.activeElement;
+      const paginationHadFocus = pagination?.contains(activeElement);
+      const focusedArticle = activeElement?.closest<HTMLElement>('[data-blog-article]');
+      const metadataWillHide =
+        mode === 'compact' && Boolean(activeElement?.closest('.blog-article-meta'));
       const visible = new Set(state.visibleIndices);
       articles.forEach((article, index) => {
         const hidden = !visible.has(index);
@@ -117,7 +124,9 @@ export function createBlogView(listing: HTMLElement) {
             })
           : '',
       );
-      pageSize?.render(state.pageSize);
+      listing.dataset.blogDisplayMode = mode;
+      compactToggle?.setAttribute('aria-checked', String(mode === 'compact'));
+      pageSize?.render(state.pageSize, mode);
       setText(currentPage, String(state.page));
       setText(totalPages, String(state.pageCount));
       if (empty) empty.hidden = state.resultCount !== 0;
@@ -128,7 +137,17 @@ export function createBlogView(listing: HTMLElement) {
       listing.dataset.currentPage = String(state.page);
       listing.dataset.pageSize = String(state.pageSize);
       listing.setAttribute('data-blog-view-ready', '');
-      if (paginationHadFocus && pagination?.hidden && count) {
+      const retainedTitle =
+        metadataWillHide && !focusedArticle?.hidden
+          ? focusedArticle?.querySelector<HTMLAnchorElement>('h2 a')
+          : undefined;
+      if (retainedTitle) retainedTitle.focus({ preventScroll: true });
+      else if (
+        (focusedArticle?.hidden ||
+          metadataWillHide ||
+          (paginationHadFocus && pagination?.hidden)) &&
+        count
+      ) {
         count.tabIndex = -1;
         count.focus({ preventScroll: true });
       }
@@ -139,10 +158,13 @@ export function createBlogView(listing: HTMLElement) {
 export function prepareTargetBlogView(
   targetDocument: Document,
   targetUrl: URL,
-  pageSize: BlogPageSize,
+  settings: BlogReadingSettings,
 ): void {
   const listing = targetDocument.querySelector<HTMLElement>('[data-blog-listing]');
   if (!listing) return;
   const view = createBlogView(listing);
-  view.render(deriveBlogViewState(view.catalog, targetUrl, pageSize));
+  view.render(
+    deriveBlogViewState(view.catalog, targetUrl, settings.pageSizes[settings.mode]),
+    settings.mode,
+  );
 }

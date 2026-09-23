@@ -236,21 +236,16 @@ for (const locale of ['zh', 'en']) {
 test('hiding the focused dock repairs focus, and leaving the page clears layout ownership', async ({
   page,
 }) => {
+  await page.addInitScript(() => localStorage.setItem('blog-compact-page-size', '100'));
   await page.goto('/zh/blog/');
   await expect(size(page)).toBeEnabled();
   await size(page).click();
   await page.getByRole('option', { name: '5', exact: true }).click();
   await expect(dock(page)).toBeVisible();
   await next(page).focus();
-  await page.evaluate(() => {
-    localStorage.setItem('blog-page-size', '50');
-    window.dispatchEvent(
-      new StorageEvent('storage', {
-        key: 'blog-page-size',
-        newValue: '50',
-        storageArea: localStorage,
-      }),
-    );
+  // Programmatic activation preserves the dock's focus while the local mode changes.
+  await page.locator('[data-blog-compact-toggle]').evaluate((element) => {
+    (element as HTMLButtonElement).click();
   });
   await expect(dock(page)).toBeHidden();
   await expect(page.locator('[data-blog-result-count]')).toBeFocused();

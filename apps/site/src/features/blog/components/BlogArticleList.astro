@@ -18,6 +18,17 @@ const { locale, articles, copy } = Astro.props;
 
 <div class="blog-results" data-blog-results>
   <div class="blog-results-toolbar">
+    <button
+      type="button"
+      class="blog-compact-switch"
+      data-blog-compact-toggle
+      role="switch"
+      aria-checked="false"
+      disabled
+    >
+      <span>{copy.blogDisplayCompact}</span>
+      <span class="blog-compact-switch__track" aria-hidden="true"></span>
+    </button>
     <p class="blog-result-count" data-blog-result-count aria-live="polite" aria-atomic="true">
       {copy.blogArticleCountTemplate.replace('{count}', String(articles.length))}
     </p>
