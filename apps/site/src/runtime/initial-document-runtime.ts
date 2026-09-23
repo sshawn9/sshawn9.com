@@ -2,7 +2,7 @@ import { prepareTargetArticleSidebarState } from '../features/article/runtime/ar
 import { synchronizeArticleToc } from '../features/article/runtime/article-toc-state';
 import { prepareTargetBlogSidebarState } from '../features/blog/runtime/blog-sidebar-state';
 import { prepareTargetBlogView } from '../features/blog/runtime/blog-view';
-import { getBlogPageSizePreference } from '../features/blog/runtime/blog-page-size-preference';
+import { getBlogReadingPreference } from '../features/blog/runtime/blog-reading-preference';
 import { prepareBlogPaginationLayout } from '../features/blog/runtime/blog-pagination-layout';
 import {
   armInitialScrollRestoration,
@@ -43,7 +43,7 @@ export function installInitialDocumentRuntime(
       prepareTargetBlogView(
         sourceDocument,
         targetUrl,
-        getBlogPageSizePreference(sourceWindow).get(),
+        getBlogReadingPreference(sourceWindow).get(),
       ),
     () => prepareTargetBlogSidebarState(sourceDocument, sourceWindow),
     () => prepareTargetArticleSidebarState(sourceDocument, sourceWindow),

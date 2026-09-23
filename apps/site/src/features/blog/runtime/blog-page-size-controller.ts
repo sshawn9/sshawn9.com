@@ -8,8 +8,8 @@ export function createBlogPageSizeController(
   view: BlogPageSizeView,
   sourceWindow: Window,
   commit: (value: BlogPageSize) => void,
-): { destroy(): void } {
-  const { trigger, popup, options } = view;
+): { close(): void; destroy(): void } {
+  const { trigger, popup } = view;
   const sourceDocument = trigger.ownerDocument;
   const listeners = new AbortController();
   const parent = popup.parentNode!;
@@ -34,7 +34,7 @@ export function createBlogPageSizeController(
     trigger.removeAttribute('aria-activedescendant');
     popup.hidden = true;
     popup.removeAttribute('data-positioned');
-    for (const { element } of options) element.removeAttribute('data-active');
+    for (const { element } of view.options) element.removeAttribute('data-active');
     activeIndex = -1;
     typed = '';
     return true;
@@ -47,7 +47,7 @@ export function createBlogPageSizeController(
   }
 
   function revealActiveOption(): void {
-    const option = options[activeIndex]?.element;
+    const option = view.options[activeIndex]?.element;
     if (!option || !popup.hasAttribute('data-positioned')) return;
     const item = option.getBoundingClientRect();
     const menu = popup.getBoundingClientRect();
@@ -57,11 +57,11 @@ export function createBlogPageSizeController(
   }
 
   function highlight(index: number): void {
-    activeIndex = Math.max(0, Math.min(options.length - 1, index));
-    for (const [position, option] of options.entries()) {
+    activeIndex = Math.max(0, Math.min(view.options.length - 1, index));
+    for (const [position, option] of view.options.entries()) {
       option.element.toggleAttribute('data-active', position === activeIndex);
     }
-    const active = options[activeIndex];
+    const active = view.options[activeIndex];
     if (active) trigger.setAttribute('aria-activedescendant', active.element.id);
     revealActiveOption();
   }
@@ -74,7 +74,7 @@ export function createBlogPageSizeController(
     popup.style.maxHeight = '';
     popup.scrollTop = 0;
     trigger.setAttribute('aria-expanded', 'true');
-    highlight(options.findIndex((option) => String(option.value) === trigger.value));
+    highlight(view.options.findIndex((option) => String(option.value) === trigger.value));
     trigger.focus({ preventScroll: true });
 
     try {
@@ -143,7 +143,7 @@ export function createBlogPageSizeController(
   }
 
   function choose(index: number): void {
-    const option = options[index];
+    const option = view.options[index];
     if (!opened || !option) return;
     close(true);
     // The displayed value may lag behind a queued refresh. Always confirm the
@@ -179,7 +179,7 @@ export function createBlogPageSizeController(
     if (event.key === 'Home' || event.key === 'End') {
       event.preventDefault();
       open();
-      highlight(event.key === 'Home' ? 0 : options.length - 1);
+      highlight(event.key === 'Home' ? 0 : view.options.length - 1);
       return;
     }
     if (/^\d$/.test(event.key) && !event.altKey) {
@@ -188,10 +188,10 @@ export function createBlogPageSizeController(
       const now = sourceWindow.performance.now();
       typed = now - lastTypedAt < 700 ? typed + event.key : event.key;
       lastTypedAt = now;
-      let index = options.findIndex((option) => String(option.value).startsWith(typed));
+      let index = view.options.findIndex((option) => String(option.value).startsWith(typed));
       if (index < 0) {
         typed = event.key;
-        index = options.findIndex((option) => String(option.value).startsWith(typed));
+        index = view.options.findIndex((option) => String(option.value).startsWith(typed));
       }
       if (index >= 0) highlight(index);
     }
@@ -238,7 +238,9 @@ export function createBlogPageSizeController(
     popup.addEventListener(
       'click',
       (event) => {
-        const index = options.findIndex(({ element }) => element.contains(event.target as Node));
+        const index = view.options.findIndex(({ element }) =>
+          element.contains(event.target as Node),
+        );
         choose(index);
       },
       { signal: listeners.signal },
@@ -247,7 +249,9 @@ export function createBlogPageSizeController(
       'pointermove',
       (event) => {
         if (!opened || event.pointerType === 'touch') return;
-        const index = options.findIndex(({ element }) => element.contains(event.target as Node));
+        const index = view.options.findIndex(({ element }) =>
+          element.contains(event.target as Node),
+        );
         if (index >= 0 && index !== activeIndex) highlight(index);
       },
       { signal: listeners.signal },
@@ -284,7 +288,7 @@ export function createBlogPageSizeController(
     sourceWindow.visualViewport?.addEventListener('resize', () => close(), {
       signal: listeners.signal,
     });
-    return { destroy };
+    return { close, destroy };
   } catch (error) {
     rethrowAfterCleanup(error, destroy);
   }

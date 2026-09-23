@@ -125,23 +125,17 @@ test('filtering and language navigation share the preference while retired query
     await expect(select(page)).toHaveText(`${value} per page`);
     await expect(page).toHaveURL(/\?tag=astro$/);
     await expect(page.locator('[data-blog-pagination]')).toBeHidden();
-    await expect(page.locator('[data-blog-page-size-option-label]')).toHaveText([
-      '5',
-      '10',
-      '20',
-      '50',
-    ]);
+    await expect(
+      page.locator('[data-blog-page-size-option]:not([hidden]) [data-blog-page-size-option-label]'),
+    ).toHaveText(['5', '10', '20', '50']);
   }
   await page.locator('[data-locale-switch="zh"]:visible').click();
   await expect(page).toHaveURL(/\/zh\/blog\/\?tag=astro$/);
   await expect(select(page)).toHaveAttribute('value', '50');
   await expect(select(page)).toHaveText('每页 50 篇');
-  await expect(page.locator('[data-blog-page-size-option-label]')).toHaveText([
-    '5',
-    '10',
-    '20',
-    '50',
-  ]);
+  await expect(
+    page.locator('[data-blog-page-size-option]:not([hidden]) [data-blog-page-size-option-label]'),
+  ).toHaveText(['5', '10', '20', '50']);
   await page.goto('/en/blog/?pageSize=5');
   await expect(page).toHaveURL(/\/en\/blog\/$/);
   await expect(select(page)).toHaveAttribute('value', '50');

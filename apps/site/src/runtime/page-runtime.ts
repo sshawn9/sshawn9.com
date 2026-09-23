@@ -4,7 +4,7 @@ import { synchronizeArticleToc } from '../features/article/runtime/article-toc-s
 import { mountBlogPage } from '../features/blog/runtime/blog-controller';
 import { prepareTargetBlogSidebarState } from '../features/blog/runtime/blog-sidebar-state';
 import { prepareTargetBlogView } from '../features/blog/runtime/blog-view';
-import { getBlogPageSizePreference } from '../features/blog/runtime/blog-page-size-preference';
+import { getBlogReadingPreference } from '../features/blog/runtime/blog-reading-preference';
 import { prepareBlogPaginationLayout } from '../features/blog/runtime/blog-pagination-layout';
 import { mountSearchPage } from '../features/search/runtime/search-controller';
 import {
@@ -53,7 +53,7 @@ export function createPageRuntime(
       prepareTargetBlogView(
         targetDocument,
         targetUrl,
-        getBlogPageSizePreference(sourceWindow).get(),
+        getBlogReadingPreference(sourceWindow).get(),
       );
       prepareTargetBlogSidebarState(targetDocument, sourceWindow);
       prepareTargetArticleSidebarState(targetDocument, sourceWindow);
@@ -64,7 +64,7 @@ export function createPageRuntime(
       prepareTargetBlogView(
         targetDocument,
         targetUrl,
-        getBlogPageSizePreference(sourceWindow).get(),
+        getBlogReadingPreference(sourceWindow).get(),
       );
       pendingSearchScroll = targetDocument.querySelector('[data-site-search]')
         ? readCurrentScroll(sourceWindow, targetUrl)

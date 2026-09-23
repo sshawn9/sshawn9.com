@@ -21,7 +21,8 @@ vi.mock('../../../apps/site/src/features/blog/runtime/blog-view', async () => {
   };
 });
 
-const sizeMarkup = `<button data-blog-page-size data-page-size-template="{count} per page" disabled value="5"><span data-blog-page-size-value>5 per page</span></button>
+const controlsMarkup = `<button data-blog-compact-toggle role="switch" aria-checked="false" disabled>Compact</button>
+  <button data-blog-page-size data-page-size-template="{count} per page" disabled value="5"><span data-blog-page-size-value>5 per page</span></button>
   <div data-blog-page-size-menu id="size-menu" hidden>
     <div data-blog-page-size-option data-value="5" id="size-5"><span data-blog-page-size-option-label>5</span></div>
   </div>`;
@@ -34,7 +35,7 @@ test('releases a returned sidebar when subsequent blog initialization fails', ()
     <main data-blog-listing><div data-blog-sidebar-layout>
       <button data-blog-mobile-toggle aria-expanded="false"></button>
       <div data-blog-mobile-panel aria-hidden="true"></div>
-      ${sizeMarkup}
+      ${controlsMarkup}
     </div></main>
   </body></html>`);
   const document = dom.document as unknown as Document;
@@ -72,6 +73,7 @@ test('releases a returned sidebar when subsequent blog initialization fails', ()
   expect(mobilePanel.inert).toBe(false);
   expect(mobilePanel.hasAttribute('aria-hidden')).toBe(false);
   expect(listing.querySelector('[data-blog-page-size]')?.hasAttribute('disabled')).toBe(true);
+  expect(listing.querySelector('[data-blog-compact-toggle]')?.hasAttribute('disabled')).toBe(true);
   expect(listing.querySelector('[data-blog-page-size-menu]')).not.toBeNull();
 });
 
@@ -81,7 +83,7 @@ test('the page owner restores mobile fallback on destroy and enables it for a la
     <main data-blog-listing><div data-blog-sidebar-layout>
       <button data-blog-mobile-toggle disabled aria-disabled="true"></button>
       <div data-blog-mobile-panel aria-hidden="true"></div>
-      ${sizeMarkup}
+      ${controlsMarkup}
     </div></main>
   </body></html>`);
   const document = dom.document as unknown as Document;
@@ -107,10 +109,12 @@ test('the page owner restores mobile fallback on destroy and enables it for a la
   const first = mountBlogPage(document, sourceWindow as unknown as Window, navigation)!;
   expect(mobileDisclosure.disabled).toBe(false);
   expect(listing.querySelector('[data-blog-page-size]')?.hasAttribute('disabled')).toBe(false);
+  expect(listing.querySelector('[data-blog-compact-toggle]')?.hasAttribute('disabled')).toBe(false);
   first.destroy();
   expect(firstSidebarDestroy).toHaveBeenCalledOnce();
   expect(mobileDisclosure.disabled).toBe(true);
   expect(listing.querySelector('[data-blog-page-size]')?.hasAttribute('disabled')).toBe(true);
+  expect(listing.querySelector('[data-blog-compact-toggle]')?.hasAttribute('disabled')).toBe(true);
   expect(listing.querySelector('[data-blog-page-size-menu]')).not.toBeNull();
   expect(mobilePanel.inert).toBe(false);
   expect(mobilePanel.hasAttribute('aria-hidden')).toBe(false);

@@ -130,35 +130,46 @@ test('opened options remain opaque and readable in both themes, with distinct se
   }
 });
 
-test('the control stays compact and the menu matches its width across languages and sizes', async ({
-  page,
-}) => {
+test('the control and menu keep a stable width across page sizes and modes', async ({ page }) => {
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     for (const locale of ['zh', 'en']) {
       await page.goto(`/${locale}/blog/`);
-      for (const value of ['5', '10', '20', '50']) {
-        await trigger(page).click();
-        await option(page, value).click();
-        await expect(trigger(page)).toHaveAttribute('value', value);
-        await trigger(page).click();
-        await expect(menu(page)).toBeVisible();
-        const button = (await trigger(page).boundingBox())!;
-        const popup = (await menu(page).boundingBox())!;
-        const gap = await trigger(page).evaluate((element) => {
-          const text = element
-            .querySelector('[data-blog-page-size-value]')!
-            .getBoundingClientRect();
-          const arrow = element.querySelector('svg')!.getBoundingClientRect();
-          return arrow.left - text.right;
-        });
-        expect(gap).toBeCloseTo(6, 1);
-        expect(Math.abs(popup.width - button.width)).toBeLessThan(0.5);
-        expect(Math.abs(popup.x - button.x)).toBeLessThan(0.5);
-        expect(
-          await menu(page).evaluate((element) => element.scrollWidth > element.clientWidth),
-        ).toBe(false);
-        await trigger(page).press('Escape');
+      await expect(trigger(page)).toBeEnabled();
+      const initial = (await trigger(page).boundingBox())!;
+      for (const [mode, values] of [
+        ['detailed', ['5', '10', '20', '50']],
+        ['compact', ['15', '50', '100']],
+      ] as const) {
+        const toggle = page.locator('[data-blog-compact-toggle]');
+        const checked = String(mode === 'compact');
+        if ((await toggle.getAttribute('aria-checked')) !== checked) await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-checked', checked);
+        for (const value of values) {
+          await trigger(page).click();
+          await option(page, value).click();
+          await expect(trigger(page)).toHaveAttribute('value', value);
+          await trigger(page).click();
+          await expect(menu(page)).toBeVisible();
+          const button = (await trigger(page).boundingBox())!;
+          const popup = (await menu(page).boundingBox())!;
+          const gap = await trigger(page).evaluate((element) => {
+            const text = element
+              .querySelector('[data-blog-page-size-value]')!
+              .getBoundingClientRect();
+            const arrow = element.querySelector('svg')!.getBoundingClientRect();
+            return arrow.left - text.right;
+          });
+          expect(Math.abs(button.width - initial.width)).toBeLessThan(0.5);
+          expect(Math.abs(button.x - initial.x)).toBeLessThan(0.5);
+          expect(gap).toBeCloseTo(6, 1);
+          expect(Math.abs(popup.width - button.width)).toBeLessThan(0.5);
+          expect(Math.abs(popup.x - button.x)).toBeLessThan(0.5);
+          expect(
+            await menu(page).evaluate((element) => element.scrollWidth > element.clientWidth),
+          ).toBe(false);
+          await trigger(page).press('Escape');
+        }
       }
     }
   }

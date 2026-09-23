@@ -159,6 +159,7 @@
   "blog_article_count": "Articles: {count}",
   "blog_article_range": "Articles {range} of {count}",
   "blog_page_count": "Page {current} of {total}",
+  "blog_display_compact": "Compact",
   "blog_page_size": "Articles per page",
   "blog_page_size_display": "{count} per page",
   "blog_empty": "No public articles match the current view.",

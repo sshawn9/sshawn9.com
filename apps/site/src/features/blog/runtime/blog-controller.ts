@@ -3,13 +3,13 @@ import {
   BLOG_VIEW_PARAMETERS,
   deriveBlogViewState,
   type BlogIntent,
-  type BlogPageSize,
+  type BlogReadingSettings,
 } from './blog-state';
 import { createBlogView } from './blog-view';
 import { createBlogPageSizeController } from './blog-page-size-controller';
 import { createBlogPaginationLayout } from './blog-pagination-layout';
 import { bindBlogPaginationTooltips } from './blog-pagination-tooltips';
-import { getBlogPageSizePreference } from './blog-page-size-preference';
+import { getBlogReadingPreference } from './blog-reading-preference';
 import { rethrowAfterCleanup, runCleanups } from '../../../runtime/cleanup';
 import {
   belongsToView,
@@ -29,16 +29,18 @@ function createBlogPageController(
 ): PageController {
   const listeners = new AbortController();
   const view = createBlogView(listing);
-  const preference = getBlogPageSizePreference(sourceWindow);
+  const preference = getBlogReadingPreference(sourceWindow);
+  const initialSettings = preference.get();
   const initialState = deriveBlogViewState(
     view.catalog,
     new URL(sourceWindow.location.href),
-    preference.get(),
+    initialSettings.pageSizes[initialSettings.mode],
   );
   const resource = {
     resourceUrl: initialState.normalizedUrl,
     queryParameters: BLOG_VIEW_PARAMETERS,
   };
+  const compactToggle = listing.querySelector<HTMLButtonElement>('[data-blog-compact-toggle]');
   const layout = listing.querySelector<HTMLElement>('[data-blog-sidebar-layout]');
   let sidebarController: BlogSidebarController | undefined;
   let pageSizeController: ReturnType<typeof createBlogPageSizeController> | undefined;
@@ -75,27 +77,31 @@ function createBlogPageController(
       () => paginationLayout?.destroy(),
       restoreMobileFallback,
       () => view.pageSize?.trigger.setAttribute('disabled', ''),
+      () => compactToggle?.setAttribute('disabled', ''),
       () => listing.removeAttribute('data-blog-runtime-ready'),
     );
   };
 
-  const resolve = (url: URL, pageSize: BlogPageSize, intent?: BlogIntent): ViewUpdate => {
-    const state = deriveBlogViewState(view.catalog, url, pageSize, intent);
+  const resolve = (url: URL, settings: BlogReadingSettings, intent?: BlogIntent): ViewUpdate => {
+    const state = deriveBlogViewState(view.catalog, url, settings.pageSizes[settings.mode], intent);
     return {
       url: state.normalizedUrl,
-      apply: () => view.render(state),
+      apply: () => {
+        if (view.pageSize?.mode !== settings.mode) pageSizeController?.close();
+        view.render(state, settings.mode);
+      },
       afterApply: () => paginationLayout?.update(),
     };
   };
 
-  const refresh = (pageSize = preference.get()) => {
-    navigation.requestViewRefresh((url) => resolve(url, pageSize));
+  const refresh = (settings = preference.get()) => {
+    navigation.requestViewRefresh((url) => resolve(url, settings));
   };
 
   const request = (intent: BlogIntent, sourceElement: Element) => {
     // Capture this action's preference now; resolve its page after earlier actions commit.
-    const pageSize = preference.get();
-    navigation.requestViewUpdate((url) => resolve(url, pageSize, intent), {
+    const settings = preference.get();
+    navigation.requestViewUpdate((url) => resolve(url, settings, intent), {
       sourceElement,
       resolveScroll: intent.kind === 'page' ? paginationLayout?.resolveScroll : undefined,
     });
@@ -141,9 +147,20 @@ function createBlogPageController(
     paginationLayout = createBlogPaginationLayout(listing, sourceWindow);
     bindBlogPaginationTooltips(listing, sourceWindow, listeners.signal);
     listing.addEventListener('click', handleClick, { signal: listeners.signal });
+    compactToggle?.addEventListener(
+      'click',
+      () => {
+        // Read the latest choice so rapid clicks still toggle while rendering is queued.
+        preference.setMode(preference.get().mode === 'compact' ? 'detailed' : 'compact');
+      },
+      { signal: listeners.signal },
+    );
     if (view.pageSize) {
       const sizeView = view.pageSize;
-      pageSizeController = createBlogPageSizeController(sizeView, sourceWindow, preference.set);
+      pageSizeController = createBlogPageSizeController(sizeView, sourceWindow, (size) => {
+        // Commit to the mode the user is actually looking at, even during a queued update.
+        preference.setPageSize(sizeView.mode, size);
+      });
     }
     mobileDisclosure?.addEventListener(
       'click',
@@ -155,11 +172,12 @@ function createBlogPageController(
     );
     mobileMedia.addEventListener('change', applyMobileDisclosure, { signal: listeners.signal });
 
-    view.render(initialState);
+    view.render(initialState, initialSettings.mode);
     applyMobileDisclosure();
     paginationLayout?.update();
     listing.setAttribute('data-blog-runtime-ready', '');
     enableMobileDisclosure();
+    compactToggle?.removeAttribute('disabled');
     view.pageSize?.trigger.removeAttribute('disabled');
     preference.subscribe(refresh, listeners.signal);
   } catch (error) {
