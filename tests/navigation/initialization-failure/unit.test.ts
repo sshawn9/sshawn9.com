@@ -2,6 +2,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { parseHTML } from 'linkedom';
 import { installNavigationCoordinator } from '../../../apps/site/src/runtime/navigation-coordinator';
 import type { PageRuntime } from '../../../apps/site/src/runtime/page-runtime';
+import { navigate } from 'astro:transitions/client';
+import type { ViewUpdate } from '../../../apps/site/src/runtime/page-navigation';
 
 const hooks = vi.hoisted(() => ({
   prepare: vi.fn(),
@@ -53,6 +55,7 @@ function fixture() {
     location,
     scrollX: 0,
     scrollY: 0,
+    scrollTo: vi.fn(),
     history: { state: null, replaceState: vi.fn() },
     sessionStorage: { getItem: () => null, removeItem() {} },
     addEventListener: vi.fn(),
@@ -85,6 +88,7 @@ function fixture() {
     path = '/en/projects/',
     loader: () => Promise<void> = async () => {},
     navigationType: 'push' | 'replace' | 'traverse' = 'push',
+    info?: unknown,
   ) => {
     const controller = new AbortController();
     const event = {
@@ -92,6 +96,7 @@ function fixture() {
       to: new URL(path, location),
       newDocument: document,
       navigationType,
+      info,
       signal: controller.signal,
       defaultPrevented: false,
       loader,
@@ -105,7 +110,11 @@ function fixture() {
     return { event, controller };
   };
   const swap = (preparation: ReturnType<typeof begin>) => {
-    const event = { ...preparation.event, swap: vi.fn() };
+    const event = {
+      ...preparation.event,
+      swap: vi.fn(),
+      viewTransition: { skipTransition: vi.fn(), ready: Promise.resolve() },
+    };
     emit('astro:before-swap', event);
     event.swap();
     location.href = event.to.href;
@@ -133,6 +142,120 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+function viewFixture() {
+  const f = fixture();
+  const view = {
+    resourceUrl: new URL(f.location),
+    queryParameters: ['page'],
+    normalize: (url: URL) => url,
+    apply: vi.fn(),
+    resolve: vi.fn((source: URL): ViewUpdate => {
+      const url = view.normalize(source);
+      return { url, apply: (context) => view.apply(url, context) };
+    }),
+  };
+  vi.mocked(f.pages.resolveView).mockReturnValue(view);
+  const update = (url: URL) => {
+    url.searchParams.set('page', String(Number(url.searchParams.get('page') ?? '1') + 1));
+    return view.resolve(url);
+  };
+  return { ...f, view, update };
+}
+
+it('applies view updates against the committed URL', async () => {
+  const f = viewFixture();
+  vi.mocked(navigate).mockImplementation(async (href, options) => {
+    const preparation = f.begin(href, undefined, 'push', options?.info);
+    f.swap(preparation);
+  });
+  f.coordinator.requestViewUpdate(f.update);
+  await Promise.resolve();
+  expect(f.view.apply.mock.calls[0]?.[0].search).toBe('?page=2');
+  expect(f.sourceWindow.reportError).not.toHaveBeenCalled();
+  f.coordinator.dispose();
+});
+
+it('resolves requested scrolling against the rendered view after restoring the origin', async () => {
+  const f = viewFixture();
+  const resolveScroll = vi.fn(() => {
+    expect(f.view.apply).toHaveBeenCalledOnce();
+    expect(f.sourceWindow.scrollTo).toHaveBeenCalledExactlyOnceWith({
+      left: 0,
+      top: 0,
+      behavior: 'instant',
+    });
+    return { x: 0, y: 96 };
+  });
+  vi.mocked(navigate).mockImplementation(async (href, options) => {
+    f.swap(f.begin(href, undefined, 'push', options?.info));
+  });
+  f.coordinator.requestViewUpdate(f.update, { resolveScroll });
+  await Promise.resolve();
+  expect(resolveScroll).toHaveBeenCalledOnce();
+  expect(f.sourceWindow.scrollTo).toHaveBeenLastCalledWith({
+    left: 0,
+    top: 96,
+    behavior: 'instant',
+  });
+  f.coordinator.dispose();
+});
+
+it('fails the queue when Astro resolves without a view commit and permits a later retry', async () => {
+  const f = viewFixture();
+  vi.mocked(navigate).mockResolvedValue(undefined);
+  f.coordinator.requestViewUpdate(f.update);
+  f.coordinator.requestViewUpdate(f.update);
+  await Promise.resolve();
+  expect(navigate).toHaveBeenCalledOnce();
+  expect(f.sourceWindow.reportError).toHaveBeenCalledOnce();
+  vi.mocked(navigate).mockImplementation(async (href, options) =>
+    f.swap(f.begin(href, undefined, 'push', options?.info)),
+  );
+  f.coordinator.requestViewUpdate(f.update);
+  await Promise.resolve();
+  expect(f.location.search).toBe('?page=2');
+  f.coordinator.dispose();
+});
+
+it('settles cancelled and duplicate pending intents without reporting success or replaying successors', async () => {
+  const f = viewFixture();
+  let pending!: ReturnType<typeof f.begin>;
+  let release!: () => void;
+  vi.mocked(navigate).mockImplementation((href, options) => {
+    pending = f.begin(href, undefined, 'push', options?.info);
+    return new Promise<void>((resolve) => {
+      release = resolve;
+    });
+  });
+  f.coordinator.requestViewUpdate(f.update);
+  f.coordinator.requestViewUpdate(f.update);
+  f.coordinator.requestViewUpdate((url) => f.view.resolve(url));
+  pending.controller.abort();
+  release();
+  await Promise.resolve();
+  expect(navigate).toHaveBeenCalledOnce();
+  expect(f.view.apply).not.toHaveBeenCalled();
+  expect(f.sourceWindow.reportError).not.toHaveBeenCalled();
+  f.coordinator.dispose();
+});
+
+it('recovers a failed view render by reloading the committed history entry', async () => {
+  const f = viewFixture();
+  const failure = new Error('view render failed');
+  f.view.apply.mockImplementation(() => {
+    throw failure;
+  });
+  vi.mocked(navigate).mockImplementation(async (href, options) =>
+    f.swap(f.begin(href, undefined, 'push', options?.info)),
+  );
+  f.coordinator.requestViewUpdate(f.update);
+  await Promise.resolve();
+  expect(f.location.search).toBe('?page=2');
+  expect(f.location.reload).toHaveBeenCalledOnce();
+  expect(f.sourceWindow.reportError).toHaveBeenCalledExactlyOnceWith(failure);
+  f.coordinator.dispose();
 });
 
 it('ends failed mounting feedback and allows the next navigation to complete', async () => {
@@ -388,4 +511,146 @@ it('restores the prepared transparent target even when cancelling the outgoing a
   expect(incoming.style.opacity ?? '').toBe('');
   expect(outgoing.style.opacity ?? '').toBe('');
   expect(() => transition.cancel()).not.toThrow();
+});
+
+it('orders a replacing preference refresh after a page and before the next page action', async () => {
+  const f = viewFixture();
+  let maximum = 3;
+  f.view.normalize = (url) => {
+    const page = Math.min(Number(url.searchParams.get('page') ?? 1), maximum);
+    if (page > 1) url.searchParams.set('page', String(page));
+    else url.searchParams.delete('page');
+    return url;
+  };
+  let pending!: ReturnType<typeof f.begin>;
+  let release!: () => void;
+  vi.mocked(navigate).mockImplementation((href, options) => {
+    pending = f.begin(
+      href,
+      undefined,
+      options?.history === 'replace' ? 'replace' : 'push',
+      options?.info,
+    );
+    return new Promise<void>((resolve) => {
+      release = resolve;
+    });
+  });
+  f.coordinator.requestViewUpdate(f.update);
+  f.coordinator.requestViewRefresh((url) => {
+    maximum = 1;
+    return f.view.resolve(url);
+  });
+  f.coordinator.requestViewUpdate(f.update);
+  expect(maximum).toBe(3);
+  f.swap(pending);
+  release();
+  await Promise.resolve();
+  expect(maximum).toBe(1);
+  expect(navigate).toHaveBeenCalledTimes(2);
+  expect(vi.mocked(navigate).mock.calls[1]?.[1]?.history).toBe('replace');
+  f.swap(pending);
+  release();
+  await Promise.resolve();
+  expect(f.location.search).toBe('');
+  expect(f.view.apply.mock.calls.map(([url]) => url.search)).toEqual(['?page=2', '', '']);
+  f.coordinator.dispose();
+});
+
+it('refreshes a view without navigation when its URL stays unchanged', async () => {
+  const f = viewFixture();
+  f.coordinator.requestViewRefresh(f.view.resolve);
+  expect(f.view.resolve).not.toHaveBeenCalled();
+  await Promise.resolve();
+  expect(f.view.resolve).toHaveBeenCalledOnce();
+  expect(f.view.apply).toHaveBeenCalledOnce();
+  expect(navigate).not.toHaveBeenCalled();
+  f.coordinator.dispose();
+});
+
+it('external navigation resolves current inputs once and discards old queued refreshes', async () => {
+  const f = viewFixture();
+  let release!: () => void;
+  vi.mocked(navigate).mockImplementation((href, options) => {
+    f.begin(href, undefined, 'push', options?.info);
+    return new Promise<void>((resolve) => {
+      release = resolve;
+    });
+  });
+  f.coordinator.requestViewUpdate(f.update);
+  const refresh = vi.fn((url: URL) => f.view.resolve(url));
+  f.coordinator.requestViewRefresh(refresh);
+  f.view.resolve.mockClear();
+  const external = f.begin('/en/blog/?page=3');
+  f.swap(external);
+  release();
+  await Promise.resolve();
+  expect(f.view.resolve).toHaveBeenCalledOnce();
+  expect(refresh).not.toHaveBeenCalled();
+  expect(f.location.search).toBe('?page=3');
+  f.coordinator.dispose();
+});
+
+it('cancels refreshes queued behind an external navigation and reconciles the retained view', async () => {
+  const f = viewFixture();
+  const reconcile = vi.fn(() => f.coordinator.requestViewRefresh(f.view.resolve));
+  Object.assign(f.view, { refresh: reconcile });
+  const external = f.begin('/en/blog/?page=3');
+  const stale = vi.fn((url: URL) => f.view.resolve(url));
+  f.coordinator.requestViewRefresh(stale);
+  external.controller.abort();
+  await Promise.resolve();
+  expect(stale).not.toHaveBeenCalled();
+  expect(reconcile).toHaveBeenCalledOnce();
+  await Promise.resolve();
+  expect(f.view.apply).toHaveBeenCalledOnce();
+  vi.mocked(navigate).mockImplementation(async (href, options) =>
+    f.swap(f.begin(href, undefined, 'push', options?.info)),
+  );
+  f.coordinator.requestViewUpdate(f.update);
+  await Promise.resolve();
+  expect(f.location.search).toBe('?page=2');
+  expect(f.sourceWindow.reportError).not.toHaveBeenCalled();
+  f.coordinator.dispose();
+});
+
+it.each(['layout', 'scroll'] as const)(
+  'keeps committed content and drains later commands after a %s effect fails',
+  async (effect) => {
+    const f = viewFixture();
+    const failure = new Error('placement failed');
+    const fail = () => {
+      throw failure;
+    };
+    vi.mocked(navigate).mockImplementation(async (href, options) =>
+      f.swap(f.begin(href, undefined, 'push', options?.info)),
+    );
+    f.coordinator.requestViewUpdate(
+      (url) => ({ ...f.update(url), afterApply: effect === 'layout' ? fail : undefined }),
+      { resolveScroll: effect === 'scroll' ? fail : undefined },
+    );
+    f.coordinator.requestViewUpdate(f.update);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(f.location.search).toBe('?page=3');
+    expect(f.view.apply).toHaveBeenCalledTimes(2);
+    expect(f.view.resolve).toHaveBeenCalledTimes(2);
+    expect(f.location.reload).not.toHaveBeenCalled();
+    expect(f.sourceWindow.reportError).toHaveBeenCalledExactlyOnceWith(failure);
+    f.coordinator.dispose();
+  },
+);
+
+it('does not mistake a cancelled navigation’s late swap for the newer view commit', () => {
+  const f = viewFixture();
+  const older = f.begin('/en/blog/?page=2');
+  older.controller.abort();
+  const newer = f.begin('/en/blog/?page=3');
+  // Astro can finish moveToLocation after an aborted swap callback has returned.
+  f.swap(older);
+  expect(f.view.apply).not.toHaveBeenCalled();
+  expect(f.location.search).toBe('?page=2');
+  f.swap(newer);
+  expect(f.view.apply).toHaveBeenCalledOnce();
+  expect(f.view.apply.mock.calls[0]?.[0].search).toBe('?page=3');
+  f.coordinator.dispose();
 });

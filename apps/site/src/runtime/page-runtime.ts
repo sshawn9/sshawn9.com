@@ -3,7 +3,9 @@ import { prepareTargetArticleSidebarState } from '../features/article/runtime/ar
 import { synchronizeArticleToc } from '../features/article/runtime/article-toc-state';
 import { mountBlogPage } from '../features/blog/runtime/blog-controller';
 import { prepareTargetBlogSidebarState } from '../features/blog/runtime/blog-sidebar-state';
-import { prepareTargetBlogView } from '../features/blog/runtime/blog-view-state';
+import { prepareTargetBlogView } from '../features/blog/runtime/blog-view';
+import { getBlogPageSizePreference } from '../features/blog/runtime/blog-page-size-preference';
+import { prepareBlogPaginationLayout } from '../features/blog/runtime/blog-pagination-layout';
 import { mountSearchPage } from '../features/search/runtime/search-controller';
 import {
   belongsToView,
@@ -18,6 +20,7 @@ export type PageRuntime = {
   resolveView(targetUrl: URL): PageView | undefined;
   prepareTargetDocument(targetDocument: Document, targetUrl: URL): void;
   beforeDocumentSwap(targetDocument: Document, targetUrl: URL): void;
+  prepareCurrentLayout?(): void;
   prepareCurrentDocument(): void;
   mountCurrentPage(navigation: PageNavigation): void;
   dispose(): void;
@@ -47,12 +50,22 @@ export function createPageRuntime(
       return view && belongsToView(view, targetUrl) ? view : undefined;
     },
     prepareTargetDocument(targetDocument, targetUrl) {
-      prepareTargetBlogView(targetDocument, targetUrl);
+      prepareTargetBlogView(
+        targetDocument,
+        targetUrl,
+        getBlogPageSizePreference(sourceWindow).get(),
+      );
       prepareTargetBlogSidebarState(targetDocument, sourceWindow);
       prepareTargetArticleSidebarState(targetDocument, sourceWindow);
     },
     beforeDocumentSwap(targetDocument, targetUrl) {
       destroyCurrentPage();
+      // Settings may change while the incoming document waits for its fonts.
+      prepareTargetBlogView(
+        targetDocument,
+        targetUrl,
+        getBlogPageSizePreference(sourceWindow).get(),
+      );
       pendingSearchScroll = targetDocument.querySelector('[data-site-search]')
         ? readCurrentScroll(sourceWindow, targetUrl)
         : undefined;
@@ -60,6 +73,9 @@ export function createPageRuntime(
     prepareCurrentDocument() {
       // Root placement determines the active link; its wrapping affects nested scroll.
       synchronizeArticleToc(sourceDocument, sourceWindow);
+    },
+    prepareCurrentLayout() {
+      prepareBlogPaginationLayout(sourceDocument, sourceWindow);
     },
     mountCurrentPage(navigation) {
       if (disposed) return;
@@ -71,12 +87,16 @@ export function createPageRuntime(
           mountBlogPage(sourceDocument, sourceWindow, navigation) ??
           mountArticlePage(sourceDocument, sourceWindow) ??
           mountSearchPage(sourceDocument, sourceWindow, navigation, pendingSearchScroll);
-        // URL canonicalization consults resolveView(), so publish the completed
-        // controller first and roll that publication back if canonicalization fails.
+        // Canonicalization resolves the mounted view, so publish it first.
         controller = next;
         mountedPage = page ?? undefined;
         if (next?.view) {
-          navigation.replaceViewUrl(next.view.normalize(new URL(sourceWindow.location.href)));
+          const update = next.view.resolve(new URL(sourceWindow.location.href));
+          if (update.url.href !== sourceWindow.location.href) {
+            // Mounting has already rendered this canonical view. Only commit its
+            // address; do not restart search work or overwrite its pending scroll.
+            navigation.requestViewRefresh(() => ({ url: update.url, apply() {} }));
+          }
         }
         pendingSearchScroll = undefined;
       } catch (error) {

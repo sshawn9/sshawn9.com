@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { BLOG_PAGE_SIZE } from '../../../apps/site/src/features/blog/runtime/blog-view-state';
+import { DEFAULT_BLOG_PAGE_SIZE } from '../../../apps/site/src/features/blog/runtime/blog-state';
 
 const blogPath = '/en/blog/';
 
@@ -113,7 +113,8 @@ test('filtered and paginated cold entries stay consistent in the sampled frames 
       (frame) =>
         frame.shellVisible &&
         frame.selectedTags.length === 0 &&
-        frame.articleCount === Math.min(BLOG_PAGE_SIZE, frame.totalArticleCount - BLOG_PAGE_SIZE),
+        frame.articleCount ===
+          Math.min(DEFAULT_BLOG_PAGE_SIZE, frame.totalArticleCount - DEFAULT_BLOG_PAGE_SIZE),
     ),
   ).toBe(true);
   await expect(page.locator('[data-blog-listing]')).toHaveAttribute('data-current-page', '2');
@@ -137,6 +138,20 @@ test('filtered and paginated cold entries stay consistent in the sampled frames 
         frame.visibleArticleHrefs.join(',') === combinedHrefs.join(','),
     ),
   ).toBe(true);
-  await expect(page.locator('[data-blog-result-count]')).toHaveText(/Page 2 of \d+/);
+  await expect(page.locator('[data-blog-page-status]')).toHaveText(/Page 2 of \d+/);
   await expect(page.getByRole('navigation', { name: 'Article pagination' })).toBeVisible();
+
+  await page.evaluate(() => localStorage.setItem('blog-page-size', '10'));
+  await page.goto(`${blogPath}?page=2`);
+  const sizedFrames = await readBlogFrames(page);
+  expect(sizedFrames).toHaveLength(8);
+  expect(
+    sizedFrames.every(
+      (frame) =>
+        frame.shellVisible &&
+        frame.currentPage === '2' &&
+        frame.articleCount === Math.min(10, frame.totalArticleCount - 10),
+    ),
+  ).toBe(true);
+  await expect(page.locator('[data-blog-page-size]')).toHaveAttribute('value', '10');
 });

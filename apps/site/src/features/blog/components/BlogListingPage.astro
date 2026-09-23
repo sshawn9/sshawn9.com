@@ -3,6 +3,7 @@ import type { Locale } from '@sshawn9/site-domain/locales';
 import { getTagDefinitions } from '@sshawn9/site-domain/tags';
 import BlogArticleList from './BlogArticleList.astro';
 import BlogSidebar from './BlogSidebar.astro';
+import BlogPagination from './BlogPagination.astro';
 import { getFoundationCopy } from '@sshawn9/site-i18n/copy';
 import type { SiteArticle } from '../../../content/article-catalog';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
@@ -30,6 +31,7 @@ const tags = getTagDefinitions(articles);
     data-blog-listing
     data-blog-filterable={String(filterable)}
     data-article-count-template={copy.blogArticleCountTemplate}
+    data-article-range-template={copy.blogArticleRangeTemplate}
     data-page-count-template={copy.blogPageCountTemplate}
   >
     {heading ? <h1 class="blog-tag-heading">#{heading}</h1> : <h1 class="sr-only">{title}</h1>}
@@ -43,5 +45,6 @@ const tags = getTagDefinitions(articles);
         <BlogArticleList {locale} {articles} {copy} />
       )
     }
+    <BlogPagination {copy} />
   </section>
 </BaseLayout>

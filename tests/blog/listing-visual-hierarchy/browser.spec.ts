@@ -6,25 +6,27 @@ test('listing emphasis and pagination retain the tuned information hierarchy', a
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(blogPath);
 
-  const results = page.locator('[data-blog-results]');
   const resultCount = page.locator('[data-blog-result-count]');
-  await expect(resultCount).toHaveText(/Articles: \d+ · Page 1 of 2/);
-  await expect(page.locator('[data-blog-page-status]')).toHaveCount(0);
+  const total = await page.locator('[data-blog-article]').count();
+  await expect(resultCount).toHaveText(`Articles 1–5 of ${total}`);
+  await expect(page.locator('[data-blog-page-status]')).toHaveText(
+    `Page 1 of ${Math.ceil(total / 5)}`,
+  );
+  await expect(page.getByRole('combobox', { name: 'Articles per page' })).toHaveAttribute(
+    'value',
+    '5',
+  );
 
   const previous = page.locator('[data-blog-page="previous"]');
   const next = page.locator('[data-blog-page="next"]');
-  await expect(previous).toBeHidden();
+  await expect(previous).toBeVisible();
+  await expect(previous).toHaveAttribute('aria-disabled', 'true');
   await expect(next).toBeVisible();
-  const firstResultsBox = await results.boundingBox();
-  const nextBox = await next.boundingBox();
-  expect(firstResultsBox).not.toBeNull();
-  expect(nextBox).not.toBeNull();
-  expect(
-    Math.abs(nextBox!.x + nextBox!.width - (firstResultsBox!.x + firstResultsBox!.width)),
-  ).toBeLessThan(1);
-  const footerBox = await page.locator('.site-footer').boundingBox();
-  expect(footerBox).not.toBeNull();
-  expect(footerBox!.y - (nextBox!.y + nextBox!.height)).toBeGreaterThanOrEqual(60);
+  const pagination = page.locator('[data-blog-pagination]');
+  await expect(pagination).toHaveAttribute('data-positioned', '');
+  const firstPaginationBox = (await pagination.boundingBox())!;
+  expect(firstPaginationBox.y).toBeGreaterThan(0);
+  expect(firstPaginationBox.y + firstPaginationBox.height).toBeLessThan(900);
 
   const firstTitle = page.locator('.blog-article h2 a').first();
   await expect(firstTitle).toHaveCSS('text-decoration-line', 'none');
@@ -45,13 +47,13 @@ test('listing emphasis and pagination retain the tuned information hierarchy', a
     }),
   ).toBe(true);
 
-  await page.goto(`${blogPath}?page=2`);
-  await expect(resultCount).toHaveText(/Articles: \d+ · Page 2 of 2/);
+  await page.goto(`${blogPath}?page=99`);
+  await expect(page.locator('[data-blog-page-status]')).toHaveText(
+    `Page ${Math.ceil(total / 5)} of ${Math.ceil(total / 5)}`,
+  );
   await expect(previous).toBeVisible();
-  await expect(next).toBeHidden();
-  const secondResultsBox = await results.boundingBox();
-  const previousBox = await previous.boundingBox();
-  expect(secondResultsBox).not.toBeNull();
-  expect(previousBox).not.toBeNull();
-  expect(Math.abs(previousBox!.x - secondResultsBox!.x)).toBeLessThan(1);
+  await expect(next).toBeVisible();
+  await expect(next).toHaveAttribute('aria-disabled', 'true');
+  await expect(pagination).toHaveAttribute('data-positioned', '');
+  expect(await pagination.boundingBox()).toEqual(firstPaginationBox);
 });

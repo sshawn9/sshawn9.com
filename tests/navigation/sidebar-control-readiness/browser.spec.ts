@@ -61,7 +61,11 @@ for (const example of cases) {
         await link.focus();
         await button.evaluate((element) => (element as HTMLButtonElement).focus());
         await expect(link).toBeFocused();
-        const screenshot = await button.screenshot();
+        // Mobile enhancement now starts collapsed, so its chevron changes.
+        // The label must retain its normal appearance when the button enables.
+        const stableAppearance =
+          example.name === 'narrow blog' ? button.locator('span').first() : button;
+        const screenshot = await stableAppearance.screenshot();
         release();
         await page.waitForLoadState('load');
         if (outcome === 'failed') {
@@ -77,7 +81,7 @@ for (const example of cases) {
           return;
         }
         await expect(button).toBeEnabled();
-        expect(await button.screenshot()).toEqual(screenshot);
+        expect(await stableAppearance.screenshot()).toEqual(screenshot);
         if (example.resizer) {
           const resizer = page.locator(example.resizer);
           await expect(resizer).toHaveAttribute('tabindex', '0');
@@ -90,10 +94,12 @@ for (const example of cases) {
             String(width + (example.name === 'desktop blog' ? 16 : -16)),
           );
         }
+        const initiallyExpanded = example.name !== 'narrow blog';
+        await expect(button).toHaveAttribute('aria-expanded', String(initiallyExpanded));
         await button.click();
-        await expect(button).toHaveAttribute('aria-expanded', 'false');
+        await expect(button).toHaveAttribute('aria-expanded', String(!initiallyExpanded));
         await button.click();
-        await expect(button).toHaveAttribute('aria-expanded', 'true');
+        await expect(button).toHaveAttribute('aria-expanded', String(initiallyExpanded));
       } finally {
         release();
       }

@@ -42,7 +42,11 @@ function fixture() {
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
   } as unknown as Window;
-  const navigation: PageNavigation = { requestViewUpdate: vi.fn(), replaceViewUrl: vi.fn() };
+  const navigation: PageNavigation = {
+    requestViewRefresh: vi.fn(),
+    requestViewUpdate: vi.fn(),
+    replaceViewUrl: vi.fn(),
+  };
   return { document: document as unknown as Document, sourceWindow, navigation };
 }
 
@@ -118,13 +122,17 @@ describe('page controller publication', () => {
       view: {
         resourceUrl: new URL(sourceWindow.location.href),
         queryParameters: ['tag'],
-        normalize: (url) => url,
-        apply() {},
+        resolve: (url) => {
+          url.searchParams.set('tag', 'alpha');
+          return { url, apply() {} };
+        },
       },
     };
     hooks.blog.mockReturnValue(controller);
-    vi.mocked(navigation.replaceViewUrl).mockImplementationOnce((url) => {
-      expect(runtime.resolveView(url)).toBe(controller.view);
+    vi.mocked(navigation.requestViewRefresh).mockImplementationOnce((resolve) => {
+      expect(runtime.resolveView(resolve(new URL(sourceWindow.location.href)).url)).toBe(
+        controller.view,
+      );
       throw failure;
     });
     expect(() => runtime.mountCurrentPage(navigation)).toThrow(failure);

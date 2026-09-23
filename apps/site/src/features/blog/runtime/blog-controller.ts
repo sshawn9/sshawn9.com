@@ -1,16 +1,25 @@
 import { createBlogSidebarController, type BlogSidebarController } from './blog-sidebar-controller';
-import { applyBlogViewState, createBlogViewUrl, deriveBlogViewState } from './blog-view-state';
+import {
+  BLOG_VIEW_PARAMETERS,
+  deriveBlogViewState,
+  type BlogIntent,
+  type BlogPageSize,
+} from './blog-state';
+import { createBlogView } from './blog-view';
+import { createBlogPageSizeController } from './blog-page-size-controller';
+import { createBlogPaginationLayout } from './blog-pagination-layout';
+import { bindBlogPaginationTooltips } from './blog-pagination-tooltips';
+import { getBlogPageSizePreference } from './blog-page-size-preference';
 import { rethrowAfterCleanup, runCleanups } from '../../../runtime/cleanup';
-import type { PageController, PageNavigation } from '../../../runtime/page-navigation';
+import {
+  belongsToView,
+  type PageController,
+  type PageNavigation,
+  type ViewUpdate,
+} from '../../../runtime/page-navigation';
 
 function isUnmodifiedPrimaryClick(event: MouseEvent): boolean {
   return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
-}
-
-function orderSelectedSlugs(listing: HTMLElement, selected: ReadonlySet<string>): string[] {
-  return [...listing.querySelectorAll<HTMLElement>('[data-blog-tag-definition]')]
-    .map((element) => element.dataset.tagSlug)
-    .filter((slug): slug is string => Boolean(slug && selected.has(slug)));
 }
 
 function createBlogPageController(
@@ -19,8 +28,21 @@ function createBlogPageController(
   navigation: PageNavigation,
 ): PageController {
   const listeners = new AbortController();
+  const view = createBlogView(listing);
+  const preference = getBlogPageSizePreference(sourceWindow);
+  const initialState = deriveBlogViewState(
+    view.catalog,
+    new URL(sourceWindow.location.href),
+    preference.get(),
+  );
+  const resource = {
+    resourceUrl: initialState.normalizedUrl,
+    queryParameters: BLOG_VIEW_PARAMETERS,
+  };
   const layout = listing.querySelector<HTMLElement>('[data-blog-sidebar-layout]');
   let sidebarController: BlogSidebarController | undefined;
+  let pageSizeController: ReturnType<typeof createBlogPageSizeController> | undefined;
+  let paginationLayout: ReturnType<typeof createBlogPaginationLayout>;
   const mobileDisclosure = listing.querySelector<HTMLButtonElement>('[data-blog-mobile-toggle]');
   const mobilePanel = listing.querySelector<HTMLElement>('[data-blog-mobile-panel]');
   const mobileMedia = sourceWindow.matchMedia('(max-width: 63.999rem)');
@@ -49,9 +71,34 @@ function createBlogPageController(
     runCleanups(
       () => listeners.abort(),
       () => sidebar?.destroy(),
+      () => pageSizeController?.destroy(),
+      () => paginationLayout?.destroy(),
       restoreMobileFallback,
+      () => view.pageSize?.trigger.setAttribute('disabled', ''),
       () => listing.removeAttribute('data-blog-runtime-ready'),
     );
+  };
+
+  const resolve = (url: URL, pageSize: BlogPageSize, intent?: BlogIntent): ViewUpdate => {
+    const state = deriveBlogViewState(view.catalog, url, pageSize, intent);
+    return {
+      url: state.normalizedUrl,
+      apply: () => view.render(state),
+      afterApply: () => paginationLayout?.update(),
+    };
+  };
+
+  const refresh = (pageSize = preference.get()) => {
+    navigation.requestViewRefresh((url) => resolve(url, pageSize));
+  };
+
+  const request = (intent: BlogIntent, sourceElement: Element) => {
+    // Capture this action's preference now; resolve its page after earlier actions commit.
+    const pageSize = preference.get();
+    navigation.requestViewUpdate((url) => resolve(url, pageSize, intent), {
+      sourceElement,
+      resolveScroll: intent.kind === 'page' ? paginationLayout?.resolveScroll : undefined,
+    });
   };
 
   const handleClick = (event: MouseEvent) => {
@@ -62,25 +109,21 @@ function createBlogPageController(
       const slug = filterLink.dataset.tagSlug;
       if (!slug) return;
       event.preventDefault();
-      navigation.requestViewUpdate(
-        (url) => {
-          const selected = new Set(deriveBlogViewState(listing, url).selectedSlugs);
-          if (selected.has(slug)) selected.delete(slug);
-          else selected.add(slug);
-          return createBlogViewUrl(url, orderSelectedSlugs(listing, selected), 1);
-        },
-        { sourceElement: filterLink },
-      );
+      request({ kind: 'tag', slug }, filterLink);
       return;
     }
 
     const pageLink = source?.closest<HTMLAnchorElement>('[data-blog-page]');
-    if (!pageLink || !listing.contains(pageLink) || pageLink.hidden) return;
+    if (!pageLink || !listing.contains(pageLink)) return;
+    if (pageLink.getAttribute('aria-disabled') === 'true') {
+      event.preventDefault();
+      return;
+    }
+    if (!belongsToView(resource, new URL(pageLink.href))) return;
+    const direction = pageLink.dataset.blogPage;
+    if (direction !== 'previous' && direction !== 'next') return;
     event.preventDefault();
-    navigation.requestViewUpdate(() => new URL(pageLink.href), {
-      sourceElement: pageLink,
-      scrollTarget: listing.querySelector<HTMLElement>('[data-blog-results]') ?? undefined,
-    });
+    request({ kind: 'page', direction }, pageLink);
   };
 
   const applyMobileDisclosure = () => {
@@ -95,7 +138,13 @@ function createBlogPageController(
 
   try {
     sidebarController = layout ? createBlogSidebarController(layout, sourceWindow) : undefined;
+    paginationLayout = createBlogPaginationLayout(listing, sourceWindow);
+    bindBlogPaginationTooltips(listing, sourceWindow, listeners.signal);
     listing.addEventListener('click', handleClick, { signal: listeners.signal });
+    if (view.pageSize) {
+      const sizeView = view.pageSize;
+      pageSizeController = createBlogPageSizeController(sizeView, sourceWindow, preference.set);
+    }
     mobileDisclosure?.addEventListener(
       'click',
       () => {
@@ -106,23 +155,22 @@ function createBlogPageController(
     );
     mobileMedia.addEventListener('change', applyMobileDisclosure, { signal: listeners.signal });
 
-    applyBlogViewState(listing, new URL(sourceWindow.location.href));
+    view.render(initialState);
     applyMobileDisclosure();
+    paginationLayout?.update();
     listing.setAttribute('data-blog-runtime-ready', '');
     enableMobileDisclosure();
+    view.pageSize?.trigger.removeAttribute('disabled');
+    preference.subscribe(refresh, listeners.signal);
   } catch (error) {
     rethrowAfterCleanup(error, destroy);
   }
 
   return {
     view: {
-      resourceUrl: new URL(sourceWindow.location.href),
-      // Static tag pages also own `tag`: their existing normalizer removes it.
-      queryParameters: ['tag', 'page'],
-      normalize: (url) => deriveBlogViewState(listing, url).normalizedUrl,
-      apply: (url) => {
-        applyBlogViewState(listing, url);
-      },
+      ...resource,
+      resolve: (url) => resolve(url, preference.get()),
+      refresh,
     },
     destroy,
   };

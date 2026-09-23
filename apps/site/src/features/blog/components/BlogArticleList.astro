@@ -5,6 +5,7 @@ import type { Locale } from '@sshawn9/site-domain/locales';
 import { getTagSlug } from '@sshawn9/site-domain/tags';
 import type { FoundationCopy } from '@sshawn9/site-i18n/copy';
 import type { SiteArticle } from '../../../content/article-catalog';
+import BlogPageSize from './BlogPageSize.astro';
 
 interface Props {
   locale: Locale;
@@ -13,13 +14,15 @@ interface Props {
 }
 
 const { locale, articles, copy } = Astro.props;
-const nextPageHref = `${Astro.url.pathname}?page=2`;
 ---
 
 <div class="blog-results" data-blog-results>
-  <p class="blog-result-count" data-blog-result-count aria-live="polite">
-    {copy.blogArticleCountTemplate.replace('{count}', String(articles.length))}
-  </p>
+  <div class="blog-results-toolbar">
+    <p class="blog-result-count" data-blog-result-count aria-live="polite" aria-atomic="true">
+      {copy.blogArticleCountTemplate.replace('{count}', String(articles.length))}
+    </p>
+    <BlogPageSize {copy} />
+  </div>
 
   <p class="blog-empty" data-blog-empty hidden>{copy.blogEmpty}</p>
 
@@ -69,15 +72,4 @@ const nextPageHref = `${Astro.url.pathname}?page=2`;
       })
     }
   </ol>
-
-  <nav class="blog-pagination" data-blog-pagination aria-label={copy.paginationLabel} hidden>
-    <a href={Astro.url.pathname} data-blog-page="previous" hidden>
-      <span aria-hidden="true">←</span>
-      {copy.paginationPrevious}
-    </a>
-    <a href={nextPageHref} data-blog-page="next">
-      {copy.paginationNext}
-      <span aria-hidden="true">→</span>
-    </a>
-  </nav>
 </div>

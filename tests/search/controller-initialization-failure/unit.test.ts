@@ -61,6 +61,7 @@ test('shows fallback and releases the client when view destruction fails', async
 
   mountSearchPage(document, sourceWindow as unknown as Window, {
     replaceViewUrl: vi.fn(),
+    requestViewRefresh: vi.fn(),
     requestViewUpdate: vi.fn(),
   });
   await vi.waitFor(() => expect(reported).toHaveBeenCalledOnce());
@@ -118,6 +119,7 @@ test('ordinary destruction restores fallback after search became ready', async (
 
   const controller = mountSearchPage(document, sourceWindow as unknown as Window, {
     replaceViewUrl: vi.fn(),
+    requestViewRefresh: vi.fn(),
     requestViewUpdate: vi.fn(),
   })!;
   await vi.waitFor(() => expect(root.hasAttribute('data-search-ready')).toBe(true));
