@@ -197,7 +197,9 @@ export function createSiteConfig({ integrations = [], viteServer = {} } = {}) {
         },
       },
       ssr: {
-        noExternal: ['@sshawn9/content-ui'],
+        // Automatic Solid dependency discovery misses libraries nested in content-ui.
+        // Transform their JSX for SSR instead of loading browser-compiled exports in Node.
+        noExternal: ['@sshawn9/content-ui', '@kobalte/core', 'lucide-solid'],
       },
     },
   };
