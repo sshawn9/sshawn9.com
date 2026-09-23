@@ -1,0 +1,87 @@
+---
+import { formatUiCopy, type FoundationCopy } from '@sshawn9/site-i18n/copy';
+import { BLOG_PAGE_SIZES, DEFAULT_BLOG_PAGE_SIZE } from '../runtime/blog-state';
+
+interface Props {
+  copy: FoundationCopy;
+}
+const { copy } = Astro.props;
+const menuId = 'blog-page-size-options';
+---
+
+<div data-blog-page-size-control>
+  <button
+    type="button"
+    role="combobox"
+    class="blog-page-size"
+    data-blog-page-size
+    data-page-size-template={copy.blogPageSizeDisplayTemplate}
+    value={DEFAULT_BLOG_PAGE_SIZE}
+    aria-label={copy.blogPageSize}
+    aria-haspopup="listbox"
+    aria-controls={menuId}
+    aria-expanded="false"
+    popovertarget={menuId}
+    disabled
+  >
+    <span class="blog-page-size-copy" data-blog-page-size-value>
+      {formatUiCopy(copy.blogPageSizeDisplayTemplate, { count: DEFAULT_BLOG_PAGE_SIZE })}
+    </span>
+    <svg
+      class="blog-page-size-chevron"
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="m2.5 4.5 3.5 3.5 3.5-3.5"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"></path>
+    </svg>
+  </button>
+  <div
+    id={menuId}
+    class="blog-page-size-menu"
+    data-blog-page-size-menu
+    data-transient-overlay
+    role="listbox"
+    aria-label={copy.blogPageSize}
+    popover="auto"
+    hidden
+  >
+    {
+      BLOG_PAGE_SIZES.map((size) => (
+        <div
+          id={`${menuId}-${size}`}
+          class="blog-page-size-option"
+          data-blog-page-size-option
+          data-value={size}
+          role="option"
+          aria-selected={size === DEFAULT_BLOG_PAGE_SIZE}
+        >
+          <svg
+            class="blog-page-size-check"
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="m3 8 3 3 7-7"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span data-blog-page-size-option-label>{size}</span>
+        </div>
+      ))
+    }
+  </div>
+</div>

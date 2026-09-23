@@ -18,6 +18,7 @@ test('the static blog remains readable and navigable when its enhancement runtim
   const listing = page.locator('[data-blog-listing]');
   await expect(listing).toHaveAttribute('data-blog-view-ready', '');
   await expect(listing).not.toHaveAttribute('data-blog-runtime-ready', '');
+  await expect(page.locator('[data-blog-page-size]')).toBeDisabled();
   await expect(page.locator('.page-outlet')).toBeVisible({ timeout: 5_000 });
 
   const visibleArticles = listing.locator('[data-blog-article]:not([hidden])');
@@ -52,12 +53,15 @@ test('a stalled enhancement module cannot hide the initially restored page-two l
     await route.abort();
   });
   try {
+    await page.addInitScript(() => localStorage.setItem('blog-page-size', '10'));
     await page.goto(`${blogPath}?page=2`, { waitUntil: 'commit' });
     const listing = page.locator('[data-blog-listing]');
     await expect.poll(() => requested).toBe(true);
     await expect(listing).toHaveAttribute('data-current-page', '2');
     await expect(listing).toBeVisible();
     await expect(listing).not.toHaveAttribute('data-blog-runtime-ready', '');
+    await expect(page.locator('[data-blog-page-size]')).toBeDisabled();
+    await expect(page.locator('[data-blog-page-size]')).toHaveAttribute('value', '10');
     const articles = listing.locator('[data-blog-article]:not([hidden])');
     await expect(articles.first()).toBeVisible();
     const link = articles.first().locator('h2 a');

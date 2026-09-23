@@ -1,0 +1,58 @@
+---
+import type { FoundationCopy } from '@sshawn9/site-i18n/copy';
+
+interface Props {
+  copy: FoundationCopy;
+}
+const { copy } = Astro.props;
+---
+
+<nav
+  class="blog-pagination"
+  data-blog-pagination
+  data-page-target-template={copy.paginationTargetPageTemplate}
+  aria-label={copy.paginationLabel}
+  hidden
+>
+  {
+    (['previous', 'next'] as const).map((direction) => {
+      const previous = direction === 'previous';
+      const label = previous ? copy.paginationPrevious : copy.paginationNext;
+      return (
+        <a
+          href={previous ? undefined : `${Astro.url.pathname}?page=2`}
+          data-blog-page={direction}
+          role="link"
+          aria-label={label}
+          aria-disabled={previous ? 'true' : undefined}
+          tabindex={previous ? -1 : undefined}
+        >
+          <span class="blog-page-circle" aria-hidden="true">
+            <svg class="blog-page-arrow" width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path
+                d={previous ? 'm15 6-6 6 6 6' : 'm9 6 6 6-6 6'}
+                stroke="currentColor"
+                stroke-width="1.65"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <span class="blog-page-label" aria-hidden="true">
+            {label}
+          </span>
+          <span class="blog-page-tooltip" id={`blog-page-${direction}-tooltip`} role="tooltip">
+            <span aria-hidden="true">{label} · </span>
+            <span data-blog-page-target />
+          </span>
+        </a>
+      );
+    })
+  }
+  <span class="blog-page-status">
+    <span data-blog-page-indicator aria-hidden="true"
+      ><span data-blog-page-current></span>{' / '}<span data-blog-page-total></span></span
+    >
+    <span class="sr-only" data-blog-page-status></span>
+  </span>
+</nav>

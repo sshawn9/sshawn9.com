@@ -40,7 +40,7 @@ test('union filters keep global facets, article selection, URL, and history sync
       ),
     );
   const expectedCount = (selected: string[]) =>
-    articles.filter((tags) => tags.some((tag) => selected.includes(tag))).length;
+    Math.min(5, articles.filter((tags) => tags.some((tag) => selected.includes(tag))).length);
 
   await page.locator('[data-blog-tag-definition][data-tag-slug="astro"]').click();
   await expect(listing).toHaveAttribute('data-selected-tags', '["astro"]');

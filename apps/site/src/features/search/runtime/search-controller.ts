@@ -48,10 +48,15 @@ function createSearchPageController(
   const pageView: PageView = {
     resourceUrl: new URL(sourceWindow.location.href),
     queryParameters: ['q'],
-    normalize: (url) => createSearchQueryUrl(url, readSearchQuery(url)),
-    apply(url, context) {
-      pendingScrollRestoration = context.scroll;
-      applyViewUrl?.(url);
+    resolve(source) {
+      const url = createSearchQueryUrl(source, readSearchQuery(source));
+      return {
+        url,
+        apply(context) {
+          pendingScrollRestoration = context.scroll;
+          applyViewUrl?.(url);
+        },
+      };
     },
   };
 

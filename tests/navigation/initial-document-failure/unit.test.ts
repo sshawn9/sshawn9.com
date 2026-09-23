@@ -17,7 +17,7 @@ const hooks = vi.hoisted(() => ({
   busy: vi.fn((document: Document) => document.querySelector('main')?.removeAttribute('aria-busy')),
 }));
 
-vi.mock('../../../apps/site/src/features/blog/runtime/blog-view-state', () => ({
+vi.mock('../../../apps/site/src/features/blog/runtime/blog-view', () => ({
   prepareTargetBlogView: hooks.blogView,
 }));
 vi.mock('../../../apps/site/src/features/blog/runtime/blog-sidebar-state', () => ({

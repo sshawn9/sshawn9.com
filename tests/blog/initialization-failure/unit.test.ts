@@ -2,27 +2,39 @@ import { parseHTML } from 'linkedom';
 import { expect, test, vi } from 'vitest';
 import { mountBlogPage } from '../../../apps/site/src/features/blog/runtime/blog-controller';
 import { createBlogSidebarController } from '../../../apps/site/src/features/blog/runtime/blog-sidebar-controller';
-import { applyBlogViewState } from '../../../apps/site/src/features/blog/runtime/blog-view-state';
+const render = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../apps/site/src/features/blog/runtime/blog-sidebar-controller', () => ({
   createBlogSidebarController: vi.fn(),
 }));
 
 const failure = new Error('Blog view initialization failed');
-vi.mock('../../../apps/site/src/features/blog/runtime/blog-view-state', () => ({
-  applyBlogViewState: vi.fn(),
-  createBlogViewUrl: (url: URL) => url,
-  deriveBlogViewState: () => ({ normalizedUrl: new URL('https://example.test/') }),
-}));
+vi.mock('../../../apps/site/src/features/blog/runtime/blog-view', async () => {
+  const { createBlogPageSizeView } =
+    await import('../../../apps/site/src/features/blog/runtime/blog-page-size-view');
+  return {
+    createBlogView: (listing: HTMLElement) => ({
+      catalog: { filterable: false, tags: [], articleTags: [] },
+      pageSize: createBlogPageSizeView(listing),
+      render,
+    }),
+  };
+});
+
+const sizeMarkup = `<button data-blog-page-size data-page-size-template="{count} per page" disabled value="5"><span data-blog-page-size-value>5 per page</span></button>
+  <div data-blog-page-size-menu id="size-menu" hidden>
+    <div data-blog-page-size-option data-value="5" id="size-5"><span data-blog-page-size-option-label>5</span></div>
+  </div>`;
 
 test('releases a returned sidebar when subsequent blog initialization fails', () => {
-  vi.mocked(applyBlogViewState).mockImplementation(() => {
+  render.mockImplementation(() => {
     throw failure;
   });
   const dom = parseHTML(`<!doctype html><html><body>
     <main data-blog-listing><div data-blog-sidebar-layout>
       <button data-blog-mobile-toggle aria-expanded="false"></button>
       <div data-blog-mobile-panel aria-hidden="true"></div>
+      ${sizeMarkup}
     </div></main>
   </body></html>`);
   const document = dom.document as unknown as Document;
@@ -47,6 +59,7 @@ test('releases a returned sidebar when subsequent blog initialization fails', ()
   expect(() =>
     mountBlogPage(document, sourceWindow as unknown as Window, {
       replaceViewUrl: vi.fn(),
+      requestViewRefresh: vi.fn(),
       requestViewUpdate: vi.fn(),
     }),
   ).toThrow(failure);
@@ -58,14 +71,17 @@ test('releases a returned sidebar when subsequent blog initialization fails', ()
   expect(mobileDisclosure.getAttribute('aria-expanded')).toBe('true');
   expect(mobilePanel.inert).toBe(false);
   expect(mobilePanel.hasAttribute('aria-hidden')).toBe(false);
+  expect(listing.querySelector('[data-blog-page-size]')?.hasAttribute('disabled')).toBe(true);
+  expect(listing.querySelector('[data-blog-page-size-menu]')).not.toBeNull();
 });
 
 test('the page owner restores mobile fallback on destroy and enables it for a later mount', () => {
-  vi.mocked(applyBlogViewState).mockReset();
+  render.mockReset();
   const dom = parseHTML(`<!doctype html><html><body>
     <main data-blog-listing><div data-blog-sidebar-layout>
       <button data-blog-mobile-toggle disabled aria-disabled="true"></button>
       <div data-blog-mobile-panel aria-hidden="true"></div>
+      ${sizeMarkup}
     </div></main>
   </body></html>`);
   const document = dom.document as unknown as Document;
@@ -82,13 +98,20 @@ test('the page owner restores mobile fallback on destroy and enables it for a la
     .mockReset()
     .mockReturnValueOnce({ destroy: firstSidebarDestroy })
     .mockReturnValueOnce({ destroy: vi.fn() });
-  const navigation = { replaceViewUrl: vi.fn(), requestViewUpdate: vi.fn() };
+  const navigation = {
+    replaceViewUrl: vi.fn(),
+    requestViewRefresh: vi.fn(),
+    requestViewUpdate: vi.fn(),
+  };
 
   const first = mountBlogPage(document, sourceWindow as unknown as Window, navigation)!;
   expect(mobileDisclosure.disabled).toBe(false);
+  expect(listing.querySelector('[data-blog-page-size]')?.hasAttribute('disabled')).toBe(false);
   first.destroy();
   expect(firstSidebarDestroy).toHaveBeenCalledOnce();
   expect(mobileDisclosure.disabled).toBe(true);
+  expect(listing.querySelector('[data-blog-page-size]')?.hasAttribute('disabled')).toBe(true);
+  expect(listing.querySelector('[data-blog-page-size-menu]')).not.toBeNull();
   expect(mobilePanel.inert).toBe(false);
   expect(mobilePanel.hasAttribute('aria-hidden')).toBe(false);
 

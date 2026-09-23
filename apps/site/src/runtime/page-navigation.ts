@@ -1,15 +1,23 @@
-import type { ScrollSnapshot } from './state-ledger';
+import type { ScrollPoint, ScrollSnapshot } from './state-ledger';
 
 export type ViewNavigationContext = {
   scroll?: ScrollSnapshot;
+};
+
+/** One resolved input produces both the committed URL and its matching content. */
+export type ViewUpdate = {
+  url: URL;
+  apply(context: ViewNavigationContext): void;
+  afterApply?(): void;
 };
 
 /** The mounted document declares which URL changes its existing data can represent. */
 export type PageView = {
   resourceUrl: URL;
   queryParameters: readonly string[];
-  normalize(url: URL): URL;
-  apply(url: URL, context: ViewNavigationContext): void;
+  resolve(url: URL): ViewUpdate;
+  // Reconcile saved non-route inputs when a cancelled navigation retains this view.
+  refresh?(): void;
 };
 
 export type PageController = {
@@ -19,13 +27,16 @@ export type PageController = {
 
 export type ViewUpdateOptions = {
   sourceElement?: Element;
-  scrollTarget?: HTMLElement;
+  // Resolve after the new view and the original scroll position are restored.
+  resolveScroll?: () => ScrollPoint | undefined;
 };
 
 export type PageNavigation = {
-  // Reducers compose against the latest requested URL, even before it is committed.
-  requestViewUpdate(update: (current: URL) => URL, options?: ViewUpdateOptions): void;
-  // Search input and initial canonicalization replace one entry without a page visit.
+  // Route actions and local refreshes execute in input order for the mounted view.
+  requestViewUpdate(resolve: (current: URL) => ViewUpdate, options?: ViewUpdateOptions): void;
+  // Refresh non-route inputs even if the URL is unchanged; only replace history.
+  requestViewRefresh(resolve: (current: URL) => ViewUpdate): void;
+  // Search input replaces one entry synchronously without a page visit.
   replaceViewUrl(url: URL): void;
 };
 

@@ -20,7 +20,7 @@ import {
   reflectNavigationFeedback,
 } from './navigation-feedback';
 import { PageOutletTransition } from './page-outlet-transition';
-import type { PageNavigation, PageView, ViewUpdateOptions } from './page-navigation';
+import type { PageNavigation, PageView, ViewUpdate, ViewUpdateOptions } from './page-navigation';
 import type { PageRuntime } from './page-runtime';
 import { prepareRequiredFonts } from './required-fonts';
 import {
@@ -44,15 +44,23 @@ type NavigationPhase =
   | {
       kind: 'view';
       id: number;
-      view: PageView;
+      update: ViewUpdate;
+      expectedUrl: string;
       navigationType: TransitionBeforePreparationEvent['navigationType'];
       scroll: ReturnType<typeof readCurrentScroll>;
       originPoint: LocaleNavigationPoint;
       hashChanged: boolean;
-      scrollTarget?: HTMLElement;
+      resolveScroll?: ViewUpdateOptions['resolveScroll'];
+      request?: ViewRequest;
     };
 
-type ViewRequest = ViewUpdateOptions & { url: URL };
+type ViewRequest = ViewUpdateOptions & {
+  view: PageView;
+  history: 'push' | 'replace';
+  resolve(current: URL): ViewUpdate;
+  update?: ViewUpdate;
+  committed?: boolean;
+};
 
 type NavigationDependencies = {
   pages: PageRuntime;
@@ -126,6 +134,7 @@ export function installNavigationCoordinator(
   // this URL still belongs to the page the user can see and interact with.
   let committedUrl = new URL(sourceWindow.location.href);
   const viewRequests: ViewRequest[] = [];
+  let activeViewRequest: ViewRequest | undefined;
 
   function locationMatchesPage(): boolean {
     return routeKey(sourceWindow.location) === routeKey(committedUrl);
@@ -141,37 +150,133 @@ export function installNavigationCoordinator(
     if (locationMatchesPage()) persistCurrentScroll(sourceDocument, sourceWindow);
   }
 
-  // Only pending intents live here. Astro remains the sole owner of pushed
-  // history entries; reducers can compose before its asynchronous swap commits.
-  async function drainViewRequests(): Promise<void> {
-    while (!disposed && viewRequests.length > 0) {
-      const request = viewRequests[0]!;
-      try {
-        await navigate(request.url.href, {
-          history: 'push',
-          sourceElement: request.sourceElement,
-          info: request,
-        });
-      } catch (error) {
-        if (viewRequests[0] !== request) return;
-        viewRequests.length = 0;
-        sourceWindow.reportError(error);
-        return;
-      }
-      if (viewRequests[0] !== request) return;
-      viewRequests.shift();
+  function cancelViewRequests(): void {
+    viewRequests.length = 0;
+    activeViewRequest = undefined;
+  }
+
+  function refreshRetainedView(id: number): void {
+    // Native anchors can cancel a route without preparing a replacement. Saved
+    // settings still belong to the retained page; reconcile after that decision.
+    sourceWindow.queueMicrotask(() => {
+      if (disposed || sequence !== id || phase.kind !== 'idle' || !locationMatchesPage()) return;
+      const view = dependencies.pages.resolveView(currentPageUrl());
+      view?.refresh?.();
+    });
+  }
+
+  function failViewCommit(error: unknown, id: number): void {
+    if (disposed || sequence !== id) return;
+    restoringTraversal = false;
+    phase = { kind: 'idle' };
+    cancelViewRequests();
+    sourceWindow.reportError(error);
+    if (!disposed && sequence === id) sourceWindow.location.reload();
+  }
+
+  // A content failure can leave a partial view. Placement failures cannot undo
+  // an already successful content commit, and must never trigger a reload.
+  function applyView(update: ViewUpdate, scroll?: ReturnType<typeof readCurrentScroll>): boolean {
+    const id = sequence;
+    try {
+      update.apply({ scroll });
+      return true;
+    } catch (error) {
+      failViewCommit(error, id);
+      return false;
     }
   }
 
-  function requestViewUpdate(update: (current: URL) => URL, options: ViewUpdateOptions = {}): void {
+  function finishViewEffects(
+    update: ViewUpdate,
+    restore: () => void,
+    resolveScroll?: ViewUpdateOptions['resolveScroll'],
+  ): void {
+    try {
+      runCleanups(
+        () => update.afterApply?.(),
+        restore,
+        () => {
+          const point = resolveScroll?.();
+          if (point) restorePageScroll(sourceDocument, sourceWindow, point);
+        },
+        persistPageScroll,
+      );
+    } catch (error) {
+      sourceWindow.reportError(error);
+    }
+  }
+
+  async function drainViewRequests(interruptNavigation = false): Promise<void> {
+    if (activeViewRequest) return;
+    if (phase.kind !== 'idle' && (!interruptNavigation || viewRequests[0]?.history !== 'push'))
+      return;
+    while (!disposed && viewRequests.length > 0) {
+      const request = viewRequests.shift()!;
+      activeViewRequest = request;
+      try {
+        const current = currentPageUrl();
+        if (dependencies.pages.resolveView(current) !== request.view) {
+          cancelViewRequests();
+          return;
+        }
+        const update = request.resolve(new URL(current));
+        request.update = update;
+        if (update.url.href === current.href) {
+          const origin = { x: sourceWindow.scrollX, y: sourceWindow.scrollY };
+          if (!applyView(update)) return;
+          finishViewEffects(update, () => restorePageScroll(sourceDocument, sourceWindow, origin));
+        } else {
+          await navigate(update.url.href, {
+            history: request.history,
+            ...(request.history === 'replace' ? { state: sourceWindow.history.state } : {}),
+            sourceElement: request.sourceElement,
+            info: request,
+          });
+          if (activeViewRequest === request && !request.committed) {
+            throw new Error('View navigation completed without applying the requested view.');
+          }
+        }
+      } catch (error) {
+        if (activeViewRequest !== request) return;
+        cancelViewRequests();
+        if (phase.kind === 'view' && phase.request === request) {
+          phase = { kind: 'idle' };
+          restoringTraversal = false;
+        }
+        if (request.history === 'push') refreshRetainedView(sequence);
+        sourceWindow.reportError(error);
+        return;
+      }
+      if (activeViewRequest !== request) return;
+      activeViewRequest = undefined;
+      if (phase.kind !== 'idle') return;
+    }
+  }
+
+  function requestViewUpdate(
+    resolve: (current: URL) => ViewUpdate,
+    options: ViewUpdateOptions = {},
+  ): void {
     if (disposed) return;
-    const base = viewRequests.at(-1)?.url ?? currentPageUrl();
-    const requested = update(new URL(base));
-    const view = dependencies.pages.resolveView(requested);
-    const url = view?.normalize(requested) ?? requested;
-    if (url.href === base.href) return;
-    viewRequests.push({ ...options, url });
-    if (viewRequests.length === 1) void drainViewRequests();
+    const view = dependencies.pages.resolveView(currentPageUrl());
+    if (!view) return;
+    viewRequests.push({ view, history: 'push', resolve, ...options });
+    void drainViewRequests(true);
+  }
+
+  function requestViewRefresh(resolve: (current: URL) => ViewUpdate): void {
+    // Confirmed preferences are saved separately, even when the old page leaves.
+    // A newly mounted target can enqueue its canonicalization while settling.
+    if (disposed || (phase.kind === 'document' && phase.stage !== 'settling')) return;
+    const view = dependencies.pages.resolveView(currentPageUrl());
+    if (!view) return;
+    viewRequests.push({ view, history: 'replace', resolve });
+    // Initial canonicalization is queued while the runtime is mounting. Let
+    // installation finish and release its document-navigation guard first.
+    sourceWindow.queueMicrotask(() => {
+      void drainViewRequests();
+    });
   }
 
   function replaceViewUrl(url: URL): void {
@@ -199,6 +304,7 @@ export function installNavigationCoordinator(
     restoringTraversal = false;
     phase = { kind: 'idle' };
     if (failed) {
+      refreshRetainedView(transaction.id);
       runCleanups(
         () => pageTransition.cancel(),
         () => feedback.cancel(transaction.feedbackId),
@@ -254,20 +360,9 @@ export function installNavigationCoordinator(
     const event = rawEvent as TransitionBeforePreparationEvent;
     const id = ++sequence;
     const navigationType = event.navigationType;
-    const request = viewRequests[0];
-    if (request && event.info === request) {
-      // An anchor can abort this request without emitting another preparation.
-      // Completed/older requests must never cancel a newer queue head.
-      event.signal.addEventListener(
-        'abort',
-        () => {
-          if (viewRequests[0] === request) viewRequests.length = 0;
-        },
-        { once: true },
-      );
-    } else {
-      viewRequests.length = 0;
-    }
+    const request =
+      activeViewRequest && event.info === activeViewRequest ? activeViewRequest : undefined;
+    if (!request) cancelViewRequests();
     if (routeKey(event.from) === routeKey(committedUrl)) committedUrl.hash = event.from.hash;
     const currentBuild = readDocumentBuildId(sourceDocument);
     const view =
@@ -281,37 +376,49 @@ export function installNavigationCoordinator(
     if (!restoringTraversal) persistPageScroll();
 
     if (view) {
-      event.to = view.normalize(new URL(event.to));
+      const update = request?.update ?? view.resolve(new URL(event.to));
+      // Traversal selects its entry before normalization; other navigations
+      // commit the resolved target directly.
+      const expectedUrl = restoringTraversal ? event.to.href : update.url.href;
+      event.to = update.url;
       pageTransition.cancel();
       phase = {
         kind: 'view',
         id,
-        view,
+        update,
+        expectedUrl,
         navigationType,
         scroll,
         originPoint: { x: sourceWindow.scrollX, y: sourceWindow.scrollY },
         hashChanged: event.from.hash !== event.to.hash,
-        scrollTarget: event.info === request ? request?.scrollTarget : undefined,
+        resolveScroll: request?.resolveScroll,
+        request,
       };
       pendingLocaleTransfer = undefined;
       pendingMainFocus = undefined;
       // Public Astro lifecycle: retain the current Document and let the router
       // commit history normally. The view is applied immediately after that
       // commit, before paint, so it always observes the authoritative URL.
-      event.loader = async () => undefined;
+      event.loader = async () => {
+        dependencies.closeDocumentOverlays();
+      };
       event.signal.addEventListener(
         'abort',
         () => {
-          if (!isCurrentTransaction(id)) return;
+          if (disposed || sequence !== id) return;
+          // A newly starting route may already own the queue. Otherwise all
+          // commands attached to the cancelled view navigation are obsolete.
+          if (activeViewRequest === request) cancelViewRequests();
           restoringTraversal = false;
           phase = { kind: 'idle' };
+          refreshRetainedView(id);
         },
         { once: true },
       );
       return;
     }
 
-    viewRequests.length = 0;
+    cancelViewRequests();
     const feedbackId = feedback.begin(event.to.href);
     const focusMainContent = pendingMainFocus?.href === event.to.href;
     pendingMainFocus = undefined;
@@ -347,6 +454,7 @@ export function installNavigationCoordinator(
         // Astro aborts A immediately before preparing its replacement B. Let B
         // inherit A's feedback; with no replacement, clear it before the next paint.
         sourceWindow.queueMicrotask(() => feedback.cancel(feedbackId));
+        refreshRetainedView(id);
         pageTransition.cancel();
       },
       { once: true },
@@ -410,6 +518,9 @@ export function installNavigationCoordinator(
     const event = rawEvent as TransitionBeforeSwapEvent;
     if (phase.kind === 'view') {
       const transaction = phase;
+      // Skipping our local animation intentionally rejects ready. The router
+      // owns updateCallbackDone; handle only this animation's expected rejection.
+      void event.viewTransition.ready.catch(() => undefined);
       event.viewTransition.skipTransition();
       event.swap = () => {
         if (event.signal.aborted || !isCurrentTransaction(transaction.id)) return;
@@ -442,33 +553,47 @@ export function installNavigationCoordinator(
 
   function afterSwap(): void {
     if (phase.kind === 'view') {
-      committedUrl = new URL(sourceWindow.location.href);
-      phase.view.apply(committedUrl, {
-        scroll: phase.scroll,
-      });
-      if (phase.navigationType === 'traverse') {
-        if (phase.scroll) {
-          restorePageScroll(sourceDocument, sourceWindow, phase.scroll.page);
-          restoreNestedScroll(sourceDocument, phase.scroll);
+      const transaction = phase;
+      try {
+        const actual = new URL(sourceWindow.location.href);
+        // An aborted Astro swap may still commit its old location. Leave a
+        // newer transaction pending until its own target actually commits.
+        if (actual.href !== transaction.expectedUrl) return;
+        committedUrl = new URL(transaction.update.url);
+        if (committedUrl.href !== actual.href) {
+          // Astro already targets the normalized URL. Traversal alone retains the
+          // selected entry's old address, so correct it without another visit.
+          sourceWindow.history.replaceState(sourceWindow.history.state, '', committedUrl);
         }
-      } else if (!phase.hashChanged) {
-        restorePageScroll(sourceDocument, sourceWindow, phase.originPoint);
+      } catch (error) {
+        failViewCommit(error, transaction.id);
+        return;
       }
-      phase.scrollTarget?.scrollIntoView({
-        behavior: sourceWindow.matchMedia('(prefers-reduced-motion: reduce)').matches
-          ? 'instant'
-          : 'smooth',
-        block: 'start',
-      });
+      if (!applyView(transaction.update, transaction.scroll) || phase !== transaction) return;
+      if (transaction.request) transaction.request.committed = true;
       restoringTraversal = false;
       phase = { kind: 'idle' };
-      persistPageScroll();
+      finishViewEffects(
+        transaction.update,
+        () => {
+          if (transaction.navigationType === 'traverse') {
+            if (transaction.scroll) {
+              restorePageScroll(sourceDocument, sourceWindow, transaction.scroll.page);
+              restoreNestedScroll(sourceDocument, transaction.scroll);
+            }
+          } else if (!transaction.hashChanged) {
+            restorePageScroll(sourceDocument, sourceWindow, transaction.originPoint);
+          }
+        },
+        transaction.navigationType === 'traverse' ? undefined : transaction.resolveScroll,
+      );
       return;
     }
     if (phase.kind !== 'document' || phase.stage !== 'swapping') return;
     const transaction = phase;
     try {
       committedUrl = new URL(sourceWindow.location.href);
+      dependencies.pages.prepareCurrentLayout?.();
 
       const transferStorage = readableSessionStorage(sourceWindow);
       const localePoint = transferStorage
@@ -511,6 +636,7 @@ export function installNavigationCoordinator(
       throw error;
     }
     if (transaction) settleDocumentNavigation(transaction, false);
+    if (phase.kind === 'idle' && viewRequests.length) void drainViewRequests();
   }
 
   function inspectNavigationClick(rawEvent: Event): void {
@@ -564,11 +690,12 @@ export function installNavigationCoordinator(
 
   const coordinator = {
     requestViewUpdate,
+    requestViewRefresh,
     replaceViewUrl,
     dispose() {
       if (disposed) return;
       disposed = true;
-      viewRequests.length = 0;
+      cancelViewRequests();
       pendingLocaleTransfer = undefined;
       pendingMainFocus = undefined;
       restoringTraversal = false;

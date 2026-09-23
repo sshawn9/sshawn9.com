@@ -99,11 +99,15 @@ export type FoundationCopy = {
   blogSidebarResize: string;
   blogTagSelected: string;
   blogArticleCountTemplate: string;
+  blogArticleRangeTemplate: string;
   blogPageCountTemplate: string;
+  blogPageSize: string;
+  blogPageSizeDisplayTemplate: string;
   blogEmpty: string;
   paginationLabel: string;
   paginationPrevious: string;
   paginationNext: string;
+  paginationTargetPageTemplate: string;
   tagPageTitleTemplate: string;
   tagPageDescriptionTemplate: string;
 };
@@ -229,14 +233,15 @@ export function getFoundationCopy(locale: Locale): FoundationCopy {
     blogSidebarResize: staticMessage(m.blog_sidebar_resize),
     blogTagSelected: staticMessage(m.blog_tag_selected),
     blogArticleCountTemplate: m.blog_article_count({ count: '{count}' }, options),
-    blogPageCountTemplate: m.blog_page_count(
-      { count: '{count}', current: '{current}', total: '{total}' },
-      options,
-    ),
+    blogArticleRangeTemplate: m.blog_article_range({ range: '{range}', count: '{count}' }, options),
+    blogPageCountTemplate: m.blog_page_count({ current: '{current}', total: '{total}' }, options),
+    blogPageSize: staticMessage(m.blog_page_size),
+    blogPageSizeDisplayTemplate: m.blog_page_size_display({ count: '{count}' }, options),
     blogEmpty: staticMessage(m.blog_empty),
     paginationLabel: staticMessage(m.pagination_label),
     paginationPrevious: staticMessage(m.pagination_previous),
     paginationNext: staticMessage(m.pagination_next),
+    paginationTargetPageTemplate: m.pagination_target_page({ page: '{page}' }, options),
     tagPageTitleTemplate: m.tag_page_title({ tag: '{tag}' }, options),
     tagPageDescriptionTemplate: m.tag_page_description({ count: '{count}', tag: '{tag}' }, options),
   };

@@ -1,7 +1,9 @@
 import { prepareTargetArticleSidebarState } from '../features/article/runtime/article-sidebar-state';
 import { synchronizeArticleToc } from '../features/article/runtime/article-toc-state';
 import { prepareTargetBlogSidebarState } from '../features/blog/runtime/blog-sidebar-state';
-import { prepareTargetBlogView } from '../features/blog/runtime/blog-view-state';
+import { prepareTargetBlogView } from '../features/blog/runtime/blog-view';
+import { getBlogPageSizePreference } from '../features/blog/runtime/blog-page-size-preference';
+import { prepareBlogPaginationLayout } from '../features/blog/runtime/blog-pagination-layout';
 import {
   armInitialScrollRestoration,
   synchronizeClientRouterInitialScrollState,
@@ -37,7 +39,12 @@ export function installInitialDocumentRuntime(
   let initialPoint: LocaleNavigationPoint | undefined;
 
   for (const prepare of [
-    () => prepareTargetBlogView(sourceDocument, targetUrl),
+    () =>
+      prepareTargetBlogView(
+        sourceDocument,
+        targetUrl,
+        getBlogPageSizePreference(sourceWindow).get(),
+      ),
     () => prepareTargetBlogSidebarState(sourceDocument, sourceWindow),
     () => prepareTargetArticleSidebarState(sourceDocument, sourceWindow),
     () => {
@@ -65,6 +72,7 @@ export function installInitialDocumentRuntime(
   }
 
   const commitPlacement = (): void => {
+    prepareBlogPaginationLayout(sourceDocument, sourceWindow);
     if (initialPoint) restorePageScroll(sourceDocument, sourceWindow, initialPoint);
     synchronizeArticleToc(sourceDocument, sourceWindow);
     // Active-link wrapping must settle before restoring nested scroll positions.
