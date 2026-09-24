@@ -11,7 +11,7 @@ describe('static tag page state', () => {
     });
     const state = deriveBlogViewState(
       listing,
-      new URL('https://sshawn9.com/en/tags/alpha/?tag=unknown&page=-4&pageSize=50'),
+      new URL('https://sshawn9.com/en/tags/alpha/?tag=unknown&page=-4'),
       20,
     );
     expect(state.selectedSlugs).toEqual([]);
