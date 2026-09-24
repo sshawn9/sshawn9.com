@@ -50,7 +50,7 @@ export function renderRoundMarkdown(round, run) {
       `Egress IP: ${text(round.egress?.ip)} · Country: ${text(round.egress?.country)} · Trace colo: ${text(round.egress?.colo)} · Sampled: ${text(round.egress?.sampledAt)}`,
       `Client: ${text(run?.transport?.name)} ${text(run?.transport?.version ?? '')} · Inventory build: ${text(run?.input?.buildId)}`,
       `Targets: ${summary.targets} · Measured: ${summary.measured} · HIT: ${summary.hits} · Skipped: ${summary.skipped} · Attempts exhausted: ${summary.exhausted} · Body bytes: ${summary.bytes}`,
-      'Skipped entries are decisions based on history, not new HIT measurements. Pending or not-requested entries were not completed. The egress IP is sampled once at the start of the run, not verified per request.',
+      'Skipped entries are decisions based on history, not new HIT measurements. Pending or not-requested entries and incomplete response bodies make the round incomplete. The egress IP is sampled once at the start of the run, not verified per request.',
       resultsTable(round.results),
       ...(round.pauses?.length
         ? [

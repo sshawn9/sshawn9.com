@@ -907,12 +907,20 @@ describe('backpressure, failures and interruption', () => {
 
   it('preserves the incomplete round on real CLI SIGTERM and accepts paths with spaces', async () => {
     let resourceRequests = 0;
+    let secondRoundRequests = 0;
+    const allSecondRoundRequests = Promise.withResolvers<void>();
     const site = await server((request, response) => {
       if (request.url === '/cdn-cgi/trace') {
         trace(response);
         return;
       }
-      if (resourceRequests++ >= 2) return;
+      if (resourceRequests++ >= 2) {
+        response.writeHead(200, { 'CF-Cache-Status': 'HIT', 'CF-Ray': 'abc-SJC' });
+        response.write('Partial response body');
+        secondRoundRequests++;
+        if (secondRoundRequests === 2) allSecondRoundRequests.resolve();
+        return;
+      }
       hit(response);
     });
     const parent = await directory();
@@ -924,18 +932,14 @@ describe('backpressure, failures and interruption', () => {
       [cli, '--inventory', file, '--output', output, '--interval-min', '0', '--interval-max', '0'],
       { env: withoutProxyEnv, stdio: ['ignore', 'pipe', 'pipe'] },
     );
+    allSecondRoundRequests.promise.then(() => child.kill('SIGTERM'));
     const closed = once(child, 'close');
     let log = '';
-    let interrupted = false;
     child.stderr.on('data', (chunk) => {
       log += chunk.toString();
     });
     child.stdout.on('data', (chunk) => {
       log += chunk.toString();
-      if (!interrupted && log.includes('Round 2 started.')) {
-        interrupted = true;
-        child.kill('SIGTERM');
-      }
     });
     const guard = setTimeout(() => child.kill('SIGKILL'), 5000);
     const [code] = await closed;
@@ -947,6 +951,7 @@ describe('backpressure, failures and interruption', () => {
     expect(stored.rounds).toHaveLength(2);
     const last = await readJson(join(archive, stored.rounds[1].file));
     expect(last.complete).toBe(false);
+    expect(last.results.every((value: any) => value.complete === false)).toBe(true);
     expect(last.results.every((value: any) => value.state !== 'hit')).toBe(true);
     expect(await readdir(archive)).not.toContain('.lock');
   });

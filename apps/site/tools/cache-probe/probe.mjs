@@ -367,7 +367,7 @@ export async function runProbe(
       });
       round.finishedAt = nowIso();
       round.complete = round.results.every(
-        (item) => !['not-requested', 'pending'].includes(item.state),
+        (item) => !['not-requested', 'pending'].includes(item.state) && item.complete !== false,
       );
       await record(history, {
         type: 'round-end',
