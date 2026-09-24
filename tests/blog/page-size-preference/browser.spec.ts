@@ -119,10 +119,10 @@ test('denied storage retains the setting in memory across document navigation', 
 test('history restores route state with the current preference and silently clamps obsolete pages', async ({
   page,
 }) => {
-  await page.goto('/en/blog/?page=3');
+  await page.goto('/en/blog/?page=2');
   await expect(size(page)).toBeEnabled();
   await page.locator('[data-blog-page="next"]').click();
-  await expect(page).toHaveURL(/\?page=4$/);
+  await expect(page).toHaveURL(/\?page=3$/);
   const historyLength = await page.evaluate(() => history.length);
   await choose(page, 10);
   await expect(page).toHaveURL(/\?page=2$/);

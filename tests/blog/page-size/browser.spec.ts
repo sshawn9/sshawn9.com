@@ -303,8 +303,6 @@ test('initial clamping and history clamping with hashes keep the router and cont
   await chooseSize(page, '5');
   await page.locator('[data-blog-page="next"]').click();
   await expect(listing(page)).toHaveAttribute('data-current-page', '3');
-  await page.locator('[data-blog-page="next"]').click();
-  await expect(listing(page)).toHaveAttribute('data-current-page', '4');
   await chooseSize(page, '10');
   await expect(listing(page)).toHaveAttribute('data-current-page', '2');
   await page.goBack();

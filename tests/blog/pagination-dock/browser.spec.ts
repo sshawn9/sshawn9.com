@@ -197,7 +197,7 @@ for (const locale of ['zh', 'en']) {
     page,
   }) => {
     await page.setViewportSize({ width: 1920, height: 900 });
-    await ready(page, '?page=2', locale);
+    await ready(page, '?page=1', locale);
     const hint = next(page).getByRole('tooltip');
     const target = (value: number) =>
       locale === 'zh' ? `下一页 · 第 ${value} 页` : `Next · Page ${value}`;
@@ -205,7 +205,7 @@ for (const locale of ['zh', 'en']) {
     await expect(next(page).locator('.blog-page-label')).toBeHidden();
     await next(page).hover();
     await expect(hint).toBeVisible();
-    await expect(hint).toHaveText(target(3));
+    await expect(hint).toHaveText(target(2));
     await hint.hover();
     await expect(hint).toBeVisible();
     await page.keyboard.press('Escape');
@@ -216,8 +216,8 @@ for (const locale of ['zh', 'en']) {
     await next(page).hover();
     await expect(hint).toBeVisible();
     await next(page).click();
-    await expect(listing(page)).toHaveAttribute('data-current-page', '3');
-    await expect(hint).toHaveText(target(4));
+    await expect(listing(page)).toHaveAttribute('data-current-page', '2');
+    await expect(hint).toHaveText(target(3));
 
     await page.mouse.move(0, 0);
     await previous(page).focus();
