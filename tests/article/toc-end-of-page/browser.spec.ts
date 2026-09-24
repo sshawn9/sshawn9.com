@@ -10,6 +10,19 @@ const link = (page: Page, slug: string) =>
     .locator('#article-sidebar [data-article-toc]')
     .getByRole('link', { name: slug, exact: true });
 
+async function expectAtPageEnd(page: Page) {
+  // A fragment traversal can settle a few pixels away from the stored page-end coordinate.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const maxScrollY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        const tolerance = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+        return Math.max(0, maxScrollY - window.scrollY) - tolerance;
+      }),
+    )
+    .toBeLessThanOrEqual(0);
+}
+
 async function settleToc(page: Page) {
   await page.evaluate(
     () =>
@@ -77,15 +90,27 @@ test('explicit page-end navigation yields to reading and restores the reading mo
   await expect(active(page)).toHaveAttribute('data-toc-slug', section);
   await page.goForward();
   await expect(active(page)).toHaveAttribute('data-toc-slug', lastSection);
-  await expect.poll(() => page.evaluate(() => scrollY)).toBeCloseTo(bottom, 0);
+  await expectAtPageEnd(page);
   await page.goBack();
   await expect(active(page)).toHaveAttribute('data-toc-slug', section);
 
   await link(page, lastSection).click();
   await settleToc(page);
   await expect(active(page)).toHaveAttribute('data-toc-slug', lastSection);
-  await page.locator(`[id="${section}"]`).hover();
-  await page.mouse.wheel(0, -250);
+  const sectionHeading = page.locator(`[id="${section}"]`);
+  await sectionHeading.evaluate((heading) => {
+    const header = document.querySelector<HTMLElement>('.site-header');
+    const readingTop = Math.max(header?.getBoundingClientRect().bottom ?? 0, 0);
+    const targetTop = readingTop + 200;
+    window.scrollTo({
+      top: window.scrollY + heading.getBoundingClientRect().top - targetTop,
+      behavior: 'instant',
+    });
+  });
+  await settleToc(page);
+  await expect(sectionHeading).toBeInViewport();
+  await sectionHeading.hover();
+  await page.mouse.wheel(0, -32);
   await expect.poll(() => page.evaluate(() => scrollY)).toBeLessThan(bottom - 100);
   await expect(active(page)).toHaveAttribute('data-toc-slug', section);
   await expect
