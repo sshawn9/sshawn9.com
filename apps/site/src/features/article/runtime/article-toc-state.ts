@@ -1,46 +1,104 @@
-export const ARTICLE_HEADING_SELECTOR = '.article-prose :is(h2[id], h3[id])';
+import { readCurrentScroll } from '../../../runtime/scroll-state';
+
+const ARTICLE_HEADING_SELECTOR = '.article-prose :is(h2[id], h3[id])';
 export const ARTICLE_TOC_LINK_SELECTOR = '[data-article-toc] a[data-toc-slug]';
 
-export function readArticleHeadingOffset(heading: HTMLElement, sourceWindow: Window): number {
-  const value = Number.parseFloat(sourceWindow.getComputedStyle(heading).scrollMarginTop);
-  return Number.isFinite(value) ? value : 0;
+function findArticleHeading(sourceDocument: Document, slug: string): HTMLElement | undefined {
+  const heading = sourceDocument.getElementById(slug);
+  return heading?.matches(ARTICLE_HEADING_SELECTOR) ? heading : undefined;
 }
 
-export function findCurrentArticleHeading(
+export function readArticleFragmentTarget(
+  sourceDocument: Document,
+  href: string,
+): HTMLElement | undefined {
+  try {
+    const slug = decodeURIComponent(new URL(href).hash.slice(1));
+    return slug ? findArticleHeading(sourceDocument, slug) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function readArticleReadingViewport(sourceDocument: Document, sourceWindow: Window) {
+  const visual = sourceWindow.visualViewport;
+  const top = visual?.offsetTop ?? 0;
+  const bottom = top + (visual?.height ?? sourceWindow.innerHeight);
+  const header = sourceDocument.querySelector<HTMLElement>('.site-header');
+  return {
+    top: Math.min(bottom, Math.max(top, header?.getBoundingClientRect().bottom ?? top)),
+    bottom,
+  };
+}
+
+/** First visible heading; without one, the visible prose belongs to the preceding heading. */
+export function findReadingArticleHeading(
   sourceDocument: Document,
   sourceWindow: Window,
 ): HTMLElement | undefined {
   const headings = [...sourceDocument.querySelectorAll<HTMLElement>(ARTICLE_HEADING_SELECTOR)];
-  const first = headings[0];
-  if (!first) return undefined;
+  if (!headings.length) return undefined;
+  const viewport = readArticleReadingViewport(sourceDocument, sourceWindow);
+  const prose = sourceDocument.querySelector('.article-prose')!.getBoundingClientRect();
+  if (prose.bottom <= viewport.top || prose.top >= viewport.bottom) return undefined;
 
-  const threshold = readArticleHeadingOffset(first, sourceWindow) + 1;
-  let current = first;
+  let preceding: HTMLElement | undefined;
   for (const heading of headings) {
-    if (heading.getBoundingClientRect().top > threshold) break;
-    current = heading;
+    const box = heading.getBoundingClientRect();
+    if (box.height === 0) continue;
+    if (box.top >= viewport.bottom) break;
+    if (box.bottom > viewport.top) return heading;
+    preceding = heading;
   }
-  return current;
+  return preceding;
 }
 
-export function setActiveArticleToc(sourceDocument: Document, slug: string): void {
+/** Restore explicit navigation or automatic reading without inferring intent from coordinates. */
+export function readInitialArticleTarget(
+  sourceDocument: Document,
+  sourceWindow: Window,
+): HTMLElement | undefined {
+  if (!sourceDocument.querySelectorAll(ARTICLE_HEADING_SELECTOR).length) return undefined;
+  const saved = readCurrentScroll(sourceWindow);
+  if (saved) {
+    return typeof saved.articleTocTarget === 'string'
+      ? findArticleHeading(sourceDocument, saved.articleTocTarget)
+      : undefined;
+  }
+  return readArticleFragmentTarget(sourceDocument, sourceWindow.location.href);
+}
+
+/** The scroll-history owner captures this state together with the document position. */
+export function reflectArticleTocTarget(
+  sourceDocument: Document,
+  target: HTMLElement | undefined,
+): void {
+  const article = sourceDocument.querySelector<HTMLElement>('[data-article-page]');
+  const value = target?.id ?? '';
+  if (article && article.dataset.articleTocTarget !== value)
+    article.dataset.articleTocTarget = value;
+}
+
+export function setActiveArticleToc(sourceDocument: Document, slug: string | undefined): void {
   for (const link of sourceDocument.querySelectorAll<HTMLAnchorElement>(
     ARTICLE_TOC_LINK_SELECTOR,
   )) {
     const active = link.dataset.tocSlug === slug;
-    link.toggleAttribute('data-active', active);
-    if (active) link.setAttribute('aria-current', 'location');
-    else link.removeAttribute('aria-current');
+    if (link.hasAttribute('data-active') !== active) link.toggleAttribute('data-active', active);
+    if (active && link.getAttribute('aria-current') !== 'location')
+      link.setAttribute('aria-current', 'location');
+    else if (!active && link.hasAttribute('aria-current')) link.removeAttribute('aria-current');
   }
 }
 
-/** Shared by the parser-time first frame and the normal article controller. */
+/** Initial placement only. The mounted controller owns subsequent navigation and reading. */
 export function synchronizeArticleToc(
   sourceDocument: Document,
   sourceWindow: Window,
 ): string | undefined {
-  const heading = findCurrentArticleHeading(sourceDocument, sourceWindow);
-  if (!heading) return undefined;
-  setActiveArticleToc(sourceDocument, heading.id);
-  return heading.id;
+  const target = readInitialArticleTarget(sourceDocument, sourceWindow);
+  reflectArticleTocTarget(sourceDocument, target);
+  const heading = target ?? findReadingArticleHeading(sourceDocument, sourceWindow);
+  setActiveArticleToc(sourceDocument, heading?.id);
+  return heading?.id;
 }

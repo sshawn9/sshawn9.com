@@ -14,6 +14,8 @@ export type ScrollSnapshot = {
   routeKey: string;
   page: ScrollPoint;
   regions: Record<string, ScrollPoint>;
+  /** A heading ID for explicit navigation, null for automatic reading. */
+  articleTocTarget?: string | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -57,6 +59,9 @@ export function decodeScrollSnapshot(
     routeKey: expectedRouteKey,
     page: decodePoint(candidate.page),
     regions,
+    ...(candidate.articleTocTarget === null || typeof candidate.articleTocTarget === 'string'
+      ? { articleTocTarget: candidate.articleTocTarget }
+      : {}),
   };
 }
 

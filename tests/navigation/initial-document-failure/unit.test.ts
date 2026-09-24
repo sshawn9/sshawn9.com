@@ -38,7 +38,7 @@ vi.mock('../../../apps/site/src/runtime/scroll-state', () => ({
 }));
 vi.mock('../../../apps/site/src/runtime/initial-frame', () => ({
   armInitialScrollRestoration: hooks.initialFrame,
-  synchronizeClientRouterInitialScrollState: hooks.synchronizeHistory,
+  synchronizeClientRouterScrollState: hooks.synchronizeHistory,
 }));
 vi.mock('../../../apps/site/src/runtime/state-ledger', () => ({
   decodeScrollSnapshot: hooks.snapshot,
