@@ -83,6 +83,7 @@ function fixture() {
   const media = Object.assign(new EventTarget(), { matches: true });
   const sourceWindow = Object.assign(new EventTarget(), {
     document,
+    location: new URL('https://sshawn9.com/en/blog/article/'),
     matchMedia: vi.fn(() => media),
     localStorage: { getItem: vi.fn(() => null), setItem: vi.fn() },
     requestAnimationFrame: vi.fn(() => 42),

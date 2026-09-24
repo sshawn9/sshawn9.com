@@ -20,6 +20,7 @@ import {
   reflectNavigationFeedback,
 } from './navigation-feedback';
 import { PageOutletTransition } from './page-outlet-transition';
+import { synchronizeClientRouterScrollState } from './initial-frame';
 import type { PageNavigation, PageView, ViewUpdate, ViewUpdateOptions } from './page-navigation';
 import type { PageRuntime } from './page-runtime';
 import { prepareRequiredFonts } from './required-fonts';
@@ -127,6 +128,7 @@ export function installNavigationCoordinator(
   let phase: NavigationPhase = { kind: 'idle' };
   let restoringTraversal = false;
   let scrollSaveFrame = 0;
+  let fragmentSaveFrame = 0;
   let pendingLocaleTransfer: PendingLocaleTransfer | undefined;
   let pendingMainFocus: URL | undefined;
   let disposed = false;
@@ -342,7 +344,14 @@ export function installNavigationCoordinator(
     }
   }
 
+  function cancelFragmentScrollSave(): void {
+    if (fragmentSaveFrame === 0) return;
+    sourceWindow.cancelAnimationFrame(fragmentSaveFrame);
+    fragmentSaveFrame = 0;
+  }
+
   function cancelScheduledScrollSave(): void {
+    cancelFragmentScrollSave();
     if (scrollSaveFrame === 0) return;
     sourceWindow.cancelAnimationFrame(scrollSaveFrame);
     scrollSaveFrame = 0;
@@ -353,6 +362,29 @@ export function installNavigationCoordinator(
     scrollSaveFrame = sourceWindow.requestAnimationFrame(() => {
       scrollSaveFrame = 0;
       persistPageScroll();
+    });
+  }
+
+  function saveFragmentCommit(event: PopStateEvent): void {
+    cancelFragmentScrollSave();
+    // Astro notifies same-page link commits with a null-state popstate.
+    if (event.state !== null || sourceWindow.history.state === null) return;
+    const href = sourceWindow.location.href;
+    fragmentSaveFrame = sourceWindow.requestAnimationFrame(() => {
+      fragmentSaveFrame = 0;
+      if (
+        disposed ||
+        phase.kind !== 'idle' ||
+        sourceWindow.location.href !== href ||
+        !locationMatchesPage()
+      )
+        return;
+      // Run after the article has handled the fragment, even when no scroll occurs.
+      persistPageScroll();
+      synchronizeClientRouterScrollState(sourceWindow.history, {
+        x: sourceWindow.scrollX,
+        y: sourceWindow.scrollY,
+      });
     });
   }
 
@@ -727,6 +759,7 @@ export function installNavigationCoordinator(
       passive: true,
       signal: listeners.signal,
     });
+    sourceWindow.addEventListener('popstate', saveFragmentCommit, { signal: listeners.signal });
     sourceWindow.addEventListener('pagehide', persistBeforeDocumentLeaves, {
       signal: listeners.signal,
     });

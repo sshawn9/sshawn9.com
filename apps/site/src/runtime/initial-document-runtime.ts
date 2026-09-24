@@ -4,10 +4,7 @@ import { prepareTargetBlogSidebarState } from '../features/blog/runtime/blog-sid
 import { prepareTargetBlogView } from '../features/blog/runtime/blog-view';
 import { getBlogReadingPreference } from '../features/blog/runtime/blog-reading-preference';
 import { prepareBlogPaginationLayout } from '../features/blog/runtime/blog-pagination-layout';
-import {
-  armInitialScrollRestoration,
-  synchronizeClientRouterInitialScrollState,
-} from './initial-frame';
+import { armInitialScrollRestoration, synchronizeClientRouterScrollState } from './initial-frame';
 import {
   consumeLocaleNavigationTransfer,
   type LocaleNavigationPoint,
@@ -60,7 +57,7 @@ export function installInitialDocumentRuntime(
       if (initialPoint || sourceWindow.location.hash) armInitialScrollRestoration(sourceDocument);
       if (initialPoint) {
         sourceWindow.history.scrollRestoration = 'manual';
-        synchronizeClientRouterInitialScrollState(sourceWindow.history, initialPoint);
+        synchronizeClientRouterScrollState(sourceWindow.history, initialPoint);
       }
     },
   ]) {

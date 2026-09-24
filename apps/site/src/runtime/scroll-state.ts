@@ -21,16 +21,19 @@ export function captureScrollSnapshot(
     if (key) regions[key] = { x: element.scrollLeft, y: element.scrollTop };
   }
 
+  const article = sourceDocument.querySelector<HTMLElement>('[data-article-toc-target]');
   return {
     version: SITE_HISTORY_VERSION,
     routeKey: routeKey(sourceWindow.location),
     page: { x: sourceWindow.scrollX, y: sourceWindow.scrollY },
     regions,
+    ...(article ? { articleTocTarget: article.dataset.articleTocTarget || null } : {}),
   };
 }
 
 export function persistCurrentScroll(sourceDocument: Document, sourceWindow: Window): boolean {
   try {
+    if (sourceWindow.history.state === null) return false;
     const snapshot = captureScrollSnapshot(sourceDocument, sourceWindow);
     sourceWindow.history.replaceState(
       mergeScrollSnapshot(sourceWindow.history.state, snapshot),

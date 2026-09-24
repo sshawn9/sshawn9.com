@@ -27,11 +27,11 @@ export function armInitialScrollRestoration(sourceDocument: Document): void {
 }
 
 /**
- * Mirrors the restored point into Astro ClientRouter's existing history fields.
- * Astro reads these fields during module startup; leaving stale coordinates there
- * would make it smoothly scroll away from the point restored by StateLedger.
+ * Keeps Astro ClientRouter's existing history coordinates aligned with placement.
+ * Startup restoration and same-position fragment commits may not emit scroll
+ * events, so Astro cannot correct stale coordinates through its scroll listener.
  */
-export function synchronizeClientRouterInitialScrollState(
+export function synchronizeClientRouterScrollState(
   sourceHistory: History,
   point: { x: number; y: number },
 ): void {
