@@ -64,15 +64,6 @@ describe('pagination from route and preference', () => {
     expect(state.nextUrl?.search).toBe('?unknown=x&tag=alpha&page=2');
   });
 
-  it.each(['', '5', '10', '50', '0', '8', '05', '10&pageSize=20'])(
-    'ignores and removes the retired pageSize=%s parameter',
-    (value) => {
-      const state = deriveBlogViewState(catalog, url(`?page=3&pageSize=${value}`), 20);
-      expect(state.pageSize).toBe(20);
-      expect(state.normalizedUrl.search).toBe('?page=3');
-    },
-  );
-
   it.each([undefined, '', '0', '-1', '8', '10.0', '05', '1e1', 'Infinity', '10x'])(
     'defaults an invalid stored preference %s',
     (value) => {

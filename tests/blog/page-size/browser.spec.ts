@@ -112,9 +112,7 @@ test('interleaved page and size actions commit in order while history uses the c
   await expect(select(page)).toHaveAttribute('value', '10');
 });
 
-test('filtering and language navigation share the preference while retired query values never override it', async ({
-  page,
-}) => {
+test('filtering and language navigation share the reading preference', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/en/blog/');
   await chooseSize(page, '10');
@@ -136,9 +134,6 @@ test('filtering and language navigation share the preference while retired query
   await expect(
     page.locator('[data-blog-page-size-option]:not([hidden]) [data-blog-page-size-option-label]'),
   ).toHaveText(['5', '10', '20', '50']);
-  await page.goto('/en/blog/?pageSize=5');
-  await expect(page).toHaveURL(/\/en\/blog\/$/);
-  await expect(select(page)).toHaveAttribute('value', '50');
 });
 
 test('resizing, mobile disclosure and zoom keep article membership unchanged and controls fit narrow screens', async ({
@@ -302,7 +297,7 @@ test('initial clamping and history clamping with hashes keep the router and cont
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.addInitScript(() => localStorage.setItem('blog-page-size', '10'));
-  await page.goto('/en/blog/?page=4&pageSize=50#main-content');
+  await page.goto('/en/blog/?page=4#main-content');
   await expect(page).toHaveURL(/\?page=2#main-content$/);
   await expect(select(page)).toHaveAttribute('value', '10');
   await chooseSize(page, '5');

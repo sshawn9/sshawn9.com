@@ -3,8 +3,7 @@ export const BLOG_DISPLAY_MODES = {
   compact: { pageSizes: [15, 50, 100], defaultPageSize: 15 },
 } as const;
 export const DEFAULT_BLOG_DISPLAY_MODE = 'detailed';
-// Include the retired parameter so incoming development URLs can be cleaned locally.
-export const BLOG_VIEW_PARAMETERS = ['tag', 'page', 'pageSize'] as const;
+export const BLOG_VIEW_PARAMETERS = ['tag', 'page'] as const;
 
 export type BlogDisplayMode = keyof typeof BLOG_DISPLAY_MODES;
 export type BlogPageSize = (typeof BLOG_DISPLAY_MODES)[BlogDisplayMode]['pageSizes'][number];

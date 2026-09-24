@@ -10,7 +10,7 @@ test('a static tag page canonicalizes ignored filters without losing its control
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.addInitScript(() => localStorage.setItem('blog-page-size', '20'));
-  await page.goto('/en/tags/astro/?tag=unused&page=99&pageSize=50');
+  await page.goto('/en/tags/astro/?tag=unused&page=99');
   await expect(page).toHaveURL(/\/en\/tags\/astro\/$/);
   await expect(blogListing(page)).toHaveAttribute('data-blog-runtime-ready', '');
   await expect(blogListing(page)).toHaveAttribute('data-selected-tags', '[]');
