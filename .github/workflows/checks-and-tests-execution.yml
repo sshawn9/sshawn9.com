@@ -74,9 +74,8 @@ jobs:
             }
             core.setOutput('should_skip', 'false');
 
-  checks-and-tests:
-    # The duplicate check matches this job name and its execution caller across run attempts.
-    name: Checks and Tests
+  checks-and-unit-tests:
+    name: Checks and Unit Tests
     needs: duplicate-check
     if: ${{ needs.duplicate-check.outputs.should_skip != 'true' }}
     runs-on: ubuntu-latest
@@ -99,22 +98,52 @@ jobs:
       - run: devenv shell npm run check
       - name: Run unit tests
         run: devenv shell npm run test:unit
+
+  browser-tests:
+    name: Browser Tests (${{ matrix.site_mode }})
+    needs: duplicate-check
+    if: ${{ needs.duplicate-check.outputs.should_skip != 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        site_mode: [preview, production]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - name: Install devenv
+        run: nix profile add nixpkgs#devenv
+      - name: Cache npm downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+      - run: devenv shell npm ci
       - name: Install Chromium for browser tests
         run: devenv shell npm exec -- playwright install --with-deps chromium
-      - name: Test preview site
+      - name: Run browser tests
         run: devenv shell npm run test:browser
         env:
-          SITE_MODE: preview
-      - name: Test production site
-        run: devenv shell npm run test:browser
-        env:
-          SITE_MODE: production
+          SITE_MODE: ${{ matrix.site_mode }}
       - name: Upload Playwright traces
         if: ${{ failure() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: playwright-traces
+          name: playwright-traces-${{ matrix.site_mode }}
           path: tests/.results/
           include-hidden-files: true
           retention-days: 7
           if-no-files-found: ignore
+
+  checks-and-tests:
+    # The duplicate check reuses this job only after all validation jobs succeed.
+    name: Checks and Tests
+    needs: [duplicate-check, checks-and-unit-tests, browser-tests]
+    if: ${{ needs.duplicate-check.outputs.should_skip != 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'All checks and tests passed.'
