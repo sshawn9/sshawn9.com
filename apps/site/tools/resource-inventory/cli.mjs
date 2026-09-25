@@ -25,7 +25,7 @@ async function replaceReports(json, markdown) {
   }
 }
 
-try {
+export async function generateResourceInventory() {
   let buildInfo;
   try {
     buildInfo = JSON.parse(await readFile(buildInfoUrl, 'utf8'));
@@ -50,7 +50,13 @@ try {
   );
   console.log(fileURLToPath(reportUrl));
   console.log(fileURLToPath(markdownUrl));
-} catch (error) {
-  console.error(`Resource inventory generation failed: ${error.message}`);
-  process.exitCode = 1;
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  try {
+    await generateResourceInventory();
+  } catch (error) {
+    console.error(`Resource inventory generation failed: ${error.message}`);
+    process.exitCode = 1;
+  }
 }

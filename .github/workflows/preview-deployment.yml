@@ -1,0 +1,76 @@
+name: Preview Deployment
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  checks-and-tests-reusable:
+    uses: ./.github/workflows/checks-and-tests-reusable.yml
+
+  deploy-preview:
+    needs: checks-and-tests-reusable
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-preview-${{ github.ref }}
+      cancel-in-progress: true
+    environment:
+      name: preview
+      url: ${{ steps.urls.outputs.stable-url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - name: Install devenv
+        run: nix profile add nixpkgs#devenv
+      - name: Cache npm downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+      - run: devenv shell npm ci
+      - name: Build preview site
+        run: devenv shell npm run build
+        env:
+          SITE_MODE: preview
+      - name: Prepare Worker secrets
+        shell: bash
+        env:
+          UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$UNSPLASH_ACCESS_KEY" ]]; then
+            echo "UNSPLASH_ACCESS_KEY must not be empty." >&2
+            exit 1
+          fi
+          devenv shell node --input-type=module -e \
+            'import { writeFileSync } from "node:fs"; writeFileSync(".wrangler-secrets.json", JSON.stringify({ UNSPLASH_ACCESS_KEY: process.env.UNSPLASH_ACCESS_KEY }));'
+      - name: Create stable branch preview alias
+        if: ${{ github.ref_name != 'main' }}
+        id: preview
+        env:
+          BRANCH_NAME: ${{ github.ref_name }}
+        run: devenv shell npm run deployment:preview-alias
+      - name: Deploy preview to Cloudflare Workers
+        id: deploy
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          wranglerVersion: '4.129.0'
+          command: ${{ github.ref_name == 'main' && 'deploy --env preview --secrets-file .wrangler-secrets.json' || format('versions upload --env preview --preview-alias {0} --secrets-file .wrangler-secrets.json', steps.preview.outputs.alias) }}
+      - name: Record preview URLs
+        id: urls
+        env:
+          BRANCH_NAME: ${{ github.ref_name }}
+          PREVIEW_ALIAS: ${{ steps.preview.outputs.alias }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          COMMAND_OUTPUT: ${{ steps.deploy.outputs.command-output }}
+        run: devenv shell npm run deployment:preview-urls

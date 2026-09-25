@@ -1,0 +1,120 @@
+name: Checks and Tests Execution
+
+on:
+  workflow_call:
+    inputs:
+      tree_hash:
+        description: Repository tree whose checks are protected by the caller's queue
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  duplicate-check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.duplicate-check.outputs.should_skip }}
+    steps:
+      - id: duplicate-check
+        name: Check for successful checks on the same tree
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          TREE_HASH: ${{ inputs.tree_hash }}
+        with:
+          script: |
+            const executionPath = `${context.repo.owner}/${context.repo.repo}/.github/workflows/checks-and-tests-execution.yml@`;
+            const treesByCommit = new Map();
+            const runs = github.paginate.iterator(github.rest.actions.listWorkflowRunsForRepo, {
+              ...context.repo,
+              per_page: 100,
+            });
+            for await (const { data } of runs) {
+              for (const run of data) {
+                if (String(run.head_repository?.id) !== process.env.GITHUB_REPOSITORY_ID) continue;
+                const execution = run.referenced_workflows?.find(workflow =>
+                  workflow.path.startsWith(executionPath));
+                if (!execution) continue;
+                let treeHash = run.head_commit?.tree_id;
+                if (run.event === 'pull_request') {
+                  // A PR run's head_commit describes its head branch, not the tested merge commit.
+                  treeHash = treesByCommit.get(execution.sha);
+                  if (!treeHash) {
+                    const { data: commit } = await github.rest.git.getCommit({
+                      ...context.repo,
+                      commit_sha: execution.sha,
+                    });
+                    treeHash = commit.tree.sha;
+                    if (!/^[0-9a-f]{40}$/.test(treeHash)) {
+                      throw new Error(`Invalid tree for PR workflow commit ${execution.sha}`);
+                    }
+                    treesByCommit.set(execution.sha, treeHash);
+                  }
+                }
+                if (treeHash !== process.env.TREE_HASH) continue;
+                const jobs = github.paginate.iterator(github.rest.actions.listJobsForWorkflowRun, {
+                  ...context.repo,
+                  run_id: run.id,
+                  filter: 'all',
+                  per_page: 100,
+                });
+                for await (const { data } of jobs) {
+                  const successful = data.find(job =>
+                    job.name.split(' / ').slice(-2).join(' / ') === 'checks-and-tests-execution / Checks and Tests' &&
+                    job.status === 'completed' && job.conclusion === 'success');
+                  if (successful) {
+                    core.info(`Reusing successful checks: ${successful.html_url}`);
+                    core.setOutput('should_skip', 'true');
+                    return;
+                  }
+                }
+              }
+            }
+            core.setOutput('should_skip', 'false');
+
+  checks-and-tests:
+    # The duplicate check matches this job name and its execution caller across run attempts.
+    name: Checks and Tests
+    needs: duplicate-check
+    if: ${{ needs.duplicate-check.outputs.should_skip != 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - name: Install devenv
+        run: nix profile add nixpkgs#devenv
+      - name: Cache npm downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+      - run: devenv shell npm ci
+      - run: devenv shell npm run format:check
+      - run: devenv shell npm run check
+      - name: Run unit tests
+        run: devenv shell npm run test:unit
+      - name: Install Chromium for browser tests
+        run: devenv shell npm exec -- playwright install --with-deps chromium
+      - name: Test preview site
+        run: devenv shell npm run test:browser
+        env:
+          SITE_MODE: preview
+      - name: Test production site
+        run: devenv shell npm run test:browser
+        env:
+          SITE_MODE: production
+      - name: Upload Playwright traces
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-traces
+          path: tests/.results/
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: ignore

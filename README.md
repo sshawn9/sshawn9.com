@@ -45,10 +45,15 @@ direnv 通过 `use devenv` 加载环境，不需要 nix-direnv。Node 大版本�
 | `npm run build`                           | 只生成 `apps/site/dist/` 部署产物，不启动服务              | `just build`           |
 | `npm run inventory`                       | 分析已有构建，导出页面、资源和双向对应清单；不构建、不联网 | `just inventory`       |
 | `npm run inventory:diff`                  | 校验两份生产清单，离线比较页面和资源 URL 的增减            | —                      |
+| `npm run inventory:prepare`               | 从已有生产构建生成并打包清单，下载和校验部署前快照         | —                      |
+| `npm run deployment:preview-alias`        | 根据分支名生成稳定的 Preview 别名                          | —                      |
+| `npm run deployment:preview-urls`         | 根据 Wrangler 输出解析 Preview 地址并记录摘要              | —                      |
 | `npm run cache:probe`                     | 读取线上生产部署清单探测缓存，按出口 IP 保留轮次及增量汇总 | `just cache-probe`     |
 | `npm run globalping:install`              | 通过 Go 安装或更新官方最新 Globalping CLI                  | —                      |
 | `npm run globalping:record`               | 官方 CLI 探测单个 URL，每节点解析结果追加到单表 SQLite     | —                      |
 | `npm test`                                | 单测 → 一次构建 → 浏览器测试，不必先 build                 | `just test`            |
+| `npm run test:unit`                       | 只运行单测                                                 | —                      |
+| `npm run test:browser`                    | 一次构建 → 浏览器测试，不必先 build                        | —                      |
 | `npm run check`                           | 工作区和根项目类型检查                                     | `just check`           |
 | `npm run format`                          | 使用项目锁定的 Prettier 格式化                             | `just fmt`             |
 | `npm run format:check`                    | 只检查格式                                                 | `just fmt-check`       |
@@ -59,7 +64,7 @@ direnv 通过 `use devenv` 加载环境，不需要 nix-direnv。Node 大版本�
 
 日常预览由 Astro 提供产物，不模拟 Cloudflare 的 `_headers`、Access 等平台规则；这些规则仍需在 Cloudflare 部署环境验证。默认构建配置不包含本地代理，也不改变线上 API 的访问权限。
 
-`dev`、`preview`、`test` 默认使用 `preview` 内容模式（含草稿、`noindex`），`build` 默认使用 `production`。需要覆盖时使用同一个 `SITE_MODE` 环境变量，例如 `SITE_MODE=production npm run preview`、`SITE_MODE=production npm test` 或 `SITE_MODE=preview npm run build`；它只决定站点内容，不切换云端 Worker 环境。`dev` 独有的 `Drafts` Toolbar 列出草稿，`Single-language` 列出缺少语言版本的文章；验证完整搜索使用 `npm run preview`。
+`dev`、`preview`、`test`、`test:browser` 默认使用 `preview` 内容模式（含草稿、`noindex`），`build` 默认使用 `production`。需要覆盖时使用同一个 `SITE_MODE` 环境变量，例如 `SITE_MODE=production npm run preview`、`SITE_MODE=production npm test` 或 `SITE_MODE=preview npm run build`；它只决定站点内容，不切换云端 Worker 环境。`dev` 独有的 `Drafts` Toolbar 列出草稿，`Single-language` 列出缺少语言版本的文章；验证完整搜索使用 `npm run preview`。
 
 所有服务前台运行，用 Ctrl-C 结束；Astro 同时负责壁纸脚本的按需编译与依赖监听，不需要独立编译或监听进程。手动调整页面端口可用 `SITE_PORT=4334 npm run dev` 或 `SITE_PORT=4335 npm run preview`。这些环境变量对 just 转发同样有效。工作区的生成目录与构建产物共享，不并行构建、测试，也不重建正在使用的预览产物；优先复用已有开发服务，谁启动谁负责停止。
 
@@ -252,7 +257,17 @@ Paraglide 负责页面级文案和界面文案，长篇文章与项目记录仍�
 - `main` 的正在运行流程和生产部署不会被后续推送自动取消，保证旧清单快照、部署和报告顺序完成；新任务需要等待，多个待运行任务仍只保留最新一个。其他分支保留自动取消旧运行的行为。
 - Preview 包含草稿、不生成 sitemap，并在 HTML 和 `_headers` 中声明 `noindex`；Production 排除草稿并生成 sitemap。工作流不主动清理已删除分支的预览别名。
 
+新流程使用 [Preview Deployment](.github/workflows/preview-deployment.yml) 和 [Production Deployment](.github/workflows/production-deployment.yml) 两个独立入口：Preview 监听所有分支 push，Production 仅监听 main push，两者均支持手动运行。两者先调用同一份[检查工作流](.github/workflows/checks-and-tests-reusable.yml)，按 tree 排队、去重，执行格式检查、静态检查和一次单测，再分别构建并运行 Preview／Production 浏览器测试；检查成功后各自部署，Production 部署始终仅限 main 分支。main 同时触发两者时，可以复用相同 tree 已成功的检查 job。单独手动检查从 Reusable Checks and Tests 入口运行。旧入口保持原样。
+
+共享检查入口还响应 PR 的创建、更新和重新打开，保留 GitHub 默认行为，检查 PR 合入目标分支后的内容；PR 事件只触发检查，不触发部署。
+
+自动调用、PR 和手动检查都经过同一条 tree 队列，队列调用仅支持 `workflow_call` 的[执行工作流](.github/workflows/checks-and-tests-execution.yml)。去重通过 GitHub Jobs API 查询本仓库相同 tree 的 `Checks and Tests` job：只有已完成且成功的检查可复用，运行中、失败、取消或跳过的检查均不算成功。历史 PR 的 tree 从 `referenced_workflows` 中执行工作流实际使用的合并提交读取，避免把 PR 分支头提交误当作检查内容。查询跨顶层 workflow 和运行重试，按需翻页；部署仍在进行或最终失败都不影响已经成功的检查记录。仍仅复用源仓库为本仓库的记录，fork PR 会执行检查，但其成功记录不作为本仓库部署的复用来源。API 查询失败会使流程失败；历史记录被清理后，相同 tree 会重新验证。
+
+[Preview 部署工作流](.github/workflows/preview-deployment.yml)在部署前调用 `deployment:preview-alias`，部署后调用 `deployment:preview-urls`。别名生成和地址解析集中在 `apps/site/tools/deployment/preview-cli.mjs`，保持现有分支 URL 的规范化和哈希算法。两个命令读取 `BRANCH_NAME`；地址命令还读取 `DEPLOYMENT_URL`，main 使用 `COMMAND_OUTPUT` 中的版本号，其他分支使用 `PREVIEW_ALIAS`。结果打印到终端，设置了 `GITHUB_OUTPUT`、`GITHUB_STEP_SUMMARY` 时会追加对应输出和摘要；输入或解析错误以非零状态退出。命令不联网、不部署。
+
 生产部署在 Wrangler 执行前下载线上 `resource-inventory.json` 为 `before.json`，并把本次已验证产物中的清单复制为 `after.json`。下载及清单校验最多尝试三次，每次请求最多 20 秒，失败间隔 2 秒；404、网络失败、JSON/必要字段无效或两份清单站点不一致都会阻止部署，不使用空清单替代旧版本。快照保存在 `apps/site/.reports/production-inventory/`，不进入部署目录。
+
+[Production 部署工作流](.github/workflows/production-deployment.yml)通过 `npm run inventory:prepare` 完成清单生成、打包和快照准备，部署成功后直接调用 `npm run inventory:diff -- before.json after.json --output DIRECTORY --summary FILE` 生成报告。准备命令支持 `--url URL`、`--output DIRECTORY` 和可选的 `--summary FILE`，默认读取生产站的旧清单；运行前须完成生产构建。文件处理与请求重试位于 `apps/site/tools/resource-inventory/`，workflow 负责调用顺序与 artifact 上传。
 
 部署成功后，直接离线比较这两份清单，不再请求线上新清单。Actions Summary 显示旧、新构建标识、数量和新增/减少页面、资源四组列表；页面按 `pages[].url`，资源按 `resources[].url` 排除各自清单中的页面 URL，完整保留查询参数。文件名哈希变化体现为旧 URL 减少、新 URL 增加；同一 URL 的标题、大小或内容变化不计入增减，外部资源标明为外部引用。报告失败会使任务失败并注明生产部署已成功。
 

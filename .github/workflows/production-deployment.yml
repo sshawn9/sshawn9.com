@@ -1,0 +1,101 @@
+name: Production Deployment
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  checks-and-tests-reusable:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    uses: ./.github/workflows/checks-and-tests-reusable.yml
+
+  deploy-production:
+    needs: checks-and-tests-reusable
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      INVENTORY_REPORT_DIRECTORY: apps/site/.reports/production-inventory
+    environment:
+      name: production
+      url: https://sshawn9.com
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - name: Install devenv
+        run: nix profile add nixpkgs#devenv
+      - name: Cache npm downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+      - run: devenv shell npm ci
+      - name: Build production site
+        run: devenv shell npm run build
+        env:
+          SITE_MODE: production
+      - name: Prepare Worker secrets
+        shell: bash
+        env:
+          UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$UNSPLASH_ACCESS_KEY" ]]; then
+            echo "UNSPLASH_ACCESS_KEY must not be empty." >&2
+            exit 1
+          fi
+          devenv shell node --input-type=module -e \
+            'import { writeFileSync } from "node:fs"; writeFileSync(".wrangler-secrets.json", JSON.stringify({ UNSPLASH_ACCESS_KEY: process.env.UNSPLASH_ACCESS_KEY }));'
+      - name: Prepare production inventories
+        id: inventory-prepare
+        run: |
+          devenv shell npm run inventory:prepare -- \
+            --output "$INVENTORY_REPORT_DIRECTORY" --summary "$GITHUB_STEP_SUMMARY"
+      - name: Deploy production to Cloudflare Workers
+        id: deploy
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          wranglerVersion: '4.129.0'
+          command: deploy --env="" --secrets-file .wrangler-secrets.json
+      - name: Record production URL
+        run: |
+          {
+            echo "### Production deployment"
+            echo
+            echo "Production deployment succeeded."
+            echo
+            echo "- https://sshawn9.com"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Report production inventory changes
+        run: |
+          devenv shell npm run inventory:diff -- \
+            "$INVENTORY_REPORT_DIRECTORY/before.json" "$INVENTORY_REPORT_DIRECTORY/after.json" \
+            --output "$INVENTORY_REPORT_DIRECTORY" --summary "$GITHUB_STEP_SUMMARY"
+      - name: Upload production inventory report
+        id: inventory-artifact
+        if: ${{ always() && (steps.inventory-prepare.outcome == 'success' || steps.inventory-prepare.outcome == 'failure') }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-inventory-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.INVENTORY_REPORT_DIRECTORY }}/
+          include-hidden-files: true
+          retention-days: 30
+          if-no-files-found: ignore
+      - name: Link production inventory report
+        if: ${{ always() && steps.inventory-artifact.outputs.artifact-url != '' }}
+        shell: bash
+        env:
+          ARTIFACT_URL: ${{ steps.inventory-artifact.outputs.artifact-url }}
+        run: |
+          printf '\n[Download production inventory snapshots and report](%s)\n' "$ARTIFACT_URL" >> "$GITHUB_STEP_SUMMARY"

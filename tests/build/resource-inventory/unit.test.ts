@@ -748,8 +748,8 @@ describe('resource size accounting', () => {
   });
 });
 
-describe('resource inventory CLI publication', () => {
-  async function runCli(failure?: 'analysis' | 'diagnostics' | 'write') {
+describe('resource inventory report publication', () => {
+  async function generateReports(failure?: 'analysis' | 'diagnostics' | 'write') {
     const report = {
       pages: [],
       resources: [],
@@ -782,14 +782,16 @@ describe('resource inventory CLI publication', () => {
     vi.doMock('../../../apps/site/tools/resource-inventory/markdown.mjs', () => ({
       renderInventoryMarkdown: () => '# Report\n',
     }));
-    const previousExitCode = process.exitCode;
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     try {
-      await import('../../../apps/site/tools/resource-inventory/cli.mjs');
-      return { fs, exitCode: process.exitCode };
+      const { generateResourceInventory } =
+        await import('../../../apps/site/tools/resource-inventory/cli.mjs');
+      return await generateResourceInventory().then(
+        () => ({ fs, error: undefined }),
+        (failure) => ({ fs, error: failure as Error }),
+      );
     } finally {
-      process.exitCode = previousExitCode;
       error.mockRestore();
       log.mockRestore();
       vi.doUnmock('node:fs/promises');
@@ -803,8 +805,8 @@ describe('resource inventory CLI publication', () => {
   it.each(['analysis', 'diagnostics'] as const)(
     'preserves existing reports on %s failure',
     async (failure) => {
-      const { fs, exitCode } = await runCli(failure);
-      expect(exitCode).toBe(1);
+      const { fs, error } = await generateReports(failure);
+      expect(error).toBeInstanceOf(Error);
       expect(fs.writeFile).not.toHaveBeenCalled();
       expect(fs.rename).not.toHaveBeenCalled();
       expect(fs.rm).not.toHaveBeenCalled();
@@ -812,7 +814,8 @@ describe('resource inventory CLI publication', () => {
   );
 
   it('prepares both files before publishing either report', async () => {
-    const { fs } = await runCli();
+    const { fs, error } = await generateReports();
+    expect(error).toBeUndefined();
     expect(fs.writeFile).toHaveBeenCalledTimes(2);
     expect(fs.rename).toHaveBeenCalledTimes(2);
     expect(fs.writeFile.mock.calls.every(([url]) => String(url).includes('.tmp-'))).toBe(true);
@@ -824,8 +827,8 @@ describe('resource inventory CLI publication', () => {
   });
 
   it('cleans temporary files without replacing reports after a write failure', async () => {
-    const { fs, exitCode } = await runCli('write');
-    expect(exitCode).toBe(1);
+    const { fs, error } = await generateReports('write');
+    expect(error?.message).toBe('disk full');
     expect(fs.writeFile).toHaveBeenCalledTimes(2);
     expect(fs.rename).not.toHaveBeenCalled();
     expect(fs.rm).toHaveBeenCalledTimes(2);
