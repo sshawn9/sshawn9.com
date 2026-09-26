@@ -83,16 +83,26 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
-      - name: Install devenv
-        run: nix profile add nixpkgs#devenv
       - name: Cache npm downloads
+        id: npm-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        background: true
         with:
           path: ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - name: Cache Nix environment
+        uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devenv.lock', 'devenv.nix', 'devenv.yaml', '.nvmrc') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-${{ runner.arch }}-
+          paths: ~/.cache/nix
+      - name: Install devenv
+        run: nix profile add nixpkgs#devenv
+      - name: Wait for npm cache
+        wait: npm-cache
       - run: devenv shell npm ci
       - run: devenv shell npm run format:check
       - run: devenv shell npm run check
@@ -100,7 +110,7 @@ jobs:
         run: devenv shell npm run test:unit
 
   browser-tests:
-    name: Browser Tests (${{ matrix.site_mode }})
+    name: Browser Tests (${{ matrix.site_mode }}, shard ${{ matrix.shard }}/8)
     needs: duplicate-check
     if: ${{ needs.duplicate-check.outputs.should_skip != 'true' }}
     runs-on: ubuntu-latest
@@ -108,32 +118,48 @@ jobs:
       fail-fast: false
       matrix:
         site_mode: [preview, production]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
-      - name: Install devenv
-        run: nix profile add nixpkgs#devenv
       - name: Cache npm downloads
+        id: npm-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        background: true
         with:
           path: ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - name: Cache Nix environment
+        uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('devenv.lock', 'devenv.nix', 'devenv.yaml', '.nvmrc') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-${{ runner.arch }}-
+          paths: ~/.cache/nix
+      - name: Install devenv
+        run: nix profile add nixpkgs#devenv
+      - name: Wait for npm cache
+        wait: npm-cache
       - run: devenv shell npm ci
-      - name: Install Chromium for browser tests
-        run: devenv shell npm exec -- playwright install --with-deps chromium
+      - parallel:
+          - name: Build site
+            run: devenv shell npm run build
+            env:
+              SITE_MODE: ${{ matrix.site_mode }}
+          - name: Install Chromium for browser tests
+            run: devenv shell npm exec -- playwright install --with-deps --no-shell chromium
       - name: Run browser tests
-        run: devenv shell npm run test:browser
+        run: devenv shell npm exec -- playwright test --shard=${{ matrix.shard }}/8
         env:
           SITE_MODE: ${{ matrix.site_mode }}
       - name: Upload Playwright traces
         if: ${{ failure() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: playwright-traces-${{ matrix.site_mode }}
+          name: playwright-traces-${{ matrix.site_mode }}-shard-${{ matrix.shard }}
           path: tests/.results/
           include-hidden-files: true
           retention-days: 7
