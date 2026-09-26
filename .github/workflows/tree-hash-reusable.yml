@@ -1,0 +1,29 @@
+name: Reusable Tree Hash
+
+on:
+  workflow_call:
+    outputs:
+      tree_hash:
+        description: Root tree hash of the caller's commit
+        value: ${{ jobs.tree-hash.outputs.tree_hash }}
+
+permissions:
+  contents: read
+
+jobs:
+  tree-hash:
+    runs-on: ubuntu-latest
+    outputs:
+      tree_hash: ${{ steps.tree-hash.outputs.tree_hash }}
+    steps:
+      - id: tree-hash
+        name: Get repository tree hash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tree_hash=$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$GITHUB_SHA" --jq '.tree.sha')
+          if [[ ! "$tree_hash" =~ ^[0-9a-f]{40}$ ]]; then
+            echo '::error::GitHub returned an invalid repository tree hash'
+            exit 1
+          fi
+          echo "tree_hash=$tree_hash" >> "$GITHUB_OUTPUT"

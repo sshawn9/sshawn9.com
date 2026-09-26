@@ -1,38 +1,61 @@
 name: Reusable Checks and Tests
 
 on:
-  pull_request:
-  workflow_dispatch:
   workflow_call:
+    inputs:
+      tree_hash:
+        description: Root tree hash of the commit being checked
+        required: true
+        type: string
+      preview:
+        description: Run Preview checks and tests
+        type: boolean
+        default: true
+      production:
+        description: Run Production checks and tests
+        type: boolean
+        default: true
 
 permissions:
   contents: read
   actions: read
 
+# Keep the whole batch's duplicate check and execution in the same tree queue.
+concurrency:
+  group: checks-and-tests-${{ inputs.tree_hash }}
+  queue: max
+  cancel-in-progress: false
+
 jobs:
-  tree-hash:
+  duplicate-check:
     runs-on: ubuntu-latest
     outputs:
-      tree_hash: ${{ steps.tree-hash.outputs.tree_hash }}
+      modes_to_run: ${{ steps.duplicate-check.outputs.modes_to_run }}
+      mode_count: ${{ steps.duplicate-check.outputs.mode_count }}
     steps:
-      - id: tree-hash
-        name: Get repository tree hash
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/scripts
+      - id: duplicate-check
+        name: Find requested modes without successful checks on the same tree
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          tree_hash=$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$GITHUB_SHA" --jq '.tree.sha')
-          if [[ ! "$tree_hash" =~ ^[0-9a-f]{40}$ ]]; then
-            echo '::error::GitHub returned an invalid repository tree hash'
-            exit 1
-          fi
-          echo "tree_hash=$tree_hash" >> "$GITHUB_OUTPUT"
+          CHECK_INPUTS: ${{ toJSON(inputs) }}
+        with:
+          script: |
+            const checkDuplicates = require('./.github/scripts/check-duplicates.cjs');
+            await checkDuplicates({ github, context, core }, JSON.parse(process.env.CHECK_INPUTS));
 
   checks-and-tests-execution:
-    needs: tree-hash
-    concurrency:
-      group: checks-and-tests-${{ needs.tree-hash.outputs.tree_hash }}
-      queue: max
-      cancel-in-progress: false
+    # The duplicate check uses this caller name to identify each mode's results.
+    name: Checks (${{ matrix.mode }})
+    needs: duplicate-check
+    if: ${{ needs.duplicate-check.outputs.mode_count > 0 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: ${{ fromJSON(needs.duplicate-check.outputs.modes_to_run) }}
     uses: ./.github/workflows/checks-and-tests-execution.yml
     with:
-      tree_hash: ${{ needs.tree-hash.outputs.tree_hash }}
+      mode: ${{ matrix.mode }}
+      shard_count: ${{ needs.duplicate-check.outputs.mode_count == 1 && 16 || 8 }}

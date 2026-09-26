@@ -72,9 +72,9 @@ Playwright 由 npm 锁定和升级，浏览器由其官方安装器下载，不�
 
 测试内部服务器由 Playwright 启停，默认端口 `4399`（可用 `PLAYWRIGHT_PORT` 覆盖），不复用已有服务器，也不是人工预览入口。测试集中在 `tests/<功能>/<案例>/`，每个案例的 Markdown 说明与单元或浏览器测试放在一起。
 
-完整验证为 `npm run format:check`、`npm run check`、`npm test`。[站点验证工作流](.github/workflows/site-validation.yml) 在 devenv 环境内执行同一套 npm 命令，并分别验证所需的 Preview／Production 产物。环境依赖使用 `devenv update` 更新，JS 依赖使用 npm 更新，验证后提交对应锁文件。devenv CLI 是宿主工具，由系统或 CI 安装，不受项目锁文件固定。
+完整验证为 `npm run format:check`、`npm run check`、`npm test`。[检查入口](.github/workflows/checks-and-tests.yml) 调用可复用工作流，在 devenv 环境内执行格式检查、静态检查、单元测试及所选模式的浏览器测试。环境依赖使用 `devenv update` 更新，JS 依赖使用 npm 更新，验证后提交对应锁文件。devenv CLI 是宿主工具，由系统或 CI 安装，不受项目锁文件固定。
 
-构建标识由应用自动生成，无需手动设置 `SITE_BUILD_ID`。CI 部署直接使用测试过的产物，不再次构建；标识与缓存的关系见 [缓存说明](docs/cloudflare-browser-cache.md)。
+构建标识由应用自动生成，无需手动设置 `SITE_BUILD_ID`。CI 检查通过后，部署针对本次提交重新构建，保留其 Git 历史和 commit 信息；标识与缓存的关系见 [缓存说明](docs/cloudflare-browser-cache.md)。
 
 搜索通过 [构建集成](apps/site/config/search-index.mjs) 调用 Pagefind 官方 Node API，在 Astro 页面和站点地图生成后写入 `dist/pagefind`；索引失败会使构建失败，后台进程在结束时关闭。搜索构建参数集中在该文件，不再自动读取 Pagefind CLI 配置文件或 `PAGEFIND_*` 环境变量；当前使用默认参数，`dev` 的静态搜索回退不变。
 
@@ -250,22 +250,29 @@ Paraglide 负责页面级文案和界面文案，长篇文章与项目记录仍�
 
 ## 部署
 
-以下描述仓库的 [CI/CD 入口](.github/workflows/site-pipeline.yml)及其调用的[站点验证](.github/workflows/site-validation.yml)和[Cloudflare 部署](.github/workflows/site-deployment.yml)工作流，不代表已完成线上平台验收：
+新增的 [Deployment](.github/workflows/deployment.yml) 统一监听所有分支 push，并支持手动运行。每次只获取一次 tree hash、调用一次检查工作流：所有分支请求 Preview，main 同时请求 Production，统一去重后执行剩余模式。所有请求的检查通过后，Preview 部署开始；main 同时开始独立的 Production 部署。任一模式检查失败都会阻止本次入口的两个部署。
 
-- 分支推送或手动触发：验证后发布 Preview；`main` 更新 `sshawn9-com-preview` 的当前部署，其他分支只上传带稳定别名的版本。部署摘要提供稳定分支 URL 和不可变版本 URL。
-- `main` 还会独立验证并部署 Production；拉取请求只验证 Preview，不使用部署密钥。
-- `main` 的正在运行流程和生产部署不会被后续推送自动取消，保证旧清单快照、部署和报告顺序完成；新任务需要等待，多个待运行任务仍只保留最新一个。其他分支保留自动取消旧运行的行为。
+原有 [Preview Deployment](.github/workflows/preview-deployment.yml) 和 [Production Deployment](.github/workflows/production-deployment.yml) 两个独立入口及自动触发暂时保留，因此 push 会同时触发新旧入口，部署可能重复执行或因共享部署并发组而取消。两个旧入口均通过 `workflow_call` 调用同一份[检查工作流](.github/workflows/checks-and-tests-reusable.yml)，检查通过后才部署：
+
+- Preview 监听所有分支 push，并支持手动运行，要求公共检查和 Preview 浏览器测试通过。`main` 更新 `sshawn9-com-preview` 的当前部署，其他分支上传带稳定别名的版本；部署摘要提供稳定分支 URL 和不可变版本 URL。
+- Production 监听 main push，并支持手动运行，始终仅限 main 分支，要求公共检查和 Production 浏览器测试通过。
+- [Checks and Tests](.github/workflows/checks-and-tests.yml) 负责 PR 和手动纯检查。PR 检查合入目标分支后的内容，验证两种模式，不部署；手动检查通过 `preview`、`production` 两个布尔勾选项选择模式，默认都勾选，两项都不选会报错，无需手动提供 tree hash。
+- Preview 部署按分支自动取消旧部署；Production 部署串行执行，不取消正在运行的部署，多个待运行部署只保留最新一个。
 - Preview 包含草稿、不生成 sitemap，并在 HTML 和 `_headers` 中声明 `noindex`；Production 排除草稿并生成 sitemap。工作流不主动清理已删除分支的预览别名。
 
-新流程使用 [Preview Deployment](.github/workflows/preview-deployment.yml) 和 [Production Deployment](.github/workflows/production-deployment.yml) 两个独立入口：Preview 监听所有分支 push，Production 仅监听 main push，两者均支持手动运行。两者先调用同一份[检查工作流](.github/workflows/checks-and-tests-reusable.yml)，按 tree 排队、去重，执行格式检查、静态检查和一次单测，再分别构建并运行 Preview／Production 浏览器测试；检查成功后各自部署，Production 部署始终仅限 main 分支。main 同时触发两者时，可以复用相同 tree 已成功的检查 job。单独手动检查从 Reusable Checks and Tests 入口运行。旧入口保持原样。
+部署入口和独立检查入口都调用 [Reusable Tree Hash](.github/workflows/tree-hash-reusable.yml)，按调用方的 `github.sha` 获取待测提交的根 tree hash；查询或校验失败会直接终止。返回的 `tree_hash` 再作为必填输入调用 [Reusable Checks and Tests](.github/workflows/checks-and-tests-reusable.yml)。检查工作流只接受 `workflow_call`，使用传入的 hash 设置 workflow 级并发锁，合并负责统一查重和调度；`preview`、`production` 两个布尔输入默认均为 `true`，部署入口显式指定对应模式，不再有单独的 scheduler 文件。
 
-共享检查入口还响应 PR 的创建、更新和重新打开，保留 GitHub 默认行为，检查 PR 合入目标分支后的内容；PR 事件只触发检查，不触发部署。
+拿到队列位置后，可复用工作流统一按 `tree + mode` 查询成功记录，输出实际待执行的 `modes_to_run` 和数量 `mode_count`：0 个模式时跳过执行，1 个模式时只调用一次，2 个模式时再用 matrix 并行调用[执行工作流](.github/workflows/checks-and-tests-execution.yml)。队列锁覆盖整批查重到全部执行完成，同 tree 的独立请求串行，不同 tree 可以并行；同一批次内部的两个模式仍可并行。两个旧部署入口各自请求对应的一个模式，不自动合并请求；新入口在 main 上一次请求两种模式，去重后仍需两种时可并行执行。执行工作流接收单个字符串 `mode`（`preview` 或 `production`）和浏览器分片数 `shard_count`，负责检查、测试和结果汇总。每批只运行一个查重 job，可复用 workflow 的调用本身不额外占用 runner。双模式请求不另存一份组合成功结果。
 
-自动调用、PR 和手动检查都经过同一条 tree 队列，队列调用仅支持 `workflow_call` 的[执行工作流](.github/workflows/checks-and-tests-execution.yml)。去重通过 GitHub Jobs API 查询本仓库相同 tree 的 `Checks and Tests` job：只有已完成且成功的检查可复用，运行中、失败、取消或跳过的检查均不算成功。历史 PR 的 tree 从 `referenced_workflows` 中执行工作流实际使用的合并提交读取，避免把 PR 分支头提交误当作检查内容。查询跨顶层 workflow 和运行重试，按需翻页；部署仍在进行或最终失败都不影响已经成功的检查记录。仍仅复用源仓库为本仓库的记录，fork PR 会执行检查，但其成功记录不作为本仓库部署的复用来源。API 查询失败会使流程失败；历史记录被清理后，相同 tree 会重新验证。
+每种模式内部，格式检查、静态检查和单元测试组成一个 job，与浏览器测试并行。浏览器测试使用 Playwright 原生分片，按去重后实际待执行的模式数分配：两种模式各 8 个 runner，只有一种模式时使用 16 个 runner；全部命中去重时不启动浏览器测试。分片各自构建对应模式的完整站点，构建与 Chromium 安装并行，失败时上传独立的 traces。公共检查和全部浏览器分片通过后，由 `Checks and Tests (preview)` 或 `Checks and Tests (production)` 汇总 job 提供该模式的成功记录。同一 tree 首次验证两个模式时，公共检查分别执行，不单独跨模式去重。某模式未全部通过时，新的运行重新执行该模式的全部检查和分片。
+
+去重实现集中在 [.github/scripts/check-duplicates.cjs](.github/scripts/check-duplicates.cjs)。历史查询、成功 job 判断和模式选择分别由函数负责；核心查询只接收目标 job 名称，Preview／Production 映射和 Actions 输出集中在外层。查重 job 先检出脚本目录，再由 `actions/github-script` 调用，无需安装 npm 依赖。两种模式共用一次历史扫描，找到全部所需成功记录就停止。
+
+去重通过 GitHub Jobs API 查询相同 tree、相同模式的已完成成功汇总 job，核对执行 workflow 和调用模式；运行中、失败、取消或跳过均不算新的成功记录。历史 PR 的 tree 从 `referenced_workflows` 中执行工作流实际使用的合并提交读取。查询跨顶层 workflow 和运行重试，按需翻页；另一模式失败、部署仍在进行或最终失败，都不影响已经成功的模式。仅复用源仓库为本仓库的记录，fork PR 会执行检查，但其成功记录不作为本仓库部署的复用来源。参数无效、tree 或 API 查询失败会使流程失败；历史记录被清理后会重新验证。
 
 [Preview 部署工作流](.github/workflows/preview-deployment.yml)在部署前调用 `deployment:preview-alias`，部署后调用 `deployment:preview-urls`。别名生成和地址解析集中在 `apps/site/tools/deployment/preview-cli.mjs`，保持现有分支 URL 的规范化和哈希算法。两个命令读取 `BRANCH_NAME`；地址命令还读取 `DEPLOYMENT_URL`，main 使用 `COMMAND_OUTPUT` 中的版本号，其他分支使用 `PREVIEW_ALIAS`。结果打印到终端，设置了 `GITHUB_OUTPUT`、`GITHUB_STEP_SUMMARY` 时会追加对应输出和摘要；输入或解析错误以非零状态退出。命令不联网、不部署。
 
-生产部署在 Wrangler 执行前下载线上 `resource-inventory.json` 为 `before.json`，并把本次已验证产物中的清单复制为 `after.json`。下载及清单校验最多尝试三次，每次请求最多 20 秒，失败间隔 2 秒；404、网络失败、JSON/必要字段无效或两份清单站点不一致都会阻止部署，不使用空清单替代旧版本。快照保存在 `apps/site/.reports/production-inventory/`，不进入部署目录。
+生产部署在 Wrangler 执行前下载线上 `resource-inventory.json` 为 `before.json`，并把本次部署产物中的清单复制为 `after.json`。下载及清单校验最多尝试三次，每次请求最多 20 秒，失败间隔 2 秒；404、网络失败、JSON/必要字段无效或两份清单站点不一致都会阻止部署，不使用空清单替代旧版本。快照保存在 `apps/site/.reports/production-inventory/`，不进入部署目录。
 
 [Production 部署工作流](.github/workflows/production-deployment.yml)通过 `npm run inventory:prepare` 完成清单生成、打包和快照准备，部署成功后直接调用 `npm run inventory:diff -- before.json after.json --output DIRECTORY --summary FILE` 生成报告。准备命令支持 `--url URL`、`--output DIRECTORY` 和可选的 `--summary FILE`，默认读取生产站的旧清单；运行前须完成生产构建。文件处理与请求重试位于 `apps/site/tools/resource-inventory/`，workflow 负责调用顺序与 artifact 上传。
 

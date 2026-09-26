@@ -3,81 +3,22 @@ name: Checks and Tests Execution
 on:
   workflow_call:
     inputs:
-      tree_hash:
-        description: Repository tree whose checks are protected by the caller's queue
+      mode:
+        description: Browser test mode (preview or production)
         required: true
         type: string
+      shard_count:
+        description: Number of browser test shards (8 or 16)
+        required: true
+        type: number
 
 permissions:
   contents: read
   actions: read
 
 jobs:
-  duplicate-check:
-    runs-on: ubuntu-latest
-    outputs:
-      should_skip: ${{ steps.duplicate-check.outputs.should_skip }}
-    steps:
-      - id: duplicate-check
-        name: Check for successful checks on the same tree
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        env:
-          TREE_HASH: ${{ inputs.tree_hash }}
-        with:
-          script: |
-            const executionPath = `${context.repo.owner}/${context.repo.repo}/.github/workflows/checks-and-tests-execution.yml@`;
-            const treesByCommit = new Map();
-            const runs = github.paginate.iterator(github.rest.actions.listWorkflowRunsForRepo, {
-              ...context.repo,
-              per_page: 100,
-            });
-            for await (const { data } of runs) {
-              for (const run of data) {
-                if (String(run.head_repository?.id) !== process.env.GITHUB_REPOSITORY_ID) continue;
-                const execution = run.referenced_workflows?.find(workflow =>
-                  workflow.path.startsWith(executionPath));
-                if (!execution) continue;
-                let treeHash = run.head_commit?.tree_id;
-                if (run.event === 'pull_request') {
-                  // A PR run's head_commit describes its head branch, not the tested merge commit.
-                  treeHash = treesByCommit.get(execution.sha);
-                  if (!treeHash) {
-                    const { data: commit } = await github.rest.git.getCommit({
-                      ...context.repo,
-                      commit_sha: execution.sha,
-                    });
-                    treeHash = commit.tree.sha;
-                    if (!/^[0-9a-f]{40}$/.test(treeHash)) {
-                      throw new Error(`Invalid tree for PR workflow commit ${execution.sha}`);
-                    }
-                    treesByCommit.set(execution.sha, treeHash);
-                  }
-                }
-                if (treeHash !== process.env.TREE_HASH) continue;
-                const jobs = github.paginate.iterator(github.rest.actions.listJobsForWorkflowRun, {
-                  ...context.repo,
-                  run_id: run.id,
-                  filter: 'all',
-                  per_page: 100,
-                });
-                for await (const { data } of jobs) {
-                  const successful = data.find(job =>
-                    job.name.split(' / ').slice(-2).join(' / ') === 'checks-and-tests-execution / Checks and Tests' &&
-                    job.status === 'completed' && job.conclusion === 'success');
-                  if (successful) {
-                    core.info(`Reusing successful checks: ${successful.html_url}`);
-                    core.setOutput('should_skip', 'true');
-                    return;
-                  }
-                }
-              }
-            }
-            core.setOutput('should_skip', 'false');
-
   checks-and-unit-tests:
     name: Checks and Unit Tests
-    needs: duplicate-check
-    if: ${{ needs.duplicate-check.outputs.should_skip != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -110,15 +51,12 @@ jobs:
         run: devenv shell npm run test:unit
 
   browser-tests:
-    name: Browser Tests (${{ matrix.site_mode }}, shard ${{ matrix.shard }}/8)
-    needs: duplicate-check
-    if: ${{ needs.duplicate-check.outputs.should_skip != 'true' }}
+    name: Browser Tests (${{ inputs.mode }}, shard ${{ matrix.shard }}/${{ inputs.shard_count }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        site_mode: [preview, production]
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: ${{ fromJSON(inputs.shard_count == 16 && '[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]' || '[1, 2, 3, 4, 5, 6, 7, 8]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -148,28 +86,27 @@ jobs:
           - name: Build site
             run: devenv shell npm run build
             env:
-              SITE_MODE: ${{ matrix.site_mode }}
+              SITE_MODE: ${{ inputs.mode }}
           - name: Install Chromium for browser tests
             run: devenv shell npm exec -- playwright install --with-deps --no-shell chromium
       - name: Run browser tests
-        run: devenv shell npm exec -- playwright test --shard=${{ matrix.shard }}/8
+        run: devenv shell npm exec -- playwright test --shard=${{ matrix.shard }}/${{ inputs.shard_count }}
         env:
-          SITE_MODE: ${{ matrix.site_mode }}
+          SITE_MODE: ${{ inputs.mode }}
       - name: Upload Playwright traces
         if: ${{ failure() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: playwright-traces-${{ matrix.site_mode }}-shard-${{ matrix.shard }}
+          name: playwright-traces-${{ inputs.mode }}-shard-${{ matrix.shard }}
           path: tests/.results/
           include-hidden-files: true
           retention-days: 7
           if-no-files-found: ignore
 
-  checks-and-tests:
-    # The duplicate check reuses this job only after all validation jobs succeed.
-    name: Checks and Tests
-    needs: [duplicate-check, checks-and-unit-tests, browser-tests]
-    if: ${{ needs.duplicate-check.outputs.should_skip != 'true' }}
+  checks-and-tests-result:
+    # Each mode is reusable only after all checks and browser test shards succeed.
+    name: Checks and Tests (${{ inputs.mode }})
+    needs: [checks-and-unit-tests, browser-tests]
     runs-on: ubuntu-latest
     steps:
-      - run: echo 'All checks and tests passed.'
+      - run: echo 'All checks and browser test shards passed.'

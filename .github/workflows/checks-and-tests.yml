@@ -1,0 +1,30 @@
+name: Checks and Tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      preview:
+        description: Run Preview checks and tests
+        type: boolean
+        default: true
+      production:
+        description: Run Production checks and tests
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  tree-hash:
+    uses: ./.github/workflows/tree-hash-reusable.yml
+
+  checks-and-tests-reusable:
+    needs: tree-hash
+    uses: ./.github/workflows/checks-and-tests-reusable.yml
+    with:
+      tree_hash: ${{ needs.tree-hash.outputs.tree_hash }}
+      preview: ${{ github.event_name == 'pull_request' || inputs.preview }}
+      production: ${{ github.event_name == 'pull_request' || inputs.production }}
