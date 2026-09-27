@@ -1,10 +1,35 @@
 import { expect, test, type Page } from '@playwright/test';
 import { manifest, routeWallpaperResources, seedTwoSlots } from '../browser-fixtures';
 
+type ManifestRefreshWindow = Window & { __wallpaperManifestRefreshAt?: number };
+
+async function waitForManifestRefresh(page: Page) {
+  // A request being received does not mean the page has processed its response.
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => ((window as ManifestRefreshWindow).__wallpaperManifestRefreshAt ?? 0) > Date.now(),
+      ),
+    )
+    .toBe(true);
+}
+
 async function prepare(page: Page) {
   await routeWallpaperResources(page);
   await seedTwoSlots(page, 1600);
   await page.clock.install();
+  await page.addInitScript(() => {
+    const browserWindow = window as ManifestRefreshWindow;
+    const schedule = browserWindow.setTimeout.bind(browserWindow);
+    const interval = 5 * 60 * 60_000;
+    browserWindow.setTimeout = (handler, delay, ...args) => {
+      const id = schedule(handler, delay, ...args);
+      if (delay !== undefined && delay > interval - 60_000 && delay <= interval) {
+        browserWindow.__wallpaperManifestRefreshAt = Date.now() + delay;
+      }
+      return id;
+    };
+  });
   let requests = 0;
   await page.route('**/api/wallpapers', async (route) => {
     requests += 1;
@@ -12,6 +37,7 @@ async function prepare(page: Page) {
   });
   await page.goto('/en/blog/');
   await expect.poll(() => requests).toBe(1);
+  await waitForManifestRefresh(page);
   await page.locator('[data-wallpaper-menu-trigger]').click();
   return () => requests;
 }
@@ -42,6 +68,7 @@ test('advance, spare preparation and preference changes do not postpone manifest
   expect(requests()).toBe(1);
   await page.clock.fastForward(61_000);
   await expect.poll(requests).toBe(2);
+  await waitForManifestRefresh(page);
   await expect(page.locator('html')).toHaveAttribute('data-wallpaper-photo-id', 'photo-two');
   await page.clock.fastForward((5 * 60 - 1) * 60_000);
   expect(requests()).toBe(2);
@@ -75,6 +102,7 @@ test('visibility pauses the timer but retains the deadline and performs one over
   expect(requests()).toBe(1);
   await setHidden(false);
   await expect.poll(requests).toBe(2);
+  await waitForManifestRefresh(page);
   await page.clock.fastForward(3 * 60 * 60_000);
   await setHidden(true);
   await page.clock.fastForward(60 * 60_000);

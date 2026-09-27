@@ -88,13 +88,18 @@ jobs:
       - name: Wait for npm cache
         wait: npm-cache
       - run: devenv shell npm ci
-      - parallel:
-          - name: Build site
-            run: devenv shell npm run build
-            env:
-              SITE_MODE: ${{ inputs.mode }}
-          - name: Install Chromium for browser tests
-            run: devenv shell npm exec -- playwright install --with-deps --no-shell chromium
+      - name: Build site and install Chromium
+        env:
+          SITE_MODE: ${{ inputs.mode }}
+        run: |
+          devenv shell bash -euo pipefail <<'BASH'
+          npm run build &
+          build_pid=$!
+          status=0
+          npm exec -- playwright install --with-deps --no-shell chromium || status=$?
+          wait "$build_pid" || status=$?
+          exit "$status"
+          BASH
       - name: Run browser tests
         run: devenv shell npm exec -- playwright test --shard=${{ matrix.shard }}/${{ inputs.shard_count }}
         env:
