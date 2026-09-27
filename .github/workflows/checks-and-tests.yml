@@ -2,6 +2,12 @@ name: Checks and Tests
 
 on:
   pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'apps/site/README.md'
+      - 'AGENTS.md'
+      - 'docs/**'
+      - '.github/renovate.json'
   workflow_dispatch:
     inputs:
       preview:

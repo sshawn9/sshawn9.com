@@ -3,6 +3,12 @@ name: Deployment
 on:
   push:
     branches: ['**']
+    paths-ignore:
+      - 'README.md'
+      - 'apps/site/README.md'
+      - 'AGENTS.md'
+      - 'docs/**'
+      - '.github/renovate.json'
   workflow_dispatch:
 
 permissions:
