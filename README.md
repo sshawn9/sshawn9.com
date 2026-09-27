@@ -74,6 +74,12 @@ Playwright 由 npm 锁定和升级，浏览器由其官方安装器下载，不�
 
 完整验证为 `npm run format:check`、`npm run check`、`npm test`。[检查入口](.github/workflows/checks-and-tests.yml) 调用可复用工作流，在 devenv 环境内执行格式检查、静态检查、单元测试及所选模式的浏览器测试。环境依赖使用 `devenv update` 更新，JS 依赖使用 npm 更新，验证后提交对应锁文件。devenv CLI 是宿主工具，由系统或 CI 安装，不受项目锁文件固定。
 
+依赖自动更新由托管 [Renovate App](https://github.com/apps/renovate) 和 [.github/renovate.json](.github/renovate.json) 管理，启用前需安装 App 并授权本仓库。使用默认的依赖自动识别，覆盖当前仓库的 GitHub Actions、npm 工作区依赖与锁文件、`.nvmrc`，以及部署工作流中的 `wranglerVersion`。检查周期由托管服务调度，不额外限制更新时间窗口；依赖更新采用 `config:recommended` 的分组规则，由维护者审核合并。`devenv.lock` 仍通过 `devenv update` 手动更新。
+
+另启用 `lockFileMaintenance`，按 `package.json` 的版本约束重新解析 `package-lock.json` 并提出独立维护 PR。沿用该功能默认的每周一 04:00 前窗口，按 `Asia/Shanghai` 时区解释；这不限制普通依赖更新。
+
+`allowScripts` 按包名许可 `esbuild`、`workerd` 的安装脚本，覆盖这两个包的所有版本，升级时无需同步版本许可。
+
 构建标识由应用自动生成，无需手动设置 `SITE_BUILD_ID`。CI 检查通过后，部署针对本次提交重新构建，保留其 Git 历史和 commit 信息；标识与缓存的关系见 [缓存说明](docs/cloudflare-browser-cache.md)。
 
 搜索通过 [构建集成](apps/site/config/search-index.mjs) 调用 Pagefind 官方 Node API，在 Astro 页面和站点地图生成后写入 `dist/pagefind`；索引失败会使构建失败，后台进程在结束时关闭。搜索构建参数集中在该文件，不再自动读取 Pagefind CLI 配置文件或 `PAGEFIND_*` 环境变量；当前使用默认参数，`dev` 的静态搜索回退不变。
