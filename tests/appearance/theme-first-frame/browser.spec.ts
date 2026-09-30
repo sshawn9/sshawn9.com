@@ -6,14 +6,13 @@ type FoundationFrame = {
   theme?: string;
   fontState?: string;
   surfaceVisible: boolean;
-  progressOpacity: number;
-  progressAnimationEnabled: boolean;
+  fontReady: boolean;
   fontFamily: string;
   width: number;
   height: number;
 };
 
-test('theme, font gate and article geometry are coherent in every sampled frame after FCP', async ({
+test('theme, visible ready fonts and article geometry are coherent in every sampled frame after FCP', async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -40,11 +39,14 @@ test('theme, font gate and article geometry are coherent in every sampled frame 
       probe.attempts += 1;
       const heading = document.querySelector<HTMLElement>('[data-article-page] .article-header h1');
       const surface = document.querySelector<HTMLElement>('[data-font-surface].page-outlet');
-      const progress = document.querySelector<HTMLElement>('.navigation-progress');
-      if (heading && surface && progress) {
+      if (heading && surface) {
         const headingBox = heading.getBoundingClientRect();
         const surfaceStyle = getComputedStyle(surface);
-        const progressStyle = getComputedStyle(progress);
+        const headingStyle = getComputedStyle(heading);
+        const family = headingStyle.fontFamily
+          .split(',')[0]!
+          .trim()
+          .replace(/^['"]|['"]$/g, '');
         probe.frames.push({
           theme: document.documentElement.dataset.theme,
           fontState: document.documentElement.dataset.fontState,
@@ -52,17 +54,21 @@ test('theme, font gate and article geometry are coherent in every sampled frame 
             surfaceStyle.display !== 'none' &&
             surfaceStyle.visibility !== 'hidden' &&
             opacity(surface) > 0,
-          progressOpacity: opacity(progress),
-          progressAnimationEnabled:
-            progressStyle.animationName !== 'none' &&
-            progressStyle.animationPlayState === 'running',
-          fontFamily: getComputedStyle(heading).fontFamily,
+          fontReady:
+            Array.from(document.fonts).some(
+              (face) =>
+                face.family.replace(/^['"]|['"]$/g, '') === family && face.status === 'loaded',
+            ) &&
+            document.fonts.check(
+              `${headingStyle.fontStyle} ${headingStyle.fontWeight} 16px ${JSON.stringify(family)}`,
+              heading.textContent ?? '',
+            ),
+          fontFamily: headingStyle.fontFamily,
           width: headingBox.width,
           height: headingBox.height,
         });
       }
-      const readyCount = probe.frames.filter((frame) => frame.fontState === 'ready').length;
-      if (readyCount >= 8 || probe.attempts >= 240) {
+      if (probe.frames.length >= 8 || probe.attempts >= 240) {
         probe.complete = true;
         return;
       }
@@ -108,30 +114,20 @@ test('theme, font gate and article geometry are coherent in every sampled frame 
     JSON.stringify(frames),
   ).toBe(true);
 
-  let readyObserved = false;
   for (const frame of frames) {
-    expect(['loading', 'ready'], JSON.stringify(frame)).toContain(frame.fontState);
-    if (frame.fontState === 'loading') {
-      expect(readyObserved, JSON.stringify(frame)).toBe(false);
-      expect(frame.surfaceVisible, JSON.stringify(frame)).toBe(false);
-      expect(frame.progressOpacity, JSON.stringify(frame)).toBeGreaterThan(0.99);
-      expect(frame.progressAnimationEnabled, JSON.stringify(frame)).toBe(true);
-      continue;
-    }
-
-    readyObserved = true;
+    expect(frame.fontState, JSON.stringify(frame)).toBe('ready');
     expect(frame.surfaceVisible, JSON.stringify(frame)).toBe(true);
+    expect(frame.fontReady, JSON.stringify(frame)).toBe(true);
     expect(frame.fontFamily, JSON.stringify(frame)).toContain('Manrope');
   }
 
-  const readyFrames = frames.filter((frame) => frame.fontState === 'ready');
-  expect(readyFrames).toHaveLength(8);
+  expect(frames).toHaveLength(8);
   expect(
-    Math.max(...readyFrames.map((frame) => frame.width)) -
-      Math.min(...readyFrames.map((frame) => frame.width)),
+    Math.max(...frames.map((frame) => frame.width)) -
+      Math.min(...frames.map((frame) => frame.width)),
   ).toBeLessThan(0.25);
   expect(
-    Math.max(...readyFrames.map((frame) => frame.height)) -
-      Math.min(...readyFrames.map((frame) => frame.height)),
+    Math.max(...frames.map((frame) => frame.height)) -
+      Math.min(...frames.map((frame) => frame.height)),
   ).toBeLessThan(0.25);
 });

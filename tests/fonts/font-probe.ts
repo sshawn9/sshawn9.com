@@ -17,7 +17,7 @@ export type FontFrame = {
   progressAnimationEnabled: boolean;
 };
 
-export const FONT_ROUTE = '**/*.woff2';
+export const FONT_ROUTE = /\.(?:woff2?|ttf)(?:\?|$)/;
 
 export async function installFontFrameProbe(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -97,6 +97,15 @@ export async function installFontFrameProbe(page: Page): Promise<void> {
         sampleFontFamily: targetStyle?.fontFamily ?? '',
         sampleFontReady:
           targetStyle !== null &&
+          Array.from(document.fonts).some(
+            (face) =>
+              face.status === 'loaded' &&
+              face.family.replace(/^["']|["']$/g, '') ===
+                targetStyle.fontFamily
+                  .split(',')[0]!
+                  .trim()
+                  .replace(/^["']|["']$/g, ''),
+          ) &&
           document.fonts.check(
             `${targetStyle.fontStyle} ${targetStyle.fontWeight} 16px ${targetStyle.fontFamily.split(',')[0]}`,
             target?.textContent ?? '',

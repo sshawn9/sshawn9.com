@@ -249,6 +249,10 @@ function createSearchPageController(
         );
         if (!isCurrent(job)) return;
         const prepared = resultsView.prepare(items);
+        // Result data has arrived. Required fonts keep retrying independently of
+        // the response timeout, until this query is replaced or the page leaves.
+        sourceWindow.clearTimeout(responseTimer);
+        responseTimer = 0;
         await prepareRequiredFonts(sourceDocument, sourceDocument, {
           contentRoot: prepared,
           signal: job.controller.signal,

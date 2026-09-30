@@ -5,7 +5,8 @@ import * as m from '@sshawn9/site-i18n/messages';
 import { INITIAL_FRAME_READY_ID } from '../runtime/initial-frame';
 import { REQUIRED_FONT_META_NAME, SITE_FONT_QUERIES } from '../runtime/required-fonts';
 import fallbackLocaleScript from 'virtual:site-fallback-locale-script';
-import initialDocumentScript from 'virtual:site-initial-document-script';
+import initialDocumentScriptUrl from 'virtual:site-initial-document-script-url';
+import { INITIAL_DOCUMENT_CONTENT_ID } from '../runtime/initial-document-content';
 import typographyStylesUrl from '../styles/typography-vendor.css?url';
 import '../features/foundation/action-links.css';
 import '../styles/index.css';
@@ -69,73 +70,74 @@ const localeTitles = JSON.stringify({
     <script is:inline data-locale-titles={localeTitles} set:html={fallbackLocaleScript} />
     <link rel="stylesheet" href={typographyStylesUrl} />
     <link rel="expect" href={`#${INITIAL_FRAME_READY_ID}`} blocking="render" />
+    <script is:inline src={initialDocumentScriptUrl} defer></script>
   </head>
   <body>
-    <header class="site-header">
-      <NavigationProgress />
-      <div class="content-shell site-header__inner" data-font-surface>
+    <template id={INITIAL_DOCUMENT_CONTENT_ID}>
+      <header class="site-header">
+        <NavigationProgress />
+        <div class="content-shell site-header__inner" data-font-surface>
+          {
+            (['en', 'zh'] as const).map((locale) => (
+              <span class="fallback-locale-copy" data-fallback-locale={locale}>
+                <a
+                  class="site-identity"
+                  href={`/${locale}/`}
+                  aria-label={`${copy[locale].homeLabel} · Shawn`}
+                >
+                  <span class="site-identity__monogram" aria-hidden="true">
+                    S
+                  </span>
+                  <span>SHAWN</span>
+                </a>
+              </span>
+            ))
+          }
+        </div>
+      </header>
+
+      <main class="not-found-page" data-font-surface aria-busy="true">
         {
           (['en', 'zh'] as const).map((locale) => (
-            <span class="fallback-locale-copy" data-fallback-locale={locale}>
-              <a
-                class="site-identity"
-                href={`/${locale}/`}
-                aria-label={`${copy[locale].homeLabel} · Shawn`}
-              >
-                <span class="site-identity__monogram" aria-hidden="true">
-                  S
-                </span>
-                <span>SHAWN</span>
-              </a>
-            </span>
-          ))
-        }
-      </div>
-    </header>
-
-    <main class="not-found-page" data-font-surface aria-busy="true">
-      {
-        (['en', 'zh'] as const).map((locale) => (
-          <div class="fallback-locale-copy" data-fallback-locale={locale}>
-            <div class="not-found-page__content" lang={locale === 'zh' ? 'zh-CN' : 'en'}>
-              <p class="not-found-page__eyebrow">ERROR / 404</p>
-              <h1>{copy[locale].heading}</h1>
-              <p class="not-found-page__description">{copy[locale].text}</p>
-              <div class="not-found-page__actions">
-                <a class="button-primary" href={`/${locale}/`}>
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="m15 18-6-6 6-6M9 12h11" />
-                  </svg>
-                  {copy[locale].home}
-                </a>
-                <a class="button-secondary" href={`/${locale}/search/`}>
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="m20 20-4.35-4.35" />
-                  </svg>
-                  {copy[locale].search}
-                </a>
+            <div class="fallback-locale-copy" data-fallback-locale={locale}>
+              <div class="not-found-page__content" lang={locale === 'zh' ? 'zh-CN' : 'en'}>
+                <p class="not-found-page__eyebrow">ERROR / 404</p>
+                <h1>{copy[locale].heading}</h1>
+                <p class="not-found-page__description">{copy[locale].text}</p>
+                <div class="not-found-page__actions">
+                  <a class="button-primary" href={`/${locale}/`}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="m15 18-6-6 6-6M9 12h11" />
+                    </svg>
+                    {copy[locale].home}
+                  </a>
+                  <a class="button-secondary" href={`/${locale}/search/`}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m20 20-4.35-4.35" />
+                    </svg>
+                    {copy[locale].search}
+                  </a>
+                </div>
               </div>
             </div>
-          </div>
-        ))
-      }
-    </main>
-
-    <footer class="site-footer" data-font-surface>
-      <div class="content-shell">
-        {
-          (['en', 'zh'] as const).map((locale) => (
-            <span class="fallback-locale-copy" data-fallback-locale={locale}>
-              <a href={`/${locale}/`}>SHAWN</a>
-            </span>
           ))
         }
-      </div>
-    </footer>
+      </main>
 
-    <script is:inline set:html={initialDocumentScript} />
-    <span id={INITIAL_FRAME_READY_ID} data-initial-frame-document-ready aria-hidden="true"></span>
+      <footer class="site-footer" data-font-surface>
+        <div class="content-shell">
+          {
+            (['en', 'zh'] as const).map((locale) => (
+              <span class="fallback-locale-copy" data-fallback-locale={locale}>
+                <a href={`/${locale}/`}>SHAWN</a>
+              </span>
+            ))
+          }
+        </div>
+      </footer>
+      <span id={INITIAL_FRAME_READY_ID} data-initial-frame-document-ready aria-hidden="true"></span>
+    </template>
   </body>
 </html>
 

@@ -6,10 +6,6 @@ import { fileURLToPath } from 'node:url';
 const siteRoot = fileURLToPath(new URL('../', import.meta.url));
 const virtualEntries = new Map([
   [
-    'virtual:site-initial-document-script',
-    new URL('../src/runtime/entries/initial-document.ts', import.meta.url),
-  ],
-  [
     'virtual:site-locale-entry-script',
     new URL('../src/runtime/entries/locale-entry.ts', import.meta.url),
   ],
@@ -20,9 +16,28 @@ const virtualEntries = new Map([
 ]);
 
 const resolvedPrefix = '\0site-classic-script:';
-const wallpaperUrlId = 'virtual:site-wallpaper-script-url';
-const wallpaperEntry = new URL('../src/features/appearance/wallpaper/entry.ts', import.meta.url);
-const wallpaperScriptId = `${fileURLToPath(wallpaperEntry)}?site-classic-script`;
+const urlEntries = new Map([
+  [
+    'virtual:site-wallpaper-script-url',
+    {
+      entry: new URL('../src/features/appearance/wallpaper/entry.ts', import.meta.url),
+      name: 'wallpaper-system.js',
+    },
+  ],
+  [
+    'virtual:site-initial-document-script-url',
+    {
+      entry: new URL('../src/runtime/entries/initial-document.ts', import.meta.url),
+      name: 'initial-document.js',
+    },
+  ],
+]);
+const urlScriptEntries = new Map(
+  [...urlEntries.values()].map(({ entry }) => [
+    `${fileURLToPath(entry)}?site-classic-script`,
+    entry,
+  ]),
+);
 
 async function bundleEntry(entryUrl, addWatchFile) {
   const result = await build({
@@ -59,20 +74,19 @@ export function classicScriptBundles() {
       base = config.base;
     },
     resolveId(id) {
-      return virtualEntries.has(id) || id === wallpaperUrlId ? `${resolvedPrefix}${id}` : undefined;
+      return virtualEntries.has(id) || urlEntries.has(id) ? `${resolvedPrefix}${id}` : undefined;
     },
     async load(id) {
-      if (id === `${resolvedPrefix}${wallpaperUrlId}`) {
-        // Dev requests participate in Vite's normal module cache and file watching.
-        if (development)
-          return `export default ${JSON.stringify(`${base}@fs${wallpaperScriptId}`)};`;
-
-        const source = await bundleEntry(wallpaperEntry, (path) => this.addWatchFile(path));
-        const asset = emitClientAsset(this, { type: 'asset', name: 'wallpaper-system.js', source });
-        return `export default import.meta.ROLLDOWN_FILE_URL_${asset};`;
-      }
       if (!id.startsWith(resolvedPrefix)) return undefined;
       const publicId = id.slice(resolvedPrefix.length);
+      const assetEntry = urlEntries.get(publicId);
+      if (assetEntry) {
+        const scriptId = `${fileURLToPath(assetEntry.entry)}?site-classic-script`;
+        if (development) return `export default ${JSON.stringify(`${base}@fs${scriptId}`)};`;
+        const source = await bundleEntry(assetEntry.entry, (path) => this.addWatchFile(path));
+        const asset = emitClientAsset(this, { type: 'asset', name: assetEntry.name, source });
+        return `export default import.meta.ROLLDOWN_FILE_URL_${asset};`;
+      }
       const entryUrl = virtualEntries.get(publicId);
       if (!entryUrl) return undefined;
 
@@ -80,12 +94,14 @@ export function classicScriptBundles() {
       return `export default ${JSON.stringify(source.trim())};`;
     },
     transform(_source, id) {
-      if (id === wallpaperScriptId) {
-        return bundleEntry(wallpaperEntry, (path) => this.addWatchFile(path));
-      }
+      const entry = urlScriptEntries.get(id);
+      if (entry) return bundleEntry(entry, (path) => this.addWatchFile(path));
     },
     resolveFileUrl({ moduleId, fileName }) {
-      if (moduleId === `${resolvedPrefix}${wallpaperUrlId}`) {
+      if (
+        moduleId.startsWith(resolvedPrefix) &&
+        urlEntries.has(moduleId.slice(resolvedPrefix.length))
+      ) {
         return JSON.stringify(`${base}${fileName}`);
       }
     },

@@ -7,9 +7,9 @@ declare module 'virtual:site-wallpaper-script-url' {
   export default url;
 }
 
-declare module 'virtual:site-initial-document-script' {
-  const source: string;
-  export default source;
+declare module 'virtual:site-initial-document-script-url' {
+  const url: string;
+  export default url;
 }
 
 declare module 'virtual:site-locale-entry-script' {

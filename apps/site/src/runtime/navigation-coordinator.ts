@@ -24,6 +24,8 @@ import { synchronizeClientRouterScrollState } from './initial-frame';
 import type { PageNavigation, PageView, ViewUpdate, ViewUpdateOptions } from './page-navigation';
 import type { PageRuntime } from './page-runtime';
 import { prepareRequiredFonts } from './required-fonts';
+import { prepareRequiredStylesheets } from './required-stylesheets';
+import { mountInitialDocumentContent } from './initial-document-content';
 import {
   persistCurrentScroll,
   readCurrentScroll,
@@ -523,8 +525,15 @@ export function installNavigationCoordinator(
           return;
         }
 
+        // Prepare only the detached target; the current page remains displayed.
+        mountInitialDocumentContent(event.newDocument);
         dependencies.pages.prepareTargetDocument(event.newDocument, event.to);
 
+        const styles = prepareRequiredStylesheets(sourceDocument, event.newDocument, {
+          signal: event.signal,
+        });
+        if (styles) await styles;
+        if (event.signal.aborted || !isCurrentTransaction(id)) return;
         const fontPreparation = prepareRequiredFonts(sourceDocument, event.newDocument, {
           signal: event.signal,
         });

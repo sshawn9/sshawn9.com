@@ -54,6 +54,7 @@ function fixture() {
   const { document } = parseHTML(
     '<html data-font-state="loading"><body><main aria-busy="true"></main></body></html>',
   );
+  vi.stubGlobal('Event', document.defaultView!.Event);
   const reportError = vi.fn();
   const history = { state: null, scrollRestoration: 'auto' } as unknown as History;
   const sourceWindow = Object.assign(new EventTarget(), {
@@ -78,7 +79,10 @@ beforeEach(() => {
   hooks.localeTransfer.mockReturnValue(undefined);
   hooks.snapshot.mockReturnValue(undefined);
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('initial document failure boundary', () => {
   it('continues to prepare fonts after a sidebar preparation failure', async () => {
@@ -97,10 +101,11 @@ describe('initial document failure boundary', () => {
     installInitialDocumentRuntime(document, sourceWindow);
 
     expect(hooks.fonts).toHaveBeenCalledOnce();
-    expect(reportError).toHaveBeenCalledExactlyOnceWith(failure);
+    expect(reportError).not.toHaveBeenCalled();
     expect(document.documentElement.dataset.fontState).toBe('loading');
     resolveFonts();
     await Promise.resolve();
+    expect(reportError).toHaveBeenCalledExactlyOnceWith(failure);
     expect(document.documentElement.dataset.fontState).toBe('ready');
     expect(document.querySelector('main')?.hasAttribute('aria-busy')).toBe(false);
   });

@@ -239,7 +239,7 @@ test('a timed-out replacement keeps old results and a later query can recover', 
   }
 });
 
-test('new result fonts are prepared while the previous result remains visible', async ({
+test('new result fonts keep waiting beyond the response timeout while the previous result remains visible', async ({
   page,
 }) => {
   await page.goto('/zh/search/?q=git');
@@ -273,6 +273,7 @@ test('new result fonts are prepared while the previous result remains visible', 
   try {
     await searchInput(page).fill('frenet');
     await expect.poll(() => fontGate.evaluate(({ requests }) => requests)).toBeGreaterThan(0);
+    await page.waitForTimeout(10_500);
     await expect(searchResults(page)).toHaveAttribute('data-query', 'git');
     await expect(searchResults(page)).toHaveAttribute('aria-busy', 'true');
     await expect(resultCards(page).first()).toBeVisible();

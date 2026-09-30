@@ -1,5 +1,21 @@
 <script>
+  import { swapFunctions } from 'astro:transitions/client';
   import { installSiteRuntime } from '../runtime/site-runtime';
+  import {
+    INITIAL_DOCUMENT_READY_EVENT,
+    readInitialDocumentContent,
+  } from '../runtime/initial-document-content';
 
-  installSiteRuntime();
+  const start = () => {
+    // Template scripts execute after Astro's initial scan. Register the mounted
+    // document in the router's existing record before enabling client navigation.
+    swapFunctions.deselectScripts(document);
+    installSiteRuntime();
+  };
+
+  if (readInitialDocumentContent(document)) {
+    document.addEventListener(INITIAL_DOCUMENT_READY_EVENT, start, { once: true });
+  } else {
+    start();
+  }
 </script>

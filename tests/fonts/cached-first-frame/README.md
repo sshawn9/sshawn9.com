@@ -1,7 +1,7 @@
 # 缓存字体首批帧
 
-- 目的：确认浏览器缓存命中的字体仍经过真实 readiness 判定，且不会暴露回退字体正文。
-- 触发：通过 Cloudflare Static Assets fixture 预热页面后刷新；同时保留普通 Astro preview 的字体重新验证场景。
-- 预期：字体资源性能条目以 `transferSize = 0`、非零正文尺寸证明缓存命中；页面可同步 ready，也可经历 `loading → ready`，但每个 loading 帧都隐藏正文并保持不透明、已启用动画的等待反馈，ready 后字体和几何稳定。旧版进度条轨迹允许条段阶段性离开视口。
-- 自动化覆盖：英文首页标题、中文博客卡片、真实代码块和 KaTeX 字形。
-- 盲区：Resource Timing 能区分网络传输与缓存复用，但不能区分浏览器的内存缓存和磁盘缓存。
+- 目的：缓存刷新同时保持正文可见、正确字体和稳定排版，不接受先隐藏再显示。
+- 触发：Cloudflare Static Assets fixture 预热后刷新；另覆盖普通 Astro preview 重新验证独立字体文件。
+- 预期：独立 `.woff2` 文件 的 Resource Timing 条目以零 transferSize、非零 decodedBodySize 证明缓存复用；每个正文已存在的采样帧都必须可见、实际 FontFaceSet.check 成功，且字体与几何从第一帧起稳定。
+- 覆盖：英文首页、中文博客、代码文章和 KaTeX 公式。
+- 限制：Resource Timing 不区分内存与磁盘缓存；文档内 rAF 不覆盖跨文档画面，连续刷新像素验收由 `tests/navigation/refresh-continuity/` 承担。

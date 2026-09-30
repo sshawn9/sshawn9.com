@@ -11,7 +11,8 @@ import { CURRENT_BUILD_ID } from '../runtime/build-identity';
 import { INITIAL_FRAME_READY_ID } from '../runtime/initial-frame';
 import { REQUIRED_FONT_META_NAME, SITE_FONT_QUERIES } from '../runtime/required-fonts';
 import { SITE_CONTEXT } from '../config/site-context';
-import initialDocumentScript from 'virtual:site-initial-document-script';
+import initialDocumentScriptUrl from 'virtual:site-initial-document-script-url';
+import { INITIAL_DOCUMENT_CONTENT_ID } from '../runtime/initial-document-content';
 import wallpaperSystemUrl from 'virtual:site-wallpaper-script-url';
 import typographyStylesUrl from '../styles/typography-vendor.css?url';
 import '../styles/index.css';
@@ -112,29 +113,31 @@ const documentNoIndex = noIndex || SITE_CONTEXT.noIndex;
     <link rel="stylesheet" href={typographyStylesUrl} />
     <link rel="expect" href={`#${INITIAL_FRAME_READY_ID}`} blocking="render" />
     <ClientRouter fallback="swap" />
+    <script is:inline src={initialDocumentScriptUrl} defer></script>
   </head>
   <body>
-    <a class="skip-link" href="#main-content" data-font-surface>{copy.skipToContent}</a>
-    <SiteShell {locale} />
-    <div
-      class="page-outlet"
-      data-font-surface
-      transition:name="page-outlet"
-      transition:animate="none"
-    >
-      <main
-        id="main-content"
-        aria-busy="true"
-        tabindex="-1"
-        data-pagefind-body={searchable ? '' : undefined}
-        data-pagefind-ignore={searchable ? undefined : 'all'}
+    <template id={INITIAL_DOCUMENT_CONTENT_ID}>
+      <a class="skip-link" href="#main-content" data-font-surface>{copy.skipToContent}</a>
+      <SiteShell {locale} />
+      <div
+        class="page-outlet"
+        data-font-surface
+        transition:name="page-outlet"
+        transition:animate="none"
       >
-        <slot />
-      </main>
-      <SiteFooter {locale} {commitSha} />
-    </div>
-    <script is:inline set:html={initialDocumentScript} />
-    <span id={INITIAL_FRAME_READY_ID} data-initial-frame-document-ready aria-hidden="true"></span>
+        <main
+          id="main-content"
+          aria-busy="true"
+          tabindex="-1"
+          data-pagefind-body={searchable ? '' : undefined}
+          data-pagefind-ignore={searchable ? undefined : 'all'}
+        >
+          <slot />
+        </main>
+        <SiteFooter {locale} {commitSha} />
+      </div>
+      <span id={INITIAL_FRAME_READY_ID} data-initial-frame-document-ready aria-hidden="true"></span>
+    </template>
     <SiteRuntime />
   </body>
 </html>

@@ -1,147 +1,71 @@
 import { expect, test, type Page } from '@playwright/test';
-import {
-  FONT_ROUTE,
-  holdFontRequests,
-  installFontFrameProbe,
-  readFontFrames,
-  type FontFrame,
-} from '../font-probe';
+import { FONT_ROUTE, installFontFrameProbe, readFontFrames } from '../font-probe';
 
-const blogPath = '/zh/blog/';
-const progressCycleMs = 1_100;
-const ordinaryFontSurfaces = ['.skip-link', '.site-header__inner', '.page-outlet'];
+const cases = [
+  { path: '/en/', family: /Manrope/, status: 200 },
+  { path: '/zh/blog/', family: /Source Sans 3/, status: 200 },
+  { path: '/en/blog/git-operations-reference/', family: /JetBrains Mono/, status: 200 },
+  { path: '/zh/blog/planar-frenet-frame/', family: /KaTeX_/, status: 200 },
+  { path: '/missing-font-continuity/', family: /Manrope/, status: 404 },
+];
 
-function expectWaitingFrame(frame: FontFrame): void {
-  expect(frame.state, JSON.stringify(frame)).toBe('loading');
-  expect(frame.surfacePresent, JSON.stringify(frame)).toBe(true);
-  expect(frame.visible, JSON.stringify(frame)).toBe(false);
-  expect(frame.progressPresent, JSON.stringify(frame)).toBe(true);
-  expect(frame.progressOpacity, JSON.stringify(frame)).toBeGreaterThan(0.99);
-  expect(frame.progressAnimationEnabled, JSON.stringify(frame)).toBe(true);
-}
-
-async function expectAllObservedLoadingFramesProtected(page: Page): Promise<FontFrame[]> {
+async function expectReadableFirstFrames(page: Page, family: RegExp): Promise<void> {
   await expect
-    .poll(
-      async () => (await readFontFrames(page)).filter((frame) => frame.state === 'loading').length,
-    )
-    .toBeGreaterThanOrEqual(3);
+    .poll(async () => (await readFontFrames(page)).filter((frame) => frame.surfacePresent).length)
+    .toBeGreaterThanOrEqual(8);
   const frames = await readFontFrames(page);
-  const loadingFrames = frames.filter((frame) => frame.state === 'loading');
-  expect(loadingFrames.some((frame) => frame.surfacePresent)).toBe(true);
-  for (const frame of loadingFrames) {
-    // Header and skip-link may already exist before the main surface is parsed.
+  for (const frame of frames) {
+    // Include header text that may exist before the main surface is parsed.
     for (const surface of frame.fontSurfaces) {
-      expect(surface.guarded, JSON.stringify(surface)).toBe(true);
-      expect(surface.visibility, JSON.stringify(surface)).toBe('hidden');
+      expect(surface.visibility, JSON.stringify(surface)).toBe('visible');
     }
-    if (frame.surfacePresent) expectWaitingFrame(frame);
+    if (!frame.surfacePresent) continue;
+    expect(frame.visible, JSON.stringify(frame)).toBe(true);
+    expect(frame.state, JSON.stringify(frame)).toBe('ready');
+    expect(frame.sampleFontFamily, JSON.stringify(frame)).toMatch(family);
+    expect(frame.sampleFontReady, JSON.stringify(frame)).toBe(true);
   }
-  return frames;
 }
 
-function expectStableReadyGeometry(frames: FontFrame[]): void {
-  const readyFrames = frames.filter((frame) => frame.state === 'ready');
-  expect(readyFrames.length).toBeGreaterThanOrEqual(8);
-  const first = readyFrames[0]!;
-  expect(first.sampleHeight).not.toBeNull();
-  expect(first.secondTop).not.toBeNull();
-  expect(
-    readyFrames.every(
-      (frame) =>
-        frame.visible &&
-        frame.sampleHeight !== null &&
-        frame.secondTop !== null &&
-        Math.abs(frame.sampleHeight - first.sampleHeight!) < 0.25 &&
-        Math.abs(frame.secondTop - first.secondTop!) < 0.25,
-    ),
-    JSON.stringify(readyFrames),
-  ).toBe(true);
-}
-
-for (const reducedMotion of ['no-preference', 'reduce'] as const) {
-  test(`a slow cold document keeps protected content and waiting feedback for multiple cycles (${reducedMotion})`, async ({
+for (const { path, family, status } of cases) {
+  test(`a cold document paints ${path} visibly with its correct fonts from the first sampled frame`, async ({
     page,
   }) => {
-    await page.emulateMedia({ reducedMotion });
     await installFontFrameProbe(page);
-    const heldFonts = await holdFontRequests(page);
-
-    try {
-      await page.goto(blogPath, { waitUntil: 'domcontentloaded' });
-      await expect.poll(() => heldFonts.urls.length, { timeout: 1_000 }).toBeGreaterThan(0);
-      await expect(page.locator('html')).toHaveAttribute('data-font-state', 'loading');
-      await page.waitForTimeout(progressCycleMs * 2 + 150);
-      for (const selector of ordinaryFontSurfaces) {
-        await expect(page.locator(selector)).toHaveAttribute('data-font-surface', '');
-        await expect(page.locator(selector)).toHaveCSS('visibility', 'hidden');
-      }
-      await expectAllObservedLoadingFramesProtected(page);
-
-      heldFonts.release();
-      await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
-      for (const selector of ordinaryFontSurfaces) {
-        await expect(page.locator(selector)).toHaveCSS('visibility', 'visible');
-      }
-      await expect
-        .poll(() =>
-          page.evaluate(() => document.fonts.check('400 1em "Noto Sans SC Variable"', '文章标签')),
-        )
-        .toBe(true);
-      await expect
-        .poll(
-          async () =>
-            (await readFontFrames(page)).filter((frame) => frame.state === 'ready').length,
-        )
-        .toBeGreaterThanOrEqual(8);
-      expectStableReadyGeometry(await readFontFrames(page));
-    } finally {
-      heldFonts.release();
-      await page.unrouteAll({ behavior: 'wait' });
-    }
+    const response = await page.goto(path, { waitUntil: 'domcontentloaded' });
+    expect(response?.status()).toBe(status);
+    await expectReadableFirstFrames(page, family);
+    if (status === 404) await expect(page.locator('[data-fallback-locale="en"] h1')).toBeVisible();
   });
 }
 
-test('a first 404 response hides every text surface until its required fonts are ready', async ({
+test('delayed independent fonts keep a cold deep link uncommitted beyond the browser font-display period', async ({
   page,
 }) => {
   await installFontFrameProbe(page);
-  const heldFonts = await holdFontRequests(page);
-
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let requests = 0;
+  await page.route(FONT_ROUTE, async (route) => {
+    requests++;
+    await gate;
+    await route.continue().catch(() => undefined);
+  });
   try {
-    const response = await page.goto('/zh/missing-font-gate/', { waitUntil: 'domcontentloaded' });
-    expect(response?.status()).toBe(404);
-    await expect.poll(() => heldFonts.urls.length, { timeout: 1_000 }).toBeGreaterThan(0);
+    const response = await page.goto('/zh/blog/planar-frenet-frame/', {
+      waitUntil: 'domcontentloaded',
+    });
+    expect(response?.status()).toBe(200);
+    await expect.poll(() => requests).toBeGreaterThan(0);
+    await page.waitForTimeout(6_500);
     await expect(page.locator('html')).toHaveAttribute('data-font-state', 'loading');
-    await expect(page.locator('main.not-found-page')).toHaveCSS('visibility', 'hidden');
-    await expect(page.locator('.site-header [data-font-surface]')).toHaveCSS(
-      'visibility',
-      'hidden',
-    );
-    await expect(page.locator('footer[data-font-surface]')).toHaveCSS('visibility', 'hidden');
-    await expectAllObservedLoadingFramesProtected(page);
-
-    heldFonts.release();
-    await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
-    await expect(page.locator('main.not-found-page')).toHaveCSS('visibility', 'visible');
-    await expect(page.locator('[data-fallback-locale="zh"] h1')).toBeVisible();
+    await expect(page.locator('#initial-frame-ready')).toHaveCount(0);
+    await expect(page.locator('main')).toHaveCount(0);
+    expect((await readFontFrames(page)).some((frame) => frame.surfacePresent)).toBe(false);
   } finally {
-    heldFonts.release();
-    await page.unrouteAll({ behavior: 'wait' });
+    release();
   }
-});
-
-test('font failure never publishes fallback content or false readiness after two progress cycles', async ({
-  page,
-}) => {
-  await installFontFrameProbe(page);
-  await page.route(FONT_ROUTE, (route) => route.abort('failed'));
-
-  await page.goto('/zh/blog/planar-frenet-frame/', { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'loading');
-  await page.waitForTimeout(progressCycleMs * 2 + 150);
-  await expect(page.locator('[data-font-surface].page-outlet')).toHaveCSS('visibility', 'hidden');
-  await expect(page.locator('html')).toHaveAttribute('data-font-state', 'loading');
-  await expect(page.locator('[data-font-fallback]')).toHaveCount(0);
-  await expectAllObservedLoadingFramesProtected(page);
+  await expectReadableFirstFrames(page, /KaTeX_/);
 });

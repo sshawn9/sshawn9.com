@@ -182,6 +182,8 @@ export function createSiteConfig({ integrations = [], viteServer = {} } = {}) {
     },
     vite: {
       build: {
+        // Required fonts remain independent, cacheable resources, including small CJK fragments.
+        assetsInlineLimit: (file) => (/\.(?:woff2?|ttf|otf)$/i.test(file) ? false : undefined),
         // Give CSS its own baseline; Astro's esnext target otherwise drops compatibility prefixes.
         cssTarget: ['chrome111', 'edge111', 'firefox114', 'safari16.3', 'ios16.3'],
       },

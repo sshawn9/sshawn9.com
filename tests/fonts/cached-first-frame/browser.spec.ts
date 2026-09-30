@@ -20,39 +20,25 @@ test.afterAll(async () => {
   await server?.dispose();
 });
 
-function expectWaitingFeedback(frame: FontFrame): void {
-  expect(frame.visible, JSON.stringify(frame)).toBe(false);
-  expect(frame.progressPresent, JSON.stringify(frame)).toBe(true);
-  expect(frame.progressOpacity, JSON.stringify(frame)).toBeGreaterThan(0.99);
-  expect(frame.progressAnimationEnabled, JSON.stringify(frame)).toBe(true);
-}
-
 function expectValidSequence(frames: FontFrame[], expectedFamily: RegExp): void {
   const documentFrames = frames.filter((frame) => frame.surfacePresent);
-  expect(documentFrames.length).toBeGreaterThan(0);
+  expect(documentFrames.length).toBeGreaterThanOrEqual(8);
 
-  let readyObserved = false;
   for (const frame of documentFrames) {
-    expect(['loading', 'ready'], JSON.stringify(frame)).toContain(frame.state);
-    if (frame.state === 'loading') {
-      expect(readyObserved, JSON.stringify(frame)).toBe(false);
-      expectWaitingFeedback(frame);
-      continue;
-    }
-
-    readyObserved = true;
+    expect(frame.state, JSON.stringify(frame)).toBe('ready');
     expect(frame.visible, JSON.stringify(frame)).toBe(true);
     expect(frame.sampleTop, JSON.stringify(frame)).not.toBeNull();
     expect(frame.sampleHeight, JSON.stringify(frame)).not.toBeNull();
     expect(frame.sampleFontFamily, JSON.stringify(frame)).toMatch(expectedFamily);
     expect(frame.sampleFontReady, JSON.stringify(frame)).toBe(true);
+    for (const surface of frame.fontSurfaces) {
+      expect(surface.visibility, JSON.stringify(surface)).toBe('visible');
+    }
   }
 
-  const readyFrames = documentFrames.filter((frame) => frame.state === 'ready');
-  expect(readyFrames.length).toBeGreaterThanOrEqual(8);
-  const first = readyFrames[0]!;
+  const first = documentFrames[0]!;
   expect(
-    readyFrames.every(
+    documentFrames.every(
       (frame) =>
         frame.sampleFontFamily === first.sampleFontFamily &&
         Math.abs(frame.sampleTop! - first.sampleTop!) < 0.25 &&
@@ -61,14 +47,14 @@ function expectValidSequence(frames: FontFrame[], expectedFamily: RegExp): void 
           first.secondTop === null ||
           Math.abs(frame.secondTop - first.secondTop) < 0.25),
     ),
-    JSON.stringify(readyFrames),
+    JSON.stringify(documentFrames),
   ).toBe(true);
 }
 
 async function cachedFontEntries(page: Page): Promise<CachedFontEntry[]> {
   return page.evaluate(() =>
     (performance.getEntriesByType('resource') as PerformanceResourceTiming[])
-      .filter((entry) => new URL(entry.name).pathname.endsWith('.woff2'))
+      .filter((entry) => /\.woff2$/.test(new URL(entry.name).pathname))
       .map((entry) => ({
         url: entry.name,
         transferSize: entry.transferSize,
@@ -95,9 +81,7 @@ test('cached reload uses browser-cached fonts without exposing fallback typograp
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
   await expect
-    .poll(
-      async () => (await readFontFrames(page)).filter((frame) => frame.state === 'ready').length,
-    )
+    .poll(async () => (await readFontFrames(page)).filter((frame) => frame.surfacePresent).length)
     .toBeGreaterThanOrEqual(8);
 
   const cached = await cachedFontEntries(page);
@@ -109,7 +93,7 @@ test('cached reload uses browser-cached fonts without exposing fallback typograp
   expectValidSequence(await readFontFrames(page), /Source Sans 3/);
 });
 
-test('a reload that revalidates fonts still protects every observed waiting frame', async ({
+test('a reload that revalidates font files stays visible in ready fonts in every sampled frame', async ({
   page,
 }) => {
   await installFontFrameProbe(page);
@@ -118,14 +102,12 @@ test('a reload that revalidates fonts still protects every observed waiting fram
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
   await expect
-    .poll(
-      async () => (await readFontFrames(page)).filter((frame) => frame.state === 'ready').length,
-    )
+    .poll(async () => (await readFontFrames(page)).filter((frame) => frame.surfacePresent).length)
     .toBeGreaterThanOrEqual(8);
   expectValidSequence(await readFontFrames(page), /Source Sans 3/);
 });
 
-test('cached representative Latin, CJK, code and math pages keep ready geometry stable', async ({
+test('cached Latin, CJK, code and math pages are visible with stable fonts from their first sampled frame', async ({
   page,
 }) => {
   await installFontFrameProbe(page);
@@ -143,9 +125,7 @@ test('cached representative Latin, CJK, code and math pages keep ready geometry 
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.locator('html')).toHaveAttribute('data-font-state', 'ready');
     await expect
-      .poll(
-        async () => (await readFontFrames(page)).filter((frame) => frame.state === 'ready').length,
-      )
+      .poll(async () => (await readFontFrames(page)).filter((frame) => frame.surfacePresent).length)
       .toBeGreaterThanOrEqual(8);
 
     expectValidSequence(await readFontFrames(page), family);

@@ -214,10 +214,10 @@ function areRequiredFontFamiliesDeclared(
   fonts: FontFaceSet,
   requests: readonly RequiredFontRequest[],
 ): boolean {
-  if (typeof fonts.values !== 'function') return false;
+  if (typeof fonts[Symbol.iterator] !== 'function') return false;
 
   const declaredFamilies = new Set(
-    Array.from(fonts.values(), (fontFace) => fontFace.family.replace(/^(["'])(.*)\1$/, '$2')),
+    Array.from(fonts, (fontFace) => fontFace.family.replace(/^(["'])(.*)\1$/, '$2')),
   );
   return requests.every(({ query }) => {
     const family = requestedFontFamily(query);
@@ -239,6 +239,80 @@ function areRequiredFontRequestsReady(
   );
 }
 
+function waitToRetry(signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(abortError());
+      return;
+    }
+    const abort = () => {
+      clearTimeout(timer);
+      reject(abortError());
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort);
+      resolve();
+    }, 500);
+    signal?.addEventListener('abort', abort, { once: true });
+  });
+}
+
+/** An errored FontFace cannot load again; renew only its original CSS source. */
+function retryFailedFontFaces(
+  fontDocument: FontDocument,
+  requests: readonly RequiredFontRequest[],
+): void {
+  const families = new Set(requests.map(({ query }) => requestedFontFamily(query)));
+  const normalize = (value: string) => value.replace(/["'\s]/g, '').toLowerCase();
+  const failed = Array.from(fontDocument.fonts ?? []).filter(
+    (face) => face.status === 'error' && families.has(face.family.replace(/^(["'])(.*)\1$/, '$2')),
+  );
+  if (failed.length === 0) return;
+
+  const renew = (sheet: CSSStyleSheet | CSSGroupingRule, base: string): void => {
+    for (let index = 0; index < sheet.cssRules.length; index++) {
+      const rule = sheet.cssRules[index]!;
+      if (rule.type === CSSRule.FONT_FACE_RULE) {
+        const style = (rule as CSSFontFaceRule).style;
+        const matches = failed.some(
+          (face) =>
+            normalize(face.family) === normalize(style.fontFamily) &&
+            normalize(face.style) === normalize(style.fontStyle || 'normal') &&
+            normalize(face.weight) === normalize(style.fontWeight || 'normal') &&
+            normalize(face.stretch) === normalize(style.fontStretch || 'normal') &&
+            normalize(face.unicodeRange) ===
+              normalize(style.getPropertyValue('unicode-range') || 'U+0-10FFFF'),
+        );
+        if (!matches) continue;
+        const source = style
+          .getPropertyValue('src')
+          .replace(/url\(["']?([^"')]+)["']?\)/g, (reference, value: string) => {
+            const url = new URL(value, base);
+            if (url.protocol === 'data:') return reference;
+            url.searchParams.set(
+              'font-retry',
+              String(Number(url.searchParams.get('font-retry')) + 1),
+            );
+            return `url("${url.href}")`;
+          });
+        // Firefox exposes @font-face descriptors as read-only. Recreate the
+        // failed rule with its original descriptors and the renewed source.
+        const replacement = `@font-face {${Array.from(
+          style,
+          (property) =>
+            `${property}: ${property === 'src' ? source : style.getPropertyValue(property)};`,
+        ).join('')}}`;
+        sheet.deleteRule(index);
+        sheet.insertRule(replacement, index);
+      } else if (rule.type === CSSRule.IMPORT_RULE) {
+        const imported = (rule as CSSImportRule).styleSheet;
+        if (imported) renew(imported, imported.href || base);
+      } else if ('cssRules' in rule) renew(rule as CSSGroupingRule, base);
+    }
+  };
+  for (const sheet of fontDocument.styleSheets) renew(sheet, sheet.href || fontDocument.baseURI);
+}
+
 async function waitForRequiredFontRequests(
   fontDocument: FontDocument,
   requests: readonly RequiredFontRequest[],
@@ -251,25 +325,28 @@ async function waitForRequiredFontRequests(
   if (!fonts || typeof fonts.load !== 'function') return waitForAbort(signal);
   if (requests.length === 0) return;
 
-  try {
-    const outcomes = await withAbort(
-      Promise.all(
-        requests.map(async ({ query, text }) => (await fonts.load(query, text)).length > 0),
-      ),
-      signal,
-    );
-    if (outcomes.every(Boolean)) return;
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw error;
+  for (;;) {
+    try {
+      const outcomes = await withAbort(
+        Promise.all(
+          requests.map(async ({ query, text }) => (await fonts.load(query, text)).length > 0),
+        ),
+        signal,
+      );
+      if (outcomes.every(Boolean) && areRequiredFontRequestsReady(fontDocument, requests)) return;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') throw error;
+    }
+    await waitToRetry(signal);
+    if (signal?.aborted) throw abortError();
+    retryFailedFontFaces(fontDocument, requests);
   }
-
-  return waitForAbort(signal);
 }
 
 /**
  * Returns synchronously when every required face is already available.
- * A cold request resolves only after all fonts are ready; failure intentionally
- * remains pending, with AbortSignal as the sole escape for superseded work.
+ * A cold request resolves only after all fonts are ready. Failed resources keep
+ * retrying until they load or their owning navigation/search is cancelled.
  */
 export function prepareRequiredFonts(
   fontDocument: FontDocument,
