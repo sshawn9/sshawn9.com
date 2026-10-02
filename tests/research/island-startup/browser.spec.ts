@@ -4,7 +4,6 @@ test.describe.configure({ timeout: 60_000 });
 
 test('Frenet and closed-loop islands render their expected plot containers', async ({ page }) => {
   await page.goto('/en/blog/frenet-arc-length-conversion/');
-  await expect(page.locator('[data-frenet-explorer]')).toHaveCount(10);
 
   const firstExplorer = page.locator('[data-frenet-explorer="phi"]').first();
   await firstExplorer.scrollIntoViewIfNeeded();

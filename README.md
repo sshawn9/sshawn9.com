@@ -2,7 +2,7 @@
 
 Shawn 的个人网站，用于展示项目、发布博客和个人介绍。站点应用位于 `apps/site/`。
 
-本文件说明开发、内容编写和部署；代码入口见 [应用目录说明](apps/site/README.md)，架构理由见 [ADR-001](docs/rearchitecture/ADR-001-static-document-application.md) 和 [ADR-002](docs/rearchitecture/ADR-002-client-runtime-and-state-ownership.md)。平台验收与回滚门槛单独记录在 [迁移与回滚计划](docs/rearchitecture/MIGRATION.md)。
+本文件说明开发、内容编写和部署；代码入口见 [应用目录说明](apps/site/README.md)，架构理由见 [ADR-001](docs/rearchitecture/ADR-001-static-document-application.md) 和 [ADR-002](docs/rearchitecture/ADR-002-client-runtime-and-state-ownership.md)。
 
 ## 技术栈
 
@@ -23,7 +23,7 @@ Shawn 的个人网站，用于展示项目、发布博客和个人介绍。站�
 
 本地和 CI 共用 devenv 原生环境：`devenv.nix` 定义工具与运行库，`devenv.yaml` 沿用官方默认来源，`devenv.lock` 由 CLI 管理。机器需要安装 Nix、devenv 和 direnv，并启用 direnv 的 shell hook。当前面向 `x86_64-linux` 的 NixOS 与 Ubuntu；NixOS 还需在系统配置中启用 `programs.nix-ld.enable = true`。
 
-项目要求 Node 24 或更高版本；devenv 继续使用 `.nvmrc` 指定的 Node 24，不为旧版本增加 TypeScript 加载器。
+项目要求 Node 24 或更高版本；devenv 继续使用 `.nvmrc` 指定的 Node 24。
 
 ```sh
 direnv allow
@@ -86,8 +86,6 @@ Playwright 由 npm 锁定和升级，浏览器由其官方安装器下载，不�
 
 最后，`build` 在 `.astro/resource-inventory-build.json` 保存最终产物的文件名单、SHA-256 和客户端依赖信息（位于应用目录，不会部署）。之后运行 `npm run inventory`，在 `apps/site/.reports/` 同时生成 `resource-inventory.json` 和供人阅读的 `resource-inventory.md`，包含 `pages`、`resources`、`pageResources`、`resourcePages` 四部分及构建标识。Markdown 提供概览、索引和可折叠的双向对应关系，适合在 IDE 的 Markdown 预览中阅读；两种格式来自同一次分析。任何产物缺失、新增、内容改变，或字体规则与记录不符时都会报错，包括搜索分片和部署响应头；不会自动构建或请求线上网站。异地分析须使用对应代码、同一次构建的 `dist` 和这份构建信息；本地校验不等于验证远端部署。
 
-分析失败时保留上一次报告。分析成功后先写完两个临时文件，再逐个原子替换正式文件；两个文件不构成文件系统事务，若进程在替换期间异常终止，应重新运行 `npm run inventory`。
-
 对应关系是一份页面关联资源集合，不按首次加载、延迟加载或交互时机分栏。大小图、响应式变体、页面交互脚本和版本数据都归入所属页面；图片查看器只归入有可放大图片的文章。字体按本站字体规则、页面文字、固定交互文字及 CSS `unicode-range` 筛选，同时保留声明的回退字体和格式备选，因此不是一次访问的精确请求记录。搜索只关联当前语言的已构建索引和全部结果数据，不模拟不同查询，不纳入目标文章资源或备用搜索 UI；自由输入对应字体保留完整字符覆盖。随机壁纸图片、第三方 iframe 内部及无法静态确定的运行时地址仍不在保证范围。反向清单由正向清单派生；没有找到引用的资源不等于可删除。
 
 大小统计包含资源的 `bytes`（原始字节）和 `brotliBytes`，以及全站 `sizeTotals`、每页 `pageSizeTotals`。Brotli 使用 Node 内置实现的默认参数，参数与适用扩展名记录在报告的 `compression` 中；对文本、WASM、TTF/OTF 逐文件计算，图片、WOFF/WOFF2、Pagefind 压缩数据等保留原大小，不生成额外部署文件。合计按物理文件去重，全站包含未被页面引用的构建资源；未知项单独计数，Markdown 显示 `+ N unknown`，JSON 的 `knownBytes`／`knownBrotliBytes` 只表示已知部分。这里统计的是资源集合体积，不是 Cloudflare 实测传输量或用户单次访问流量。
@@ -132,8 +130,6 @@ npm run cache:probe -- --inventory /path/to/deployed-resource-inventory.json
 ```sh
 npm run globalping:record -- --url 'https://sshawn9.com/zh/' --from 'China+Shanghai' --limit 1
 ```
-
-使用官方 CLI 的 `--json --ci`，默认 GET。每个节点结果保存到 `apps/site/.reports/globalping/measurements.sqlite` 的唯一业务表 `measurements`，固定 57 列，仅解析已确认的查询字段，完整源结果另存 JSON。终端默认显示摘要，加 `--json` 可输出完整结果。历史全部追加，不读取历史决定跳过，不计算累计 HIT，不自动清理或重试。
 
 目标输入仅一个 `--url`，外层程序自行读取资源清单、循环及调度。该入口与 `cache:probe` 独立。完整参数、SQL 示例、Node 调用和错误处理见 [Globalping 工具说明](apps/site/tools/globalping/README.md)，字段与边界见 [实施方案](docs/globalping-redesign-plan.md)。
 
@@ -256,9 +252,7 @@ Paraglide 负责页面级文案和界面文案，长篇文章与项目记录仍�
 
 ## 部署
 
-新增的 [Deployment](.github/workflows/deployment.yml) 统一监听所有分支 push，并支持手动运行。每次只获取一次 tree hash、调用一次检查工作流：所有分支请求 Preview，main 同时请求 Production，统一去重后执行剩余模式。所有请求的检查通过后，Preview 部署开始；main 同时开始独立的 Production 部署。任一模式检查失败都会阻止本次入口的两个部署。
-
-原有 [Preview Deployment](.github/workflows/preview-deployment.yml) 和 [Production Deployment](.github/workflows/production-deployment.yml) 两个独立入口及自动触发暂时保留，因此 push 会同时触发新旧入口，部署可能重复执行或因共享部署并发组而取消。两个旧入口均通过 `workflow_call` 调用同一份[检查工作流](.github/workflows/checks-and-tests-reusable.yml)，检查通过后才部署：
+[Deployment](.github/workflows/deployment.yml) 统一监听所有分支 push，并支持手动运行。每次只获取一次 tree hash、调用一次检查工作流：所有分支请求 Preview，main 同时请求 Production，统一去重后执行剩余模式。所有请求的检查通过后，Preview 部署开始；main 同时开始独立的 Production 部署。任一模式检查失败都会阻止本次入口的两个部署。
 
 - Preview 监听所有分支 push，并支持手动运行，要求公共检查和 Preview 浏览器测试通过。`main` 更新 `sshawn9-com-preview` 的当前部署，其他分支上传带稳定别名的版本；部署摘要提供稳定分支 URL 和不可变版本 URL。
 - Production 监听 main push，并支持手动运行，始终仅限 main 分支，要求公共检查和 Production 浏览器测试通过。
@@ -266,21 +260,9 @@ Paraglide 负责页面级文案和界面文案，长篇文章与项目记录仍�
 - Preview 部署按分支自动取消旧部署；Production 部署串行执行，不取消正在运行的部署，多个待运行部署只保留最新一个。
 - Preview 包含草稿、不生成 sitemap，并在 HTML 和 `_headers` 中声明 `noindex`；Production 排除草稿并生成 sitemap。工作流不主动清理已删除分支的预览别名。
 
-部署入口和独立检查入口都调用 [Reusable Tree Hash](.github/workflows/tree-hash-reusable.yml)，按调用方的 `github.sha` 获取待测提交的根 tree hash；查询或校验失败会直接终止。返回的 `tree_hash` 再作为必填输入调用 [Reusable Checks and Tests](.github/workflows/checks-and-tests-reusable.yml)。检查工作流只接受 `workflow_call`，使用传入的 hash 设置 workflow 级并发锁，合并负责统一查重和调度；`preview`、`production` 两个布尔输入默认均为 `true`，部署入口显式指定对应模式，不再有单独的 scheduler 文件。
-
-拿到队列位置后，可复用工作流统一按 `tree + mode` 查询成功记录，输出实际待执行的 `modes_to_run` 和数量 `mode_count`：0 个模式时跳过执行，1 个模式时只调用一次，2 个模式时再用 matrix 并行调用[执行工作流](.github/workflows/checks-and-tests-execution.yml)。队列锁覆盖整批查重到全部执行完成，同 tree 的独立请求串行，不同 tree 可以并行；同一批次内部的两个模式仍可并行。两个旧部署入口各自请求对应的一个模式，不自动合并请求；新入口在 main 上一次请求两种模式，去重后仍需两种时可并行执行。执行工作流接收单个字符串 `mode`（`preview` 或 `production`）和浏览器分片数 `shard_count`，负责检查、测试和结果汇总。每批只运行一个查重 job，可复用 workflow 的调用本身不额外占用 runner。双模式请求不另存一份组合成功结果。
-
-每种模式内部，格式检查、静态检查和单元测试组成一个 job，与浏览器测试并行。浏览器测试使用 Playwright 原生分片，按去重后实际待执行的模式数分配：两种模式各 8 个 runner，只有一种模式时使用 16 个 runner；全部命中去重时不启动浏览器测试。分片各自构建对应模式的完整站点，构建与 Chromium 安装并行，失败时上传独立的 traces。公共检查和全部浏览器分片通过后，由 `Checks and Tests (preview)` 或 `Checks and Tests (production)` 汇总 job 提供该模式的成功记录。同一 tree 首次验证两个模式时，公共检查分别执行，不单独跨模式去重。某模式未全部通过时，新的运行重新执行该模式的全部检查和分片。
-
-去重实现集中在 [.github/scripts/check-duplicates.cjs](.github/scripts/check-duplicates.cjs)。历史查询、成功 job 判断和模式选择分别由函数负责；核心查询只接收目标 job 名称，Preview／Production 映射和 Actions 输出集中在外层。查重 job 先检出脚本目录，再由 `actions/github-script` 调用，无需安装 npm 依赖。两种模式共用一次历史扫描，找到全部所需成功记录就停止。
-
-去重通过 GitHub Jobs API 查询相同 tree、相同模式的已完成成功汇总 job，核对执行 workflow 和调用模式；运行中、失败、取消或跳过均不算新的成功记录。历史 PR 的 tree 从 `referenced_workflows` 中执行工作流实际使用的合并提交读取。查询跨顶层 workflow 和运行重试，按需翻页；另一模式失败、部署仍在进行或最终失败，都不影响已经成功的模式。仅复用源仓库为本仓库的记录，fork PR 会执行检查，但其成功记录不作为本仓库部署的复用来源。参数无效、tree 或 API 查询失败会使流程失败；历史记录被清理后会重新验证。
-
-[Preview 部署工作流](.github/workflows/preview-deployment.yml)在部署前调用 `deployment:preview-alias`，部署后调用 `deployment:preview-urls`。别名生成和地址解析集中在 `apps/site/tools/deployment/preview-cli.mjs`，保持现有分支 URL 的规范化和哈希算法。两个命令读取 `BRANCH_NAME`；地址命令还读取 `DEPLOYMENT_URL`，main 使用 `COMMAND_OUTPUT` 中的版本号，其他分支使用 `PREVIEW_ALIAS`。结果打印到终端，设置了 `GITHUB_OUTPUT`、`GITHUB_STEP_SUMMARY` 时会追加对应输出和摘要；输入或解析错误以非零状态退出。命令不联网、不部署。
-
 生产部署在 Wrangler 执行前下载线上 `resource-inventory.json` 为 `before.json`，并把本次部署产物中的清单复制为 `after.json`。下载及清单校验最多尝试三次，每次请求最多 20 秒，失败间隔 2 秒；404、网络失败、JSON/必要字段无效或两份清单站点不一致都会阻止部署，不使用空清单替代旧版本。快照保存在 `apps/site/.reports/production-inventory/`，不进入部署目录。
 
-[Production 部署工作流](.github/workflows/production-deployment.yml)通过 `npm run inventory:prepare` 完成清单生成、打包和快照准备，部署成功后直接调用 `npm run inventory:diff -- before.json after.json --output DIRECTORY --summary FILE` 生成报告。准备命令支持 `--url URL`、`--output DIRECTORY` 和可选的 `--summary FILE`，默认读取生产站的旧清单；运行前须完成生产构建。文件处理与请求重试位于 `apps/site/tools/resource-inventory/`，workflow 负责调用顺序与 artifact 上传。
+`npm run inventory:prepare` 完成清单生成、打包和快照准备。准备命令支持 `--url URL`、`--output DIRECTORY` 和可选的 `--summary FILE`，默认读取生产站的旧清单；运行前须完成生产构建。文件处理与请求重试位于 `apps/site/tools/resource-inventory/`，workflow 负责调用顺序与 artifact 上传。
 
 部署成功后，直接离线比较这两份清单，不再请求线上新清单。Actions Summary 显示旧、新构建标识、数量和新增/减少页面、资源四组列表；页面按 `pages[].url`，资源按 `resources[].url` 排除各自清单中的页面 URL，完整保留查询参数。文件名哈希变化体现为旧 URL 减少、新 URL 增加；同一 URL 的标题、大小或内容变化不计入增减，外部资源标明为外部引用。报告失败会使任务失败并注明生产部署已成功。
 

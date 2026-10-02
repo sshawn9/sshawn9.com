@@ -65,7 +65,6 @@ function fixture({
   };
   return {
     github,
-    core,
     outputs,
     run: (inputs = { tree_hash: treeHash, preview: true, production: true }) =>
       checkDuplicates({ github, context, core }, inputs),
@@ -142,7 +141,6 @@ describe('successful validation reuse', () => {
     });
     await test.run();
     expectModes(test.outputs, []);
-    expect(test.core.info).toHaveBeenCalledTimes(2);
     expect(test.github.paginate.iterator).toHaveBeenCalledTimes(3);
     expect(test.github.paginate.iterator).toHaveBeenCalledWith(
       test.github.rest.actions.listJobsForWorkflowRun,

@@ -58,7 +58,7 @@ npm run globalping:batch -- \
 
 默认每次测量打印一行概况，每轮和批次结束汇总调用、跳过、保存记录和异常节点数；异常节点指节点未完成或 HTTP 状态不是 200。CLI、解析或数据库错误时停止并保留已提交记录；正常返回的失败节点或 HTTP 429 等结果仍保存并继续。退出 0 表示循环完成，不表示所有资源都已命中缓存。
 
-实现见 [batch.mjs](batch.mjs)，规则与边界见 [批量方案](../../../../docs/globalping-batch-plan.md)。GitHub Actions 的 Artifact 恢复与上传另行接入，批量程序只处理本地清单和数据库。
+实现见 [batch.mjs](batch.mjs)。GitHub Actions 的 Artifact 恢复与上传另行接入，批量程序只处理本地清单和数据库。
 
 ## 记录与查询
 

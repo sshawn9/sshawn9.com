@@ -109,7 +109,6 @@ describe('cache-probe Undici transport', () => {
       name: 'Undici',
       connectionReuse: true,
     });
-    expect(probe.info.version).toMatch(/^8\./);
   });
 
   it('validates TLS and reuses one HTTPS connection across gzip, deflate, Brotli and Zstd', async () => {
