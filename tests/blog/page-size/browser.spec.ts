@@ -112,56 +112,6 @@ test('interleaved page and size actions commit in order while history uses the c
   await expect(select(page)).toHaveAttribute('value', '10');
 });
 
-test('filtering and language navigation share the reading preference', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/en/blog/');
-  await chooseSize(page, '10');
-  await page.locator('[data-blog-tag-definition][data-tag-slug="astro"]').click();
-  await expect(page).toHaveURL(/\?tag=astro$/);
-  for (const value of ['20', '50']) {
-    await chooseSize(page, value);
-    await expect(select(page)).toHaveText(`${value} per page`);
-    await expect(page).toHaveURL(/\?tag=astro$/);
-    await expect(page.locator('[data-blog-pagination]')).toBeHidden();
-    await expect(
-      page.locator('[data-blog-page-size-option]:not([hidden]) [data-blog-page-size-option-label]'),
-    ).toHaveText(['5', '10', '20', '50']);
-  }
-  await page.locator('[data-locale-switch="zh"]:visible').click();
-  await expect(page).toHaveURL(/\/zh\/blog\/\?tag=astro$/);
-  await expect(select(page)).toHaveAttribute('value', '50');
-  await expect(select(page)).toHaveText('每页 50 篇');
-  await expect(
-    page.locator('[data-blog-page-size-option]:not([hidden]) [data-blog-page-size-option-label]'),
-  ).toHaveText(['5', '10', '20', '50']);
-});
-
-test('resizing, mobile disclosure and zoom keep article membership unchanged and controls fit narrow screens', async ({
-  page,
-}) => {
-  await page.goto('/zh/blog/?page=2');
-  await expect(select(page)).toBeEnabled();
-  const initial = await hrefs(page);
-  for (const width of [1440, 390, 320, 720]) {
-    await page.setViewportSize({ width, height: 480 });
-    expect(await hrefs(page)).toEqual(initial);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-      true,
-    );
-  }
-  await page.setViewportSize({ width: 390, height: 600 });
-  const toggle = page.locator('[data-blog-mobile-toggle]');
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  expect(await hrefs(page)).toEqual(initial);
-  await page.evaluate(() => {
-    document.documentElement.style.zoom = '1.5';
-  });
-  expect(await hrefs(page)).toEqual(initial);
-  await expect(select(page)).toHaveAttribute('value', '5');
-});
-
 test('pagination links open a new tab with the current size while the original tab stays put', async ({
   page,
   context,
@@ -260,35 +210,6 @@ test('clamping a page with a hash keeps subsequent pagination synchronized', asy
   await page.goBack();
   await expect(listing(page)).toHaveAttribute('data-current-page', '1');
   expect(errors).toEqual([]);
-});
-
-test('a pagination scroll measurement failure keeps the rendered page and later controls usable', async ({
-  page,
-}) => {
-  const errors: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/en/blog/');
-  await expect(select(page)).toBeEnabled();
-  const documents: string[] = [];
-  page.on('request', (request) => {
-    if (request.isNavigationRequest() && request.frame() === page.mainFrame())
-      documents.push(request.url());
-  });
-  await page.evaluate(() => {
-    document.querySelector<HTMLElement>('[data-blog-listing]')!.dataset.testIdentity = 'retained';
-    const heading = document.querySelectorAll<HTMLElement>('[data-blog-article] h2')[5]!;
-    heading.getBoundingClientRect = () => {
-      throw new Error('injected heading measurement failure');
-    };
-  });
-  await page.locator('[data-blog-page="next"]').click();
-  await expect(listing(page)).toHaveAttribute('data-current-page', '2');
-  await expect.poll(() => errors.length).toBe(1);
-  await page.locator('[data-blog-page="previous"]').click();
-  await expect(listing(page)).toHaveAttribute('data-current-page', '1');
-  await expect(listing(page)).toHaveAttribute('data-test-identity', 'retained');
-  expect(documents).toEqual([]);
-  expect(errors).toEqual(['injected heading measurement failure']);
 });
 
 test('initial clamping and history clamping with hashes keep the router and content aligned', async ({

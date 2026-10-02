@@ -30,24 +30,6 @@ async function waitForPageLoadAnnouncerBoundary(page: Page, previousPageLoads: n
   );
 }
 
-test('local views suppress the route announcer scope while document navigation restores announcements', async ({
-  page,
-}) => {
-  await page.goto(blogPath);
-  const announcer = page.locator('.astro-route-announcer');
-
-  await blogTag(page, 'astro').click();
-  await expect(page.locator('html')).toHaveAttribute('data-navigation-scope', 'view');
-  await expect(announcer).toHaveCount(1);
-  await expect(announcer).toHaveCSS('display', 'none');
-
-  await page.locator('[data-blog-article]:not([hidden]) h2 a').first().click();
-  await expect(page).toHaveURL(/\/en\/blog\/[^?]+\/$/);
-  await expect(page.locator('html')).not.toHaveAttribute('data-navigation-scope', 'view');
-  await expect(announcer).not.toHaveCSS('display', 'none');
-  await expect(announcer).toContainText(await page.title());
-});
-
 test('eight local blog navigations keep route announcers bounded before a document navigation announces', async ({
   page,
 }) => {

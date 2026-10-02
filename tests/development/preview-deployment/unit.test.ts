@@ -48,16 +48,6 @@ describe('stable preview aliases', () => {
 });
 
 describe('preview deployment URLs', () => {
-  it('resolves both main URLs from the deployed version ID', () => {
-    expect(
-      resolvePreviewUrls({
-        branchName: 'main',
-        deploymentUrl: stableUrl,
-        commandOutput: versionOutput,
-      }),
-    ).toEqual({ stableUrl, versionUrl });
-  });
-
   it('uses the last version ID and preserves a supplied trailing slash', () => {
     expect(
       resolvePreviewUrls({

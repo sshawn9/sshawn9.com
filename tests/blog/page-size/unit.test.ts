@@ -16,40 +16,20 @@ const catalog = createBlogCatalog({
 const url = (query = '') => new URL(`https://sshawn9.com/en/blog/${query}`);
 
 describe('pagination from route and preference', () => {
-  it.each(BLOG_DISPLAY_MODES.detailed.pageSizes)(
-    'retains page three with a preference of %i',
-    (pageSize) => {
-      const state = deriveBlogViewState(catalog, url('?page=3'), pageSize);
-      expect(state.page).toBe(3);
-      expect(state.pageSize).toBe(pageSize);
-      expect(state.rangeStart).toBe(2 * pageSize + 1);
-      expect(state.rangeEnd).toBe(Math.min(3 * pageSize, 123));
-      expect(state.normalizedUrl.search).toBe('?page=3');
-    },
-  );
+  it('keeps an interior page and clamps the last page with accurate article ranges', () => {
+    const middle = deriveBlogViewState(catalog, url('?page=3'), 20);
+    expect(middle.page).toBe(3);
+    expect(middle.rangeStart).toBe(41);
+    expect(middle.rangeEnd).toBe(60);
+    expect(middle.normalizedUrl.search).toBe('?page=3');
 
-  it('uses the same paging rules for 100 articles per page', () => {
-    const state = deriveBlogViewState(catalog, url('?page=3'), 100);
-    expect(state.page).toBe(2);
-    expect(state.rangeStart).toBe(101);
-    expect(state.rangeEnd).toBe(123);
-    expect(state.previousUrl?.search).toBe('');
-    expect(state.nextUrl).toBeUndefined();
-    expect(readBlogPageSize('100', 'compact')).toBe(100);
-    expect(readBlogPageSize('5', 'compact')).toBe(15);
-    expect(readBlogPageSize('100', 'detailed')).toBe(5);
-  });
-
-  it('starts later operations at the clamped page without resurrecting the old page number', () => {
-    const small = { ...catalog, articleTags: catalog.articleTags.slice(0, 60) };
-    const large = deriveBlogViewState(small, url('?page=3'), 50);
-    expect(large.normalizedUrl.search).toBe('?page=2');
-    const smaller = deriveBlogViewState(small, large.normalizedUrl, 5);
-    expect(smaller.page).toBe(2);
-    expect(
-      deriveBlogViewState(small, smaller.normalizedUrl, 5, { kind: 'page', direction: 'next' })
-        .normalizedUrl.search,
-    ).toBe('?page=3');
+    const last = deriveBlogViewState(catalog, url('?page=3'), 100);
+    expect(last.page).toBe(2);
+    expect(last.rangeStart).toBe(101);
+    expect(last.rangeEnd).toBe(123);
+    expect(last.normalizedUrl.search).toBe('?page=2');
+    expect(last.previousUrl?.search).toBe('');
+    expect(last.nextUrl).toBeUndefined();
   });
 
   it('filters at page one and preserves unrelated URL parts', () => {

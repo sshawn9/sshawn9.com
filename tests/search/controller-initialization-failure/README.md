@@ -1,3 +1,3 @@
-# Search controller initialization failure
+# Search controller teardown
 
-The controller unit case verifies that a failing results-view cleanup cannot prevent Pagefind release or the local search fallback from appearing.
+The controller unit case verifies that destroying a ready search page releases its results view and Pagefind client, removes the ready state, and restores the static fallback.

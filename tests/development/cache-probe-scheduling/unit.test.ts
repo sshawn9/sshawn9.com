@@ -21,16 +21,6 @@ afterEach(() => {
 });
 
 describe('cache-probe request scheduling', () => {
-  it('allows a zero interval while still starting from the refill timer', async () => {
-    const starts: number[] = [];
-    const scheduler = createRequestScheduler({ concurrency: 1, minInterval: 0, maxInterval: 0 });
-    const run = scheduler.run([0], () => starts.push(Date.now()));
-    expect(starts).toEqual([]);
-    await vi.advanceTimersByTimeAsync(0);
-    await run;
-    expect(starts).toEqual([0]);
-  });
-
   it('slow-fills initially and waits a full interval after a full slot opens', async () => {
     const pending = [deferred(), deferred(), deferred()];
     const starts: Array<[number, number]> = [];

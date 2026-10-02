@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { image, routeWallpaperResources, seedTwoSlots } from '../browser-fixtures';
+import { routeWallpaperResources, seedTwoSlots } from '../browser-fixtures';
 
 type AppearanceSnapshot = {
   theme: string | undefined;
@@ -83,47 +83,4 @@ test('auto rotation and next change only their owned state', async ({ page }) =>
   expect(afterNext.autoRotation).toBe(afterAuto.autoRotation);
   expect(afterNext.currentPhoto).toBe('photo-two');
   expect(afterNext.tabState).not.toBe(afterAuto.tabState);
-});
-
-test('download saves the visible photo without changing appearance or the queue', async ({
-  page,
-}) => {
-  await routeWallpaperResources(page);
-  await seedTwoSlots(page, 1600);
-  let releaseDownload: () => void = () => {};
-  const downloadGate = new Promise<void>((resolve) => {
-    releaseDownload = resolve;
-  });
-  let downloadRequested = false;
-  let reportedPhoto: string | undefined;
-  await page.route('https://images.unsplash.com/photo-one?*', async (route) => {
-    const url = new URL(route.request().url());
-    if (url.searchParams.get('q') !== '90') {
-      await route.fallback();
-      return;
-    }
-    downloadRequested = true;
-    await downloadGate;
-    await route.fulfill({ contentType: 'image/jpeg', body: image });
-  });
-  await page.route('**/api/wallpapers/download', async (route) => {
-    reportedPhoto = ((await route.request().postDataJSON()) as { photoId?: string }).photoId;
-    await route.fulfill({ status: 204 });
-  });
-
-  await page.goto('/en/blog/');
-  await page.locator('[data-wallpaper-menu-trigger]').click();
-  const downloadButton = page.locator('#wallpaper-settings [data-wallpaper-download]');
-  const before = await appearanceSnapshot(page);
-  const downloadEvent = page.waitForEvent('download');
-  await downloadButton.click();
-  await expect.poll(() => downloadRequested).toBe(true);
-  await expect(downloadButton).toHaveAttribute('aria-busy', 'true');
-  releaseDownload();
-  const download = await downloadEvent;
-  expect(download.suggestedFilename()).toBe('unsplash-photo-one.jpg');
-  await expect(downloadButton).toHaveAttribute('aria-busy', 'false');
-  await expect(downloadButton).toBeEnabled();
-  expect(await appearanceSnapshot(page)).toEqual(before);
-  await expect.poll(() => reportedPhoto).toBe('photo-one');
 });

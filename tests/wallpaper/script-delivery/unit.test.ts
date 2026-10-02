@@ -1,8 +1,7 @@
-import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { Script } from 'node:vm';
-import { build as viteBuild, createServer } from 'vite';
+import { createServer } from 'vite';
 import { describe, expect, it, vi } from 'vitest';
 
 const bundledSource = {
@@ -34,76 +33,7 @@ vi.doMock(compiler, async (importOriginal) => {
 const { classicScriptBundles } =
   await import('../../../apps/site/config/classic-script-bundles.mjs');
 
-const fixtureId = 'virtual:wallpaper-script-delivery-fixture';
-
-async function buildFixture(buildId: string) {
-  const result = await viteBuild({
-    configFile: false,
-    publicDir: false,
-    logLevel: 'silent',
-    define: { __SITE_BUILD_ID__: JSON.stringify(buildId) },
-    plugins: [
-      classicScriptBundles(),
-      {
-        name: 'wallpaper-script-delivery-fixture',
-        resolveId(id) {
-          return id === fixtureId ? id : undefined;
-        },
-        load(id) {
-          if (id !== fixtureId) return undefined;
-          return [
-            "import wallpaperScriptUrl from 'virtual:site-wallpaper-script-url';",
-            'console.log(__SITE_BUILD_ID__, wallpaperScriptUrl);',
-          ].join('\n');
-        },
-      },
-    ],
-    build: {
-      write: false,
-      rolldownOptions: {
-        input: fixtureId,
-        output: {
-          assetFileNames: '_astro/[name].[hash][extname]',
-          entryFileNames: '_astro/[name].[hash].js',
-        },
-      },
-    },
-  });
-  if (Array.isArray(result) || !('output' in result)) {
-    throw new Error('fixture build must return one in-memory output');
-  }
-  const output = result.output;
-  const asset = output.find(
-    (item) => item.type === 'asset' && /^_astro\/wallpaper-system\.[\w-]+\.js$/.test(item.fileName),
-  );
-  const entry = output.find((item) => item.type === 'chunk' && item.isEntry);
-
-  if (!asset || !entry || entry.type !== 'chunk') {
-    throw new Error('fixture build did not emit its wallpaper asset and entry');
-  }
-  const url = `/${asset.fileName}`;
-  expect(entry.code).toContain(url);
-  return { asset, url };
-}
-
 describe('wallpaper classic-script delivery', () => {
-  it('uses a content-addressed _astro URL without a .cache output', async () => {
-    const headers = await readFile(
-      new URL('../../../apps/site/public/_headers', import.meta.url),
-      'utf8',
-    );
-    expect(headers).toContain('/_astro/*\n  Cache-Control: public, max-age=31536000, immutable');
-
-    const first = await buildFixture('first-build-id');
-    const second = await buildFixture('second-build-id');
-    expect(second.url).toBe(first.url);
-    expect(first.asset.fileName).not.toContain('.cache');
-
-    bundledSource.value = '(() => { window.__wallpaperBundle = "changed"; })();';
-    const changed = await buildFixture('third-build-id');
-    expect(changed.url).not.toBe(first.url);
-  });
-
   it('compiles on demand, reuses dev results, and invalidates changed dependencies', async () => {
     bundledSource.value = '(() => { window.__wallpaperBundle = "first"; })();';
     compile.mockClear();

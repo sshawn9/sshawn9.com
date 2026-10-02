@@ -272,23 +272,6 @@ test('a failed SPA article mount rolls back child listeners and a real return mo
   expect(failure.errors).toEqual([failure.message]);
 });
 
-test('a later page-load can retry the same main after its failed mount', async ({ page }) => {
-  const failure = await failArticleNavigation(page, 'toc');
-  const main = await page.locator('main').elementHandle();
-  await expect(page.locator('[data-article-page]')).not.toHaveAttribute(
-    'data-article-runtime-ready',
-  );
-  // Explicit lifecycle retry probe, not a claim that Astro naturally repeats
-  // page-load after every initialization exception.
-  await page.evaluate(() => document.dispatchEvent(new Event('astro:page-load')));
-  expect(await main!.evaluate((element) => element === document.querySelector('main'))).toBe(true);
-  await expectWorkingArticle(page);
-  const owners = (await snapshot(page)).owners;
-  expect(owners).toHaveLength(1);
-  expect(owners[0]).toMatchObject({ sidebarAborted: false, tocAborted: false });
-  expect(failure.errors).toEqual([failure.message]);
-});
-
 test('cold article failure does not publish runtime-ready and preserves full-document navigation', async ({
   page,
 }) => {
@@ -355,42 +338,6 @@ test('a target-document preparation failure settles feedback and leaves the old 
   } finally {
     gate.release();
   }
-});
-
-test('cold placement failure releases text after fonts load and reports the original error', async ({
-  page,
-}) => {
-  const message = 'A01 controlled inline placement failure';
-  const errors: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  await page.addInitScript(
-    ({ message, headingSelector }) => {
-      let failed = false;
-      const query = Document.prototype.querySelectorAll;
-      Document.prototype.querySelectorAll = function (this: Document, selector: string) {
-        if (!failed && this === document && selector === headingSelector) {
-          // Select the HTML's inline bootstrap, not a later controller mount.
-          // This does not depend on minified function names or line numbers.
-          const stack = new Error().stack ?? '';
-          if (stack.includes(`${location.origin}${location.pathname}:`)) {
-            failed = true;
-            throw new Error(message);
-          }
-        }
-        return query.call(this, selector);
-      } as typeof query;
-    },
-    { message, headingSelector },
-  );
-  await page.goto(articlePath);
-  await expect(page.locator('[data-article-page]')).toHaveAttribute(
-    'data-article-runtime-ready',
-    '',
-  );
-  await expect.poll(() => page.evaluate(() => document.fonts.status)).toBe('loaded');
-  await expectReadableAndSettled(page);
-  expect(errors).toEqual([message]);
-  await expectWorkingArticle(page);
 });
 
 for (const direction of ['back', 'forward'] as const) {

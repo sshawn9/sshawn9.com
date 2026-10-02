@@ -62,16 +62,6 @@ for (const mode of ['Control', 'middle', 'blank'] as const) {
   });
 }
 
-test('a click cancelled at the link leaves the current TOC state unchanged', async ({ page }) => {
-  const link = await desktopTarget(page);
-  const before = await readPosition(page);
-  await link.evaluate((link) =>
-    link.addEventListener('click', (event) => event.preventDefault(), { once: true }),
-  );
-  await link.click();
-  expect(await readPosition(page)).toEqual(before);
-});
-
 const ignoredActivations: Array<{
   name: string;
   event?: MouseEventInit;

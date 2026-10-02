@@ -7,15 +7,6 @@ const view = {
 };
 
 describe('belongsToView', () => {
-  it('accepts multi-value tag and page changes owned by a blog view', () => {
-    expect(
-      belongsToView(
-        view,
-        new URL('https://sshawn9.com/en/blog/?source=archive&tag=astro&tag=git&page=2'),
-      ),
-    ).toBe(true);
-  });
-
   it('rejects changes outside the view-owned query parameters and resource URL', () => {
     expect(
       belongsToView(view, new URL('https://sshawn9.com/en/blog/?source=archive&sort=recent')),

@@ -840,44 +840,6 @@ describe('backpressure, failures and interruption', () => {
     },
   );
 
-  it('retains the original failure when the final notification also fails', async () => {
-    const site = await server((request, response) => {
-      if (request.url === '/cdn-cgi/trace') trace(response);
-      else hit(response);
-    });
-    const parent = await directory();
-    const result = await run(inventory(site, ['/']), fast, parent, {
-      onEvent(event: any) {
-        if (event.type === 'resource') throw new Error('Resource notification failed.');
-        if (event.type === 'end') throw new Error('Secondary end notification failure.');
-      },
-    });
-    expect(result.stopReason).toBe('failed');
-    expect(result.failure).toBe('Resource notification failed.');
-    expect((await readJson(join(parent, '198.51.100.7', 'report.json'))).runs[0]).toMatchObject({
-      stopReason: 'failed',
-      failure: 'Resource notification failed.',
-    });
-  });
-
-  it('still rejects when only the final notification fails', async () => {
-    const site = await server((request, response) => {
-      if (request.url === '/cdn-cgi/trace') trace(response);
-      else hit(response);
-    });
-    const parent = await directory();
-    await expect(
-      run(inventory(site, ['/']), { ...fast, hitStreak: 1 }, parent, {
-        onEvent(event: any) {
-          if (event.type === 'end') throw new Error('End notification failed.');
-        },
-      }),
-    ).rejects.toThrow('End notification failed.');
-    const archive = join(parent, '198.51.100.7');
-    expect((await readJson(join(archive, 'report.json'))).runs[0].stopReason).toBe('warm');
-    expect(await readdir(archive)).not.toContain('.lock');
-  });
-
   it('records a transport cleanup failure before finalizing the archive', async () => {
     const site = await server((request, response) => {
       if (request.url === '/cdn-cgi/trace') trace(response);

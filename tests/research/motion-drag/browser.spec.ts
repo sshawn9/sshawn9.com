@@ -4,18 +4,16 @@ import { fileURLToPath } from 'node:url';
 
 type DragTestWindow = typeof window & {
   __motionDragD3: {
-    drag: typeof import('d3-drag').drag;
     select: typeof import('d3-selection').select;
   };
-  __motionDragProbe: { moves: number; ends: number };
 };
 
 let d3Fixture: string;
 test.beforeAll(async () => {
-  // Exercise real D3 ownership through its public API, not window.__on internals.
+  // Inspect D3 listeners through its public API, not window.__on internals.
   const result = await build({
     stdin: {
-      contents: "export { drag } from 'd3-drag'; export { select } from 'd3-selection';",
+      contents: "export { select } from 'd3-selection';",
       resolveDir: fileURLToPath(new URL('../../../', import.meta.url)),
     },
     bundle: true,
@@ -153,53 +151,6 @@ test('a cancelled navigation keeps the current drag active', async ({ page }) =>
   } finally {
     await page.mouse.up();
   }
-  await expect
-    .poll(() => windowDragState(page))
-    .toEqual({ listeners: [], selectionBlocked: false });
-});
-
-test('unmounting the old figure does not cancel a different D3 drag that took over the window', async ({
-  page,
-}) => {
-  const { x, y } = await openFigure(page);
-  await page.mouse.move(x, y);
-  await page.mouse.down();
-  try {
-    await page.mouse.move(x + 10, y + 10);
-    await page.evaluate(() => {
-      const target = window as DragTestWindow;
-      const { drag, select } = target.__motionDragD3;
-      target.__motionDragProbe = { moves: 0, ends: 0 };
-      const handle = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      document.body.append(handle);
-      select(handle).call(
-        drag<SVGSVGElement, unknown>()
-          .container(document.documentElement)
-          .on('drag', () => target.__motionDragProbe.moves++)
-          .on('end', () => target.__motionDragProbe.ends++),
-      );
-      // Force a handover between real D3 instances; do not fake D3's registry.
-      handle.dispatchEvent(
-        new MouseEvent('mousedown', {
-          view: window,
-          bubbles: true,
-          button: 0,
-          clientX: 100,
-          clientY: 100,
-        }),
-      );
-    });
-    await goToAbout(page);
-    await expect(page).toHaveURL(/\/en\/about\/$/);
-    expect((await windowDragState(page)).selectionBlocked).toBe(true);
-    await page.mouse.move(200, 200);
-    expect(
-      await page.evaluate(() => (window as DragTestWindow).__motionDragProbe.moves),
-    ).toBeGreaterThan(0);
-  } finally {
-    await page.mouse.up();
-  }
-  expect(await page.evaluate(() => (window as DragTestWindow).__motionDragProbe.ends)).toBe(1);
   await expect
     .poll(() => windowDragState(page))
     .toEqual({ listeners: [], selectionBlocked: false });

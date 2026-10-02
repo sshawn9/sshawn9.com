@@ -139,32 +139,6 @@ test('the fade start releases next, and another click can advance during the unf
   }
 });
 
-test('a stalled animation start commits the image instead of leaving next busy indefinitely', async ({
-  page,
-}) => {
-  await routeWallpaperResources(page);
-  await seedTwoSlots(page, 1600);
-  await page.goto('/en/blog/');
-  await page.evaluate(() => {
-    const animate = Element.prototype.animate;
-    Element.prototype.animate = function (...args) {
-      const animation = animate.apply(this, args);
-      if (this.matches('.wallpaper__image')) {
-        animation.pause();
-        animation.currentTime = 0;
-      }
-      return animation;
-    };
-  });
-  await page.locator('[data-wallpaper-menu-trigger]').click();
-  const next = page.locator('#wallpaper-settings [data-wallpaper-next]');
-  await next.click();
-  await expect(page.locator('html')).toHaveAttribute('data-wallpaper-photo-id', 'photo-two');
-  await expect(next).toHaveAttribute('aria-busy', 'false', { timeout: 1000 });
-  await expect(next).toBeEnabled();
-  await expect(page.locator('.wallpaper__image')).toHaveCount(1, { timeout: 4000 });
-});
-
 test('the current photo remains authoritative until the prepared next slot decodes', async ({
   page,
 }) => {

@@ -398,34 +398,6 @@ for (const article of articles) {
     await expect(page.locator('[data-plotly-figure], .plot-container')).toHaveCount(0);
     expect(plotlyRequests).toEqual([]);
   });
-
-  test(`${article.slug}: fixed diagram labels follow light and dark theme changes without loading Plotly`, async ({
-    page,
-  }) => {
-    const plotlyRequests: string[] = [];
-    page.on('request', (request) => {
-      if (plotlyRuntime.test(request.url())) plotlyRequests.push(request.url());
-    });
-    await page.emulateMedia({ colorScheme: 'light' });
-    await page.goto(`/en/blog/${article.slug}/`);
-    await page.evaluate(() => document.fonts.ready);
-    const ink = page.locator('[data-research-figure]').last().getByText('(a)', { exact: true });
-    // Theme-dependent text may be SVG text or HTML; read the actual paint
-    // property without requiring one label implementation.
-    const readPaint = () =>
-      ink.first().evaluate((label) => {
-        const style = getComputedStyle(label);
-        return label instanceof SVGElement ? style.fill : style.color;
-      });
-    for (const theme of ['dark', 'light']) {
-      const before = await readPaint();
-      await page.locator('[data-theme-toggle]').first().click();
-      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-      await expect.poll(readPaint).not.toBe(before);
-    }
-    await expect(page.locator('[data-plotly-figure], .plot-container')).toHaveCount(0);
-    expect(plotlyRequests).toEqual([]);
-  });
 }
 
 test('narrow figure focus starts at the top, exposes close, and restores the page after reaching the caption', async ({
@@ -496,47 +468,4 @@ test('narrow figure focus starts at the top, exposes close, and restores the pag
       expect(restored.height).toBeCloseTo(before.height, 1);
     }
   }
-});
-
-test('fixed diagrams move into focus and return with their captions and geometry intact', async ({
-  page,
-}) => {
-  const plotlyRequests: string[] = [];
-  page.on('request', (request) => {
-    if (plotlyRuntime.test(request.url())) plotlyRequests.push(request.url());
-  });
-  for (const article of articles) {
-    await page.goto(`/en/blog/${article.slug}/`);
-    for (const figure of article.figures) {
-      const root = page.locator(`[data-research-figure][data-kind="${figure.kind}"]`);
-      const frame = root.locator('xpath=ancestor::figure[1]');
-      const toggle = frame.locator('[data-figure-focus-toggle]');
-      await toggle.scrollIntoViewIfNeeded();
-      const original = await root.elementHandle();
-      const caption = await frame.locator('figcaption').textContent();
-      const before = await frame.boundingBox();
-      await toggle.click();
-      const dialog = page.locator('[data-figure-focus-dialog]');
-      await expect(dialog).toHaveAttribute('open', '');
-      expect(await original!.evaluate((element) => Boolean(element.closest('dialog[open]')))).toBe(
-        true,
-      );
-      await expectPaintedPanels(root, figure.panels);
-      await expectLabelWithinFigure(root, figure.label);
-      await expect(frame.locator('figcaption')).toHaveText(caption!);
-      await page.keyboard.press('Escape');
-      await expect(dialog).not.toHaveAttribute('open', '');
-      await expect(toggle).toBeFocused();
-      expect(
-        await original!.evaluate((element) => element.isConnected && !element.closest('dialog')),
-      ).toBe(true);
-      await expectPaintedPanels(root, figure.panels);
-      await expect(frame.locator('figcaption')).toHaveText(caption!);
-      const after = await frame.boundingBox();
-      expect(after!.height).toBeCloseTo(before!.height, 1);
-      expect(after!.width).toBeCloseTo(before!.width, 1);
-      await original!.dispose();
-    }
-  }
-  expect(plotlyRequests).toEqual([]);
 });

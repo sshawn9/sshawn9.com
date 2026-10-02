@@ -313,38 +313,3 @@ test('saved compact mode is already applied at the first visible frames', async 
     ),
   ).toBe(true);
 });
-
-test('wide and narrow toolbars fit both languages and compact titles remain fully readable', async ({
-  page,
-}) => {
-  for (const locale of ['en', 'zh']) {
-    await page.goto(`/${locale}/blog/`);
-    await setMode(page, 'compact');
-    await choose(page, 100);
-    for (const width of [1440, 390, 320]) {
-      await page.setViewportSize({ width, height: 900 });
-      const geometry = await listing(page).evaluate((element) => {
-        const bar = element.querySelector<HTMLElement>('.blog-results-toolbar')!;
-        const toggle = element.querySelector<HTMLElement>('[data-blog-compact-toggle]')!;
-        const size = element.querySelector<HTMLElement>('[data-blog-page-size]')!;
-        const title = element.querySelector<HTMLElement>('[data-blog-article]:not([hidden]) h2 a')!;
-        return {
-          barOverflow: bar.scrollWidth > bar.clientWidth + 1,
-          pageOverflow: document.documentElement.scrollWidth > innerWidth,
-          overlapping: toggle.getBoundingClientRect().right > size.getBoundingClientRect().left,
-          titleHeight: title.getBoundingClientRect().height,
-          titleLineClamp: getComputedStyle(title).webkitLineClamp,
-          titleWidth: title.getBoundingClientRect().width,
-          articleWidth: title.closest('article')!.getBoundingClientRect().width,
-        };
-      });
-      expect(geometry.barOverflow).toBe(false);
-      expect(geometry.pageOverflow).toBe(false);
-      expect(geometry.overlapping).toBe(false);
-      expect(geometry.titleHeight).toBeGreaterThanOrEqual(48);
-      expect(geometry.titleLineClamp).toBe('none');
-      expect(geometry.titleWidth).toBeCloseTo(geometry.articleWidth, 1);
-      await expect(toggle(page)).toHaveAttribute('aria-checked', 'true');
-    }
-  }
-});

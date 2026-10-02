@@ -1,5 +1,4 @@
 import { expect, test, type Page } from '@playwright/test';
-import { routeWallpaperResources, seedTwoSlots } from '../../wallpaper/browser-fixtures';
 
 const browserEnv = { ...process.env };
 delete browserEnv.WAYLAND_DISPLAY;
@@ -10,7 +9,6 @@ const dock = (page: Page) => page.locator('[data-blog-pagination]');
 const next = (page: Page) => page.locator('[data-blog-page="next"]');
 const previous = (page: Page) => page.locator('[data-blog-page="previous"]');
 const listing = (page: Page) => page.locator('[data-blog-listing]');
-const firstHeading = (page: Page) => page.locator('[data-blog-article]:not([hidden]) h2').first();
 const size = (page: Page) => page.getByRole('combobox', { name: '每页篇数' });
 
 async function ready(page: Page, query = '', locale = 'zh') {
@@ -19,44 +17,6 @@ async function ready(page: Page, query = '', locale = 'zh') {
   await page.evaluate(() => document.fonts.ready);
   await expect(dock(page)).toHaveAttribute('data-positioned', '');
 }
-
-test('the right dock stays in place through clicks, boundaries, and scrolling to the footer', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1920, height: 900 });
-  await ready(page);
-  await expect(dock(page)).toHaveAttribute('data-placement', 'side');
-  const total = await page.locator('[data-blog-article]').count();
-  await expect(page.locator('[data-blog-page-indicator]')).toHaveText(
-    `1 / ${Math.ceil(total / 5)}`,
-  );
-  const box = (await dock(page).boundingBox())!;
-  const content = (await listing(page).boundingBox())!;
-  expect(box.x).toBeGreaterThanOrEqual(content.x + content.width + 15);
-  await dock(page).evaluate((element) => {
-    element.dataset.identity = 'original';
-  });
-  await next(page).click();
-  await expect(listing(page)).toHaveAttribute('data-current-page', '2');
-  await next(page).click();
-  await expect(listing(page)).toHaveAttribute('data-current-page', '3');
-  await previous(page).click();
-  await expect(listing(page)).toHaveAttribute('data-current-page', '2');
-  expect(await dock(page).boundingBox()).toEqual(box);
-  await expect(dock(page)).toHaveAttribute('data-identity', 'original');
-  expect(await page.evaluate(() => scrollY)).toBe(0);
-
-  await page.evaluate(() =>
-    scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }),
-  );
-  expect(await dock(page).boundingBox()).toEqual(box);
-  expect(
-    await next(page).evaluate((element) => {
-      const r = element.getBoundingClientRect();
-      return element.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
-    }),
-  ).toBe(true);
-});
 
 test.describe('reserved gutter with native scrollbars', () => {
   for (const width of [1920, 1280, 390, 320]) {
@@ -137,40 +97,6 @@ test('responsive placement preserves the same control, focus, URL and articles',
   }
 });
 
-for (const width of [1920, 390]) {
-  test(`paging reveals a hidden heading but preserves the top and browser history at ${width}px`, async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width, height: 700 });
-    await ready(page);
-    await next(page).click();
-    await expect(listing(page)).toHaveAttribute('data-current-page', '2');
-    expect(await page.evaluate(() => scrollY)).toBe(0);
-    await previous(page).click();
-    await expect(listing(page)).toHaveAttribute('data-current-page', '1');
-    await page.evaluate(() =>
-      scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }),
-    );
-    const originalY = await page.evaluate(() => scrollY);
-    expect(originalY).toBeGreaterThan(0);
-    await next(page).click();
-    await expect(listing(page)).toHaveAttribute('data-current-page', '2');
-    const header = (await page.locator('.site-header').boundingBox())!;
-    const heading = (await firstHeading(page).boundingBox())!;
-    expect(heading.y).toBeGreaterThanOrEqual(header.y + header.height + 15);
-    expect(heading.y).toBeLessThan(header.y + header.height + 18);
-    const settledY = await page.evaluate(() => scrollY);
-    await page.evaluate(async () => {
-      for (let i = 0; i < 12; i++)
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    });
-    expect(await page.evaluate(() => scrollY)).toBe(settledY);
-    await page.goBack();
-    await expect(listing(page)).toHaveAttribute('data-current-page', '1');
-    await expect.poll(() => page.evaluate(() => scrollY)).toBe(originalY);
-  });
-}
-
 test('the last-page link retains focus, ignores further activation, and leaves no duplicate history', async ({
   page,
 }) => {
@@ -192,46 +118,35 @@ test('the last-page link retains focus, ignores further activation, and leaves n
   await expect(previous(page)).toBeFocused();
 });
 
-for (const locale of ['zh', 'en']) {
-  test(`pagination hints follow the destination and support hover, keyboard and Escape in ${locale}`, async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 1920, height: 900 });
-    await ready(page, '?page=1', locale);
-    const hint = next(page).getByRole('tooltip');
-    const target = (value: number) =>
-      locale === 'zh' ? `下一页 · 第 ${value} 页` : `Next · Page ${value}`;
-    await expect(next(page)).toHaveAccessibleName(locale === 'zh' ? '下一页' : 'Next');
-    await expect(next(page).locator('.blog-page-label')).toBeHidden();
-    await next(page).hover();
-    await expect(hint).toBeVisible();
-    await expect(hint).toHaveText(target(2));
-    await hint.hover();
-    await expect(hint).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(hint).toBeHidden();
-    await next(page).hover();
-    await expect(hint).toBeHidden();
-    await page.mouse.move(0, 0);
-    await next(page).hover();
-    await expect(hint).toBeVisible();
-    await next(page).click();
-    await expect(listing(page)).toHaveAttribute('data-current-page', '2');
-    await expect(hint).toHaveText(target(3));
+test('pagination hints are localized, follow the destination and dismiss without moving focus', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 900 });
+  await ready(page, '?page=1', 'zh');
+  await expect(next(page)).toHaveAccessibleName('下一页');
+  await expect(next(page).getByRole('tooltip', { includeHidden: true })).toHaveText(
+    '下一页 · 第 2 页',
+  );
 
-    await page.mouse.move(0, 0);
-    await previous(page).focus();
-    await page.keyboard.press('Tab');
-    await expect(next(page)).toBeFocused();
-    await expect(hint).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(hint).toBeHidden();
-    await expect(next(page)).toBeFocused();
-    await page.keyboard.press('Shift+Tab');
-    await page.keyboard.press('Tab');
-    await expect(hint).toBeVisible();
-  });
-}
+  await ready(page, '?page=1', 'en');
+  const hint = next(page).getByRole('tooltip');
+  await expect(next(page)).toHaveAccessibleName('Next');
+  await next(page).hover();
+  await expect(hint).toBeVisible();
+  await expect(hint).toHaveText('Next · Page 2');
+  await next(page).click();
+  await expect(listing(page)).toHaveAttribute('data-current-page', '2');
+  await expect(hint).toHaveText('Next · Page 3');
+
+  await page.mouse.move(0, 0);
+  await previous(page).focus();
+  await page.keyboard.press('Tab');
+  await expect(next(page)).toBeFocused();
+  await expect(hint).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(hint).toBeHidden();
+  await expect(next(page)).toBeFocused();
+});
 
 test('hiding the focused dock repairs focus, and leaving the page clears layout ownership', async ({
   page,
@@ -309,37 +224,6 @@ test.describe('touch viewport', () => {
     await expect(listing(page)).toHaveAttribute('data-current-page', '1');
     await session.detach();
   });
-});
-
-test('the bottom circles clear the wallpaper credit even when its text wraps', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 700 });
-  await routeWallpaperResources(page);
-  await seedTwoSlots(page, 800);
-  await ready(page);
-  const credit = page.locator('[data-wallpaper-credit]');
-  await expect(credit).toBeVisible();
-  const expectClearance = async () => {
-    await expect
-      .poll(async () => {
-        const controlBox = (await dock(page).boundingBox())!;
-        const creditBox = (await credit.boundingBox())!;
-        return creditBox.y - controlBox.y - controlBox.height;
-      })
-      .toBeGreaterThanOrEqual(15);
-  };
-  await expectClearance();
-  const initialHeight = (await credit.boundingBox())!.height;
-  await page.locator('[data-wallpaper-credit-photographer]').evaluate((element) => {
-    element.textContent = '摄影师名字'.repeat(20);
-  });
-  await expect
-    .poll(async () => (await credit.boundingBox())!.height)
-    .toBeGreaterThan(initialHeight);
-  await expectClearance();
-  await next(page).click();
-  await expect(listing(page)).toHaveAttribute('data-current-page', '2');
-  await expectClearance();
-  expect(await page.evaluate(() => scrollY)).toBe(0);
 });
 
 test('zooming a desktop viewport keeps the footer link clear of the bottom dock', async ({

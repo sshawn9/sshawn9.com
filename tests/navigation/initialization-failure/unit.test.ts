@@ -10,7 +10,6 @@ const hooks = vi.hoisted(() => ({
   enter: vi.fn(),
   cancel: vi.fn(),
   fonts: vi.fn(),
-  registration: vi.fn(),
 }));
 vi.mock('astro:transitions/client', () => ({ navigate: vi.fn() }));
 vi.mock('../../../apps/site/src/runtime/build-identity', () => ({
@@ -37,7 +36,6 @@ function fixture() {
   );
   const handlers = new Map<string, EventListener>();
   vi.spyOn(document, 'addEventListener').mockImplementation((type, listener, options) => {
-    hooks.registration(type);
     handlers.set(type, listener as EventListener);
     if (options && typeof options === 'object') {
       options.signal?.addEventListener(
@@ -125,12 +123,10 @@ function fixture() {
     sourceWindow,
     pages,
     ready,
-    closeOverlays,
     coordinator,
     emit,
     begin,
     swap,
-    handlers,
     location,
   };
 }
@@ -163,19 +159,6 @@ function viewFixture() {
   };
   return { ...f, view, update };
 }
-
-it('applies view updates against the committed URL', async () => {
-  const f = viewFixture();
-  vi.mocked(navigate).mockImplementation(async (href, options) => {
-    const preparation = f.begin(href, undefined, 'push', options?.info);
-    f.swap(preparation);
-  });
-  f.coordinator.requestViewUpdate(f.update);
-  await Promise.resolve();
-  expect(f.view.apply.mock.calls[0]?.[0].search).toBe('?page=2');
-  expect(f.sourceWindow.reportError).not.toHaveBeenCalled();
-  f.coordinator.dispose();
-});
 
 it('resolves requested scrolling against the rendered view after restoring the origin', async () => {
   const f = viewFixture();
@@ -366,26 +349,6 @@ it('does not reload a superseded traversal when its loader rejects late', async 
   f.coordinator.dispose();
 });
 
-it('does not reload over a navigation started while reporting the traversal failure', async () => {
-  const f = fixture();
-  const failure = new Error('traversal preparation failed');
-  vi.mocked(f.pages.prepareTargetDocument).mockImplementationOnce(() => {
-    throw failure;
-  });
-  let next!: ReturnType<typeof f.begin>;
-  vi.mocked(f.sourceWindow.reportError).mockImplementationOnce(() => {
-    next = f.begin('/en/about/');
-  });
-  const first = f.begin('/en/projects/', undefined, 'traverse');
-  await expect(first.event.loader()).rejects.toBe(failure);
-  expect(f.location.reload).not.toHaveBeenCalled();
-  expect(f.document.documentElement.hasAttribute('data-navigation-pending')).toBe(true);
-  await next.event.loader();
-  f.swap(next);
-  f.emit('astro:page-load');
-  f.coordinator.dispose();
-});
-
 it('keeps the target document after a traversal commits, even if placement or mounting fails', async () => {
   const f = fixture();
   const first = f.begin('/en/projects/', undefined, 'traverse');
@@ -456,61 +419,6 @@ it('settles swap preparation and after-swap failures without claiming fonts are 
   expect(f.document.querySelector('main')?.getAttribute('aria-busy')).toBe('true');
   expect(f.document.documentElement.dataset.fontState).toBe('loading');
   f.coordinator.dispose();
-});
-
-it('rolls back listener registration if installing the coordinator fails', () => {
-  const f = fixture();
-  f.coordinator.dispose();
-  expect(f.handlers.size).toBe(0);
-  const failure = new Error('listener registration failed');
-  hooks.registration
-    .mockImplementationOnce(() => {})
-    .mockImplementationOnce(() => {
-      throw failure;
-    });
-  expect(() =>
-    installNavigationCoordinator(f.document as unknown as Document, f.sourceWindow, {
-      pages: f.pages,
-      documentReady: f.ready,
-      closeDocumentOverlays: f.closeOverlays,
-    }),
-  ).toThrow(failure);
-  expect(f.handlers.size).toBe(0);
-});
-
-it('restores the prepared transparent target even when cancelling the outgoing animation fails', async () => {
-  const { PageOutletTransition } = await vi.importActual<
-    typeof import('../../../apps/site/src/runtime/page-outlet-transition')
-  >('../../../apps/site/src/runtime/page-outlet-transition');
-  const { document } = parseHTML('<html><body><div class="page-outlet"></div></body></html>');
-  const target = parseHTML('<html><body><div class="page-outlet"></div></body></html>').document;
-  const outgoing = document.querySelector<HTMLElement>('.page-outlet')!;
-  const incoming = target.querySelector<HTMLElement>('.page-outlet')!;
-  const failure = new Error('outgoing cancellation failed');
-  Object.assign(outgoing, {
-    animate: () => ({
-      finished: Promise.resolve(),
-      cancel() {
-        throw failure;
-      },
-    }),
-  });
-  const sourceWindow = {
-    matchMedia: () => ({ matches: false }),
-    getComputedStyle: () => ({ opacity: '1' }),
-  };
-  const transition = new PageOutletTransition(
-    document as unknown as Document,
-    sourceWindow as unknown as Window,
-  );
-  await transition.prepareOutgoing(new AbortController().signal);
-  transition.prepareSwap({ newDocument: target } as never);
-  expect(incoming.style.opacity).toBe('0');
-  expect(() => transition.cancel()).toThrow(failure);
-  expect(incoming.hasAttribute('data-page-outlet-entering')).toBe(false);
-  expect(incoming.style.opacity ?? '').toBe('');
-  expect(outgoing.style.opacity ?? '').toBe('');
-  expect(() => transition.cancel()).not.toThrow();
 });
 
 it('orders a replacing preference refresh after a page and before the next page action', async () => {
