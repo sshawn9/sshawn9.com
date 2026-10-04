@@ -24,9 +24,15 @@
 }
 .appearance-theme-changing,
 .appearance-theme-changing :where(button, input, select, article, section, aside, header, footer) {
-  transition: background-color 220ms ease, color 220ms ease, border-color 220ms ease;
+  transition:
+    background-color 220ms ease,
+    color 220ms ease,
+    border-color 220ms ease;
 }
 @media (prefers-reduced-motion: reduce) {
   .appearance-theme-changing,
-  .appearance-theme-changing :where(button, input, select, article, section, aside, header, footer) { transition: none; }
+  .appearance-theme-changing
+    :where(button, input, select, article, section, aside, header, footer) {
+    transition: none;
+  }
 }

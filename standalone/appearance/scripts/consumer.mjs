@@ -8,18 +8,34 @@ const temporary = await mkdtemp(join(tmpdir(), 'appearance-consumer-'));
 const consumer = join(temporary, 'demo');
 const run = (args, cwd = root, env = {}) => {
   console.log('$ npm ' + args.join(' ') + ' (cwd: ' + cwd + ')');
-  const result = spawnSync('npm', args, { cwd, env: { ...process.env, ...env }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-  process.stdout.write(result.stdout ?? ''); process.stderr.write(result.stderr ?? '');
+  const result = spawnSync('npm', args, {
+    cwd,
+    env: { ...process.env, ...env },
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  process.stdout.write(result.stdout ?? '');
+  process.stderr.write(result.stderr ?? '');
   if (result.status !== 0) throw new Error('npm command failed: ' + args.join(' '));
   return result.stdout;
 };
 await mkdir(join(root, '.results'), { recursive: true });
 console.log('Clean consumer: ' + consumer);
 run(['run', 'build', '-w', '@sshawn9/appearance']);
-const packed = run(['pack', '-w', '@sshawn9/appearance', '--json', '--pack-destination', temporary]);
+const packed = run([
+  'pack',
+  '-w',
+  '@sshawn9/appearance',
+  '--json',
+  '--pack-destination',
+  temporary,
+]);
 const artifact = JSON.parse(packed.slice(packed.indexOf('[')))[0];
 const tarball = join(temporary, artifact.filename);
-await cp(join(root, 'apps/demo'), consumer, { recursive: true, filter: source => !source.split('/').some(part => ['node_modules', 'dist'].includes(part)) });
+await cp(join(root, 'apps/demo'), consumer, {
+  recursive: true,
+  filter: (source) => !source.split('/').some((part) => ['node_modules', 'dist'].includes(part)),
+});
 const manifestPath = join(consumer, 'package.json');
 const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 manifest.dependencies = { ...manifest.dependencies, '@sshawn9/appearance': 'file:' + tarball };
@@ -39,10 +55,25 @@ for (const name of ['@sshawn9/appearance/styles.css','@sshawn9/appearance/theme/
 console.log('Packed JavaScript and stylesheet exports resolve in clean consumer');
 `;
 await writeFile(join(consumer, 'verify-exports.mjs'), check);
-const checkResult = spawnSync(process.execPath, ['verify-exports.mjs'], { cwd: consumer, stdio: 'inherit' });
+const checkResult = spawnSync(process.execPath, ['verify-exports.mjs'], {
+  cwd: consumer,
+  stdio: 'inherit',
+});
 if (checkResult.status !== 0) throw new Error('Packed public exports failed');
 const assets = await readdir(join(consumer, 'dist/assets'));
-if (!assets.some(name => name.includes('source-sans-3-latin-wght-normal') && name.endsWith('.woff2'))) throw new Error('Consumer font dependency was not emitted as a separate local resource');
-run(['exec', '--', 'playwright', 'test'], root, { APPEARANCE_DEMO_ROOT: consumer, APPEARANCE_PORT: '4487', APPEARANCE_RESULTS: join(root, '.results/consumer') });
-await writeFile(join(root, '.results/consumer-summary.json'), JSON.stringify({ consumer, tarball, package: artifact, status: 'passed' }, null, 2));
+if (
+  !assets.some(
+    (name) => name.includes('source-sans-3-latin-wght-normal') && name.endsWith('.woff2'),
+  )
+)
+  throw new Error('Consumer font dependency was not emitted as a separate local resource');
+run(['exec', '--', 'playwright', 'test'], root, {
+  APPEARANCE_DEMO_ROOT: consumer,
+  APPEARANCE_PORT: '4487',
+  APPEARANCE_RESULTS: join(root, '.results/consumer'),
+});
+await writeFile(
+  join(root, '.results/consumer-summary.json'),
+  JSON.stringify({ consumer, tarball, package: artifact, status: 'passed' }, null, 2),
+);
 console.log('Clean packed consumer build and Chromium/Firefox browser tests passed');

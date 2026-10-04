@@ -1,27 +1,48 @@
 import { abortable } from './abort.js';
-import type { CachedWallpaper, PreparedWallpaper, WallpaperItem, WallpaperView } from './wallpaper-types.js';
+import type {
+  CachedWallpaper,
+  PreparedWallpaper,
+  WallpaperItem,
+  WallpaperView,
+} from './wallpaper-types.js';
 
-export async function prepareBrowserImage(item: WallpaperItem, signal: AbortSignal, cachedBlob?: Blob): Promise<PreparedWallpaper> {
+export async function prepareBrowserImage(
+  item: WallpaperItem,
+  signal: AbortSignal,
+  cachedBlob?: Blob,
+): Promise<PreparedWallpaper> {
   signal.throwIfAborted();
-  const blob = cachedBlob ?? await (async () => {
-    const response = await fetch(item.url, { signal, credentials: 'omit' });
-    if (!response.ok) throw new Error('Image request failed: ' + response.status);
-    return response.blob();
-  })();
+  const blob =
+    cachedBlob ??
+    (await (async () => {
+      const response = await fetch(item.url, { signal, credentials: 'omit' });
+      if (!response.ok) throw new Error('Image request failed: ' + response.status);
+      return response.blob();
+    })());
   signal.throwIfAborted();
   if (!blob.size || !blob.type.startsWith('image/')) throw new Error('Invalid image resource');
   const url = URL.createObjectURL(blob);
   const image = new Image();
   let released = false;
-  const release = () => { if (!released) { released = true; image.src = ''; URL.revokeObjectURL(url); } };
+  const release = () => {
+    if (!released) {
+      released = true;
+      image.src = '';
+      URL.revokeObjectURL(url);
+    }
+  };
   image.decoding = 'async';
   image.src = url;
   try {
     await abortable(image.decode(), signal);
     signal.throwIfAborted();
-    if (!image.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0) throw new Error('Image did not decode');
+    if (!image.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0)
+      throw new Error('Image did not decode');
     return { item, blob, image, release };
-  } catch (error) { release(); throw error; }
+  } catch (error) {
+    release();
+    throw error;
+  }
 }
 
 export function downloadBrowserWallpaper(current: CachedWallpaper): void {
@@ -36,19 +57,31 @@ export function downloadBrowserWallpaper(current: CachedWallpaper): void {
   queueMicrotask(() => URL.revokeObjectURL(url));
 }
 
-export function createDomWallpaperView(container: HTMLElement, options: { transitionMs?: number; reducedMotion?: () => boolean } = {}): WallpaperView {
-  type Layer = { element: HTMLElement; prepared: PreparedWallpaper; animation?: Animation; removed: boolean };
+export function createDomWallpaperView(
+  container: HTMLElement,
+  options: { transitionMs?: number; reducedMotion?: () => boolean } = {},
+): WallpaperView {
+  type Layer = {
+    element: HTMLElement;
+    prepared: PreparedWallpaper;
+    animation?: Animation;
+    removed: boolean;
+  };
   const layers = new Set<Layer>();
   let current: Layer | undefined;
   container.classList.add('appearance-wallpaper');
   const remove = (layer: Layer) => {
     if (layer.removed) return;
-    layer.removed = true; layers.delete(layer);
-    layer.animation?.cancel(); layer.element.remove(); layer.prepared.release();
+    layer.removed = true;
+    layers.delete(layer);
+    layer.animation?.cancel();
+    layer.element.remove();
+    layer.prepared.release();
   };
   return {
     commit(prepared, { animate }) {
-      if (!prepared.image || !prepared.image.complete || prepared.image.naturalWidth <= 0) throw new Error('The DOM view requires a decoded image');
+      if (!prepared.image || !prepared.image.complete || prepared.image.naturalWidth <= 0)
+        throw new Error('The DOM view requires a decoded image');
       const doc = container.ownerDocument;
       const element = doc.createElement('figure');
       element.className = 'appearance-wallpaper-pair';
@@ -73,11 +106,25 @@ export function createDomWallpaperView(container: HTMLElement, options: { transi
       if (previous?.animation?.playState === 'running') previous.animation.finish();
       for (const layer of [...layers]) if (layer !== previous) remove(layer);
       const layer: Layer = { element, prepared, removed: false };
-      layers.add(layer); current = layer;
+      layers.add(layer);
+      current = layer;
       container.append(element);
-      const reduced = options.reducedMotion?.() ?? container.ownerDocument.defaultView?.matchMedia('(prefers-reduced-motion: reduce)').matches ?? false;
-      if (previous && animate && !reduced && (options.transitionMs ?? 280) > 0 && typeof element.animate === 'function') {
-        layer.animation = element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: options.transitionMs ?? 280, easing: 'ease-out' });
+      const reduced =
+        options.reducedMotion?.() ??
+        container.ownerDocument.defaultView?.matchMedia('(prefers-reduced-motion: reduce)')
+          .matches ??
+        false;
+      if (
+        previous &&
+        animate &&
+        !reduced &&
+        (options.transitionMs ?? 280) > 0 &&
+        typeof element.animate === 'function'
+      ) {
+        layer.animation = element.animate([{ opacity: 0 }, { opacity: 1 }], {
+          duration: options.transitionMs ?? 280,
+          easing: 'ease-out',
+        });
         void layer.animation.finished.catch(() => {}).then(() => remove(previous));
       } else if (previous) remove(previous);
     },

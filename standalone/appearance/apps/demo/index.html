@@ -3,12 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="An isolated consumer of the appearance package with local images and fonts." />
+    <meta
+      name="description"
+      content="An isolated consumer of the appearance package with local images and fonts."
+    />
     <title>Appearance Lab · Independent consumer</title>
     <style>
-      html,body{margin:0;min-height:100%;background:#102338}
-      [data-font-gated]{visibility:hidden}
-      .initial-beacon{position:fixed;inset:50% auto auto 50%;width:12px;height:12px;border-radius:50%;background:#b9dfb2;box-shadow:0 0 0 14px #b9dfb222}
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: #102338;
+      }
+      [data-font-gated] {
+        visibility: hidden;
+      }
+      .initial-beacon {
+        position: fixed;
+        inset: 50% auto auto 50%;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #b9dfb2;
+        box-shadow: 0 0 0 14px #b9dfb222;
+      }
     </style>
     <script type="module" src="/src/main.ts"></script>
   </head>
@@ -18,17 +36,29 @@
     <div class="page-shade" aria-hidden="true"></div>
     <main class="app-shell" data-font-gated data-testid="app-shell">
       <header class="masthead">
-        <a class="wordmark" href="/" aria-label="Appearance Lab home"><span class="brand-mark" aria-hidden="true">a</span>Appearance<span class="wordmark-light">Lab</span></a>
+        <a class="wordmark" href="/" aria-label="Appearance Lab home"
+          ><span class="brand-mark" aria-hidden="true">a</span>Appearance<span
+            class="wordmark-light"
+            >Lab</span
+          ></a
+        >
         <span class="isolation-tag">ISOLATED CONSUMER / 01</span>
       </header>
       <section class="intro">
         <p class="eyebrow">LOCAL ASSETS. PUBLIC INTERFACES.</p>
         <h1>Make room<br />for a different mood.</h1>
-        <p class="intro-copy">A small, independent canvas for theme, wallpaper and the moments between them. Nothing here starts the main website.</p>
+        <p class="intro-copy">
+          A small, independent canvas for theme, wallpaper and the moments between them. Nothing
+          here starts the main website.
+        </p>
       </section>
       <div class="workspace">
         <section class="panel controls-panel" aria-labelledby="appearance-heading">
-          <div class="panel-heading"><span class="section-number">01</span><h2 id="appearance-heading">Appearance</h2><span id="mode-label" class="quiet-badge"></span></div>
+          <div class="panel-heading">
+            <span class="section-number">01</span>
+            <h2 id="appearance-heading">Appearance</h2>
+            <span id="mode-label" class="quiet-badge"></span>
+          </div>
           <fieldset>
             <legend>Theme preference</legend>
             <div class="segmented" aria-label="Theme preference">
@@ -38,50 +68,138 @@
             </div>
           </fieldset>
           <div id="wallpaper-controls">
-            <label class="switch-row"><span>Wallpaper<span class="control-note">Image and credit move together</span></span><input type="checkbox" id="enabled" data-testid="wallpaper-enabled" checked /></label>
-            <label class="switch-row"><span>Automatic rotation<span class="control-note">Every 12 seconds in normal mode</span></span><input type="checkbox" id="rotate" data-testid="auto-rotate" /></label>
+            <label class="switch-row"
+              ><span>Wallpaper<span class="control-note">Image and credit move together</span></span
+              ><input type="checkbox" id="enabled" data-testid="wallpaper-enabled" checked
+            /></label>
+            <label class="switch-row"
+              ><span
+                >Automatic rotation<span class="control-note"
+                  >Every 12 seconds in normal mode</span
+                ></span
+              ><input type="checkbox" id="rotate" data-testid="auto-rotate"
+            /></label>
             <div class="button-row">
-              <button type="button" class="primary" id="next" data-testid="next-wallpaper">Next landscape <span aria-hidden="true">↗</span></button>
+              <button type="button" class="primary" id="next" data-testid="next-wallpaper">
+                Next landscape <span aria-hidden="true">↗</span>
+              </button>
               <button type="button" id="download" data-testid="download-wallpaper">Download</button>
             </div>
           </div>
           <dl class="state-grid" aria-live="polite">
-            <div><dt>Resolved theme</dt><dd id="theme-state" data-testid="theme-state">Preparing</dd></div>
-            <div><dt>Wallpaper</dt><dd id="wallpaper-state" data-testid="wallpaper-state">Preparing</dd></div>
-            <div><dt>Font resource</dt><dd id="font-state" data-testid="font-state">Loading</dd></div>
-            <div><dt>Current scene</dt><dd id="scene-state" data-testid="scene-state">None</dd></div>
+            <div>
+              <dt>Resolved theme</dt>
+              <dd id="theme-state" data-testid="theme-state">Preparing</dd>
+            </div>
+            <div>
+              <dt>Wallpaper</dt>
+              <dd id="wallpaper-state" data-testid="wallpaper-state">Preparing</dd>
+            </div>
+            <div>
+              <dt>Font resource</dt>
+              <dd id="font-state" data-testid="font-state">Loading</dd>
+            </div>
+            <div>
+              <dt>Current scene</dt>
+              <dd id="scene-state" data-testid="scene-state">None</dd>
+            </div>
           </dl>
           <p id="error-state" class="error-state" data-testid="error-state" role="status"></p>
         </section>
         <article class="panel reading-panel" aria-labelledby="reading-heading">
-          <div class="panel-heading"><span class="section-number">02</span><p class="small-label">A READING SAMPLE</p></div>
+          <div class="panel-heading">
+            <span class="section-number">02</span>
+            <p class="small-label">A READING SAMPLE</p>
+          </div>
           <h2 id="reading-heading">The quiet details<br />are the interface.</h2>
-          <p>A good transition makes a promise: the next image is ready, its credit belongs to it, and the font has actually arrived. Until then, the current scene stays with you.</p>
+          <p>
+            A good transition makes a promise: the next image is ready, its credit belongs to it,
+            and the font has actually arrived. Until then, the current scene stays with you.
+          </p>
           <blockquote>Preparation is invisible.<br />The handover should feel simple.</blockquote>
-          <p>Switch between light and dark, resize the page, or interrupt an image request. This sample includes headings, body copy, links, buttons and a compact data view so changes are visible in context.</p>
-          <a href="#lab" class="text-link">Explore the failure laboratory <span aria-hidden="true">↓</span></a>
-          <div class="swatches" aria-label="Theme palette"><span>Surface</span><span>Ink</span><span>Accent</span><span>Quiet</span></div>
+          <p>
+            Switch between light and dark, resize the page, or interrupt an image request. This
+            sample includes headings, body copy, links, buttons and a compact data view so changes
+            are visible in context.
+          </p>
+          <a href="#lab" class="text-link"
+            >Explore the failure laboratory <span aria-hidden="true">↓</span></a
+          >
+          <div class="swatches" aria-label="Theme palette">
+            <span>Surface</span><span>Ink</span><span>Accent</span><span>Quiet</span>
+          </div>
         </article>
       </div>
       <section class="panel lab-panel" id="lab" aria-labelledby="lab-heading">
-        <div class="panel-heading"><span class="section-number">03</span><h2 id="lab-heading">Failure laboratory</h2><span class="quiet-badge">DEMO ONLY</span></div>
-        <p class="lab-intro">These controls wrap public host interfaces. They are not switches in the production package. A failed font never unlocks fallback text.</p>
+        <div class="panel-heading">
+          <span class="section-number">03</span>
+          <h2 id="lab-heading">Failure laboratory</h2>
+          <span class="quiet-badge">DEMO ONLY</span>
+        </div>
+        <p class="lab-intro">
+          These controls wrap public host interfaces. They are not switches in the production
+          package. A failed font never unlocks fallback text.
+        </p>
         <div class="lab-grid">
-          <label>Scenario<select id="scenario" data-testid="scenario"><option value="normal">Normal</option><option value="source-failure">Source rejects</option><option value="image-failure">Image request fails</option><option value="decode-failure">Image bytes are invalid</option><option value="font-failure">Font request fails</option><option value="no-items">No image available</option></select></label>
-          <label>Image delay (ms)<input type="number" id="image-delay" data-testid="image-delay" min="0" max="30000" step="100" value="0" /></label>
-          <label>Font delay (ms)<input type="number" id="font-delay" data-testid="font-delay" min="0" max="30000" step="100" value="0" /></label>
-          <label>Rotation interval (ms)<input type="number" id="rotation-delay" data-testid="rotation-delay" min="200" max="60000" step="200" value="12000" /></label>
+          <label
+            >Scenario<select id="scenario" data-testid="scenario">
+              <option value="normal">Normal</option>
+              <option value="source-failure">Source rejects</option>
+              <option value="image-failure">Image request fails</option>
+              <option value="decode-failure">Image bytes are invalid</option>
+              <option value="font-failure">Font request fails</option>
+              <option value="no-items">No image available</option>
+            </select></label
+          >
+          <label
+            >Image delay (ms)<input
+              type="number"
+              id="image-delay"
+              data-testid="image-delay"
+              min="0"
+              max="30000"
+              step="100"
+              value="0"
+          /></label>
+          <label
+            >Font delay (ms)<input
+              type="number"
+              id="font-delay"
+              data-testid="font-delay"
+              min="0"
+              max="30000"
+              step="100"
+              value="0"
+          /></label>
+          <label
+            >Rotation interval (ms)<input
+              type="number"
+              id="rotation-delay"
+              data-testid="rotation-delay"
+              min="200"
+              max="60000"
+              step="200"
+              value="12000"
+          /></label>
         </div>
         <div class="button-row lifecycle-controls">
           <button type="button" id="cancel" data-testid="cancel">Cancel pending work</button>
           <button type="button" id="destroy" data-testid="destroy">Destroy</button>
           <button type="button" id="initialize" data-testid="initialize">Initialize again</button>
-          <button type="button" id="corrupt-cache" data-testid="corrupt-cache">Write damaged cache</button>
+          <button type="button" id="corrupt-cache" data-testid="corrupt-cache">
+            Write damaged cache
+          </button>
           <button type="button" id="clear-cache" data-testid="clear-cache">Clear demo cache</button>
         </div>
-        <details><summary>Lifecycle event log</summary><pre id="event-log" data-testid="event-log"></pre></details>
+        <details>
+          <summary>Lifecycle event log</summary>
+          <pre id="event-log" data-testid="event-log"></pre>
+        </details>
       </section>
-      <footer><span>Images: original SVG landscapes, CC0 · Typeface: Source Sans 3</span><span>No production API. No account. No main-site storage.</span></footer>
+      <footer>
+        <span>Images: original SVG landscapes, CC0 · Typeface: Source Sans 3</span
+        ><span>No production API. No account. No main-site storage.</span>
+      </footer>
     </main>
   </body>
 </html>
