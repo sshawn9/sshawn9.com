@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <title>Blue hour over quiet water</title>
+  <desc>Original geometric landscape created for the Appearance demo. CC0 1.0.</desc>
+  <defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#123f59"/><stop offset=".6" stop-color="#79a99e"/><stop offset="1" stop-color="#ced6b5"/></linearGradient><linearGradient id="water" x2="0" y2="1"><stop stop-color="#47817c"/><stop offset="1" stop-color="#163d51"/></linearGradient><radialGradient id="glow"><stop stop-color="#e8e6bc" stop-opacity=".85"/><stop offset="1" stop-color="#e8e6bc" stop-opacity="0"/></radialGradient></defs>
+  <path fill="url(#sky)" d="M0 0h1920v1080H0z"/><ellipse cx="1430" cy="366" rx="430" ry="290" fill="url(#glow)"/><circle cx="1450" cy="335" r="74" fill="#ede8bd"/>
+  <path d="M0 670 190 480 377 600 590 362 880 649 1100 470 1350 625 1550 510 1920 668V900H0z" fill="#678e83"/>
+  <path d="m0 765 286-190 186 130 291-206 255 168 185-74 260 189 286-178 171 129v280H0z" fill="#356a69"/>
+  <path d="M0 740q310-85 640 20t640-15 640 12v323H0z" fill="url(#water)"/>
+  <g fill="none" stroke="#aed1b3" stroke-opacity=".2"><path d="M1090 796h690M1020 832h830M820 880h940M1130 927h760M970 978h510"/></g>
+  <path d="M0 878q183-109 403 0l180 202H0z" fill="#123a42"/><path d="M1560 1080q174-194 360-145v145z" fill="#123e47"/><path d="m0 989 109-109 41 200H0z" fill="#0e2934"/>
+</svg>

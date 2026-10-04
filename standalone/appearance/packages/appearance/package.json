@@ -1,0 +1,32 @@
+{
+  "name": "@sshawn9/appearance",
+  "version": "0.1.0",
+  "description": "Explicit, independent theme and transactional wallpaper controllers",
+  "type": "module",
+  "license": "UNLICENSED",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    "./theme": {
+      "types": "./dist/theme.d.ts",
+      "import": "./dist/theme.js"
+    },
+    "./wallpaper": {
+      "types": "./dist/wallpaper.d.ts",
+      "import": "./dist/wallpaper.js"
+    },
+    "./theme/styles.css": "./dist/theme.css",
+    "./wallpaper/styles.css": "./dist/wallpaper.css",
+    "./styles.css": "./dist/styles.css"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node ../../scripts/copy-styles.mjs",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "prepack": "npm run build"
+  }
+}
