@@ -2,7 +2,7 @@
   "name": "sshawn9.com",
   "type": "module",
   "version": "0.0.1",
-  "packageManager": "npm@11.17.0",
+  "packageManager": "npm@11.21.0",
   "engines": {
     "node": ">=24.0.0"
   },
