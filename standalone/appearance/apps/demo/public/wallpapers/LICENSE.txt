@@ -1,0 +1,10 @@
+Appearance demo landscapes
+blue-hour.svg, ochre-ridge.svg, alpine-morning.svg
+
+Original geometric SVG artwork created specifically for this demonstration in 2026.
+To the extent copyright or related rights exist, the authors dedicate these works
+to the public domain under CC0 1.0 Universal.
+https://creativecommons.org/publicdomain/zero/1.0/
+
+No stock photographs, external image APIs or third-party image assets are used.
+The demo retains an informative artwork credit, including in the downloadable SVG.

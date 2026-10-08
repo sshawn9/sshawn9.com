@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <title>Alpine morning</title>
+  <desc>Original geometric landscape created for the Appearance demo. CC0 1.0.</desc>
+  <defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#477582"/><stop offset="1" stop-color="#e5ebd3"/></linearGradient><linearGradient id="lake" x2="0" y2="1"><stop stop-color="#9fbfaa"/><stop offset="1" stop-color="#366971"/></linearGradient></defs>
+  <path fill="url(#sky)" d="M0 0h1920v1080H0z"/><circle cx="1410" cy="241" r="63" fill="#f2f2cc"/>
+  <path d="m0 730 330-388 210 257 219-341 277 427 300-341 300 340 284-195v591H0z" fill="#7c9c97"/>
+  <path d="m330 342 95 117-74-26-32 27-46-10zm429-84 104 160-76-29-44 30-57-36zm577 86 90 101-46-17-39 37-35-31-34 18z" fill="#f1f0d9"/>
+  <path d="M0 777 377 599 671 788 963 574 1164 797 1524 646 1920 792v288H0z" fill="#477e78"/>
+  <path d="M0 852q398-97 790-9t1130-14v251H0z" fill="url(#lake)"/>
+  <g fill="none" stroke="#dfecd0" stroke-width="3" stroke-opacity=".32"><path d="M671 881h730M830 934h809M399 1001h602"/></g>
+  <path d="M0 813q149 91 326 267H0zM1654 1080q118-193 266-211v211z" fill="#234f55"/>
+  <g fill="#183e46"><path d="m114 765-77 174h154zm0 84-91 192h182zM1822 790l-76 181h152zm0 83-101 207h202z"/></g>
+</svg>

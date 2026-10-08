@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <title>Ochre ridge at sunset</title>
+  <desc>Original geometric landscape created for the Appearance demo. CC0 1.0.</desc>
+  <defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#554951"/><stop offset=".6" stop-color="#c78462"/><stop offset="1" stop-color="#ecd2a0"/></linearGradient><linearGradient id="earth" x2="1" y2="1"><stop stop-color="#734f4b"/><stop offset="1" stop-color="#352e3e"/></linearGradient></defs>
+  <path fill="url(#sky)" d="M0 0h1920v1080H0z"/><circle cx="1510" cy="370" r="113" fill="#f4d08b"/><g fill="none" stroke="#f1c695" stroke-opacity=".24" stroke-width="3"><path d="M1100 161h472M1370 226h390M560 360h420"/></g>
+  <path d="M0 797 295 510 488 628 813 361 1030 613 1260 507 1500 655 1735 402 1920 611v469H0z" fill="#bc8865"/>
+  <path d="m813 361 31 426-179-215zM1735 402l-49 450-186-197z" fill="#d2a57d"/>
+  <path d="M0 887 229 710 568 901 860 668 1130 874 1330 708 1535 811 1720 702 1920 910v170H0z" fill="#885f55"/>
+  <path d="M0 984q230-81 480-12t459-83 539 44 442-40v187H0z" fill="url(#earth)"/>
+  <path d="M1920 941q-360-9-657 139h657z" fill="#312b38"/><path d="M0 1060q330-55 647 20H0z" fill="#2d2d3b"/>
+</svg>

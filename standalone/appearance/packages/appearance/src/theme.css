@@ -1,0 +1,38 @@
+[data-appearance-theme] {
+  color-scheme: light;
+  --appearance-bg: #f3f5f7;
+  --appearance-surface: #ffffff;
+  --appearance-text: #18252c;
+  --appearance-muted: #53646e;
+  --appearance-border: #c2cdd3;
+  --appearance-accent: #065f63;
+  --appearance-on-accent: #ffffff;
+  --appearance-shadow: 0 18px 56px #142d3b16;
+  color: var(--appearance-text);
+  background-color: var(--appearance-bg);
+}
+[data-appearance-theme='dark'] {
+  color-scheme: dark;
+  --appearance-bg: #111b23;
+  --appearance-surface: #1a2934;
+  --appearance-text: #eef5f8;
+  --appearance-muted: #b4c7d0;
+  --appearance-border: #405965;
+  --appearance-accent: #8fdfd7;
+  --appearance-on-accent: #102925;
+  --appearance-shadow: 0 18px 56px #0005;
+}
+.appearance-theme-changing,
+.appearance-theme-changing :where(button, input, select, article, section, aside, header, footer) {
+  transition:
+    background-color 220ms ease,
+    color 220ms ease,
+    border-color 220ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .appearance-theme-changing,
+  .appearance-theme-changing
+    :where(button, input, select, article, section, aside, header, footer) {
+    transition: none;
+  }
+}
