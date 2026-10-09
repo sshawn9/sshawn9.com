@@ -78,7 +78,7 @@ jobs:
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          wranglerVersion: '4.129.0'
+          wranglerVersion: '4.149.0'
           command: ${{ github.ref_name == 'main' && 'deploy --env preview --secrets-file .wrangler-secrets.json' || format('versions upload --env preview --preview-alias {0} --secrets-file .wrangler-secrets.json', steps.preview.outputs.alias) }}
       - name: Record preview URLs
         id: urls
@@ -142,7 +142,7 @@ jobs:
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          wranglerVersion: '4.129.0'
+          wranglerVersion: '4.149.0'
           command: deploy --env="" --secrets-file .wrangler-secrets.json
       - name: Record production URL
         run: |
