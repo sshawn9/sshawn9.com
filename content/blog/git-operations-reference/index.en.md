@@ -448,14 +448,15 @@ git rebase --abort
 
 Command-line parameters used in this section:
 
-| Parameter                             | Meaning                                                           |
-| ------------------------------------- | ----------------------------------------------------------------- |
-| `-m <message>`, `--message <message>` | Use `<message>` as the stash description                          |
-| `-u`, `--include-untracked`           | Save untracked files as well, but exclude ignored files           |
-| `-p`, `--patch`                       | When used with `push`, interactively choose modifications to save |
-| `-p`, `--patch`                       | When used with `show`, show the full patch                        |
-| `--stat`                              | Show diff statistics                                              |
-| `--`                                  | End option parsing                                                |
+| Parameter                             | Meaning                                                              |
+| ------------------------------------- | -------------------------------------------------------------------- |
+| `-m <message>`, `--message <message>` | Use `<message>` as the stash description                             |
+| `-u`, `--include-untracked`           | Save untracked files as well, but exclude ignored files              |
+| `--index`                             | With `apply` and `pop`, also attempt to restore changes in the index |
+| `-p`, `--patch`                       | When used with `push`, interactively choose modifications to save    |
+| `-p`, `--patch`                       | When used with `show`, show the full patch                           |
+| `--stat`                              | Show diff statistics                                                 |
+| `--`                                  | End option parsing                                                   |
 
 ```bash
 # Purpose: View the list of stashes in the current repository
@@ -500,6 +501,8 @@ git stash show -p stash@{0}
 git stash apply <stash>
 # Example 1: Apply newest stash, keeping the record
 git stash apply stash@{0}
+# Example 2: Apply the newest stash and restore its staging state
+git stash apply --index 'stash@{0}'
 
 # Purpose: Apply a specific stash, and delete the record upon success
 # Conditions: Working directory must match index
@@ -1298,3 +1301,62 @@ git push --set-upstream origin feature/example-rebased
   ```
 
 - If the hosting platform prohibits force pushes, follow its branch-protection rules. When you need a new linear history, push it to a new branch and handle it through a pull request.
+
+## Create a New Branch Worktree from the Current Commit and Move Uncommitted Changes
+
+Move current uncommitted changes into a separate working directory on a new branch while preserving their staging state. This example uses `project/` as the original directory, `main` as the current branch, `feature/example` as the new branch, and `project-feature/` as the new directory.
+
+### Steps
+
+Run these steps from the original `project/` repository root, proceeding only after each step succeeds. The new branch and destination directory must not already exist, and the index must have no unresolved merge conflicts.
+
+1. **Create a new branch and worktree from the current commit.**
+
+   ```bash
+   git worktree add -b feature/example ../project-feature HEAD
+   ```
+
+   `HEAD` is the current commit. The new branch includes all history up to that commit, including any unpushed commits. The new directory does not yet contain your uncommitted changes; leave it in its freshly created state for now.
+
+2. **Save the changes in the original directory and confirm the new stash entry.**
+
+   ```bash
+   git stash push -u -m "move-to-feature-worktree"
+   git stash list -n 1
+   ```
+
+   This saves staged and unstaged changes, along with ordinary untracked files, and stashes them away from the original directory. `-u` excludes ignored files, so ignored build artifacts and local caches remain in the original directory.
+
+   Confirm that the new entry has the description `move-to-feature-worktree` before continuing. If `push` reports `No local changes to save`, no new entry was created. Skip `apply` in the next step to avoid restoring an older stash.
+
+3. **Restore the changes and staging state in the new worktree.**
+
+   ```bash
+   git -C ../project-feature stash apply --index 'stash@{0}'
+   ```
+
+   `-C` sets the working directory for this Git command without changing the terminal's current directory. `--index` also attempts to restore the staging state, and `apply` retains the stash entry. If conflicts occur, resolve them and check the staging state before continuing.
+
+   `stash@{0}` must refer to the entry created in step 2. All worktrees in the repository share the stash list. If other stashes have been created or deleted in the meantime, run `git stash list` to confirm the entry's current number and replace the reference before running the command.
+
+4. **Check both directories, then enter the new directory to continue working.**
+
+   ```bash
+   git status --short --branch
+   git -C ../project-feature status --short --branch
+   ```
+
+   Confirm that the changes have been stashed away from the original directory and restored in the new directory with their original staging state, then change directories:
+
+   ```bash
+   cd ../project-feature
+   ```
+
+### Resulting State
+
+| Location           | Branch            | Uncommitted changes                                                          |
+| ------------------ | ----------------- | ---------------------------------------------------------------------------- |
+| `project/`         | `main`            | The changes have been stashed away; tracked files and the index match `HEAD` |
+| `project-feature/` | `feature/example` | The changes are restored with their original staging state                   |
+
+Both branches still point to the same commit as before the procedure. Subsequent commits in the new worktree advance `feature/example`, while `main` stays in place.

@@ -448,14 +448,15 @@ git rebase --abort
 
 本节使用的命令行参数：
 
-| 参数                                  | 含义                                     |
-| ------------------------------------- | ---------------------------------------- |
-| `-m <message>`、`--message <message>` | 将 `<message>` 用作 stash 说明           |
-| `-u`、`--include-untracked`           | 将未跟踪文件一并保存，但不包含被忽略文件 |
-| `-p`、`--patch`                       | 用于 `push` 时，交互选择要保存的修改     |
-| `-p`、`--patch`                       | 用于 `show` 时，显示完整补丁             |
-| `--stat`                              | 显示差异统计                             |
-| `--`                                  | 结束选项解析                             |
+| 参数                                  | 含义                                              |
+| ------------------------------------- | ------------------------------------------------- |
+| `-m <message>`、`--message <message>` | 将 `<message>` 用作 stash 说明                    |
+| `-u`、`--include-untracked`           | 将未跟踪文件一并保存，但不包含被忽略文件          |
+| `--index`                             | 用于 `apply` 和 `pop`，同时尝试恢复暂存区中的修改 |
+| `-p`、`--patch`                       | 用于 `push` 时，交互选择要保存的修改              |
+| `-p`、`--patch`                       | 用于 `show` 时，显示完整补丁                      |
+| `--stat`                              | 显示差异统计                                      |
+| `--`                                  | 结束选项解析                                      |
 
 ```bash
 # 用途：查看当前仓库中的 stash 列表
@@ -500,6 +501,8 @@ git stash show -p stash@{0}
 git stash apply <stash>
 # 示例 1：恢复最新 stash，同时保留该记录
 git stash apply stash@{0}
+# 示例 2：恢复最新 stash，同时恢复原有暂存状态
+git stash apply --index 'stash@{0}'
 
 # 用途：恢复指定 stash，并在成功后删除该记录
 # 条件：工作目录必须与暂存区一致
@@ -1289,3 +1292,62 @@ git push --set-upstream origin feature/example-rebased
   ```
 
 - 托管平台禁止强制推送时，遵守分支保护规则；需要线性新历史时推送到新分支，再通过合并请求处理。
+
+## 基于当前提交创建新分支 worktree，并迁移未提交修改
+
+将当前未提交修改迁到新分支的独立工作目录，并保留暂存状态。下面以原目录 `project/`、当前分支 `main`、新分支 `feature/example` 和新目录 `project-feature/` 为例。
+
+### 操作步骤
+
+在原仓库 `project/` 根目录逐步执行，每一步成功后再继续。新分支和目标目录应尚不存在，暂存区中不能有未解决的合并冲突。
+
+1. **基于当前提交创建新分支和 worktree。**
+
+   ```bash
+   git worktree add -b feature/example ../project-feature HEAD
+   ```
+
+   `HEAD` 表示当前提交，新分支会包含截至该提交的全部历史，包括尚未推送的提交。此时新目录尚未包含未提交修改，先保持它刚创建时的状态。
+
+2. **在原目录保存修改，并确认本次 stash。**
+
+   ```bash
+   git stash push -u -m "move-to-feature-worktree"
+   git stash list -n 1
+   ```
+
+   这一步保存已暂存、未暂存修改及普通未跟踪文件，并从原目录收起这些修改。`-u` 不包含被忽略文件，被忽略的构建产物和本地缓存仍留在原目录。
+
+   确认新记录的说明为 `move-to-feature-worktree` 后再继续。如果 `push` 输出 `No local changes to save`，则没有生成新记录，跳过下一步的 `apply`，避免恢复旧 stash。
+
+3. **在新 worktree 中恢复修改和暂存状态。**
+
+   ```bash
+   git -C ../project-feature stash apply --index 'stash@{0}'
+   ```
+
+   `-C` 指定这一次 Git 命令的执行目录，不会切换终端目录。`--index` 同时尝试恢复暂存状态；`apply` 会保留 stash 记录。若有冲突，先解决冲突并核对暂存状态，再继续。
+
+   `stash@{0}` 应是第二步创建的记录。同一仓库的各 worktree 共享 stash 列表；如果期间创建或删除过其他 stash，执行前先用 `git stash list` 确认编号，并替换命令中的引用。
+
+4. **检查两个目录的状态，再进入新目录继续开发。**
+
+   ```bash
+   git status --short --branch
+   git -C ../project-feature status --short --branch
+   ```
+
+   确认原目录中的修改已收起，新目录已恢复修改和原有暂存状态后，切换目录：
+
+   ```bash
+   cd ../project-feature
+   ```
+
+### 操作后的状态
+
+| 位置               | 分支              | 未提交修改                                      |
+| ------------------ | ----------------- | ----------------------------------------------- |
+| `project/`         | `main`            | 本次修改已收起；已跟踪文件与暂存区恢复到 `HEAD` |
+| `project-feature/` | `feature/example` | 本次修改已恢复，并保留原有暂存状态              |
+
+两个分支仍指向操作前的同一个提交。之后在新 worktree 创建提交，会使 `feature/example` 向前移动，`main` 保持原位。
