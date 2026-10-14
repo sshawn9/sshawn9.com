@@ -283,6 +283,21 @@ Except for `clean`, other statuses can appear simultaneously. For example, if a 
   </g>
 </svg>
 
+Command-line parameters used in this section:
+
+| Parameter               | Meaning                                                                      |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| `--orphan <new-branch>` | Create and switch to a new branch without inheriting existing commit history |
+
+```bash
+# Purpose: Create a new branch without inheriting existing commit history, and switch to it
+# Conditions: <new-branch> must not exist; current local modifications must not prevent switching
+# Result: Switches to a branch with no commits whose first commit will be a root commit; clears the index and removes tracked files from the working directory; leaves the original branch's history, untracked files, and ignored files unchanged
+git switch --orphan <new-branch>
+# Example 1: Create and switch to new-branch without inheriting existing history
+git switch --orphan new-branch
+```
+
 ## restore: Unstage
 
 Command-line parameters used in this section:
