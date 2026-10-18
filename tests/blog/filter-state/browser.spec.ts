@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
+import { installBlogFixture } from '../browser-fixtures';
 
 const blogPath = '/en/blog/';
+
+test.beforeEach(async ({ page }) => {
+  await installBlogFixture(page);
+});
 
 function visibleArticles(page: Page) {
   return page.locator('[data-blog-article]:not([hidden])');
@@ -32,28 +37,27 @@ test('union filters keep global facets, article selection, URL, and history sync
       height: element.parentElement?.offsetHeight,
     })),
   );
-  const articles = await page
-    .locator('[data-blog-article]')
-    .evaluateAll((elements) =>
-      elements.map(
-        (element) => JSON.parse(element.getAttribute('data-article-tag-slugs') ?? '[]') as string[],
-      ),
-    );
-  const expectedCount = (selected: string[]) =>
-    Math.min(5, articles.filter((tags) => tags.some((tag) => selected.includes(tag))).length);
+  const alphaArticles = ['Fixture alpha-only', 'Fixture shared', 'Fixture alpha-second'];
+  const unionArticles = [
+    'Fixture alpha-only',
+    'Fixture beta-only',
+    'Fixture shared',
+    'Fixture alpha-second',
+    'Fixture beta-second',
+  ];
 
-  await page.locator('[data-blog-tag-definition][data-tag-slug="astro"]').click();
-  await expect(listing).toHaveAttribute('data-selected-tags', '["astro"]');
-  await expect(visibleArticles(page)).toHaveCount(expectedCount(['astro']));
-  expect(new URL(page.url()).searchParams.getAll('tag')).toEqual(['astro']);
+  await page.locator('[data-blog-tag-definition][data-tag-slug="alpha"]').click();
+  await expect(listing).toHaveAttribute('data-selected-tags', '["alpha"]');
+  await expect(visibleArticles(page).locator('h2 a')).toHaveText(alphaArticles);
+  expect(new URL(page.url()).searchParams.getAll('tag')).toEqual(['alpha']);
 
   await panel.evaluate((element) => element.scrollTo(0, 72));
   const panelScrollBefore = await panel.evaluate((element) => element.scrollTop);
-  await page.locator('[data-blog-tag-definition][data-tag-slug="git"]').click();
+  await page.locator('[data-blog-tag-definition][data-tag-slug="beta"]').click();
 
-  await expect(listing).toHaveAttribute('data-selected-tags', '["astro","git"]');
-  await expect(visibleArticles(page)).toHaveCount(expectedCount(['astro', 'git']));
-  expect(new URL(page.url()).searchParams.getAll('tag')).toEqual(['astro', 'git']);
+  await expect(listing).toHaveAttribute('data-selected-tags', '["beta","alpha"]');
+  await expect(visibleArticles(page).locator('h2 a')).toHaveText(unionArticles);
+  expect(new URL(page.url()).searchParams.getAll('tag')).toEqual(['beta', 'alpha']);
   await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBe(panelScrollBefore);
   expect(
     await definitions.evaluateAll((elements) =>
@@ -73,14 +77,14 @@ test('union filters keep global facets, article selection, URL, and history sync
   ).toBe(true);
 
   await page.goBack();
-  await expect(page).toHaveURL(/\?tag=astro$/);
-  await expect(listing).toHaveAttribute('data-selected-tags', '["astro"]');
-  await expect(visibleArticles(page)).toHaveCount(expectedCount(['astro']));
+  await expect(page).toHaveURL(/\?tag=alpha$/);
+  await expect(listing).toHaveAttribute('data-selected-tags', '["alpha"]');
+  await expect(visibleArticles(page).locator('h2 a')).toHaveText(alphaArticles);
 
   await page.goForward();
-  await expect(page).toHaveURL(/\?tag=astro&tag=git$/);
-  await expect(listing).toHaveAttribute('data-selected-tags', '["astro","git"]');
-  await expect(visibleArticles(page)).toHaveCount(expectedCount(['astro', 'git']));
+  await expect(page).toHaveURL(/\?tag=beta&tag=alpha$/);
+  await expect(listing).toHaveAttribute('data-selected-tags', '["beta","alpha"]');
+  await expect(visibleArticles(page).locator('h2 a')).toHaveText(unionArticles);
 });
 
 test('two tag clicks in one frame retain both history entries and traverse one intent at a time', async ({
@@ -88,22 +92,22 @@ test('two tag clicks in one frame retain both history entries and traverse one i
 }) => {
   await page.goto(blogPath);
   await page.evaluate(() => {
-    const astro = document.querySelector<HTMLElement>(
-      '[data-blog-tag-definition][data-tag-slug="astro"]',
+    const alpha = document.querySelector<HTMLElement>(
+      '[data-blog-tag-definition][data-tag-slug="alpha"]',
     );
-    const git = document.querySelector<HTMLElement>(
-      '[data-blog-tag-definition][data-tag-slug="git"]',
+    const beta = document.querySelector<HTMLElement>(
+      '[data-blog-tag-definition][data-tag-slug="beta"]',
     );
-    if (!astro || !git) throw new Error('Expected blog tag fixtures');
-    astro.click();
-    git.click();
+    if (!alpha || !beta) throw new Error('Expected blog tag fixtures');
+    alpha.click();
+    beta.click();
   });
 
-  await expect(blogListing(page)).toHaveAttribute('data-selected-tags', '["astro","git"]');
-  await expect(page).toHaveURL(/\?tag=astro&tag=git$/);
+  await expect(blogListing(page)).toHaveAttribute('data-selected-tags', '["beta","alpha"]');
+  await expect(page).toHaveURL(/\?tag=beta&tag=alpha$/);
   await page.goBack();
-  await expect(page).toHaveURL(/\?tag=astro$/);
-  await expect(blogListing(page)).toHaveAttribute('data-selected-tags', '["astro"]');
+  await expect(page).toHaveURL(/\?tag=alpha$/);
+  await expect(blogListing(page)).toHaveAttribute('data-selected-tags', '["alpha"]');
   await page.goBack();
   await expect(page).toHaveURL(/\/en\/blog\/$/);
   await expect(blogListing(page)).toHaveAttribute('data-selected-tags', '[]');
@@ -111,17 +115,17 @@ test('two tag clicks in one frame retain both history entries and traverse one i
 
 test('leaving a local blog view and returning restores its selected tags', async ({ page }) => {
   await page.goto(blogPath);
-  await blogTag(page, 'astro').click();
-  await expect(page).toHaveURL(/\?tag=astro$/);
+  await blogTag(page, 'alpha').click();
+  await expect(page).toHaveURL(/\?tag=alpha$/);
 
   const article = page.locator('[data-blog-article]:not([hidden]) h2 a').first();
   await expect(article).toBeVisible();
   await article.click();
-  await expect(page).toHaveURL(/\/en\/blog\/[^?]+\/$/);
+  await expect(page).toHaveURL(/\/en\/about\/$/);
 
   await page.goBack();
-  await expect(page).toHaveURL(/\/en\/blog\/\?tag=astro$/);
-  await expect(blogListing(page)).toHaveAttribute('data-selected-tags', '["astro"]');
+  await expect(page).toHaveURL(/\/en\/blog\/\?tag=alpha$/);
+  await expect(blogListing(page)).toHaveAttribute('data-selected-tags', '["alpha"]');
 });
 
 for (const mode of ['reduced-motion', 'without-view-transitions'] as const) {
@@ -138,12 +142,12 @@ for (const mode of ['reduced-motion', 'without-view-transitions'] as const) {
     await page.locator('main').evaluate((element) => {
       element.dataset.viewNavigationIdentity = 'blog';
     });
-    await blogTag(page, 'astro').click();
-    await expect(blogListing(page)).toHaveAttribute('data-selected-tags', '["astro"]');
-    await blogTag(page, 'git').click();
-    await expect(blogListing(page)).toHaveAttribute('data-selected-tags', '["astro","git"]');
+    await blogTag(page, 'alpha').click();
+    await expect(blogListing(page)).toHaveAttribute('data-selected-tags', '["alpha"]');
+    await blogTag(page, 'beta').click();
+    await expect(blogListing(page)).toHaveAttribute('data-selected-tags', '["beta","alpha"]');
     await page.goBack();
-    await expect(blogListing(page)).toHaveAttribute('data-selected-tags', '["astro"]');
+    await expect(blogListing(page)).toHaveAttribute('data-selected-tags', '["alpha"]');
     await expect(page.locator('main')).toHaveAttribute('data-view-navigation-identity', 'blog');
     await expect(page.locator('.page-outlet')).toHaveCSS('opacity', '1');
   });

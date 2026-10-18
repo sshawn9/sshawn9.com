@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { installSearchFixture } from '../browser-fixtures';
 import {
   clearViewProbeEvents,
   installViewNavigationProbe,
@@ -6,6 +7,35 @@ import {
 } from '../../navigation/view-probe';
 
 const searchPath = '/en/search/';
+
+test.beforeEach(async ({ page }) => {
+  await installSearchFixture(page, [
+    {
+      url: '/zh/blog/fixture-identity/',
+      language: 'zh',
+      content: 'Fixture Identity 测试身份',
+      meta: { title: '测试身份', type: '文章' },
+    },
+    {
+      url: '/zh/blog/fixture-query/',
+      language: 'zh',
+      content: '测试检索',
+      meta: { title: '测试检索', type: '文章' },
+    },
+    {
+      url: '/en/blog/fixture-identity/',
+      language: 'en',
+      content: 'Fixture Identity',
+      meta: { title: 'Fixture identity', type: 'Article' },
+    },
+    {
+      url: '/en/blog/fixture-catalog/',
+      language: 'en',
+      content: 'fixturecatalog',
+      meta: { title: 'Fixture catalog', type: 'Article' },
+    },
+  ]);
+});
 
 const searchRoot = (page: Page) => page.locator('[data-site-search]');
 const searchInput = (page: Page) => searchRoot(page).locator('[data-search-input]');
@@ -16,30 +46,29 @@ async function waitForSearch(page: Page) {
 }
 
 test('query, URL, and localized results stay aligned', async ({ page }) => {
-  await page.goto('/zh/search/?q=Git%20Identity');
+  await page.goto('/zh/search/?q=Fixture%20Identity');
   await waitForSearch(page);
-  await expect(searchInput(page)).toHaveValue('Git Identity');
+  await expect(searchInput(page)).toHaveValue('Fixture Identity');
 
   const articleResult = searchList(page).locator(
-    '.site-search-result:has(.site-search-result__link[href="/zh/blog/git-identity-management/"])',
+    '.site-search-result:has(.site-search-result__link[href="/zh/blog/fixture-identity/"])',
   );
   await expect(articleResult).toBeVisible();
   await expect(articleResult.locator('.site-search-result__type')).toHaveText('文章');
 
-  await searchInput(page).fill('景观背景');
-  await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('景观背景');
+  await searchInput(page).fill('测试检索');
+  await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('测试检索');
   await expect(
-    searchList(page).locator(
-      '.site-search-result__link[href="/zh/blog/rotating-scenic-backgrounds-for-my-website/"]',
-    ),
+    searchList(page).locator('.site-search-result__link[href="/zh/blog/fixture-query/"]'),
   ).toBeVisible();
+  await expect(articleResult).toHaveCount(0);
 });
 
 test('search query replacement is lifecycle-silent, keeps history length, and applies traversal in place', async ({
   page,
 }) => {
   await installViewNavigationProbe(page);
-  await page.goto(`${searchPath}?q=website`);
+  await page.goto(`${searchPath}?q=fixturecatalog`);
   await waitForSearch(page);
   const root = page.locator('[data-site-search]');
   await root.evaluate((element) => (element.dataset.viewNavigationIdentity = 'search'));
@@ -53,17 +82,23 @@ test('search query replacement is lifecycle-silent, keeps history length, and ap
   await clearViewProbeEvents(page);
   const queryBHistoryLength = await page.evaluate(() => history.length);
 
-  await searchInput(page).fill('git identity');
-  await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('git identity');
-  await expect(page.locator('[data-search-results]')).toHaveAttribute('data-query', 'git identity');
+  await searchInput(page).fill('fixture identity');
+  await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('fixture identity');
+  await expect(page.locator('[data-search-results]')).toHaveAttribute(
+    'data-query',
+    'fixture identity',
+  );
   expect(await page.evaluate(() => history.length)).toBe(queryBHistoryLength);
   expect(await root.getAttribute('data-view-navigation-identity')).toBe('search');
   expect((await viewProbe(page))?.astroEvents).toEqual([]);
 
   await page.goBack();
-  await expect(page).toHaveURL(/\/en\/search\/\?q=website$/);
-  await expect(searchInput(page)).toHaveValue('website');
-  await expect(page.locator('[data-search-results]')).toHaveAttribute('data-query', 'website');
+  await expect(page).toHaveURL(/\/en\/search\/\?q=fixturecatalog$/);
+  await expect(searchInput(page)).toHaveValue('fixturecatalog');
+  await expect(page.locator('[data-search-results]')).toHaveAttribute(
+    'data-query',
+    'fixturecatalog',
+  );
   expect(await root.getAttribute('data-view-navigation-identity')).toBe('search');
 
   let searchHtmlFetches = 0;
@@ -74,16 +109,19 @@ test('search query replacement is lifecycle-silent, keeps history length, and ap
   });
   const historyLengthBeforeHash = await page.evaluate(() => history.length);
   await clearViewProbeEvents(page);
-  await searchInput(page).fill('git identity');
-  await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('git identity');
-  await expect(page.locator('[data-search-results]')).toHaveAttribute('data-query', 'git identity');
+  await searchInput(page).fill('fixture identity');
+  await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('fixture identity');
+  await expect(page.locator('[data-search-results]')).toHaveAttribute(
+    'data-query',
+    'fixture identity',
+  );
   expect(await page.evaluate(() => history.length)).toBe(historyLengthBeforeHash);
   expect((await viewProbe(page))?.astroEvents).toEqual([]);
 
   const skipLink = page.locator('a.skip-link[href="#main-content"]');
   await skipLink.focus();
   await skipLink.press('Enter');
-  await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('git identity');
+  await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('fixture identity');
   await expect.poll(() => new URL(page.url()).hash).toBe('#main-content');
   await expect(page.locator('#main-content')).toBeFocused();
   expect(searchHtmlFetches).toBe(0);

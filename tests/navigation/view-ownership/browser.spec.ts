@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { installBlogFixture } from '../../blog/browser-fixtures';
 import { installViewNavigationProbe, viewProbe } from '../view-probe';
 
 const blogPath = '/en/blog/';
@@ -14,6 +15,7 @@ function blogTag(page: Page, slug: string) {
 test('blog tag views commit locally, retain the shell, and restore target history state', async ({
   page,
 }) => {
+  await installBlogFixture(page);
   await installViewNavigationProbe(page);
   let documentRequests = 0;
   let blogHtmlFetches = 0;
@@ -42,36 +44,36 @@ test('blog tag views commit locally, retain the shell, and restore target histor
   documentRequests = 0;
   blogHtmlFetches = 0;
 
-  await blogTag(page, 'astro').click();
-  await expect(listing).toHaveAttribute('data-selected-tags', '["astro"]');
-  await expect(page).toHaveURL(/\/en\/blog\/\?tag=astro$/);
+  await blogTag(page, 'alpha').click();
+  await expect(listing).toHaveAttribute('data-selected-tags', '["alpha"]');
+  await expect(page).toHaveURL(/\/en\/blog\/\?tag=alpha$/);
   await panel.evaluate((element) => element.scrollTo(0, 96));
   await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  const astroPanelY = await panel.evaluate((element) => element.scrollTop);
+  const alphaPanelY = await panel.evaluate((element) => element.scrollTop);
 
-  await blogTag(page, 'git').click();
-  await expect(listing).toHaveAttribute('data-selected-tags', '["astro","git"]');
-  await expect(page).toHaveURL(/\?tag=astro&tag=git$/);
+  await blogTag(page, 'beta').click();
+  await expect(listing).toHaveAttribute('data-selected-tags', '["beta","alpha"]');
+  await expect(page).toHaveURL(/\?tag=beta&tag=alpha$/);
   await panel.evaluate((element) => element.scrollTo(0, 16));
   await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBe(16);
-  const astroAndGitPanelY = await panel.evaluate((element) => element.scrollTop);
+  const combinedPanelY = await panel.evaluate((element) => element.scrollTop);
   // scrollTo changes layout synchronously; the browser delivers its scroll
   // event on the next frame. Traverse only once this entry has been saved.
   await expect
     .poll(() => page.evaluate(() => history.state?.sshawn9?.regions?.['blog-sidebar-tags']?.y))
-    .toBe(astroAndGitPanelY);
+    .toBe(combinedPanelY);
 
   await page.goBack();
-  await expect(page).toHaveURL(/\?tag=astro$/);
-  await expect(listing).toHaveAttribute('data-selected-tags', '["astro"]');
-  await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBe(astroPanelY);
+  await expect(page).toHaveURL(/\?tag=alpha$/);
+  await expect(listing).toHaveAttribute('data-selected-tags', '["alpha"]');
+  await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBe(alphaPanelY);
   // The region scroll listener persists in an animation frame. Let that commit before
   // asking the browser to traverse to the other local history entry.
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
   await page.goForward();
-  await expect(page).toHaveURL(/\?tag=astro&tag=git$/);
-  await expect(listing).toHaveAttribute('data-selected-tags', '["astro","git"]');
-  await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBe(astroAndGitPanelY);
+  await expect(page).toHaveURL(/\?tag=beta&tag=alpha$/);
+  await expect(listing).toHaveAttribute('data-selected-tags', '["beta","alpha"]');
+  await expect.poll(() => panel.evaluate((element) => element.scrollTop)).toBe(combinedPanelY);
 
   expect(await main.getAttribute('data-view-navigation-identity')).toBe(mainIdentity);
   expect(await sidebar.getAttribute('data-view-navigation-identity')).toBe(sidebarIdentity);
