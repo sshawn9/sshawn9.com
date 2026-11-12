@@ -924,7 +924,9 @@ html[data-article-sidebar-collapsed]
 }
 
 .article-prose table {
-  width: 100%;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
   display: block;
   overflow-x: auto;
   border-collapse: collapse;
@@ -946,6 +948,8 @@ html[data-article-sidebar-collapsed]
 .article-prose .katex-display {
   box-sizing: border-box;
   max-width: 100%;
+  /* Keep first- and last-line accents inside the clipped scroll container. */
+  padding-block: 0.2em;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-inline: contain;
