@@ -1,6 +1,6 @@
 ---
 title: Frenet 坐标下的车辆运动学
-description: 以后轴中心的最近点投影定义车辆 Frenet 状态，在无侧滑运动学假设下分别推导时间域三状态模型与参考路径弧长域二状态模型，并说明弧长换算、坐标有效域及倒车时的符号约定。
+description: 以后轴中心的最近点投影定义车辆 Frenet 状态，推导时间域三状态模型与参考路径弧长域二状态模型，说明弧长换算与倒车符号约定，并给出局部线性化推导与各阶分项汇总。
 ---
 
 import FigureFocusDialog from '@sshawn9/content-ui/figure-focus-dialog';
@@ -590,6 +590,809 @@ $$
 
 相应地，在上述常用跟踪区域内使用 $s$ 直接求解时，前进从较小的 $s$ 积分到较大的 $s$，倒车则从较大的 $s$ 积分到较小的 $s$。在从 $s_{\mathrm{start}}$ 开始且 $s$ 单调减小的倒车轨迹段上，如果数值实现另外定义递增进度 $\sigma=s_{\mathrm{start}}-s$，则由 $\mathrm{d}/\mathrm{d}\sigma=-\mathrm{d}/\mathrm{d}s$ 可知两个状态方程的右端会整体乘以 $-1$；这是更换自变量造成的结果，不是倒车改变了式 (4)。
 
+## 二状态弧长域模型的局部线性化
+
+本节讨论二状态参考路径弧长域模型在零误差参考运动附近的局部线性化。曲率输入仍为 $\kappa_v$，撇号表示对参考路径弧长 $s$ 的导数。
+
+### 工作点
+
+车辆后轴中心位于参考路径上、航向与路径切向一致时，$d=\varphi=0$。将其代入式 (4)，得到
+
+$$
+d'=0,
+\qquad
+\varphi'=\kappa_v-\kappa_r.
+$$
+
+要保持零误差，还需 $\varphi'=0$，因此曲率输入应为 $\kappa_v=\kappa_r(s)$。选取这条零误差参考运动作为展开中心，工作点记为
+
+$$
+(\bar d,\bar\varphi,\bar\kappa_v)=(0,0,\kappa_r(s)).
+\tag{$\star$}
+$$
+
+该展开中心随 $s$ 处的参考曲率变化。上横线标记展开中心；等号上的 $\star$ 表示将带横线的量取为式 $(\star)$ 给出的值。$d$、$\varphi$、$\kappa_v$ 仍是参与展开的变量，变化量分别为 $d-\bar d$、$\varphi-\bar\varphi$、$\kappa_v-\bar\kappa_v$。
+
+### 原方程的 Taylor 展开
+
+计算每个 $s$ 处的偏导时，将该处的 $\kappa_r(s)$ 作为已知系数，对式 (4) 的两个右端按 $d$、$\varphi$、$\kappa_v$ 展开。下标 $0$、$1$、$2$、$3$ 分别表示常数项、一阶项、二阶项和三阶项；次数按三个变化量的总次数计算。
+
+下面分别推导横向偏差方程的 $D_0,D_1,D_2,D_3$ 和航向误差方程的 $\Phi_0,\Phi_1,\Phi_2,\Phi_3$。每个分项先求偏导并化简，最后将展开中心取为式 $(\star)$ 给出的值；总式中的省略号从四阶项开始 [[5, §1.5(iii), Eq. (1.5.18)]](#ref-nist-taylor)。
+
+$$
+\begin{aligned}
+d'&=D_0+D_1+D_2+D_3+\cdots,\\[2em]
+D_0
+&=(1-\bar d\kappa_r)\tan\bar\varphi\\[2em]
+&\overset{\star}{=}0,\\[2em]
+D_1
+&=\left.\frac{\partial}{\partial d}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)\\[1em]
+&\quad+\left.\frac{\partial}{\partial \varphi}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\varphi-\bar\varphi)\\[1em]
+&\quad+\left.\frac{\partial}{\partial \kappa_v}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\kappa_v-\bar\kappa_v)\\[2em]
+&=\left[-\kappa_r\tan\bar\varphi\right](d-\bar d)\\[1em]
+&\quad+\left[\frac{1-\bar d\kappa_r}{\cos^2\bar\varphi}\right](\varphi-\bar\varphi)\\[1em]
+&\quad+0\cdot(\kappa_v-\bar\kappa_v)\\[2em]
+&=-\kappa_r\tan\bar\varphi(d-\bar d)\\[1em]
+&\quad+\frac{1-\bar d\kappa_r}{\cos^2\bar\varphi}(\varphi-\bar\varphi)\\[2em]
+&\overset{\star}{=}\varphi,\\[2em]
+D_2
+&=\frac12\left.\frac{\partial^2}{\partial d^2}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)^2\\[1em]
+&\quad+\left.\frac{\partial^2}{\partial d\,\partial \varphi}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)(\varphi-\bar\varphi)\\[1em]
+&\quad+\left.\frac{\partial^2}{\partial d\,\partial \kappa_v}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\left.\frac{\partial^2}{\partial \varphi^2}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\varphi-\bar\varphi)^2\\[1em]
+&\quad+\left.\frac{\partial^2}{\partial \varphi\,\partial \kappa_v}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\varphi-\bar\varphi)(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\left.\frac{\partial^2}{\partial \kappa_v^2}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\kappa_v-\bar\kappa_v)^2\\[2em]
+&=\frac12\cdot0\cdot(d-\bar d)^2\\[1em]
+&\quad+\left[-\frac{\kappa_r}{\cos^2\bar\varphi}\right](d-\bar d)(\varphi-\bar\varphi)\\[1em]
+&\quad+0\cdot(d-\bar d)(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\left[\frac{2(1-\bar d\kappa_r)\sin\bar\varphi}{\cos^3\bar\varphi}\right](\varphi-\bar\varphi)^2\\[1em]
+&\quad+0\cdot(\varphi-\bar\varphi)(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\cdot0\cdot(\kappa_v-\bar\kappa_v)^2\\[2em]
+&=-\frac{\kappa_r}{\cos^2\bar\varphi}(d-\bar d)(\varphi-\bar\varphi)\\[1em]
+&\quad+\frac{(1-\bar d\kappa_r)\sin\bar\varphi}{\cos^3\bar\varphi}(\varphi-\bar\varphi)^2\\[2em]
+&\overset{\star}{=}-\kappa_r d\varphi,\\[2em]
+D_3
+&=\frac16\left.\frac{\partial^3}{\partial d^3}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)^3\\[1em]
+&\quad+\frac12\left.\frac{\partial^3}{\partial d^2\,\partial \varphi}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)^2(\varphi-\bar\varphi)\\[1em]
+&\quad+\frac12\left.\frac{\partial^3}{\partial d^2\,\partial \kappa_v}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)^2(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\left.\frac{\partial^3}{\partial d\,\partial \varphi^2}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)(\varphi-\bar\varphi)^2\\[1em]
+&\quad+\left.\frac{\partial^3}{\partial d\,\partial \varphi\,\partial \kappa_v}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)(\varphi-\bar\varphi)(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\left.\frac{\partial^3}{\partial d\,\partial \kappa_v^2}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)(\kappa_v-\bar\kappa_v)^2\\[1em]
+&\quad+\frac16\left.\frac{\partial^3}{\partial \varphi^3}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\varphi-\bar\varphi)^3\\[1em]
+&\quad+\frac12\left.\frac{\partial^3}{\partial \varphi^2\,\partial \kappa_v}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\varphi-\bar\varphi)^2(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\left.\frac{\partial^3}{\partial \varphi\,\partial \kappa_v^2}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\varphi-\bar\varphi)(\kappa_v-\bar\kappa_v)^2\\[1em]
+&\quad+\frac16\left.\frac{\partial^3}{\partial \kappa_v^3}\left[(1-d\kappa_r)\tan\varphi\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\kappa_v-\bar\kappa_v)^3\\[2em]
+&=\frac16\cdot0\cdot(d-\bar d)^3\\[1em]
+&\quad+\frac12\cdot0\cdot(d-\bar d)^2(\varphi-\bar\varphi)\\[1em]
+&\quad+\frac12\cdot0\cdot(d-\bar d)^2(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\left[-\frac{2\kappa_r\sin\bar\varphi}{\cos^3\bar\varphi}\right](d-\bar d)(\varphi-\bar\varphi)^2\\[1em]
+&\quad+0\cdot(d-\bar d)(\varphi-\bar\varphi)(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\cdot0\cdot(d-\bar d)(\kappa_v-\bar\kappa_v)^2\\[1em]
+&\quad+\frac16\left[\frac{2(1-\bar d\kappa_r)(1+2\sin^2\bar\varphi)}{\cos^4\bar\varphi}\right](\varphi-\bar\varphi)^3\\[1em]
+&\quad+\frac12\cdot0\cdot(\varphi-\bar\varphi)^2(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\cdot0\cdot(\varphi-\bar\varphi)(\kappa_v-\bar\kappa_v)^2\\[1em]
+&\quad+\frac16\cdot0\cdot(\kappa_v-\bar\kappa_v)^3\\[2em]
+&=-\frac{\kappa_r\sin\bar\varphi}{\cos^3\bar\varphi}(d-\bar d)(\varphi-\bar\varphi)^2\\[1em]
+&\quad+\frac{(1-\bar d\kappa_r)(1+2\sin^2\bar\varphi)}{3\cos^4\bar\varphi}(\varphi-\bar\varphi)^3\\[2em]
+&\overset{\star}{=}\frac{\varphi^3}{3},\\[3em]
+\varphi'&=\Phi_0+\Phi_1+\Phi_2+\Phi_3+\cdots,\\[2em]
+\Phi_0
+&=\frac{(1-\bar d\kappa_r)\bar\kappa_v}{\cos\bar\varphi}-\kappa_r\\[2em]
+&\overset{\star}{=}0,\\[2em]
+\Phi_1
+&=\left.\frac{\partial}{\partial d}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)\\[1em]
+&\quad+\left.\frac{\partial}{\partial \varphi}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\varphi-\bar\varphi)\\[1em]
+&\quad+\left.\frac{\partial}{\partial \kappa_v}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\kappa_v-\bar\kappa_v)\\[2em]
+&=\left[-\frac{\kappa_r\bar\kappa_v}{\cos\bar\varphi}\right](d-\bar d)\\[1em]
+&\quad+\left[\frac{(1-\bar d\kappa_r)\bar\kappa_v\sin\bar\varphi}{\cos^2\bar\varphi}\right](\varphi-\bar\varphi)\\[1em]
+&\quad+\left[\frac{1-\bar d\kappa_r}{\cos\bar\varphi}\right](\kappa_v-\bar\kappa_v)\\[2em]
+&=-\frac{\kappa_r\bar\kappa_v}{\cos\bar\varphi}(d-\bar d)\\[1em]
+&\quad+\frac{(1-\bar d\kappa_r)\bar\kappa_v\sin\bar\varphi}{\cos^2\bar\varphi}(\varphi-\bar\varphi)\\[1em]
+&\quad+\frac{1-\bar d\kappa_r}{\cos\bar\varphi}(\kappa_v-\bar\kappa_v)\\[2em]
+&\overset{\star}{=}\kappa_v-\kappa_r-\kappa_r^2d,\\[2em]
+\Phi_2
+&=\frac12\left.\frac{\partial^2}{\partial d^2}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)^2\\[1em]
+&\quad+\left.\frac{\partial^2}{\partial d\,\partial \varphi}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)(\varphi-\bar\varphi)\\[1em]
+&\quad+\left.\frac{\partial^2}{\partial d\,\partial \kappa_v}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\left.\frac{\partial^2}{\partial \varphi^2}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\varphi-\bar\varphi)^2\\[1em]
+&\quad+\left.\frac{\partial^2}{\partial \varphi\,\partial \kappa_v}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\varphi-\bar\varphi)(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\left.\frac{\partial^2}{\partial \kappa_v^2}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\kappa_v-\bar\kappa_v)^2\\[2em]
+&=\frac12\cdot0\cdot(d-\bar d)^2\\[1em]
+&\quad+\left[-\frac{\kappa_r\bar\kappa_v\sin\bar\varphi}{\cos^2\bar\varphi}\right](d-\bar d)(\varphi-\bar\varphi)\\[1em]
+&\quad+\left[-\frac{\kappa_r}{\cos\bar\varphi}\right](d-\bar d)(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\left[(1-\bar d\kappa_r)\bar\kappa_v\left(\frac1{\cos\bar\varphi}+\frac{2\sin^2\bar\varphi}{\cos^3\bar\varphi}\right)\right](\varphi-\bar\varphi)^2\\[1em]
+&\quad+\left[\frac{(1-\bar d\kappa_r)\sin\bar\varphi}{\cos^2\bar\varphi}\right](\varphi-\bar\varphi)(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\cdot0\cdot(\kappa_v-\bar\kappa_v)^2\\[2em]
+&=-\frac{\kappa_r\bar\kappa_v\sin\bar\varphi}{\cos^2\bar\varphi}(d-\bar d)(\varphi-\bar\varphi)\\[1em]
+&\quad-\frac{\kappa_r}{\cos\bar\varphi}(d-\bar d)(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac{(1-\bar d\kappa_r)\bar\kappa_v(1+\sin^2\bar\varphi)}{2\cos^3\bar\varphi}(\varphi-\bar\varphi)^2\\[1em]
+&\quad+\frac{(1-\bar d\kappa_r)\sin\bar\varphi}{\cos^2\bar\varphi}(\varphi-\bar\varphi)(\kappa_v-\bar\kappa_v)\\[2em]
+&\overset{\star}{=}-\kappa_r d(\kappa_v-\kappa_r)+\frac{\kappa_r}{2}\varphi^2,\\[2em]
+\Phi_3
+&=\frac16\left.\frac{\partial^3}{\partial d^3}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)^3\\[1em]
+&\quad+\frac12\left.\frac{\partial^3}{\partial d^2\,\partial \varphi}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)^2(\varphi-\bar\varphi)\\[1em]
+&\quad+\frac12\left.\frac{\partial^3}{\partial d^2\,\partial \kappa_v}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)^2(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\left.\frac{\partial^3}{\partial d\,\partial \varphi^2}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)(\varphi-\bar\varphi)^2\\[1em]
+&\quad+\left.\frac{\partial^3}{\partial d\,\partial \varphi\,\partial \kappa_v}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)(\varphi-\bar\varphi)(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\left.\frac{\partial^3}{\partial d\,\partial \kappa_v^2}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(d-\bar d)(\kappa_v-\bar\kappa_v)^2\\[1em]
+&\quad+\frac16\left.\frac{\partial^3}{\partial \varphi^3}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\varphi-\bar\varphi)^3\\[1em]
+&\quad+\frac12\left.\frac{\partial^3}{\partial \varphi^2\,\partial \kappa_v}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\varphi-\bar\varphi)^2(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\left.\frac{\partial^3}{\partial \varphi\,\partial \kappa_v^2}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\varphi-\bar\varphi)(\kappa_v-\bar\kappa_v)^2\\[1em]
+&\quad+\frac16\left.\frac{\partial^3}{\partial \kappa_v^3}\left[\frac{(1-d\kappa_r)\kappa_v}{\cos\varphi}-\kappa_r\right]\right|_{(\bar d,\bar\varphi,\bar\kappa_v)}(\kappa_v-\bar\kappa_v)^3\\[2em]
+&=\frac16\cdot0\cdot(d-\bar d)^3\\[1em]
+&\quad+\frac12\cdot0\cdot(d-\bar d)^2(\varphi-\bar\varphi)\\[1em]
+&\quad+\frac12\cdot0\cdot(d-\bar d)^2(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\left[-\frac{\kappa_r\bar\kappa_v(1+\sin^2\bar\varphi)}{\cos^3\bar\varphi}\right](d-\bar d)(\varphi-\bar\varphi)^2\\[1em]
+&\quad+\left[-\frac{\kappa_r\sin\bar\varphi}{\cos^2\bar\varphi}\right](d-\bar d)(\varphi-\bar\varphi)(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\cdot0\cdot(d-\bar d)(\kappa_v-\bar\kappa_v)^2\\[1em]
+&\quad+\frac16\left[\frac{(1-\bar d\kappa_r)\bar\kappa_v\sin\bar\varphi(5+\sin^2\bar\varphi)}{\cos^4\bar\varphi}\right](\varphi-\bar\varphi)^3\\[1em]
+&\quad+\frac12\left[\frac{(1-\bar d\kappa_r)(1+\sin^2\bar\varphi)}{\cos^3\bar\varphi}\right](\varphi-\bar\varphi)^2(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac12\cdot0\cdot(\varphi-\bar\varphi)(\kappa_v-\bar\kappa_v)^2\\[1em]
+&\quad+\frac16\cdot0\cdot(\kappa_v-\bar\kappa_v)^3\\[2em]
+&=-\frac{\kappa_r\bar\kappa_v(1+\sin^2\bar\varphi)}{2\cos^3\bar\varphi}(d-\bar d)(\varphi-\bar\varphi)^2\\[1em]
+&\quad-\frac{\kappa_r\sin\bar\varphi}{\cos^2\bar\varphi}(d-\bar d)(\varphi-\bar\varphi)(\kappa_v-\bar\kappa_v)\\[1em]
+&\quad+\frac{(1-\bar d\kappa_r)\bar\kappa_v\sin\bar\varphi(5+\sin^2\bar\varphi)}{6\cos^4\bar\varphi}(\varphi-\bar\varphi)^3\\[1em]
+&\quad+\frac{(1-\bar d\kappa_r)(1+\sin^2\bar\varphi)}{2\cos^3\bar\varphi}(\varphi-\bar\varphi)^2(\kappa_v-\bar\kappa_v)\\[2em]
+&\overset{\star}{=}\frac{\kappa_v-\kappa_r-\kappa_r^2d}{2}\varphi^2.
+\end{aligned}
+$$
+
+### 各阶分项汇总
+
+前面已通过偏导计算得到零至三阶分项。利用原式中三角函数在 $\varphi=0$ 处的幂级数，可以继续计算更高阶分项：
+
+$$
+\begin{aligned}
+\tan\varphi
+&=\varphi+\frac{\varphi^3}{3}+\frac{2\varphi^5}{15}+\frac{17\varphi^7}{315}+\cdots,\\[1em]
+\frac1{\cos\varphi}
+&=1+\frac{\varphi^2}{2}+\frac{5\varphi^4}{24}+\frac{61\varphi^6}{720}+\cdots.
+\end{aligned}
+$$
+
+这两个完整级数在 $|\varphi|<\pi/2$ 内分别与原函数相等。将其代回式 (4)，按 $d$、$\varphi$、$\kappa_v-\kappa_r$ 三个变化量的总次数收集，就能确定各阶分项；$\kappa_r$ 作为已知系数，不计入次数。
+
+横向偏差方程中，因子 $1-\kappa_r d$ 只有零次项和一次项。将它与 $\tan\varphi$ 的级数相乘，四至六阶分项分别为
+
+$$
+\begin{aligned}
+d'
+&=(1-\kappa_r d)\left(\varphi+\frac{\varphi^3}{3}+\frac{2\varphi^5}{15}+\cdots\right),\\[2em]
+D_4
+&=(-\kappa_r d)\frac{\varphi^3}{3}
+=-\frac{\kappa_r}{3}d\varphi^3,\\[1em]
+D_5
+&=1\cdot\frac{2\varphi^5}{15}
+=\frac{2\varphi^5}{15},\\[1em]
+D_6
+&=(-\kappa_r d)\frac{2\varphi^5}{15}
+=-\frac{2\kappa_r}{15}d\varphi^5.
+\end{aligned}
+$$
+
+航向误差方程中，先将三角函数前面的因子按展开变量的次数写开：
+
+$$
+\begin{aligned}
+(1-\kappa_r d)\kappa_v
+&=(1-\kappa_r d)\bigl[\kappa_r+(\kappa_v-\kappa_r)\bigr]\\[1em]
+&=\underbrace{\kappa_r}_{\text{零次}}
++\underbrace{\kappa_v-\kappa_r-\kappa_r^2d}_{\text{一次}}\\[1em]
+&\quad-\underbrace{\kappa_r d(\kappa_v-\kappa_r)}_{\text{二次}}.
+\end{aligned}
+$$
+
+再与 $1/\cos\varphi$ 的级数相乘：
+
+$$
+\begin{aligned}
+\varphi'
+&=\Bigl[\kappa_r+(\kappa_v-\kappa_r-\kappa_r^2d)\\[1em]
+&\qquad-\kappa_r d(\kappa_v-\kappa_r)\Bigr]\\[1em]
+&\quad{}\times\left(1+\frac{\varphi^2}{2}+\frac{5\varphi^4}{24}+\frac{61\varphi^6}{720}+\cdots\right)-\kappa_r.
+\end{aligned}
+$$
+
+第一个括号只有零、一、二次项，第二个括号只有偶数次项。因此，四阶来自“零次乘四次”和“二次乘二次”，五阶来自“一次乘四次”，六阶来自“零次乘六次”和“二次乘四次”。将这些乘积相加，得到
+
+$$
+\begin{aligned}
+\Phi_4
+&=\kappa_r\frac{5\varphi^4}{24}
++\bigl[-\kappa_r d(\kappa_v-\kappa_r)\bigr]\frac{\varphi^2}{2}\\[1em]
+&=-\frac{\kappa_r}{2}d(\kappa_v-\kappa_r)\varphi^2
++\frac{5\kappa_r}{24}\varphi^4,\\[2em]
+\Phi_5
+&=(\kappa_v-\kappa_r-\kappa_r^2d)\frac{5\varphi^4}{24}\\[1em]
+&=\frac{5}{24}(\kappa_v-\kappa_r-\kappa_r^2d)\varphi^4,\\[2em]
+\Phi_6
+&=\kappa_r\frac{61\varphi^6}{720}
++\bigl[-\kappa_r d(\kappa_v-\kappa_r)\bigr]\frac{5\varphi^4}{24}\\[1em]
+&=-\frac{5\kappa_r}{24}d(\kappa_v-\kappa_r)\varphi^4
++\frac{61\kappa_r}{720}\varphi^6.
+\end{aligned}
+$$
+
+这些乘积列全了四至六阶的来源，所得系数就是对应 Taylor 分项的准确系数。有限阶累加仍是对原方程的近似；继续计算更高阶分项时，需要使用相应的更高次级数系数。
+
+零至三阶也可用同样的乘法核对，结果与前面的偏导计算一致。以式 $(\star)$ 为展开中心，各阶分项汇总如下，表中列至六阶：
+
+| 阶数     | $d'$ 的分项                            | $\varphi'$ 的分项                                                                             |
+| -------- | -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 零阶     | $D_0=0$                                | $\Phi_0=0$                                                                                    |
+| 一阶     | $D_1=\varphi$                          | $\Phi_1=\kappa_v-\kappa_r-\kappa_r^2d$                                                        |
+| 二阶     | $D_2=-\kappa_r d\varphi$               | $\Phi_2=-\kappa_r d(\kappa_v-\kappa_r)+\dfrac{\kappa_r}{2}\varphi^2$                          |
+| 三阶     | $D_3=\dfrac{\varphi^3}{3}$             | $\Phi_3=\dfrac{\kappa_v-\kappa_r-\kappa_r^2d}{2}\varphi^2$                                    |
+| 四阶     | $D_4=-\dfrac{\kappa_r}{3}d\varphi^3$   | $\Phi_4=-\dfrac{\kappa_r}{2}d(\kappa_v-\kappa_r)\varphi^2+\dfrac{5\kappa_r}{24}\varphi^4$     |
+| 五阶     | $D_5=\dfrac{2\varphi^5}{15}$           | $\Phi_5=\dfrac{5}{24}(\kappa_v-\kappa_r-\kappa_r^2d)\varphi^4$                                |
+| 六阶     | $D_6=-\dfrac{2\kappa_r}{15}d\varphi^5$ | $\Phi_6=-\dfrac{5\kappa_r}{24}d(\kappa_v-\kappa_r)\varphi^4+\dfrac{61\kappa_r}{720}\varphi^6$ |
+| $\vdots$ | $\vdots$                               | $\vdots$                                                                                      |
+
+只保留常数分项和一阶分项，得到局部一阶模型：
+
+$$
+\begin{aligned}
+d'&\approx\varphi,\\[0.5em]
+\varphi'&\approx\kappa_v-\kappa_r-\kappa_r^2d.
+\end{aligned}
+\tag{5}
+$$
+
+式 (5) 适用于 $d,\varphi$ 接近零、$\kappa_v$ 接近该处 $\kappa_r(s)$ 的情形，参考曲率可随 $s$ 变化。
+
+### 固定状态点的数值比较
+
+下面选取六组固定状态点，以式 (4) 直接计算的结果为原式值，分别核对 $d'$ 和 $\varphi'$ 的各阶分项与累加值。这里比较的是瞬时导数，整段运动中的位置和航向预测误差在下一节比较。
+
+百分比按“累加值 $\div$ 原式值 $\times100\%$”计算，$100\%$ 表示一致，负百分比表示符号相反；原式值为零时标为“—”。绝对误差为累加值与原式值之差的绝对值。$d'$ 无量纲，$\varphi'$ 的本阶项、累加值和绝对误差均以 $\mathrm m^{-1}$ 为单位。
+
+数值显示保留六位有效数字，百分比最多保留六位小数；累加、百分比和误差均使用未舍入的数值计算。
+
+#### 1. 仅横向偏差
+
+取 $d=0.2\,\mathrm m$、$\varphi=0\,\mathrm{rad}$、$\kappa_r=0.02\,\mathrm m^{-1}$、$\kappa_v=0.02\,\mathrm m^{-1}$。航向偏差为零，车辆曲率等于参考曲率，用于单独考察横向偏差引起的 $-\kappa_r^2d$ 项。
+
+**横向偏差方程：** 原式值 $d'=0$。
+
+| 阶数 $n$ | 本阶项 $D_n$ | 零阶至本阶累加值 | 占原式值的百分比 | 绝对误差 |
+| :------: | -----------: | ---------------: | ---------------: | -------: |
+|    0     |          $0$ |              $0$ |                — |      $0$ |
+|    1     |          $0$ |              $0$ |                — |      $0$ |
+|    2     |          $0$ |              $0$ |                — |      $0$ |
+|    3     |          $0$ |              $0$ |                — |      $0$ |
+|    4     |          $0$ |              $0$ |                — |      $0$ |
+|    5     |          $0$ |              $0$ |                — |      $0$ |
+|    6     |          $0$ |              $0$ |                — |      $0$ |
+
+**航向误差方程：** 原式值 $\varphi'=\mathord{-8.00000\times10^{-5}}\,\mathrm m^{-1}$。
+
+| 阶数 $n$ |                   本阶项 $\Phi_n$ |                  零阶至本阶累加值 | 占原式值的百分比 |                         绝对误差 |
+| :------: | --------------------------------: | --------------------------------: | ---------------: | -------------------------------: |
+|    0     |                               $0$ |                               $0$ |            $0\%$ | $\mathord{8.00000\times10^{-5}}$ |
+|    1     | $\mathord{-8.00000\times10^{-5}}$ | $\mathord{-8.00000\times10^{-5}}$ |          $100\%$ |                              $0$ |
+|    2     |                               $0$ | $\mathord{-8.00000\times10^{-5}}$ |          $100\%$ |                              $0$ |
+|    3     |                               $0$ | $\mathord{-8.00000\times10^{-5}}$ |          $100\%$ |                              $0$ |
+|    4     |                               $0$ | $\mathord{-8.00000\times10^{-5}}$ |          $100\%$ |                              $0$ |
+|    5     |                               $0$ | $\mathord{-8.00000\times10^{-5}}$ |          $100\%$ |                              $0$ |
+|    6     |                               $0$ | $\mathord{-8.00000\times10^{-5}}$ |          $100\%$ |                              $0$ |
+
+在这个状态点，原式的 $d'=0$、$\varphi'=-\kappa_r^2d$，一阶累加值已与原式完全一致。
+
+#### 2. 仅航向偏差
+
+取 $d=0\,\mathrm m$、$\varphi=0.1\,\mathrm{rad}$、$\kappa_r=0.02\,\mathrm m^{-1}$、$\kappa_v=0.02\,\mathrm m^{-1}$。横向偏差为零，车辆曲率等于参考曲率，此时 $\Phi_1=0$，用于观察航向偏差通过高阶分项影响 $\varphi'$ 的方式。
+
+**横向偏差方程：** 原式值 $d'=\mathord{1.00335\times10^{-1}}$。
+
+| 阶数 $n$ |                     本阶项 $D_n$ |                 零阶至本阶累加值 | 占原式值的百分比 |                         绝对误差 |
+| :------: | -------------------------------: | -------------------------------: | ---------------: | -------------------------------: |
+|    0     |                              $0$ |                              $0$ |            $0\%$ | $\mathord{1.00335\times10^{-1}}$ |
+|    1     | $\mathord{1.00000\times10^{-1}}$ | $\mathord{1.00000\times10^{-1}}$ |    $99.666444\%$ | $\mathord{3.34672\times10^{-4}}$ |
+|    2     |                              $0$ | $\mathord{1.00000\times10^{-1}}$ |    $99.666444\%$ | $\mathord{3.34672\times10^{-4}}$ |
+|    3     | $\mathord{3.33333\times10^{-4}}$ | $\mathord{1.00333\times10^{-1}}$ |    $99.998666\%$ | $\mathord{1.33875\times10^{-6}}$ |
+|    4     |                              $0$ | $\mathord{1.00333\times10^{-1}}$ |    $99.998666\%$ | $\mathord{1.33875\times10^{-6}}$ |
+|    5     | $\mathord{1.33333\times10^{-6}}$ | $\mathord{1.00335\times10^{-1}}$ |    $99.999995\%$ | $\mathord{5.41878\times10^{-9}}$ |
+|    6     |                              $0$ | $\mathord{1.00335\times10^{-1}}$ |    $99.999995\%$ | $\mathord{5.41878\times10^{-9}}$ |
+
+**航向误差方程：** 原式值 $\varphi'=\mathord{1.00418\times10^{-4}}\,\mathrm m^{-1}$。
+
+| 阶数 $n$ |                  本阶项 $\Phi_n$ |                 零阶至本阶累加值 | 占原式值的百分比 |                          绝对误差 |
+| :------: | -------------------------------: | -------------------------------: | ---------------: | --------------------------------: |
+|    0     |                              $0$ |                              $0$ |            $0\%$ |  $\mathord{1.00418\times10^{-4}}$ |
+|    1     |                              $0$ |                              $0$ |            $0\%$ |  $\mathord{1.00418\times10^{-4}}$ |
+|    2     | $\mathord{1.00000\times10^{-4}}$ | $\mathord{1.00000\times10^{-4}}$ |    $99.583375\%$ |  $\mathord{4.18368\times10^{-7}}$ |
+|    3     |                              $0$ | $\mathord{1.00000\times10^{-4}}$ |    $99.583375\%$ |  $\mathord{4.18368\times10^{-7}}$ |
+|    4     | $\mathord{4.16667\times10^{-7}}$ | $\mathord{1.00417\times10^{-4}}$ |    $99.998306\%$ |  $\mathord{1.70134\times10^{-9}}$ |
+|    5     |                              $0$ | $\mathord{1.00417\times10^{-4}}$ |    $99.998306\%$ |  $\mathord{1.70134\times10^{-9}}$ |
+|    6     | $\mathord{1.69444\times10^{-9}}$ | $\mathord{1.00418\times10^{-4}}$ |    $99.999993\%$ | $\mathord{6.89800\times10^{-12}}$ |
+
+在这一状态点，$\varphi'$ 的一阶累加值为零，二阶累加值已达到原式值的 $99.583375\%$。这里的百分比反映导数近似的差异，尚未给出一段运动中的航向预测误差。
+
+#### 3. 横向偏差与曲率输入偏差
+
+取 $d=0.2\,\mathrm m$、$\varphi=0\,\mathrm{rad}$、$\kappa_r=0.02\,\mathrm m^{-1}$、$\kappa_v=0.03\,\mathrm m^{-1}$。航向偏差为零，同时改变横向偏差和曲率输入，用于考察混合项 $-\kappa_r d(\kappa_v-\kappa_r)$。
+
+**横向偏差方程：** 原式值 $d'=0$。
+
+| 阶数 $n$ | 本阶项 $D_n$ | 零阶至本阶累加值 | 占原式值的百分比 | 绝对误差 |
+| :------: | -----------: | ---------------: | ---------------: | -------: |
+|    0     |          $0$ |              $0$ |                — |      $0$ |
+|    1     |          $0$ |              $0$ |                — |      $0$ |
+|    2     |          $0$ |              $0$ |                — |      $0$ |
+|    3     |          $0$ |              $0$ |                — |      $0$ |
+|    4     |          $0$ |              $0$ |                — |      $0$ |
+|    5     |          $0$ |              $0$ |                — |      $0$ |
+|    6     |          $0$ |              $0$ |                — |      $0$ |
+
+**航向误差方程：** 原式值 $\varphi'=\mathord{9.88000\times10^{-3}}\,\mathrm m^{-1}$。
+
+| 阶数 $n$ |                   本阶项 $\Phi_n$ |                 零阶至本阶累加值 | 占原式值的百分比 |                         绝对误差 |
+| :------: | --------------------------------: | -------------------------------: | ---------------: | -------------------------------: |
+|    0     |                               $0$ |                              $0$ |            $0\%$ | $\mathord{9.88000\times10^{-3}}$ |
+|    1     |  $\mathord{9.92000\times10^{-3}}$ | $\mathord{9.92000\times10^{-3}}$ |   $100.404858\%$ | $\mathord{4.00000\times10^{-5}}$ |
+|    2     | $\mathord{-4.00000\times10^{-5}}$ | $\mathord{9.88000\times10^{-3}}$ |          $100\%$ |                              $0$ |
+|    3     |                               $0$ | $\mathord{9.88000\times10^{-3}}$ |          $100\%$ |                              $0$ |
+|    4     |                               $0$ | $\mathord{9.88000\times10^{-3}}$ |          $100\%$ |                              $0$ |
+|    5     |                               $0$ | $\mathord{9.88000\times10^{-3}}$ |          $100\%$ |                              $0$ |
+|    6     |                               $0$ | $\mathord{9.88000\times10^{-3}}$ |          $100\%$ |                              $0$ |
+
+在这个状态点，$\varphi'$ 的一阶绝对误差为 $\mathord{4\times10^{-5}}\,\mathrm m^{-1}$，正好由二阶混合项补足，二阶累加后与原式一致。
+
+#### 4. 横向与航向偏差
+
+取 $d=0.01\,\mathrm m$、$\varphi=0.1\,\mathrm{rad}$、$\kappa_r=0.02\,\mathrm m^{-1}$、$\kappa_v=0.02\,\mathrm m^{-1}$。车辆曲率等于参考曲率，横向偏差和航向偏差同时存在，用于比较两者在 $\varphi'$ 中对应分项的大小。
+
+**横向偏差方程：** 原式值 $d'=\mathord{1.00315\times10^{-1}}$。
+
+| 阶数 $n$ |                       本阶项 $D_n$ |                 零阶至本阶累加值 | 占原式值的百分比 |                         绝对误差 |
+| :------: | ---------------------------------: | -------------------------------: | ---------------: | -------------------------------: |
+|    0     |                                $0$ |                              $0$ |            $0\%$ | $\mathord{1.00315\times10^{-1}}$ |
+|    1     |   $\mathord{1.00000\times10^{-1}}$ | $\mathord{1.00000\times10^{-1}}$ |    $99.686382\%$ | $\mathord{3.14605\times10^{-4}}$ |
+|    2     |  $\mathord{-2.00000\times10^{-5}}$ | $\mathord{9.99800\times10^{-2}}$ |    $99.666444\%$ | $\mathord{3.34605\times10^{-4}}$ |
+|    3     |   $\mathord{3.33333\times10^{-4}}$ | $\mathord{1.00313\times10^{-1}}$ |    $99.998732\%$ | $\mathord{1.27182\times10^{-6}}$ |
+|    4     |  $\mathord{-6.66667\times10^{-8}}$ | $\mathord{1.00313\times10^{-1}}$ |    $99.998666\%$ | $\mathord{1.33848\times10^{-6}}$ |
+|    5     |   $\mathord{1.33333\times10^{-6}}$ | $\mathord{1.00315\times10^{-1}}$ |    $99.999995\%$ | $\mathord{5.15103\times10^{-9}}$ |
+|    6     | $\mathord{-2.66667\times10^{-10}}$ | $\mathord{1.00315\times10^{-1}}$ |    $99.999995\%$ | $\mathord{5.41770\times10^{-9}}$ |
+
+**航向误差方程：** 原式值 $\varphi'=\mathord{9.63983\times10^{-5}}\,\mathrm m^{-1}$。
+
+| 阶数 $n$ |                    本阶项 $\Phi_n$ |                  零阶至本阶累加值 | 占原式值的百分比 |                          绝对误差 |
+| :------: | ---------------------------------: | --------------------------------: | ---------------: | --------------------------------: |
+|    0     |                                $0$ |                               $0$ |            $0\%$ |  $\mathord{9.63983\times10^{-5}}$ |
+|    1     |  $\mathord{-4.00000\times10^{-6}}$ | $\mathord{-4.00000\times10^{-6}}$ |    $-4.149451\%$ |  $\mathord{1.00398\times10^{-4}}$ |
+|    2     |   $\mathord{1.00000\times10^{-4}}$ |  $\mathord{9.60000\times10^{-5}}$ |    $99.586835\%$ |  $\mathord{3.98284\times10^{-7}}$ |
+|    3     |  $\mathord{-2.00000\times10^{-8}}$ |  $\mathord{9.59800\times10^{-5}}$ |    $99.566087\%$ |  $\mathord{4.18284\times10^{-7}}$ |
+|    4     |   $\mathord{4.16667\times10^{-7}}$ |  $\mathord{9.63967\times10^{-5}}$ |    $99.998322\%$ |  $\mathord{1.61767\times10^{-9}}$ |
+|    5     | $\mathord{-8.33333\times10^{-11}}$ |  $\mathord{9.63966\times10^{-5}}$ |    $99.998235\%$ |  $\mathord{1.70100\times10^{-9}}$ |
+|    6     |   $\mathord{1.69444\times10^{-9}}$ |  $\mathord{9.63983\times10^{-5}}$ |    $99.999993\%$ | $\mathord{6.55773\times10^{-12}}$ |
+
+在这个状态点，$\Phi_1=\mathord{-4\times10^{-6}}\,\mathrm m^{-1}$，$\Phi_2=\mathord{10^{-4}}\,\mathrm m^{-1}$，二阶项的绝对值是一阶项的 $25$ 倍。一阶累加值与原式异号，加入二阶项后，累加值达到原式值的 $99.586835\%$。这些结果描述的是该状态点的导数近似，整段运动中的预测偏差还需通过积分比较。
+
+继续累加时，$\varphi'$ 的三阶累加误差略大于二阶累加误差，四阶分项的绝对值也大于三阶分项。因此，各阶分项的大小和累加后的绝对误差需要分别核对。
+
+#### 5. 较大组合偏差
+
+取 $d=0.2\,\mathrm m$、$\varphi=0.3\,\mathrm{rad}$、$\kappa_r=0.05\,\mathrm m^{-1}$、$\kappa_v=0.06\,\mathrm m^{-1}$。三个展开变量均偏离工作点，用于比较组合偏差较大时不同截断阶数的误差。
+
+**横向偏差方程：** 原式值 $d'=\mathord{3.06243\times10^{-1}}$。
+
+| 阶数 $n$ |                      本阶项 $D_n$ |                 零阶至本阶累加值 | 占原式值的百分比 |                         绝对误差 |
+| :------: | --------------------------------: | -------------------------------: | ---------------: | -------------------------------: |
+|    0     |                               $0$ |                              $0$ |            $0\%$ | $\mathord{3.06243\times10^{-1}}$ |
+|    1     |  $\mathord{3.00000\times10^{-1}}$ | $\mathord{3.00000\times10^{-1}}$ |    $97.961459\%$ | $\mathord{6.24289\times10^{-3}}$ |
+|    2     | $\mathord{-3.00000\times10^{-3}}$ | $\mathord{2.97000\times10^{-1}}$ |    $96.981844\%$ | $\mathord{9.24289\times10^{-3}}$ |
+|    3     |  $\mathord{9.00000\times10^{-3}}$ | $\mathord{3.06000\times10^{-1}}$ |    $99.920688\%$ | $\mathord{2.42887\times10^{-4}}$ |
+|    4     | $\mathord{-9.00000\times10^{-5}}$ | $\mathord{3.05910\times10^{-1}}$ |      $99.8913\%$ | $\mathord{3.32887\times10^{-4}}$ |
+|    5     |  $\mathord{3.24000\times10^{-4}}$ | $\mathord{3.06234\times10^{-1}}$ |    $99.997098\%$ | $\mathord{8.88711\times10^{-6}}$ |
+|    6     | $\mathord{-3.24000\times10^{-6}}$ | $\mathord{3.06231\times10^{-1}}$ |     $99.99604\%$ | $\mathord{1.21271\times10^{-5}}$ |
+
+**航向误差方程：** 原式值 $\varphi'=\mathord{1.21770\times10^{-2}}\,\mathrm m^{-1}$。
+
+| 阶数 $n$ |                  本阶项 $\Phi_n$ |                 零阶至本阶累加值 | 占原式值的百分比 |                         绝对误差 |
+| :------: | -------------------------------: | -------------------------------: | ---------------: | -------------------------------: |
+|    0     |                              $0$ |                              $0$ |            $0\%$ | $\mathord{1.21770\times10^{-2}}$ |
+|    1     | $\mathord{9.50000\times10^{-3}}$ | $\mathord{9.50000\times10^{-3}}$ |    $78.015643\%$ | $\mathord{2.67705\times10^{-3}}$ |
+|    2     | $\mathord{2.15000\times10^{-3}}$ | $\mathord{1.16500\times10^{-2}}$ |    $95.671814\%$ | $\mathord{5.27045\times10^{-4}}$ |
+|    3     | $\mathord{4.27500\times10^{-4}}$ | $\mathord{1.20775\times10^{-2}}$ |    $99.182518\%$ | $\mathord{9.95451\times10^{-5}}$ |
+|    4     | $\mathord{7.98750\times10^{-5}}$ | $\mathord{1.21574\times10^{-2}}$ |    $99.838465\%$ | $\mathord{1.96701\times10^{-5}}$ |
+|    5     | $\mathord{1.60312\times10^{-5}}$ | $\mathord{1.21734\times10^{-2}}$ |    $99.970117\%$ | $\mathord{3.63888\times10^{-6}}$ |
+|    6     | $\mathord{2.91937\times10^{-6}}$ | $\mathord{1.21763\times10^{-2}}$ |    $99.994091\%$ | $\mathord{7.19506\times10^{-7}}$ |
+
+#### 6. 直线路径
+
+取 $d=0.2\,\mathrm m$、$\varphi=0.1\,\mathrm{rad}$、$\kappa_r=0\,\mathrm m^{-1}$、$\kappa_v=0.02\,\mathrm m^{-1}$。参考曲率为零，保留非零航向偏差和曲率输入，用于核对直线路径下保留下来的各阶分项。
+
+**横向偏差方程：** 原式值 $d'=\mathord{1.00335\times10^{-1}}$。
+
+| 阶数 $n$ |                     本阶项 $D_n$ |                 零阶至本阶累加值 | 占原式值的百分比 |                         绝对误差 |
+| :------: | -------------------------------: | -------------------------------: | ---------------: | -------------------------------: |
+|    0     |                              $0$ |                              $0$ |            $0\%$ | $\mathord{1.00335\times10^{-1}}$ |
+|    1     | $\mathord{1.00000\times10^{-1}}$ | $\mathord{1.00000\times10^{-1}}$ |    $99.666444\%$ | $\mathord{3.34672\times10^{-4}}$ |
+|    2     |                              $0$ | $\mathord{1.00000\times10^{-1}}$ |    $99.666444\%$ | $\mathord{3.34672\times10^{-4}}$ |
+|    3     | $\mathord{3.33333\times10^{-4}}$ | $\mathord{1.00333\times10^{-1}}$ |    $99.998666\%$ | $\mathord{1.33875\times10^{-6}}$ |
+|    4     |                              $0$ | $\mathord{1.00333\times10^{-1}}$ |    $99.998666\%$ | $\mathord{1.33875\times10^{-6}}$ |
+|    5     | $\mathord{1.33333\times10^{-6}}$ | $\mathord{1.00335\times10^{-1}}$ |    $99.999995\%$ | $\mathord{5.41878\times10^{-9}}$ |
+|    6     |                              $0$ | $\mathord{1.00335\times10^{-1}}$ |    $99.999995\%$ | $\mathord{5.41878\times10^{-9}}$ |
+
+**航向误差方程：** 原式值 $\varphi'=\mathord{2.01004\times10^{-2}}\,\mathrm m^{-1}$。
+
+| 阶数 $n$ |                  本阶项 $\Phi_n$ |                 零阶至本阶累加值 | 占原式值的百分比 |                         绝对误差 |
+| :------: | -------------------------------: | -------------------------------: | ---------------: | -------------------------------: |
+|    0     |                              $0$ |                              $0$ |            $0\%$ | $\mathord{2.01004\times10^{-2}}$ |
+|    1     | $\mathord{2.00000\times10^{-2}}$ | $\mathord{2.00000\times10^{-2}}$ |    $99.500417\%$ | $\mathord{1.00418\times10^{-4}}$ |
+|    2     |                              $0$ | $\mathord{2.00000\times10^{-2}}$ |    $99.500417\%$ | $\mathord{1.00418\times10^{-4}}$ |
+|    3     | $\mathord{1.00000\times10^{-4}}$ | $\mathord{2.01000\times10^{-2}}$ |    $99.997919\%$ | $\mathord{4.18368\times10^{-7}}$ |
+|    4     |                              $0$ | $\mathord{2.01000\times10^{-2}}$ |    $99.997919\%$ | $\mathord{4.18368\times10^{-7}}$ |
+|    5     | $\mathord{4.16667\times10^{-7}}$ | $\mathord{2.01004\times10^{-2}}$ |    $99.999992\%$ | $\mathord{1.70134\times10^{-9}}$ |
+|    6     |                              $0$ | $\mathord{2.01004\times10^{-2}}$ |    $99.999992\%$ | $\mathord{1.70134\times10^{-9}}$ |
+
+参考曲率为零后，两个方程的二、四、六阶分项均为零，因此分别与前一阶的累加值相同。
+
+#### 同一工况按比例缩小
+
+前面固定状态点比较不同截断阶数。下面固定保留至三阶，考察状态与输入逐渐接近展开中心时，近似误差如何变化。保持“较大组合偏差”的 $\kappa_r=0.05\,\mathrm m^{-1}$，将 $d$、$\varphi$、$\kappa_v-\kappa_r$ 同时缩小，比较三阶累加的绝对误差：
+
+| 缩放比例 | $d/\mathrm m$ | $\varphi/\mathrm{rad}$ | $\kappa_v/\mathrm m^{-1}$ |                  $d'$ 的绝对误差 | $\varphi'$ 的绝对误差 $/\mathrm m^{-1}$ |
+| :------: | ------------: | ---------------------: | ------------------------: | -------------------------------: | --------------------------------------: |
+|    1     |         $0.2$ |                  $0.3$ |                    $0.06$ | $\mathord{2.42887\times10^{-4}}$ |        $\mathord{9.95451\times10^{-5}}$ |
+|   0.5    |         $0.1$ |                 $0.15$ |                   $0.055$ | $\mathord{4.54197\times10^{-6}}$ |        $\mathord{5.54383\times10^{-6}}$ |
+|   0.25   |        $0.05$ |                $0.075$ |                  $0.0525$ | $\mathord{3.52270\times10^{-8}}$ |        $\mathord{3.28417\times10^{-7}}$ |
+
+### 轨迹预测误差比较
+
+固定状态点的比较中，一阶累加值可能为零或与原式异号。要判断这些瞬时导数差异对预测的影响，还需比较给定弧长内累积的横向与航向偏差。
+
+将同一段参考路径、同一初始状态和同一曲率输入分别交给原模型与各阶近似模型，比较整段预测的横向位置和航向。各模型均沿自己的状态积分，$d$、$\varphi$ 会随 $s$ 演化。
+
+各组均从 $s=0$ 开始预测，初始状态与曲率输入列在对应表格前。
+
+对截断阶数 $n=1,\ldots,6$，在右端保留各阶分项汇总表的零阶至 $n$ 阶项，并定义预测长度 $L$ 内的最大状态误差：
+
+$$
+\begin{aligned}
+E_{d,n}(L)&=\max_{0\le s\le L}\left|d_n(s)-d_{\text{原式}}(s)\right|,\\[1em]
+E_{\varphi,n}(L)&=\max_{0\le s\le L}\left|\varphi_n(s)-\varphi_{\text{原式}}(s)\right|.
+\end{aligned}
+$$
+
+以下将横向误差换算为毫米、航向误差换算为度，并取 $L=1,5,10\,\mathrm m$。原式和各阶模型均用 RK4 积分，展示结果的步长为 $0.0025\,\mathrm m$，最大值取自整个区间的积分网格。与步长 $0.005\,\mathrm m$ 的重复计算比较，表中显示精度下结果一致；前六组恒曲率工况还与解析轨迹交叉核对。
+
+表格最多保留三位有效数字；小于 $10^{-5}\,\mathrm{mm}$ 或 $10^{-7}\,{}^\circ$ 的结果只报告上界。
+
+#### 工况 1：初始仅有横向偏差
+
+初始状态为 $d(0)=0.2\,\mathrm m$、$\varphi(0)=0\,\mathrm{rad}$；预测区间内固定 $\kappa_r=0.02\,\mathrm m^{-1}$、$\kappa_v=0.02\,\mathrm m^{-1}$。
+
+| 预测长度 $L/\mathrm m$ | 截断阶数 $n$ | 最大横向误差 $E_{d,n}/\mathrm{mm}$ | 最大航向误差 $E_{\varphi,n}/{}^\circ$ |
+| :--------------------: | :----------: | ---------------------------------: | ------------------------------------: |
+|           1            |      1       |      $\mathord{1.60\times10^{-4}}$ |                  $\mathord{<10^{-7}}$ |
+|           1            |      2       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           1            |      3       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           1            |      4       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           1            |      5       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           1            |      6       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           5            |      1       |                          $0.00399$ |                  $\mathord{<10^{-7}}$ |
+|           5            |      2       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           5            |      3       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           5            |      4       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           5            |      5       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           5            |      6       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           10           |      1       |                           $0.0158$ |                  $\mathord{<10^{-7}}$ |
+|           10           |      2       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           10           |      3       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           10           |      4       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           10           |      5       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           10           |      6       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+
+#### 工况 2：初始仅有航向偏差
+
+初始状态为 $d(0)=0\,\mathrm m$、$\varphi(0)=0.1\,\mathrm{rad}$；预测区间内固定 $\kappa_r=0.02\,\mathrm m^{-1}$、$\kappa_v=0.02\,\mathrm m^{-1}$。
+
+| 预测长度 $L/\mathrm m$ | 截断阶数 $n$ | 最大横向误差 $E_{d,n}/\mathrm{mm}$ | 最大航向误差 $E_{\varphi,n}/{}^\circ$ |
+| :--------------------: | :----------: | ---------------------------------: | ------------------------------------: |
+|           1            |      1       |                            $0.285$ |                             $0.00575$ |
+|           1            |      2       |                            $0.335$ |         $\mathord{1.44\times10^{-5}}$ |
+|           1            |      3       |                          $0.00122$ |         $\mathord{2.40\times10^{-5}}$ |
+|           1            |      4       |                          $0.00134$ |                  $\mathord{<10^{-7}}$ |
+|           1            |      5       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           1            |      6       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           5            |      1       |                            $0.557$ |                              $0.0286$ |
+|           5            |      2       |                             $1.66$ |         $\mathord{1.20\times10^{-4}}$ |
+|           5            |      3       |                          $0.00356$ |         $\mathord{1.20\times10^{-4}}$ |
+|           5            |      4       |                          $0.00665$ |         $\mathord{4.97\times10^{-7}}$ |
+|           5            |      5       |      $\mathord{1.49\times10^{-5}}$ |         $\mathord{4.89\times10^{-7}}$ |
+|           5            |      6       |      $\mathord{2.70\times10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           10           |      1       |                             $1.65$ |                              $0.0568$ |
+|           10           |      2       |                             $3.23$ |         $\mathord{7.12\times10^{-4}}$ |
+|           10           |      3       |                          $0.00357$ |         $\mathord{2.38\times10^{-4}}$ |
+|           10           |      4       |                           $0.0129$ |         $\mathord{2.92\times10^{-6}}$ |
+|           10           |      5       |      $\mathord{1.51\times10^{-5}}$ |         $\mathord{9.63\times10^{-7}}$ |
+|           10           |      6       |      $\mathord{5.19\times10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+
+这一工况中，一阶模型在 $1\,\mathrm m$ 内的最大横向误差为 $0.285\,\mathrm{mm}$、最大航向误差为 $0.00575^\circ$；预测长度增至 $10\,\mathrm m$ 后，分别变为 $1.65\,\mathrm{mm}$ 和 $0.0568^\circ$。起点处一阶模型给出 $\varphi'=0$；随后 $d'\approx\varphi$ 使横向偏差发生变化，$-\kappa_r^2d$ 又影响后续航向，因此不能把起点处的导数值理解为整段航向保持不变。
+
+#### 工况 3：横向初始偏差与曲率输入偏差
+
+初始状态为 $d(0)=0.2\,\mathrm m$、$\varphi(0)=0\,\mathrm{rad}$；预测区间内固定 $\kappa_r=0.02\,\mathrm m^{-1}$、$\kappa_v=0.03\,\mathrm m^{-1}$。
+
+| 预测长度 $L/\mathrm m$ | 截断阶数 $n$ | 最大横向误差 $E_{d,n}/\mathrm{mm}$ | 最大航向误差 $E_{\varphi,n}/{}^\circ$ |
+| :--------------------: | :----------: | ---------------------------------: | ------------------------------------: |
+|           1            |      1       |                           $0.0399$ |                             $0.00228$ |
+|           1            |      2       |      $\mathord{1.20\times10^{-4}}$ |         $\mathord{9.21\times10^{-6}}$ |
+|           1            |      3       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           1            |      4       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           1            |      5       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           1            |      6       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           5            |      1       |                             $1.07$ |                              $0.0103$ |
+|           5            |      2       |                           $0.0747$ |                             $0.00114$ |
+|           5            |      3       |      $\mathord{3.45\times10^{-4}}$ |         $\mathord{4.25\times10^{-6}}$ |
+|           5            |      4       |      $\mathord{4.25\times10^{-5}}$ |         $\mathord{6.97\times10^{-7}}$ |
+|           5            |      5       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           5            |      6       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           10           |      1       |                             $5.19$ |                              $0.0139$ |
+|           10           |      2       |                             $1.18$ |                             $0.00901$ |
+|           10           |      3       |                          $0.00756$ |         $\mathord{2.45\times10^{-5}}$ |
+|           10           |      4       |                          $0.00267$ |         $\mathord{2.18\times10^{-5}}$ |
+|           10           |      5       |      $\mathord{1.92\times10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           10           |      6       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+
+#### 工况 4：横向与航向初始偏差
+
+初始状态为 $d(0)=0.01\,\mathrm m$、$\varphi(0)=0.1\,\mathrm{rad}$；预测区间内固定 $\kappa_r=0.02\,\mathrm m^{-1}$、$\kappa_v=0.02\,\mathrm m^{-1}$。
+
+| 预测长度 $L/\mathrm m$ | 截断阶数 $n$ | 最大横向误差 $E_{d,n}/\mathrm{mm}$ | 最大航向误差 $E_{\varphi,n}/{}^\circ$ |
+| :--------------------: | :----------: | ---------------------------------: | ------------------------------------: |
+|           1            |      1       |                            $0.265$ |                             $0.00575$ |
+|           1            |      2       |                            $0.334$ |         $\mathord{1.33\times10^{-5}}$ |
+|           1            |      3       |                          $0.00115$ |         $\mathord{2.40\times10^{-5}}$ |
+|           1            |      4       |                          $0.00134$ |                  $\mathord{<10^{-7}}$ |
+|           1            |      5       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           1            |      6       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           5            |      1       |                            $0.493$ |                              $0.0286$ |
+|           5            |      2       |                             $1.66$ |         $\mathord{1.25\times10^{-4}}$ |
+|           5            |      3       |                          $0.00323$ |         $\mathord{1.20\times10^{-4}}$ |
+|           5            |      4       |                          $0.00664$ |         $\mathord{5.21\times10^{-7}}$ |
+|           5            |      5       |      $\mathord{1.36\times10^{-5}}$ |         $\mathord{4.88\times10^{-7}}$ |
+|           5            |      6       |      $\mathord{2.69\times10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           10           |      1       |                             $1.85$ |                              $0.0568$ |
+|           10           |      2       |                             $3.23$ |         $\mathord{7.23\times10^{-4}}$ |
+|           10           |      3       |                          $0.00323$ |         $\mathord{2.37\times10^{-4}}$ |
+|           10           |      4       |                           $0.0129$ |         $\mathord{2.97\times10^{-6}}$ |
+|           10           |      5       |      $\mathord{1.36\times10^{-5}}$ |         $\mathord{9.62\times10^{-7}}$ |
+|           10           |      6       |      $\mathord{5.18\times10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+
+#### 工况 5：较大组合偏差
+
+初始状态为 $d(0)=0.2\,\mathrm m$、$\varphi(0)=0.3\,\mathrm{rad}$；预测区间内固定 $\kappa_r=0.05\,\mathrm m^{-1}$、$\kappa_v=0.06\,\mathrm m^{-1}$。
+
+| 预测长度 $L/\mathrm m$ | 截断阶数 $n$ | 最大横向误差 $E_{d,n}/\mathrm{mm}$ | 最大航向误差 $E_{\varphi,n}/{}^\circ$ |
+| :--------------------: | :----------: | ---------------------------------: | ------------------------------------: |
+|           1            |      1       |                             $5.65$ |                               $0.154$ |
+|           1            |      2       |                             $9.93$ |                              $0.0298$ |
+|           1            |      3       |                            $0.248$ |                             $0.00597$ |
+|           1            |      4       |                            $0.373$ |                             $0.00116$ |
+|           1            |      5       |                          $0.00943$ |         $\mathord{2.27\times10^{-4}}$ |
+|           1            |      6       |                           $0.0142$ |         $\mathord{4.41\times10^{-5}}$ |
+|           5            |      1       |                             $12.2$ |                               $0.767$ |
+|           5            |      2       |                             $61.5$ |                               $0.128$ |
+|           5            |      3       |                            $0.865$ |                              $0.0342$ |
+|           5            |      4       |                             $2.69$ |                             $0.00574$ |
+|           5            |      5       |                           $0.0327$ |                              $0.0015$ |
+|           5            |      6       |                            $0.118$ |         $\mathord{2.53\times10^{-4}}$ |
+|           10           |      1       |                             $61.4$ |                                $1.47$ |
+|           10           |      2       |                              $140$ |                               $0.162$ |
+|           10           |      3       |                             $1.43$ |                              $0.0736$ |
+|           10           |      4       |                             $6.96$ |                             $0.00784$ |
+|           10           |      5       |                            $0.127$ |                             $0.00363$ |
+|           10           |      6       |                            $0.352$ |         $\mathord{3.82\times10^{-4}}$ |
+
+这一工况在 $10\,\mathrm m$ 内，一阶模型的最大横向、航向误差分别为 $61.4\,\mathrm{mm}$、$1.47^\circ$；二阶模型分别为 $140\,\mathrm{mm}$、$0.162^\circ$。增加到二阶改善了航向预测，却增大了横向预测误差，因此应同时检查两个状态。
+
+#### 工况 6：直线路径
+
+初始状态为 $d(0)=0.2\,\mathrm m$、$\varphi(0)=0.1\,\mathrm{rad}$；预测区间内固定 $\kappa_r=0\,\mathrm m^{-1}$、$\kappa_v=0.02\,\mathrm m^{-1}$。
+
+| 预测长度 $L/\mathrm m$ | 截断阶数 $n$ | 最大横向误差 $E_{d,n}/\mathrm{mm}$ | 最大航向误差 $E_{\varphi,n}/{}^\circ$ |
+| :--------------------: | :----------: | ---------------------------------: | ------------------------------------: |
+|           1            |      1       |                            $0.508$ |                               $0.007$ |
+|           1            |      2       |                            $0.508$ |                               $0.007$ |
+|           1            |      3       |                           $0.0025$ |         $\mathord{3.58\times10^{-5}}$ |
+|           1            |      4       |                           $0.0025$ |         $\mathord{3.58\times10^{-5}}$ |
+|           1            |      5       |      $\mathord{1.25\times10^{-5}}$ |         $\mathord{1.81\times10^{-7}}$ |
+|           1            |      6       |      $\mathord{1.25\times10^{-5}}$ |         $\mathord{1.81\times10^{-7}}$ |
+|           5            |      1       |                             $8.71$ |                              $0.0681$ |
+|           5            |      2       |                             $8.71$ |                              $0.0681$ |
+|           5            |      3       |                           $0.0933$ |         $\mathord{7.65\times10^{-4}}$ |
+|           5            |      4       |                           $0.0933$ |         $\mathord{7.65\times10^{-4}}$ |
+|           5            |      5       |                           $0.0011$ |         $\mathord{9.20\times10^{-6}}$ |
+|           5            |      6       |                           $0.0011$ |         $\mathord{9.20\times10^{-6}}$ |
+|           10           |      1       |                             $50.6$ |                               $0.259$ |
+|           10           |      2       |                             $50.6$ |                               $0.259$ |
+|           10           |      3       |                             $1.16$ |                             $0.00627$ |
+|           10           |      4       |                             $1.16$ |                             $0.00627$ |
+|           10           |      5       |                           $0.0306$ |         $\mathord{1.69\times10^{-4}}$ |
+|           10           |      6       |                           $0.0306$ |         $\mathord{1.69\times10^{-4}}$ |
+
+#### 工况 7：参考曲率与输入曲率随弧长变化
+
+初始状态为 $d(0)=0.2\,\mathrm m$、$\varphi(0)=0.1\,\mathrm{rad}$；参考曲率与车辆曲率输入分别为
+
+$$
+\begin{aligned}
+\kappa_r(s)&=\left(0.02+0.01\sin\frac{\pi s}{10\,\mathrm m}\right)\mathrm m^{-1},\\[1em]
+\kappa_v(s)&=\kappa_r(s)+0.005\cos\frac{\pi s}{5\,\mathrm m}\,\mathrm m^{-1}.
+\end{aligned}
+$$
+
+| 预测长度 $L/\mathrm m$ | 截断阶数 $n$ | 最大横向误差 $E_{d,n}/\mathrm{mm}$ | 最大航向误差 $E_{\varphi,n}/{}^\circ$ |
+| :--------------------: | :----------: | ---------------------------------: | ------------------------------------: |
+|           1            |      1       |                            $0.145$ |                             $0.00644$ |
+|           1            |      2       |                             $0.37$ |                             $0.00139$ |
+|           1            |      3       |      $\mathord{2.27\times10^{-4}}$ |         $\mathord{2.70\times10^{-5}}$ |
+|           1            |      4       |                          $0.00156$ |         $\mathord{6.07\times10^{-6}}$ |
+|           1            |      5       |               $\mathord{<10^{-5}}$ |         $\mathord{1.14\times10^{-7}}$ |
+|           1            |      6       |               $\mathord{<10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           5            |      1       |                             $2.95$ |                              $0.0468$ |
+|           5            |      2       |                             $2.01$ |                             $0.00236$ |
+|           5            |      3       |                          $0.00774$ |         $\mathord{2.19\times10^{-4}}$ |
+|           5            |      4       |                          $0.00887$ |         $\mathord{1.06\times10^{-5}}$ |
+|           5            |      5       |      $\mathord{3.26\times10^{-5}}$ |         $\mathord{9.81\times10^{-7}}$ |
+|           5            |      6       |      $\mathord{3.96\times10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+|           10           |      1       |                             $6.93$ |                              $0.0791$ |
+|           10           |      2       |                             $3.07$ |                             $0.00318$ |
+|           10           |      3       |                          $0.00967$ |         $\mathord{3.42\times10^{-4}}$ |
+|           10           |      4       |                           $0.0124$ |         $\mathord{1.23\times10^{-5}}$ |
+|           10           |      5       |      $\mathord{3.51\times10^{-5}}$ |         $\mathord{1.42\times10^{-6}}$ |
+|           10           |      6       |      $\mathord{5.16\times10^{-5}}$ |                  $\mathord{<10^{-7}}$ |
+
+这些结果衡量同输入下的模型预测误差。选择截断阶数时，应将所需预测长度下的位置、航向误差与具体允许值比较；闭环控制是否达标，还需在原模型上运行实际控制器，并比较跟踪误差、收敛距离和曲率输入。
+
+### 省略耦合项的一阶模型预测误差
+
+前面比较的是保留不同 Taylor 阶数时的预测误差。在式 (5) 中，$-\kappa_r^2d$ 属于一阶分项；继续省略这一耦合项，是在一阶模型上进一步近似，得到
+
+$$
+\begin{aligned}
+d'&\approx\varphi,\\[0.5em]
+\varphi'&\approx\kappa_v-\kappa_r.
+\end{aligned}
+$$
+
+由前文的 $\theta=\varphi+\theta_r$ 和 $\theta_r'=\kappa_r$，有
+
+$$
+\begin{aligned}
+\theta'
+&=\varphi'+\theta_r'\\[0.5em]
+&\approx(\kappa_v-\kappa_r)+\kappa_r\\[0.5em]
+&=\kappa_v,\\[1em]
+d'&\approx\theta-\theta_r.
+\end{aligned}
+$$
+
+在这个简化模型中，航向方程只含车辆曲率输入，参考路径通过 $\theta_r$ 进入横向偏差方程。
+
+两种近似模型均取 $d'=\varphi$；表中“保留”取 $\varphi'=\kappa_v-\kappa_r-\kappa_r^2d$，“省略”取 $\varphi'=\kappa_v-\kappa_r$。两种近似模型分别与原非线性模型比较，三者使用相同的初始状态、参考曲率和车辆曲率输入，并各自沿自身状态积分。
+
+各组均从 $s=0$ 开始预测，预测长度取 $L=1,5,10\,\mathrm m$。初始状态与曲率输入列在对应表格前，预测区间内的最大横向、航向误差定义为
+
+$$
+\begin{aligned}
+E_d(L)&=\max_{0\le s\le L}\left|d_{\text{近似}}(s)-d_{\text{原式}}(s)\right|,\\[1em]
+E_\varphi(L)&=\max_{0\le s\le L}\left|\varphi_{\text{近似}}(s)-\varphi_{\text{原式}}(s)\right|.
+\end{aligned}
+$$
+
+原模型与两种近似模型均采用四阶 Runge–Kutta（RK4）法积分，弧长步长为 $0.0025\,\mathrm m$，最大误差取自整个预测区间的积分网格。
+
+表中横向误差以毫米列出，航向误差以度列出，最多保留三位有效数字；小于 $10^{-5}\,\mathrm{mm}$ 或 $10^{-7}\,{}^\circ$ 的结果只报告上界。
+
+#### 对照 1：初始仅有横向偏差
+
+初始状态为 $d(0)=0.2\,\mathrm m$、$\varphi(0)=0\,\mathrm{rad}$；预测区间内固定 $\kappa_r=0.02\,\mathrm m^{-1}$、$\kappa_v=0.02\,\mathrm m^{-1}$。
+
+| $L/\mathrm m$ | $-\kappa_r^2d$ 项 |             $E_d/\mathrm{mm}$ | $E_\varphi/{}^\circ$ |
+| :-----------: | :---------------: | ----------------------------: | -------------------: |
+|       1       |       保留        | $\mathord{1.60\times10^{-4}}$ | $\mathord{<10^{-7}}$ |
+|       1       |       省略        |                      $0.0398$ |            $0.00458$ |
+|       5       |       保留        |                     $0.00399$ | $\mathord{<10^{-7}}$ |
+|       5       |       省略        |                       $0.995$ |             $0.0229$ |
+|      10       |       保留        |                      $0.0158$ | $\mathord{<10^{-7}}$ |
+|      10       |       省略        |                        $3.97$ |             $0.0455$ |
+
+这一工况在 $10\,\mathrm m$ 内，保留项的最大横向误差为 $0.0158\,\mathrm{mm}$，省略后为 $3.97\,\mathrm{mm}$，最大航向误差也从表中显示精度以下增至 $0.0455^\circ$。
+
+#### 对照 2：初始仅有航向偏差
+
+初始状态为 $d(0)=0\,\mathrm m$、$\varphi(0)=0.1\,\mathrm{rad}$；预测区间内固定 $\kappa_r=0.02\,\mathrm m^{-1}$、$\kappa_v=0.02\,\mathrm m^{-1}$。
+
+| $L/\mathrm m$ | $-\kappa_r^2d$ 项 | $E_d/\mathrm{mm}$ | $E_\varphi/{}^\circ$ |
+| :-----------: | :---------------: | ----------------: | -------------------: |
+|       1       |       保留        |           $0.285$ |            $0.00575$ |
+|       1       |       省略        |           $0.278$ |             $0.0046$ |
+|       5       |       保留        |           $0.557$ |             $0.0286$ |
+|       5       |       省略        |           $0.423$ |            $0.00719$ |
+|      10       |       保留        |            $1.65$ |             $0.0568$ |
+|      10       |       省略        |            $8.31$ |             $0.0574$ |
+
+这一工况在 $5\,\mathrm m$ 内，省略项的最大横向、航向误差分别为 $0.423\,\mathrm{mm}$、$0.00719^\circ$，均小于保留项的 $0.557\,\mathrm{mm}$、$0.0286^\circ$；但在 $10\,\mathrm m$ 内，省略项的最大横向误差增至 $8.31\,\mathrm{mm}$，保留项为 $1.65\,\mathrm{mm}$。
+
+#### 对照 3：横向初始偏差与曲率输入偏差
+
+初始状态为 $d(0)=0.2\,\mathrm m$、$\varphi(0)=0\,\mathrm{rad}$；预测区间内固定 $\kappa_r=0.02\,\mathrm m^{-1}$、$\kappa_v=0.03\,\mathrm m^{-1}$。
+
+| $L/\mathrm m$ | $-\kappa_r^2d$ 项 | $E_d/\mathrm{mm}$ | $E_\varphi/{}^\circ$ |
+| :-----------: | :---------------: | ----------------: | -------------------: |
+|       1       |       保留        |          $0.0399$ |            $0.00228$ |
+|       1       |       省略        |            $0.08$ |             $0.0069$ |
+|       5       |       保留        |            $1.07$ |             $0.0103$ |
+|       5       |       省略        |            $2.17$ |             $0.0379$ |
+|      10       |       保留        |            $5.19$ |             $0.0139$ |
+|      10       |       省略        |            $10.8$ |             $0.0974$ |
+
+#### 对照 4：横向与航向初始偏差
+
+初始状态为 $d(0)=0.01\,\mathrm m$、$\varphi(0)=0.1\,\mathrm{rad}$；预测区间内固定 $\kappa_r=0.02\,\mathrm m^{-1}$、$\kappa_v=0.02\,\mathrm m^{-1}$。
+
+| $L/\mathrm m$ | $-\kappa_r^2d$ 项 | $E_d/\mathrm{mm}$ | $E_\varphi/{}^\circ$ |
+| :-----------: | :---------------: | ----------------: | -------------------: |
+|       1       |       保留        |           $0.265$ |            $0.00575$ |
+|       1       |       省略        |           $0.256$ |            $0.00437$ |
+|       5       |       保留        |           $0.493$ |             $0.0286$ |
+|       5       |       省略        |           $0.567$ |            $0.00663$ |
+|      10       |       保留        |            $1.85$ |             $0.0568$ |
+|      10       |       省略        |             $8.7$ |             $0.0597$ |
+
+#### 对照 5：较大组合偏差
+
+初始状态为 $d(0)=0.2\,\mathrm m$、$\varphi(0)=0.3\,\mathrm{rad}$；预测区间内固定 $\kappa_r=0.05\,\mathrm m^{-1}$、$\kappa_v=0.06\,\mathrm m^{-1}$。
+
+| $L/\mathrm m$ | $-\kappa_r^2d$ 项 | $E_d/\mathrm{mm}$ | $E_\varphi/{}^\circ$ |
+| :-----------: | :---------------: | ----------------: | -------------------: |
+|       1       |       保留        |            $5.65$ |              $0.154$ |
+|       1       |       省略        |            $5.27$ |              $0.104$ |
+|       5       |       保留        |            $12.2$ |              $0.767$ |
+|       5       |       省略        |            $13.8$ |              $0.178$ |
+|      10       |       保留        |            $61.4$ |               $1.47$ |
+|      10       |       省略        |             $220$ |               $1.15$ |
+
+#### 对照 6：直线路径
+
+初始状态为 $d(0)=0.2\,\mathrm m$、$\varphi(0)=0.1\,\mathrm{rad}$；预测区间内固定 $\kappa_r=0\,\mathrm m^{-1}$、$\kappa_v=0.02\,\mathrm m^{-1}$。
+
+| $L/\mathrm m$ | $-\kappa_r^2d$ 项 | $E_d/\mathrm{mm}$ | $E_\varphi/{}^\circ$ |
+| :-----------: | :---------------: | ----------------: | -------------------: |
+|       1       |       保留        |           $0.508$ |              $0.007$ |
+|       1       |       省略        |           $0.508$ |              $0.007$ |
+|       5       |       保留        |            $8.71$ |             $0.0681$ |
+|       5       |       省略        |            $8.71$ |             $0.0681$ |
+|      10       |       保留        |            $50.6$ |              $0.259$ |
+|      10       |       省略        |            $50.6$ |              $0.259$ |
+
+直线路径的 $\kappa_r=0$，耦合项本身为零，两种模型在三个预测长度下的结果完全一致。
+
+#### 对照 7：参考曲率与输入曲率随弧长变化
+
+初始状态为 $d(0)=0.2\,\mathrm m$、$\varphi(0)=0.1\,\mathrm{rad}$；参考曲率与车辆曲率输入分别为
+
+$$
+\begin{aligned}
+\kappa_r(s)&=\left(0.02+0.01\sin\frac{\pi s}{10\,\mathrm m}\right)\mathrm m^{-1},\\[1em]
+\kappa_v(s)&=\kappa_r(s)+0.005\cos\frac{\pi s}{5\,\mathrm m}\,\mathrm m^{-1}.
+\end{aligned}
+$$
+
+| $L/\mathrm m$ | $-\kappa_r^2d$ 项 | $E_d/\mathrm{mm}$ |          $E_\varphi/{}^\circ$ |
+| :-----------: | :---------------: | ----------------: | ----------------------------: |
+|       1       |       保留        |           $0.145$ |                     $0.00644$ |
+|       1       |       省略        |           $0.197$ | $\mathord{3.25\times10^{-4}}$ |
+|       5       |       保留        |            $2.95$ |                      $0.0468$ |
+|       5       |       省略        |            $6.04$ |                      $0.0532$ |
+|      10       |       保留        |            $6.93$ |                      $0.0791$ |
+|      10       |       省略        |            $27.3$ |                       $0.207$ |
+
+省略这一耦合项的影响需要结合工况、预测长度以及横向和航向两项误差共同判断。
+
 ## 参考文献
 
 <ol>
@@ -643,6 +1446,14 @@ $$
     , <cite>Research in the Mathematical Sciences</cite>, 3, Article 3, 2016, doi:
     10.1186/s40687-016-0053-1, §2.1, Eq. (4), Proposition 2 and Theorem 3.
     本文使用该文献说明最近点映射及其管状邻域中的一般正则性背景。
+  </li>
+  <li id="ref-nist-taylor">
+    <cite>
+      <a href="https://dlmf.nist.gov/1.5.iii" target="_blank" rel="noopener noreferrer">
+        NIST Digital Library of Mathematical Functions
+      </a>
+    </cite>
+    , §1.5(iii), Eq. (1.5.18). 本文使用该资料核对多变量 Taylor 展开公式。
   </li>
 </ol>
 
