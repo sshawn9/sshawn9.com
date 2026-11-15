@@ -75,7 +75,7 @@ jobs:
         run: devenv shell npm run deployment:preview-alias
       - name: Deploy preview to Cloudflare Workers
         id: deploy
-        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: '4.129.0'
@@ -139,7 +139,7 @@ jobs:
             --output "$INVENTORY_REPORT_DIRECTORY" --summary "$GITHUB_STEP_SUMMARY"
       - name: Deploy production to Cloudflare Workers
         id: deploy
-        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: '4.129.0'
