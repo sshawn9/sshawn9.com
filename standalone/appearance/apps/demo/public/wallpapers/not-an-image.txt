@@ -1,0 +1,1 @@
+This deliberately invalid image payload belongs only to the demo failure laboratory.

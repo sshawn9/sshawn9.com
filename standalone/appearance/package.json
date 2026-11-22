@@ -1,0 +1,26 @@
+{
+  "name": "appearance-experiment",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/appearance",
+    "apps/demo"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "npm run build -w @sshawn9/appearance && npm run build -w appearance-demo",
+    "typecheck": "npm run check -w @sshawn9/appearance && npm run check -w appearance-demo",
+    "test:unit": "node --test tests/unit/*.test.mjs",
+    "test:browser": "playwright test",
+    "test": "npm run build && npm run typecheck && npm run test:unit && npm run test:browser",
+    "dev": "npm run build -w @sshawn9/appearance && npm run dev -w appearance-demo",
+    "pack": "npm pack -w @sshawn9/appearance --pack-destination .artifacts",
+    "test:consumer": "node scripts/consumer.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "typescript": "6.0.3"
+  }
+}
